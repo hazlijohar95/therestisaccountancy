@@ -1,4 +1,4 @@
-// Compile-time contract for the public types. `npm test` type-checks this file; a wrong line fails the build.
+// Compile-time contract for the public types. `pnpm test` type-checks this file; a wrong line fails it.
 import type { ClubLogoProps, PodcastLogoProps } from "../src/logo/index.js";
 import type { ThemeRole } from "../src/index.js";
 

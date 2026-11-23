@@ -4,7 +4,8 @@ import { json, pngSize, read, size, walk } from './helpers.mjs';
 
 const catalog = json('assets/logos/catalog.json');
 const svgs = walk('assets/logos').filter((f) => f.endsWith('.svg'));
-const PALETTE_FILLS = new Set(['#231F20', '#FFFFFF', '#F7D52A']);
+const { ink, paper, tape } = json('tokens/tokens.json').color;
+const PALETTE_FILLS = new Set([ink, paper, tape].map((c) => c.$value));
 const MAX_SVG = 80 * 1024;
 
 test('the catalog lists every logo file, and only those', () => {

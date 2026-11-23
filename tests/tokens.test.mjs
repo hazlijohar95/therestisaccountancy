@@ -6,7 +6,7 @@ import { ROOT, isGrey, json, read } from './helpers.mjs';
 
 const tokens = json('tokens/tokens.json');
 const palette = Object.fromEntries(Object.entries(tokens.color).filter(([k]) => !k.startsWith('$')).map(([k, v]) => [k, v.$value]));
-const resolve = (ref) => (ref.startsWith('#') ? ref : palette[ref]);
+const resolve = (ref) => palette[ref];
 const brands = Object.entries(tokens.theme).filter(([k]) => !k.startsWith('$'));
 
 test('every palette colour is a six-digit hex with a description', () => {
@@ -23,7 +23,7 @@ test('every theme role resolves, in both brands and both modes', () => {
     assert.deepEqual(Object.keys(map).sort(), [...roles].sort(), `${brand} defines a different set of roles`);
     for (const [role, pair] of Object.entries(map)) {
       assert.equal(pair.length, 2, `${brand}.${role} needs [light, dark]`);
-      for (const ref of pair) assert.ok(resolve(ref), `${brand}.${role} -> ${ref} is not a palette colour or hex`);
+      for (const ref of pair) assert.ok(resolve(ref), `${brand}.${role} -> ${ref} is not a palette colour`);
     }
   }
 });
@@ -42,7 +42,7 @@ test('the contrast contract passes', () => {
 
 test('css/tokens.css is exactly what the build would write', () => {
   const printed = execFileSync(process.execPath, [join(ROOT, 'scripts/build-tokens.mjs'), '--print'], { encoding: 'utf8' });
-  assert.equal(read('css/tokens.css'), printed, 'run: node scripts/build-tokens.mjs');
+  assert.equal(read('css/tokens.css'), printed, 'run: pnpm build:tokens');
 });
 
 test('every per-brand style token is defined for both brands', () => {

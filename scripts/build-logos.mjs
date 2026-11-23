@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Render every logo file from the React components, so files and components can never drift.
-// Usage: npm run build:logos   (compiles first; PNGs need librsvg's rsvg-convert on PATH)
+// Usage: pnpm build:logos   (compiles first; PNGs need librsvg's rsvg-convert on PATH)
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

@@ -3,6 +3,11 @@
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
   const root = document.documentElement;
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const rootStyle = getComputedStyle(root);
+  const color = (name) => rootStyle.getPropertyValue(`--color-${name}`).trim();
+  const getJson = (path) => fetch(path).then((r) => r.json());
+  const tokensReady = getJson('tokens/tokens.json');
+  const catalogReady = getJson('assets/logos/catalog.json');
   const store = {
     get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage unavailable */ } },
@@ -70,13 +75,8 @@
     for (const tr of $$('tbody tr', table)) $$('td', tr).forEach((td, i) => { td.dataset.l = heads[i + 1] || ''; });
   }
 
-  /* ---------- Host photos fall back to the drawn placeholder ---------- */
-  const placeholder = 'assets/hosts/placeholder.svg';
-  const useFallback = (img) => { if (!img.src.endsWith(placeholder)) img.src = placeholder; };
-  for (const img of $$('img[data-fallback]')) {
-    img.addEventListener('error', () => useFallback(img));
-    if (img.complete && img.naturalWidth === 0) useFallback(img);
-  }
+  /* ---------- Marquee: the second track is a copy of the first ---------- */
+  for (const track of $$('.marquee > div')) track.after(track.cloneNode(true));
 
   /* ---------- Tokens: palette, contrast, ladder, facts, spacing ---------- */
   const luminance = (hex) => {
@@ -87,26 +87,25 @@
   const contrast = (a, b) => { const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
   const rgb = (hex) => { const n = parseInt(hex.slice(1), 16); return `${n >> 16} ${(n >> 8) & 255} ${n & 255}`; };
   const own = (o) => Object.entries(o).filter(([k]) => !k.startsWith('$'));
-  const names = { ink: 'Ink', night: 'Night', paper: 'Paper', tape: 'Tape', highlighter: 'Highlighter', redline: 'Redline' };
+  const words = (key) => key.replace(/[A-Z]/g, (c) => ` ${c.toLowerCase()}`);
 
-  fetch('tokens/tokens.json').then((r) => r.json()).then((t) => {
+  tokensReady.then((t) => {
     const palette = own(t.color);
     const hexOf = Object.fromEntries(palette.map(([k, v]) => [k, v.$value]));
     $('#palette').innerHTML = palette.map(([k, v]) => {
       const hex = v.$value;
-      const ink = contrast(hex, '#231F20') >= contrast(hex, '#FFFFFF') ? '#231F20' : '#FFFFFF';
-      return `<button class="chiprow" type="button" style="background:${hex};color:${ink}" data-hex="${hex}" aria-label="Copy ${names[k] || k}, ${hex}"><span class="nm">${names[k] || k}</span><span class="meta"><span class="hex">${hex}</span><span>RGB ${rgb(hex)}</span><span>${v.$description}</span></span></button>`;
+      const ink = contrast(hex, hexOf.ink) >= contrast(hex, hexOf.paper) ? hexOf.ink : hexOf.paper;
+      return `<button class="chiprow" type="button" style="background:${hex};color:${ink}" data-hex="${hex}" aria-label="Copy ${words(k)}, ${hex}"><span class="nm">${words(k)}</span><span class="meta"><span class="hex">${hex}</span><span>RGB ${rgb(hex)}</span></span></button>`;
     }).join('');
     for (const b of $$('.chiprow')) b.addEventListener('click', (e) => copy(b.dataset.hex, b, e));
 
-    const resolve = (ref) => (ref.startsWith('#') ? ref : hexOf[ref]);
     const cols = [['club', 0], ['club', 1], ['podcast', 0], ['podcast', 1]];
     let passed = 0;
     let total = 0;
     $('#pairs tbody').innerHTML = t.contract.pairs.map(([fg, bg, min]) => {
       const cells = cols.map(([brand, i]) => {
-        const f = resolve(t.theme[brand][fg][i]);
-        const b = resolve(t.theme[brand][bg][i]);
+        const f = hexOf[t.theme[brand][fg][i]];
+        const b = hexOf[t.theme[brand][bg][i]];
         const r = contrast(f, b);
         total += 1;
         if (r >= min) passed += 1;
@@ -117,11 +116,13 @@
 
     const facts = { brands: own(t.theme).length, colours: palette.length, faces: own(t.font).length, checks: passed };
     for (const [k, v] of Object.entries(facts)) $(`[data-fact="${k}"]`).textContent = v;
-    $('[data-fact="checks"]').nextElementSibling.textContent = `of ${total} contrast checks pass`;
+    $('[data-fact="checks"]').nextElementSibling.textContent = `of ${total} contrast checks`;
 
-    const sample = { poster: 'Taxes.', title: 'One system, two voices.', head: 'Who signs off the AI audit?', lead: 'Lecturers, graduates and a hiring partner on the gap.', body: 'Body copy sits at 17px with 1.55 leading, under 70 characters a line.', small: 'Captions, hints and table text.', label: 'Labels and meta' };
+    const sample = { poster: 'Taxes.', title: 'Two voices.', head: 'Who signs off the AI audit?', lead: 'Lecturers, graduates and a hiring partner on the gap.', body: 'Body copy sits at 17px with 1.55 leading, under 70 characters a line.', small: 'Captions, hints and table text.', label: 'Labels and meta' };
     const serif = ['poster', 'title', 'head'];
-    $('#ladder').innerHTML = own(t.size).map(([k, v]) => `<div class="step"><span class="label"><b>${k}</b><span>${v.$value.replace('clamp', '')}</span></span><div class="${serif.includes(k) ? `display ${k}` : k}" style="font-size:var(--size-${k})">${sample[k]}</div></div>`).join('');
+    // A fluid size shows its range, a fixed one its value, both in px at the default 16px root.
+    const range = (value) => { const px = value.match(/[\d.]+(?=rem)/g).map((rem) => Math.round(rem * 16)); return px.length > 1 ? `${px[0]}–${px.at(-1)}px` : `${px[0]}px`; };
+    $('#ladder').innerHTML = own(t.size).map(([k, v]) => `<div class="step"><span class="label"><b>${k}</b><span>${range(v.$value)}</span></span><div class="${serif.includes(k) ? `display ${k}` : k}" style="font-size:var(--size-${k})">${sample[k]}</div></div>`).join('');
 
     $('#spaces').innerHTML = own(t.space).map(([k, v]) => `<div><i style="width:${v.$value}"></i><code>space-${k} · ${v.$value}</code></div>`).join('');
   }).catch(() => {
@@ -133,13 +134,13 @@
   const variantName = { color: 'Colour', reversed: 'Reversed', mono: 'Mono' };
   const ground = { color: ['var(--color-paper)', 'var(--color-ink)'], reversed: ['var(--color-night)', 'var(--color-paper)'], mono: ['var(--color-tape)', 'var(--color-ink)'] };
   const kb = (n) => `${Math.round(n / 1024)} KB`;
-  fetch('assets/logos/catalog.json').then((r) => r.json()).then((catalog) => {
+  catalogReady.then((catalog) => {
     $('#logo-files').innerHTML = catalog.map((e, i) => {
       // Mono shows on the brand's own ground: tape for the podcast (to show the knockout), paper for the club.
       const [bg, fg] = e.variant === 'mono' && e.brand === 'club' ? ground.color : ground[e.variant];
       const brandName = e.brand === 'club' ? 'The Rest Is Accountancy' : 'Stick to Accounting';
       const art = e.variant === 'mono'
-        ? `<span class="mono-art" style="aspect-ratio:${e.aspect};-webkit-mask-image:url('${e.file}');mask-image:url('${e.file}')" role="img" aria-label="${brandName}, mono"></span>`
+        ? `<span class="mono-art" style="aspect-ratio:${e.aspect};mask-image:url('${e.file}')" role="img" aria-label="${brandName}, mono"></span>`
         : `<img src="${e.file}" alt="${brandName}, ${variantName[e.variant].toLowerCase()}" style="aspect-ratio:${e.aspect}">`;
       const png = e.png ? `<button class="chip" type="button" data-save="${i}" data-format="png">PNG</button>` : '';
       const size = e.pngSize ? ` · PNG ${e.pngSize.join(' × ')}` : ' · currentColor';
@@ -160,12 +161,13 @@
   }).catch(() => { $('#logo-files').innerHTML = '<p class="small" style="padding:16px">Serve this folder over http to load the logo catalog.</p>'; });
 
   /* ---------- Logo ground test ---------- */
+  const replay = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
   const busy = 'repeating-linear-gradient(45deg,#c7b9a3 0 18px,#5d7d8c 18px 36px,#d9c7a0 36px 54px)';
   const grounds = [
-    { label: 'Paper', bg: '#FFFFFF', tone: 'light', ok: { club: true, podcast: true }, note: { club: 'Clean paper. The club in ink.', podcast: 'Paper is the logo’s ground. The yellow is for the page around it.' } },
-    { label: 'Night', bg: '#000000', tone: 'dark', ok: { club: true, podcast: true }, note: { club: 'The club’s home ground. Reversed wordmark.', podcast: 'Use the reversed file. Its tape is tuned darker.' } },
-    { label: 'Tape', bg: '#F7D52A', tone: 'light', ok: { club: false, podcast: false }, note: { club: 'The club never uses yellow.', podcast: 'Tape on tape: the label vanishes. Put the logo on a white or black panel inside the yellow.' } },
-    { label: 'Red', bg: '#C8291D', tone: 'dark', ok: { club: false, podcast: false }, note: { club: 'Redline is for corrections only. Never a ground.', podcast: 'Redline is for corrections only. Never a ground.' } },
+    { label: 'Paper', bg: color('paper'), tone: 'light', ok: { club: true, podcast: true }, note: { club: 'Clean paper. The club in ink.', podcast: 'Paper is the logo’s ground. The yellow is for the page around it.' } },
+    { label: 'Night', bg: color('night'), tone: 'dark', ok: { club: true, podcast: true }, note: { club: 'The club’s home ground. Reversed wordmark.', podcast: 'Use the reversed file: paper letters, the same tape.' } },
+    { label: 'Tape', bg: color('tape'), tone: 'light', ok: { club: false, podcast: false }, note: { club: 'The club never uses yellow.', podcast: 'Tape on tape: the label vanishes. Put the logo on a white or black panel inside the yellow.' } },
+    { label: 'Red', bg: color('redline'), tone: 'dark', ok: { club: false, podcast: false }, note: { club: 'Redline is for corrections only. Never a ground.', podcast: 'Redline is for corrections only. Never a ground.' } },
     { label: 'Photo', bg: busy, tone: 'light', ok: { club: false, podcast: false }, note: { club: 'Busy photos swallow the mark. Use a solid band.', podcast: 'Busy photos swallow the mark. Use a solid band or a torn strip.' } },
   ];
   const gSeg = $('#grounds');
@@ -174,19 +176,17 @@
   const drawGround = () => {
     const g = grounds[groundIndex];
     const brand = root.dataset.brand === 'podcast' ? 'podcast' : 'club';
-    const fg = g.tone === 'dark' ? '#FFFFFF' : '#231F20';
     const stage = $('#ground-stage');
     stage.style.background = g.bg;
+    stage.style.color = color(g.tone === 'dark' ? 'paper' : 'ink');
     $('#ground-logo').innerHTML = brand === 'club'
-      ? `<span class="logo-tria" style="color:${fg}" role="img" aria-label="The Rest Is Accountancy"></span>`
+      ? '<span class="logo-tria" role="img" aria-label="The Rest Is Accountancy"></span>'
       : `<img src="assets/logos/sta-lockup-${g.tone === 'dark' ? 'reversed' : 'color'}.svg" alt="Stick to Accounting">`;
     const ok = g.ok[brand];
     const stamp = $('#ground-stamp');
     stamp.textContent = ok ? 'Approved' : 'Rejected';
-    stamp.style.color = ok ? fg : '';
-    stamp.style.borderColor = ok ? fg : '';
-    stamp.style.background = ok ? 'transparent' : '';
-    stamp.classList.remove('hit'); void stamp.offsetWidth; stamp.classList.add('hit');
+    stamp.classList.toggle('pass', ok);
+    replay(stamp, 'hit');
     $('#ground-note').innerHTML = `<b>${ok ? 'Approved.' : 'Rejected.'}</b> ${g.note[brand]}`;
   };
   setSeg(gSeg, groundIndex);
@@ -329,7 +329,6 @@
   }
 
   /* ---------- Motion replays ---------- */
-  const replay = (el, cls) => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
   for (const b of $$('[data-replay]')) {
     const el = document.getElementById(b.dataset.replay);
     const cls = el.classList.contains('stamp') ? 'hit' : 'slap';
@@ -373,9 +372,9 @@
       return { runs };
     }).filter((w) => w.runs.length);
   };
-  const fitTitle = (words, fontFor, maxW, maxH, start, lh) => {
+  const fitTitle = (words, { font, tracking }, maxW, maxH, start, lh) => {
     for (let size = start; size >= 28; size -= 2) {
-      cx.font = fontFor(size); cx.letterSpacing = `${-0.035 * size}px`;
+      cx.font = font(size); cx.letterSpacing = `${tracking * size}px`;
       const space = cx.measureText(' ').width;
       const measured = words.map((w) => { const runs = w.runs.map((r) => ({ ...r, w: cx.measureText(r.text).width })); return { runs, w: runs.reduce((a, r) => a + r.w, 0) }; });
       const lines = []; let line = []; let width = 0;
@@ -429,11 +428,22 @@
     for (const w of words) { const t = line ? `${line} ${w}` : w; if (cx.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t; }
     if (line) lines.push(line); return lines.slice(0, maxLines);
   };
+  // A logo drawn on the canvas: the file, and the aspect ratio the catalog records for it.
+  const loadLogo = async (file) => ({ img: await loadImg(file), aspect: (await catalogReady).find((e) => e.file === file).aspect });
+  const ink = color('ink'); const paper = color('paper'); const night = color('night');
   let assets = null;
-  const assetsReady = Promise.all([
-    loadImg('assets/logos/sta-lockup-color.svg'), loadImg('assets/logos/tria-wordmark-mono.svg'), loadImg('assets/devices/scribble-x.svg'),
-    document.fonts.load('900 100px Fraunces'), document.fonts.load('380 100px Fraunces'), document.fonts.load('40px "Gochi Hand"'), document.fonts.load('600 40px "Instrument Sans"'),
-  ]).then(([sta, tria, x]) => { assets = { sta, tria, x }; });
+  const assetsReady = tokensReady.then(async (t) => {
+    // Each brand's display face as a canvas font: its weight and the family stack its --font-* token names.
+    const display = Object.fromEntries(own(t.style).map(([brand, s]) => {
+      const family = t.font[s.displayFont.match(/--font-(\w+)/)[1]].$value;
+      return [brand, { font: (size) => `${s.displayWeight} ${size}px ${family}`, tracking: parseFloat(s.displayTracking) }];
+    }));
+    const [sta, tria, x] = await Promise.all([
+      loadLogo('assets/logos/sta-lockup-color.svg'), loadLogo('assets/logos/tria-wordmark-mono.svg'), loadImg('assets/devices/scribble-x.svg'),
+      ...Object.values(display).map((d) => document.fonts.load(d.font(100))), document.fonts.load('40px "Gochi Hand"'), document.fonts.load('600 40px "Instrument Sans"'),
+    ]);
+    assets = { sta, tria, x, display };
+  });
 
   const renderCover = () => {
     if (!assets) return;
@@ -442,36 +452,37 @@
     canvas.width = W; canvas.height = H;
     $('#mk-size').textContent = `${W} × ${H}`;
     cx.textBaseline = 'alphabetic'; cx.letterSpacing = '0px';
-    const words = parseTitle(mk.title || ' ');
+    const title = parseTitle(mk.title || ' ');
+    const display = assets.display[mk.brand];
     if (mk.brand === 'podcast') {
-      cx.fillStyle = '#FFFFFF'; cx.fillRect(0, 0, W, H);
+      cx.fillStyle = paper; cx.fillRect(0, 0, W, H);
       cx.fillStyle = cx.createPattern(grainTile, 'repeat'); cx.fillRect(0, 0, W, H);
-      const lw = W * f.logo; const lh = lw / 3.4226;
-      cx.drawImage(assets.sta, W - pad - lw, H - pad - lh, lw, lh);
+      const lw = W * f.logo; const lh = lw / assets.sta.aspect;
+      cx.drawImage(assets.sta.img, W - pad - lw, H - pad - lh, lw, lh);
       const xs = f.tape * 2.1;
-      cx.drawImage(tint(assets.x, xs, xs * 1.2, '#231F20'), W - pad - xs, pad - 10, xs, xs * 1.2);
+      cx.drawImage(tint(assets.x, xs, xs * 1.2, ink), W - pad - xs, pad - 10, xs, xs * 1.2);
       let titleTop = pad;
       if (mk.label) {
         cx.font = `${f.tape}px "Gochi Hand"`;
         const tw = cx.measureText(mk.label).width + f.tape * 1.3; const th = f.tape * 1.45;
-        cx.save(); cx.translate(pad, pad + 10); cx.rotate(-3 * Math.PI / 180);
-        const p = tapePath(tw, th); cx.fillStyle = '#F7D52A'; cx.fill(p);
+        cx.save(); cx.translate(pad, pad + 10); cx.rotate(parseFloat(rootStyle.getPropertyValue('--rotate-tape')) * Math.PI / 180);
+        const p = tapePath(tw, th); cx.fillStyle = color('tape'); cx.fill(p);
         const g = cx.createLinearGradient(0, 0, tw, th); g.addColorStop(0, 'rgba(255,255,255,.25)'); g.addColorStop(0.35, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(0,0,0,.06)');
         cx.fillStyle = g; cx.fill(p);
-        cx.fillStyle = '#231F20'; cx.fillText(mk.label, f.tape * 0.65, th * 0.72);
+        cx.fillStyle = ink; cx.fillText(mk.label, f.tape * 0.65, th * 0.72);
         cx.restore();
         titleTop = pad + th + f.tape * 1.1;
       }
       const stacked = mk.format === 'story';
       const noteH = stacked && mk.note ? f.note * 1.6 : 0;
       const titleBottom = H - pad - lh - f.tape - noteH;
-      const fit = fitTitle(words, (s) => `900 ${s}px Fraunces`, W - pad * 2, titleBottom - titleTop, f.title, 0.92);
+      const fit = fitTitle(title, display, W - pad * 2, titleBottom - titleTop, f.title, 0.92);
       if (fit) {
         const blockH = fit.lines.length * fit.size * 0.92;
-        drawTitle(fit, pad, titleTop + (titleBottom - titleTop - blockH) / 2, 0.92, '#231F20', '#F4DD6C', '#231F20');
+        drawTitle(fit, pad, titleTop + (titleBottom - titleTop - blockH) / 2, 0.92, ink, color('highlighter'), ink);
       }
       if (mk.note) {
-        cx.letterSpacing = '0px'; cx.font = `${f.note}px "Gochi Hand"`; cx.fillStyle = '#231F20';
+        cx.letterSpacing = '0px'; cx.font = `${f.note}px "Gochi Hand"`; cx.fillStyle = ink;
         if (stacked) cx.fillText(wrapText(mk.note, W - pad * 2, 1)[0] || '', pad, H - pad - lh - f.tape * 0.9);
         else {
           const lines = wrapText(mk.note, W - pad * 2 - lw - 40, 2);
@@ -479,25 +490,26 @@
         }
       }
     } else {
-      cx.fillStyle = '#000000'; cx.fillRect(0, 0, W, H);
-      const lw = W * (mk.format === 'thumb' ? 0.34 : 0.44); const lh = lw / 4.2739;
-      cx.drawImage(tint(assets.tria, lw, lh, '#FFFFFF'), pad, pad, lw, lh);
+      cx.fillStyle = night; cx.fillRect(0, 0, W, H);
+      const lw = W * (mk.format === 'thumb' ? 0.34 : 0.44); const lh = lw / assets.tria.aspect;
+      cx.drawImage(tint(assets.tria.img, lw, lh, paper), pad, pad, lw, lh);
+      cx.fillStyle = paper;
       if (mk.label) {
-        cx.font = `600 ${Math.round(f.note * 0.8)}px "Instrument Sans"`; cx.fillStyle = '#FFFFFF'; cx.textAlign = 'right';
+        cx.font = `600 ${Math.round(f.note * 0.8)}px "Instrument Sans"`; cx.textAlign = 'right';
         cx.fillText(mk.label, W - pad, pad + lh * 0.55); cx.textAlign = 'left';
       }
       const noteH = mk.note ? f.note * 2.2 : 0;
       const titleTop = pad + lh + f.note * 1.5;
       const titleBottom = H - pad - noteH - f.note * 0.8;
-      const fit = fitTitle(words, (s) => `380 ${s}px Fraunces`, W - pad * 2, titleBottom - titleTop, f.title * 1.05, 0.98);
+      const fit = fitTitle(title, display, W - pad * 2, titleBottom - titleTop, f.title * 1.05, 0.98);
       if (fit) {
         const blockH = fit.lines.length * fit.size * 0.98;
-        drawTitle(fit, pad, titleBottom - blockH, 0.98, '#FFFFFF', '#FFFFFF', '#000000');
+        drawTitle(fit, pad, titleBottom - blockH, 0.98, paper, paper, night);
       }
       if (mk.note) {
-        cx.letterSpacing = '0px';
-        cx.fillStyle = '#FFFFFF'; cx.fillRect(pad, H - pad - noteH, W - pad * 2, 2);
-        cx.font = `400 ${Math.round(f.note * 0.85)}px "Instrument Sans"`; cx.fillStyle = '#FFFFFF';
+        cx.letterSpacing = '0px'; cx.fillStyle = paper;
+        cx.fillRect(pad, H - pad - noteH, W - pad * 2, 2);
+        cx.font = `400 ${Math.round(f.note * 0.85)}px "Instrument Sans"`;
         cx.fillText(wrapText(mk.note, W - pad * 2, 1)[0] || '', pad, H - pad - noteH * 0.22);
       }
     }

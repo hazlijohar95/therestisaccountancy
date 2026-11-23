@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -13,7 +13,6 @@ export const walk = (dir) => readdirSync(join(ROOT, dir)).flatMap((name) => {
 });
 
 export const size = (path) => statSync(join(ROOT, path)).size;
-export const rel = (abs) => relative(ROOT, abs);
 
 /** A mid-tone with no hue: what the brand rules out. Ink (#231F20) and black/white pass. */
 export const isGrey = (hex) => {

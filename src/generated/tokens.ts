@@ -6,14 +6,18 @@ export const colors = {
   "paper": "#FFFFFF",
   "tape": "#F7D52A",
   "highlighter": "#F4DD6C",
-  "redline": "#A8180F"
+  "redline": "#A8180F",
+  "redlineDark": "#FF6A5C"
 } as const;
 export type ColorName = keyof typeof colors;
 
 export const fonts = {
-  "serif": "'Fraunces', 'Iowan Old Style', Georgia, serif",
+  "serif": "'Geist Serif', 'Iowan Old Style', Georgia, serif",
+  "fraunces": "'Fraunces', 'Iowan Old Style', Georgia, serif",
   "hand": "'Gochi Hand', 'Comic Sans MS', cursive",
-  "sans": "'Instrument Sans', 'Helvetica Neue', Arial, sans-serif"
+  "sans": "'Instrument Sans', 'Helvetica Neue', Arial, sans-serif",
+  "mono": "'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace",
+  "pixel": "'Geist Pixel', 'Geist Mono', ui-monospace, monospace"
 } as const;
 
 /** Each role resolved to hex for both brands, as [light, dark]. */
@@ -28,14 +32,6 @@ export const themes = {
       "#000000"
     ],
     "ink": [
-      "#231F20",
-      "#FFFFFF"
-    ],
-    "muted": [
-      "#231F20",
-      "#FFFFFF"
-    ],
-    "rule": [
       "#231F20",
       "#FFFFFF"
     ],
@@ -73,14 +69,6 @@ export const themes = {
       "#231F20",
       "#FFFFFF"
     ],
-    "muted": [
-      "#231F20",
-      "#FFFFFF"
-    ],
-    "rule": [
-      "#231F20",
-      "#FFFFFF"
-    ],
     "accent": [
       "#F7D52A",
       "#F7D52A"
@@ -110,8 +98,6 @@ export const themeVariables = {
   "bg": "--bg",
   "surface": "--surface",
   "ink": "--ink",
-  "muted": "--muted",
-  "rule": "--rule",
   "accent": "--accent",
   "onAccent": "--on-accent",
   "mark": "--mark",

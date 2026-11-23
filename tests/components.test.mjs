@@ -10,7 +10,7 @@ const html = (component, props = {}) => renderToStaticMarkup(createElement(compo
 const fills = (markup) => [...markup.matchAll(/fill="([^"]+)"/g)].map((m) => m[1]);
 
 test('every logo file is exactly what its component renders', () => {
-  for (const asset of logoAssets) assert.equal(read(asset.file), renderLogo(asset), `${asset.file}: run npm run build:logos`);
+  for (const asset of logoAssets) assert.equal(read(asset.file), renderLogo(asset), `${asset.file}: run pnpm build:logos`);
 });
 
 test('without a title the logo is decorative; with one it is a named image', () => {

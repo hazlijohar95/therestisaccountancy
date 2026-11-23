@@ -26,7 +26,7 @@ test('the root entry is React-free', () => {
 
 test('src/generated/tokens.ts is exactly what the build would write', () => {
   const printed = execFileSync(process.execPath, [join(ROOT, 'scripts/build-tokens.mjs'), '--print-ts'], { encoding: 'utf8' });
-  assert.equal(read('src/generated/tokens.ts'), printed, 'run: npm run build:tokens');
+  assert.equal(read('src/generated/tokens.ts'), printed, 'run: pnpm build:tokens');
 });
 
 test('the public types hold their contract', () => {

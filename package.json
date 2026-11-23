@@ -2,7 +2,7 @@
   "name": "@therestisaccountancy/brand",
   "version": "0.2.0",
   "private": true,
-  "description": "The Rest Is Accountancy and Stick to Accounting brand system: React logo components, typed tokens, CSS components, logo files and self-hosted fonts. No runtime fetches.",
+  "description": "Brand system for The Rest Is Accountancy (club, membership and community) and Stick to Accounting (media and podcast): React logo components, typed tokens, CSS components, logo files and self-hosted fonts. No runtime fetches.",
   "type": "module",
   "sideEffects": [
     "*.css"
@@ -33,13 +33,12 @@
     "llms.txt"
   ],
   "scripts": {
-    "build": "npm run build:tokens && npm run build:ts",
+    "build": "node scripts/build-tokens.mjs && tsc -p tsconfig.json",
     "build:tokens": "node scripts/build-tokens.mjs",
-    "build:ts": "tsc -p tsconfig.json",
-    "build:logos": "npm run build:ts && node scripts/build-logos.mjs",
+    "build:logos": "tsc -p tsconfig.json && node scripts/build-logos.mjs",
     "extract:logos": "python3 -I scripts/extract-logos.py",
     "fonts": "python3 -I scripts/fetch-fonts.py",
-    "test": "npm run build:ts && node --test \"tests/*.test.mjs\"",
+    "test": "tsc -p tsconfig.json && node --test \"tests/*.test.mjs\"",
     "dev": "python3 -m http.server 4173"
   },
   "peerDependencies": {

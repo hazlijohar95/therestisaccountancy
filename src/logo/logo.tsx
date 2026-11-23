@@ -1,12 +1,11 @@
 import type { ReactNode, SVGProps } from "react";
+import { colors } from "../generated/tokens.js";
 import { type Box, clubGeometry, podcastGeometry } from "./geometry.js";
 
 export type LogoVariant = "color" | "reversed" | "mono";
 export type PodcastLayout = "lockup" | "tagline" | "wordmark";
 
-const INK = "#231F20";
-const PAPER = "#FFFFFF";
-const TAPE = "#F7D52A";
+const { ink: INK, paper: PAPER, tape: TAPE } = colors;
 
 type SvgProps = Omit<SVGProps<SVGSVGElement>, "children" | "viewBox" | "color" | "width" | "height" | "ref">;
 

@@ -1,14 +1,14 @@
 # The Rest Is Accountancy brand system
 
-> Two brands on one system. The Rest Is Accountancy is the club and community: black and white, quiet, exact. Stick to Accounting is its podcast: a tape-yellow page, white panels, ink and marker. There is no grey.
+> Two brands on one system. The Rest Is Accountancy is the club, membership and community: black and white, quiet, exact. Stick to Accounting is the media and podcast brand: a tape-yellow page, white panels, ink and marker. There is no grey.
 
 ## Rules an agent must follow
 
 - Use the logo files in assets/logos/. Never retype either name in a font.
 - Put the podcast logo on white or black, never on yellow: its tape label disappears.
-- Yellow (#F7D52A) is a ground, never text on a light ground. Ink on yellow reads at 11.3:1.
-- Redline (#A8180F) marks corrections, negative figures and the live dot only.
-- Set data-brand="club" or data-brand="podcast" on a container; components follow it.
+- Yellow (#F7D52A) is a ground, never text on a light ground.
+- Redline (#A8180F) marks corrections, negative figures and the live dot only. The club never uses yellow or hand marks.
+- Set data-brand="club" or data-brand="podcast" on a container; components follow it. Add class="ground" to paint that brand's ground.
 - Write in short declaratives with full stops. No exclamation marks. Titles are real questions.
 
 ## React
@@ -19,10 +19,10 @@
 
 ## Files
 
-- [tokens/tokens.json](tokens/tokens.json): colours, type, space, strokes, per-brand roles and the contrast contract
+- [tokens/tokens.json](tokens/tokens.json): colours, type, space, strokes, angles, motion, per-brand roles and settings, and the contrast contract
 - [css/brand.css](css/brand.css): the one stylesheet a page needs (loads fonts.css and tokens.css)
 - [assets/logos/catalog.json](assets/logos/catalog.json): every logo file with brand, layout, variant, aspect, bytes and PNG size
-- [index.html](index.html): the brand guide, with a cover maker that exports PNGs
+- [index.html](index.html): the brand guide, showing every class at work, with a cover maker that exports PNGs
 
 ## Logos
 
@@ -32,6 +32,9 @@
 
 ## Typefaces (bundled, OFL)
 
-- Fraunces: display. Club 380, SOFT 0, WONK 1. Podcast 900, SOFT 100.
+- Geist Serif: club display. One weight, 400. No italic, so never ask it for bold or italic.
+- Fraunces: podcast display. 900, SOFT 100.
 - Gochi Hand: podcast marker notes, one short phrase per layout.
 - Instrument Sans: text, UI and figures.
+- Geist Mono: code and hex values.
+- Geist Pixel: podcast timecodes and the live label. One weight, 400. Never in the club.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Extract the logo geometry from the designer's source artwork into src/logo/geometry.ts.
 
-Usage: python3 -I scripts/extract-logos.py   (then: npm run build:logos)
+Usage: pnpm extract:logos   (then: pnpm build:logos)
 Needs poppler (pdftocairo) on PATH. Rerun only when a source file changes.
 
 Stick to Accounting comes from source/sta-artwork.ai (the designer's "STA_artwork share.ai").
