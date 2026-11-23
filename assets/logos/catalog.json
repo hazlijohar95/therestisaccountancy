@@ -1,0 +1,138 @@
+[
+  {
+    "brand": "club",
+    "layout": "wordmark",
+    "variant": "color",
+    "aspect": 4.2739,
+    "file": "assets/logos/tria-wordmark-color.svg",
+    "png": "assets/logos/png/tria-wordmark-color.png",
+    "pngSize": [
+      2000,
+      468
+    ],
+    "bytes": 9304
+  },
+  {
+    "brand": "club",
+    "layout": "wordmark",
+    "variant": "reversed",
+    "aspect": 4.2739,
+    "file": "assets/logos/tria-wordmark-reversed.svg",
+    "png": "assets/logos/png/tria-wordmark-reversed.png",
+    "pngSize": [
+      2000,
+      468
+    ],
+    "bytes": 9304
+  },
+  {
+    "brand": "club",
+    "layout": "wordmark",
+    "variant": "mono",
+    "aspect": 4.2739,
+    "file": "assets/logos/tria-wordmark-mono.svg",
+    "bytes": 9414
+  },
+  {
+    "brand": "podcast",
+    "layout": "lockup",
+    "variant": "color",
+    "aspect": 3.4226,
+    "file": "assets/logos/sta-lockup-color.svg",
+    "png": "assets/logos/png/sta-lockup-color.png",
+    "pngSize": [
+      2000,
+      585
+    ],
+    "bytes": 41531
+  },
+  {
+    "brand": "podcast",
+    "layout": "lockup",
+    "variant": "reversed",
+    "aspect": 3.4226,
+    "file": "assets/logos/sta-lockup-reversed.svg",
+    "png": "assets/logos/png/sta-lockup-reversed.png",
+    "pngSize": [
+      2000,
+      585
+    ],
+    "bytes": 41531
+  },
+  {
+    "brand": "podcast",
+    "layout": "lockup",
+    "variant": "mono",
+    "aspect": 3.4226,
+    "file": "assets/logos/sta-lockup-mono.svg",
+    "bytes": 41273
+  },
+  {
+    "brand": "podcast",
+    "layout": "tagline",
+    "variant": "color",
+    "aspect": 2.9088,
+    "file": "assets/logos/sta-tagline-color.svg",
+    "png": "assets/logos/png/sta-tagline-color.png",
+    "pngSize": [
+      2000,
+      688
+    ],
+    "bytes": 75304
+  },
+  {
+    "brand": "podcast",
+    "layout": "tagline",
+    "variant": "reversed",
+    "aspect": 2.9088,
+    "file": "assets/logos/sta-tagline-reversed.svg",
+    "png": "assets/logos/png/sta-tagline-reversed.png",
+    "pngSize": [
+      2000,
+      688
+    ],
+    "bytes": 75304
+  },
+  {
+    "brand": "podcast",
+    "layout": "tagline",
+    "variant": "mono",
+    "aspect": 2.9088,
+    "file": "assets/logos/sta-tagline-mono.svg",
+    "bytes": 75131
+  },
+  {
+    "brand": "podcast",
+    "layout": "wordmark",
+    "variant": "color",
+    "aspect": 3.4226,
+    "file": "assets/logos/sta-wordmark-color.svg",
+    "png": "assets/logos/png/sta-wordmark-color.png",
+    "pngSize": [
+      2000,
+      585
+    ],
+    "bytes": 15150
+  },
+  {
+    "brand": "podcast",
+    "layout": "wordmark",
+    "variant": "reversed",
+    "aspect": 3.4226,
+    "file": "assets/logos/sta-wordmark-reversed.svg",
+    "png": "assets/logos/png/sta-wordmark-reversed.png",
+    "pngSize": [
+      2000,
+      585
+    ],
+    "bytes": 15150
+  },
+  {
+    "brand": "podcast",
+    "layout": "wordmark",
+    "variant": "mono",
+    "aspect": 3.4226,
+    "file": "assets/logos/sta-wordmark-mono.svg",
+    "bytes": 15230
+  }
+]

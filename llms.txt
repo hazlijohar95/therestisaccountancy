@@ -1,0 +1,37 @@
+# The Rest Is Accountancy brand system
+
+> Two brands on one system. The Rest Is Accountancy is the club and community: black and white, quiet, exact. Stick to Accounting is its podcast: a tape-yellow page, white panels, ink and marker. There is no grey.
+
+## Rules an agent must follow
+
+- Use the logo files in assets/logos/. Never retype either name in a font.
+- Put the podcast logo on white or black, never on yellow: its tape label disappears.
+- Yellow (#F7D52A) is a ground, never text on a light ground. Ink on yellow reads at 11.3:1.
+- Redline (#A8180F) marks corrections, negative figures and the live dot only.
+- Set data-brand="club" or data-brand="podcast" on a container; components follow it.
+- Write in short declaratives with full stops. No exclamation marks. Titles are real questions.
+
+## React
+
+- import { ClubLogo, PodcastLogo } from "@therestisaccountancy/brand/logo"
+- PodcastLogo layout: lockup | tagline | wordmark. Both: variant color | reversed | mono, color (mono only), size (width), title (accessible name).
+- The root entry exports colors, fonts, themes, themeVariables and logoAssets, with no React.
+
+## Files
+
+- [tokens/tokens.json](tokens/tokens.json): colours, type, space, strokes, per-brand roles and the contrast contract
+- [css/brand.css](css/brand.css): the one stylesheet a page needs (loads fonts.css and tokens.css)
+- [assets/logos/catalog.json](assets/logos/catalog.json): every logo file with brand, layout, variant, aspect, bytes and PNG size
+- [index.html](index.html): the brand guide, with a cover maker that exports PNGs
+
+## Logos
+
+- Stick to Accounting: sta-{lockup|tagline|wordmark}-{color|reversed|mono}.svg
+- The Rest Is Accountancy: tria-wordmark-{color|reversed|mono}.svg
+- mono files draw in currentColor. Every non-mono file has a 2000px PNG in assets/logos/png/.
+
+## Typefaces (bundled, OFL)
+
+- Fraunces: display. Club 380, SOFT 0, WONK 1. Podcast 900, SOFT 100.
+- Gochi Hand: podcast marker notes, one short phrase per layout.
+- Instrument Sans: text, UI and figures.
