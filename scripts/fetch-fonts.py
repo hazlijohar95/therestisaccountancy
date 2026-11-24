@@ -3,7 +3,7 @@
 fonts at runtime.
 
 Usage: pnpm fonts
-Fraunces, Gochi Hand, Instrument Sans, Geist Mono and Geist Pixel come from Google Fonts, latin and
+Anton, Gochi Hand, Instrument Sans, Geist Mono and Geist Pixel come from Google Fonts, latin and
 latin-ext subsets only.
 Geist Serif is not on Google Fonts, so its variable font comes whole from the pinned geist npm package.
 Each face is registered with its unicode-range, so a page downloads only the files its text uses.
@@ -18,8 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 FONTS = ROOT / "assets" / "fonts"
 CSS = ROOT / "css" / "fonts.css"
 API = ("https://fonts.googleapis.com/css2?"
-       "family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..900,0..100,0..1;1,9..144,300..900,0..100,0..1"
-       "&family=Gochi+Hand&family=Instrument+Sans:wdth,wght@75..100,400..700"
+       "family=Anton&family=Gochi+Hand&family=Instrument+Sans:wdth,wght@75..100,400..700"
        "&family=Geist+Mono:wght@400..700&family=Geist+Pixel&display=swap")
 # Google serves woff2 with unicode-range subsets only to a modern browser user agent.
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"

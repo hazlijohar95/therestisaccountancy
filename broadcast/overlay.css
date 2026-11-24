@@ -1,0 +1,117 @@
+/* Stick to Accounting broadcast overlay. A fixed stage in pixels, scaled to the window.
+   Everything outside the graphics is transparent, so the page drops over video as a browser source.
+   The rules, after TBPN's chyron: fields meet edge to edge and separate by fill, never by a line;
+   the headline is always paper and the strip above it carries the segment; one display voice in
+   capitals; nothing on air under 18px; yellow only as tape or highlighter, never faded. */
+html, body { height: 100%; }
+body { background: transparent; overflow: hidden; }
+
+.stage { --air-lift: 0 22px 44px -22px rgb(0 0 0 / .55); position: fixed; left: 0; top: 0; width: var(--W); height: var(--H); transform-origin: 0 0; transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(var(--scale, 1)); overflow: hidden; color: var(--color-ink); }
+.view { position: absolute; inset: 0; display: none; }
+.stage[data-view="show"] .view-show,
+.stage[data-view="countdown"] .view-countdown,
+.stage[data-view="card"] .view-card { display: block; }
+
+/* Newsprint with grain and the designer's two strips of tape, solid, running behind the windows. */
+.paper { background:
+  linear-gradient(112deg, transparent 0 57%, var(--color-tape) 57% 70%, transparent 70% 73.5%, var(--color-tape) 73.5% 77%, transparent 77%),
+  var(--texture-grain),
+  var(--color-stock); }
+
+/* ---------- Show: backdrop and camera windows ---------- */
+.backdrop { position: absolute; inset: 0; }
+.cam { position: absolute; overflow: hidden; }
+.cam.framed { box-shadow: var(--air-lift); }
+.cam.demo { background: center 30% / cover no-repeat var(--color-night-raised); }
+.cam[data-feed="wide"] { background-image: url("demo/wide.jpg"); }
+.cam[data-feed="host-a"] { background-image: url("demo/host-a.jpg"); }
+.cam[data-feed="host-b"] { background-image: url("demo/host-b.jpg"); }
+.cam.screen { display: grid; place-items: center; background: var(--color-paper); }
+.cam.screen span { font: 400 64px/1 var(--font-condensed); text-transform: uppercase; color: var(--color-ink); }
+.cam-rule { position: absolute; background: var(--color-night); }
+
+/* ---------- Show: corner bugs. One style: ink, no line, 56px, 48px in from the corner. ---------- */
+.bug { position: absolute; top: 48px; height: 64px; display: flex; align-items: center; gap: 16px; padding: 0 22px; background: var(--color-ink); color: var(--color-paper); white-space: nowrap; }
+.bug-clock { left: 48px; }
+.bug-clock .live { font: 600 22px/1 var(--font-sans); text-transform: uppercase; letter-spacing: .1em; }
+.bug-clock .live::before { width: 12px; height: 12px; background: var(--color-redline-dark); }
+.clock-time { font: 600 30px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+.clock-meta { display: flex; gap: 10px; font: 600 18px/1 var(--font-sans); letter-spacing: .06em; }
+.bug-from { right: 48px; }
+.bug-from small { font: 600 18px/1 var(--font-sans); text-transform: uppercase; letter-spacing: .12em; }
+.bug-from img { height: 44px; width: auto; }
+.bug-from b { font: 400 30px/1 var(--font-condensed); text-transform: uppercase; letter-spacing: .02em; }
+
+/* ---------- Show: the lower third. Three rows, 240px: strip, headline, ticker. ---------- */
+.lt { --g: var(--color-ink); --on-g: var(--color-paper); --newsprint: var(--texture-grain), var(--color-stock);
+  position: absolute; left: 48px; right: 48px; bottom: 48px; display: grid; grid-template-columns: 340px minmax(0, 1fr); grid-template-rows: 56px 140px 48px; filter: drop-shadow(0 8px 24px rgb(35 31 32 / .35)); }
+.lt[data-ground="night"] { --g: var(--color-ink); }
+.lt[data-ground="tape"] { --g: var(--color-tape); --on-g: var(--color-ink); }
+.lt[data-ground="redline"] { --g: var(--color-redline); }
+
+/* The logo is the hero: paper, a torn top edge, rising 48px above the strip. The wordmark, because the tape label is illegible at this size. */
+.lt-bug { position: relative; grid-area: 1 / 1 / span 2; margin-top: -40px; display: grid; place-items: center; padding: 14px 24px 8px; background: var(--newsprint); }
+/* A strip of tape holds the scrap of paper to the bar. */
+.lt-bug::after { content: ""; position: absolute; left: -14px; top: -22px; width: 120px; height: 36px; background: linear-gradient(rgb(255 255 255 / .25), transparent 60%), var(--color-tape); mask: url("../assets/devices/tape.svg") center / 100% 100% no-repeat; rotate: -8deg; }
+/* The torn-edge device has its rough side down; turned over, it tears the top of the panel. */
+.lt-bug::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 18px; background: var(--newsprint); mask: url("../assets/devices/torn-edge.svg") center / 100% 100% no-repeat; scale: 1 -1; }
+.lt-bug img { width: 290px; }
+.lt-kicker { grid-area: 1 / 2; display: flex; align-items: center; padding: 0 32px; overflow: hidden; background: var(--g); color: var(--on-g); white-space: nowrap; }
+.lt-kicker > span { display: flex; align-items: center; gap: 18px; }
+.lt-kicker b { font: 400 36px/1 var(--font-condensed); text-transform: uppercase; letter-spacing: .04em; }
+.lt-kicker > span { min-width: 0; }
+.lt-kicker #kicker { min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 600 26px/1 var(--font-sans); text-transform: uppercase; letter-spacing: .06em; }
+.lt-head { grid-area: 2 / 2; display: flex; align-items: center; padding: 6px 32px 0; overflow: hidden; background: var(--newsprint); color: var(--color-ink); }
+.lt-head .display { flex: 1; line-height: .96; isolation: isolate; }
+/* The highlighter is a pen stroke: the lower part of the capitals, ragged at both ends, a degree off level. */
+.lt-head .mark { position: relative; padding: 0; background: none; }
+.lt-head .mark::before { content: ""; position: absolute; z-index: -1; left: -.15em; right: -.15em; top: .3em; bottom: -.1em; background: var(--color-highlighter); mask: url("../assets/devices/brush.svg") center / 100% 100% no-repeat; rotate: -1deg; }
+.lt-ticker { grid-area: 3 / 1 / auto / span 2; background: var(--color-ink); color: var(--color-paper); font: 600 24px/48px var(--font-sans); }
+
+.lt.in .lt-kicker > span,
+.lt.in .lt-head > span { animation: rise var(--motion-settle) var(--motion-ease) both; }
+.lt.in .lt-head > span { animation-delay: 60ms; }
+@keyframes rise { from { translate: 0 120%; } }
+
+/* ---------- Ticker: two identical tracks, each sliding one full width ---------- */
+.tick { display: flex; overflow: hidden; white-space: nowrap; }
+.tick > div { flex: none; display: flex; align-items: center; animation: marquee var(--dur, 40s) linear infinite; }
+.tick span.item { padding: 0 32px; }
+.tick .sep { width: 6px; height: 6px; background: var(--color-paper); rotate: 45deg; font-size: 0; }
+.tick .tc { font-family: var(--font-sans); font-variant-numeric: tabular-nums; margin-left: .5em; color: var(--color-tape); }
+.tick .neg { color: var(--color-redline-dark); }
+
+/* ---------- Countdown: newsprint, the clock over a strip of tape, the next episode on a slant of black paper ---------- */
+.view-countdown { color: var(--color-ink); }
+.cd-logo { position: absolute; left: 112px; top: 96px; }
+.cd-logo img { display: block; width: 420px; }
+.cd-soon { position: absolute; left: 112px; top: 372px; margin: 0; font: 400 96px/1 var(--font-condensed); text-transform: uppercase; letter-spacing: .01em; }
+.cd-clock { position: absolute; left: 96px; top: 480px; isolation: isolate; font: 400 380px/1 var(--font-condensed); }
+/* Anton has no tabular figures, so each digit sits in a fixed cell and the clock never shifts as it counts. */
+.cd-clock i { display: inline-block; width: .5em; font-style: normal; text-align: center; }
+.cd-clock i.colon { width: .24em; }
+.cd-swipe { position: absolute; z-index: -1; left: -10px; right: -40px; top: 46%; height: 44%; background: var(--color-tape); mask: url("../assets/devices/brush.svg") center / 100% 100% no-repeat; rotate: var(--rotate-tape); }
+.cd-side { position: absolute; top: 0; right: 0; bottom: 64px; width: 760px; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 28px; padding: 0 96px 96px 220px; background: var(--color-night); color: var(--color-paper); clip-path: polygon(54% 0, 100% 0, 100% 100%, 0 100%); }
+.cd-side .tape { font-size: 38px; }
+.cd-next { align-self: stretch; height: 210px; display: flex; align-items: end; }
+.cd-next p { margin: 0; width: 100%; color: var(--color-paper); line-height: .95; }
+.cd-next .mark { background: none; color: var(--color-tape); padding: 0; }
+.cd-when { margin: 0; font: 600 22px/1.3 var(--font-sans); text-transform: uppercase; letter-spacing: .06em; }
+.cd-ticker { position: absolute; inset: auto 0 0; height: 64px; background: var(--color-ink); color: var(--color-paper); font: 600 24px/64px var(--font-sans); }
+
+/* ---------- Social card, 4:5. Drawn on a canvas so the frame on screen is the PNG. ---------- */
+.view-card canvas { display: block; width: 100%; height: 100%; }
+
+/* ---------- Stinger: three diagonal strips cross the frame, the logo lands, they leave ---------- */
+.stinger { position: absolute; inset: 0; z-index: 10; visibility: hidden; pointer-events: none; overflow: hidden; }
+.stinger.play { visibility: visible; }
+.stinger i { position: absolute; left: -30%; width: 160%; height: 40%; skew: 0 -8deg; translate: -110% 0; }
+.stinger i:nth-child(1) { top: -8%; background: var(--color-night); }
+.stinger i:nth-child(2) { top: 28%; background: var(--color-tape); animation-delay: 70ms; }
+.stinger i:nth-child(3) { top: 64%; background: var(--texture-grain), var(--color-stock); animation-delay: 140ms; }
+.stinger.play i { animation-name: sweep; animation-duration: 1500ms; animation-timing-function: var(--motion-ease); animation-fill-mode: both; }
+@keyframes sweep { 0% { translate: -110% 0; } 34%, 66% { translate: 0 0; } 100% { translate: 110% 0; } }
+.stinger-logo { position: absolute; left: 50%; top: 50%; width: 40%; padding: 2.6% 3.2%; translate: -50% -50%; rotate: var(--rotate-tape); background: var(--color-paper); opacity: 0; }
+.stinger-logo img { display: block; width: 100%; }
+.stinger.play .stinger-logo { animation: land 1500ms both; }
+@keyframes land { 0%, 30% { opacity: 0; scale: 1.35; rotate: -12deg; } 42%, 64% { opacity: 1; scale: 1; rotate: var(--rotate-tape); } 72%, 100% { opacity: 0; scale: .92; } }

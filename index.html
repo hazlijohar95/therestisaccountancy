@@ -19,7 +19,7 @@
       <img class="brand-pod-only when-dark" src="assets/logos/sta-lockup-reversed.svg" alt="">
     </a>
     <nav class="notes-nav" aria-label="Notes">
-      <a href="#architecture">Brands</a><a href="#logos">Logos</a><a href="#colour">Colour</a><a href="#type">Type</a><a href="#rules">Rules</a><a href="#devices">Devices</a><a href="#components">Components</a><a href="#motion">Motion</a><a href="#maker">Cover maker</a><a href="#applications">Applications</a><a href="#voice">Voice</a><a href="#code">Code</a>
+      <a href="#architecture">Brands</a><a href="#logos">Logos</a><a href="#colour">Colour</a><a href="#type">Type</a><a href="#rules">Rules</a><a href="#devices">Devices</a><a href="#components">Components</a><a href="#motion">Motion</a><a href="#maker">Cover maker</a><a href="#applications">Applications</a><a href="#social">Social</a><a href="#merch">Merch</a><a href="#voice">Voice</a><a href="#code">Code</a>
     </nav>
     <div class="seg brand-switch" role="group" aria-label="View the system as" style="--n:2">
       <span class="thumb" aria-hidden="true"></span>
@@ -77,8 +77,8 @@
         <tr><th>Role</th><td>Club, membership and community</td><td>Media and podcast</td></tr>
         <tr><th>Ground</th><td>Night black or clean paper</td><td>Tape yellow. Logos sit on white panels.</td></tr>
         <tr><th>Accent</th><td>None. Inverse bars carry emphasis.</td><td>Tape yellow, highlighter, marker</td></tr>
-        <tr><th>Display</th><td><span class="display" data-brand="club">Geist Serif 400</span></td><td><span class="display" data-brand="podcast">Fraunces 900, soft</span></td></tr>
-        <tr><th>Buttons</th><td>Flat. Invert on hover.</td><td>Hard 6px shadow. Lift on hover.</td></tr>
+        <tr><th>Display</th><td><span class="display" data-brand="club">Geist Serif 400</span></td><td><span class="display" data-brand="podcast">Anton, caps</span></td></tr>
+        <tr><th>Buttons</th><td>Flat. Invert on hover.</td><td>Tape with a sheen of light. Lifts 1px on hover.</td></tr>
         <tr><th>Hand marks</th><td>Never</td><td>Tape, X, underline, arrow</td></tr>
         <tr><th>Attribute</th><td><code>data-brand="club"</code></td><td><code>data-brand="podcast"</code></td></tr>
       </tbody>
@@ -110,12 +110,12 @@
 </section>
 
 <section id="colour" class="note">
-  <div class="note-rail"><span class="no">N°3</span><h2 class="head">Colour</h2><p>No grey. Yellow is a ground, never text. Click a colour to copy it.</p></div>
+  <div class="note-rail"><span class="no">N°3</span><h2 class="head">Colour</h2><p>No grey. Yellow is tape or highlighter, never text on a light ground. Click a colour to copy it.</p></div>
   <div class="note-body">
     <div class="chips-list" id="palette" aria-live="polite"></div>
     <div class="mix">
       <div><div class="mix-label"><b>Club</b><span>night 70 · paper 28 · redline 2</span></div><div class="mix-bar"><i style="flex:70;background:var(--color-night)"></i><i style="flex:28;background:var(--color-paper)"></i><i style="flex:2;background:var(--color-redline)"></i></div></div>
-      <div><div class="mix-label"><b>Podcast</b><span>tape 55 · paper 25 · ink 18 · redline 2</span></div><div class="mix-bar"><i style="flex:55;background:var(--color-tape)"></i><i style="flex:25;background:var(--color-paper)"></i><i style="flex:18;background:var(--color-ink)"></i><i style="flex:2;background:var(--color-redline)"></i></div></div>
+      <div><div class="mix-label"><b>Podcast</b><span>newsprint 50 · ink 25 · tape 15 · paper 8 · redline 2</span></div><div class="mix-bar"><i style="flex:50;background:var(--color-stock)"></i><i style="flex:25;background:var(--color-ink)"></i><i style="flex:15;background:var(--color-tape)"></i><i style="flex:8;background:var(--color-paper)"></i><i style="flex:2;background:var(--color-redline)"></i></div></div>
     </div>
     <div class="scroll"><table class="ledger" id="pairs"><caption>Contrast, WCAG 2.2</caption><thead><tr><th>Pair</th><th>Club light</th><th>Club dark</th><th>Podcast light</th><th>Podcast dark</th><th>Min</th></tr></thead><tbody></tbody></table></div>
   </div>
@@ -130,12 +130,12 @@
     </div>
     <div class="cells settings">
       <div data-brand="club" class="setting"><span class="label">Club · quiet</span><div class="display tt-sample">Death, taxes and AI.</div><dl><dt>Face</dt><dd>Geist Serif</dd><dt>Weight</dt><dd>400, the only one</dd><dt>Tracking</dt><dd>−0.02em</dd></dl></div>
-      <div data-brand="podcast" class="setting"><span class="label">Podcast · loud</span><div class="display tt-sample">Death, taxes and AI.</div><dl><dt>Face</dt><dd>Fraunces, SOFT 100</dd><dt>Weight</dt><dd>900</dd><dt>Tracking</dt><dd>−0.035em</dd></dl></div>
+      <div data-brand="podcast" class="setting"><span class="label">Podcast · loud</span><div class="display tt-sample">Death, taxes and AI.</div><dl><dt>Face</dt><dd>Anton</dd><dt>Weight</dt><dd>400, the only one</dd><dt>Case</dt><dd>Capitals, +0.005em</dd></dl></div>
     </div>
     <div class="ladder" id="ladder"></div>
     <div class="cells families">
       <div data-brand="club"><span class="display aa">Aa</span><b>Geist Serif</b><p>Club display. 400 only.</p></div>
-      <div data-brand="podcast"><span class="display aa">Aa</span><b>Fraunces</b><p>Podcast display. 900.</p></div>
+      <div data-brand="podcast"><span class="display aa">Aa</span><b>Anton</b><p>Podcast display. Capitals, one weight.</p></div>
       <div data-brand="podcast"><span class="hand aa">Aa</span><b>Gochi Hand</b><p>Podcast marker notes. One phrase per layout.</p></div>
       <div><span class="aa" style="font-weight:600">Aa</span><b>Instrument Sans</b><p>Text, UI and figures.</p></div>
       <div><code class="aa">Aa</code><b>Geist Mono</b><p>Code and hex values.</p></div>
@@ -149,7 +149,7 @@
   <div class="note-body">
     <div class="cells rules-grid">
       <div><span class="label">Stroke</span><div class="strokes"><div><i style="border-top:var(--stroke-hair) solid"></i><code>hair 1px</code></div><div><i style="border-top:var(--stroke-rule) solid"></i><code>rule 2px</code></div><div><i style="border-top:var(--stroke-heavy) solid"></i><code>heavy 4px</code></div><div><i style="border-top:var(--stroke-heavy) double"></i><code>total, double</code></div></div></div>
-      <div><span class="label">Shadow</span><div class="shadow-demo"><div data-brand="club" class="sbox">club: none</div><div data-brand="podcast" class="sbox">podcast: 6px hard</div></div></div>
+      <div><span class="label">Shadow</span><div class="shadow-demo"><div data-brand="club" class="sbox">club: none</div><div data-brand="podcast" class="sbox">podcast: none, fill and space</div></div></div>
       <div><span class="label">Angles</span><div class="angles"><span class="tape">tape −3°</span><span class="nametag"><span class="role">tag</span><span class="name">−2°</span></span><span class="stamp">stamp −8°</span></div></div>
       <div><span class="label">Space</span><div class="spaces" id="spaces"></div></div>
     </div>
@@ -305,8 +305,107 @@
   </div>
 </section>
 
+<section id="social" class="note" data-brand="podcast">
+  <div class="note-rail"><span class="no">N°11</span><h2 class="head">Social kit</h2><p>Real episodes, real hosts, real sizes. Photos are the hosts' own shoots, set in black and white and printed into the newsprint. Click any text to rewrite it.</p></div>
+  <div class="note-body boards">
+    <div class="board-wrap"><header><b>YouTube thumbnail</b><span class="row"><span class="label">1280 × 720</span><button class="chip" data-full>Full size</button></span></header>
+      <div class="frame"><div class="board b-thumb">
+        <i class="strip s1"></i><i class="strip s2"></i>
+        <img class="lock" src="assets/logos/sta-lockup-color.svg" alt="Stick to Accounting">
+        <h3 class="t" contenteditable spellcheck="false">Traditional firm<br><span class="vs">vs</span><br><span class="brush">Modern firm</span></h3>
+        <img class="ink-photo" src="guide/photos/hazli-standing.jpg" alt="Hazli Johar">
+        <span class="nametag"><span class="role">podcaster</span><span class="name">Hazli Johar</span></span>
+      </div></div>
+    </div>
+    <div class="pair-boards">
+      <div class="board-wrap"><header><b>Instagram post</b><span class="row"><span class="label">1080 × 1350</span><button class="chip" data-full>Full size</button></span></header>
+        <div class="frame"><div class="board b-post">
+          <div class="shot torn"><img class="ink-photo" src="guide/photos/abu-studio.jpg" alt="Abu Musa"></div>
+          <span class="tape">New episode</span>
+          <span class="nametag"><span class="role">podcaster</span><span class="name">Abu Musa</span></span>
+          <h3 class="t" contenteditable spellcheck="false">Internal accountants <span class="vs">vs</span> <span class="brush">external</span> accountants</h3>
+          <footer><img src="assets/logos/sta-wordmark-color.svg" alt="Stick to Accounting"><span>YouTube · Spotify · Apple Podcasts</span></footer>
+        </div></div>
+      </div>
+      <div class="board-wrap"><header><b>Instagram story</b><span class="row"><span class="label">1080 × 1920</span><button class="chip" data-full>Full size</button></span></header>
+        <div class="frame"><div class="board b-story">
+          <i class="strip s1"></i>
+          <img class="lock" src="assets/logos/sta-lockup-color.svg" alt="Stick to Accounting">
+          <span class="tape">Out now</span>
+          <span class="scribble" aria-hidden="true"></span>
+          <h3 class="t" contenteditable spellcheck="false">Myths in <span class="brush">accounting</span></h3>
+          <div class="shot torn"><img class="ink-photo" src="guide/photos/hazli-studio.jpg" alt="Hazli Johar"></div>
+          <div class="platforms"><a><small>Watch on</small><span>YouTube</span></a><a><small>Listen on</small><span>Spotify</span></a><a><small>Listen on</small><span>Apple Podcasts</span></a></div>
+        </div></div>
+      </div>
+    </div>
+    <div class="pair-boards">
+      <div class="board-wrap"><header><b>Podcast cover art</b><span class="row"><span class="label">1400 × 1400</span><button class="chip" data-full>Full size</button></span></header>
+        <div class="frame"><div class="board b-art" data-export-width="3000" data-export-type="jpeg">
+          <img class="lock" src="assets/logos/sta-lockup-color.svg" alt="Stick to Accounting">
+          <div class="hosts-shot"><img class="ink-photo" src="guide/photos/hazli-studio.jpg" alt="Hazli Johar"><img class="ink-photo" src="guide/photos/abu-studio.jpg" alt="Abu Musa"></div>
+          <i class="strip s1"></i>
+        </div></div>
+        <p class="small">Apple takes 1400 to 3000px square; export this at 3000. The lockup at 55px, the smallest size the apps show a cover:</p>
+        <div class="art-tiny" aria-hidden="true"><img src="assets/logos/sta-lockup-color.svg" alt=""></div>
+      </div>
+      <div class="board-wrap"><header><b>LinkedIn and X share image</b><span class="row"><span class="label">1200 × 627</span><button class="chip" data-full>Full size</button></span></header>
+        <div class="frame"><div class="board b-share">
+          <div class="pane">
+            <span class="tape">New episode</span>
+            <h3 class="t" contenteditable spellcheck="false">Traditional firm<br><span class="vs">vs</span> <span class="hl">modern firm</span></h3>
+            <img src="assets/logos/sta-wordmark-reversed.svg" alt="Stick to Accounting">
+          </div>
+          <img class="ink-photo h1" src="guide/photos/hazli-studio.jpg" alt="Hazli Johar">
+          <img class="ink-photo h2" src="guide/photos/abu-studio.jpg" alt="Abu Musa">
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="merch" class="note" data-brand="podcast">
+  <div class="note-rail"><span class="no">N°12</span><h2 class="head">Merch</h2><p>Two tees exist already. The rest are concepts, drawn as print files.</p></div>
+  <div class="note-body boards">
+    <div class="cells merch-real">
+      <figure><img src="guide/photos/tee-black.jpg" alt="The black tee: the tagline lockup, reversed, across the chest"><figcaption><b>Black tee</b><span>In use. Tagline lockup, reversed, across the chest. The mockup from your files.</span></figcaption></figure>
+      <figure><img class="ink-photo" src="guide/photos/hazli-portrait.jpg" alt="Hazli Johar wearing the black tee"><figcaption><b>On air and on shoots</b><span>Hazli Johar in the black tee.</span></figcaption></figure>
+      <figure><img class="ink-photo" src="guide/photos/abu-studio.jpg" alt="Abu Musa wearing the white tee"><figcaption><b>White tee</b><span>In use. Tagline lockup in colour. Abu Musa on set.</span></figcaption></figure>
+    </div>
+    <div class="board-wrap"><header><b>Sticker sheet</b><span class="row"><span class="label">Concept · 1200 × 900</span><button class="chip" data-full>Full size</button></span></header>
+      <div class="frame"><div class="board b-stickers">
+        <span class="sticker k1"><img src="assets/logos/sta-lockup-color.svg" alt="Stick to Accounting"></span>
+        <span class="sticker k2"><span class="tape">Out now</span></span>
+        <span class="sticker k3"><span>Death, Taxes and Ai.</span></span>
+        <span class="sticker k4"><span class="stamp">Audited</span></span>
+        <span class="sticker k5"><img src="assets/logos/sta-wordmark-reversed.svg" alt="Stick to Accounting"></span>
+        <span class="sticker k6"><span class="scribble"></span></span>
+        <span class="sticker k7"><span class="neg">3,150</span></span>
+        <span class="sticker k8"><span>News. Analysis. Interviews.</span></span>
+      </div></div>
+    </div>
+    <div class="pair-boards">
+      <div class="board-wrap"><header><b>Tote bag</b><span class="row"><span class="label">Concept · print 380 × 420 mm</span><button class="chip" data-full>Full size</button></span></header>
+        <div class="frame"><div class="board b-tote">
+          <i class="handle h1"></i><i class="handle h2"></i>
+          <div class="bag">
+            <i class="strip s1"></i>
+            <img src="assets/logos/sta-tagline-color.svg" alt="Stick to Accounting. Death, Taxes and Ai.">
+          </div>
+        </div></div>
+      </div>
+      <div class="board-wrap"><header><b>Mug wrap</b><span class="row"><span class="label">Concept · print 230 × 95 mm</span><button class="chip" data-full>Full size</button></span></header>
+        <div class="frame"><div class="board b-mug">
+          <img src="assets/logos/sta-tagline-color.svg" alt="Stick to Accounting. Death, Taxes and Ai.">
+          <table class="ledger"><tbody><tr><td>Coffee</td><td>1</td></tr><tr><td>Deadlines</td><td><span class="neg">1</span></td></tr></tbody><tfoot><tr><td>Net</td><td><span class="total">0</span></td></tr></tfoot></table>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="voice" class="note">
-  <div class="note-rail"><span class="no">N°11</span><h2 class="head">Voice</h2></div>
+  <div class="note-rail"><span class="no">N°13</span><h2 class="head">Voice</h2></div>
   <div class="note-body">
     <div class="cells voice">
       <div><h3 class="head">Full stops, not hype.</h3><div class="say"><b>yes</b><span>Three hosts. One mic. The numbers behind the news.</span><b>no</b><s>The ultimate must-listen podcast for finance pros!!</s></div></div>
@@ -318,7 +417,7 @@
 </section>
 
 <section id="code" class="note">
-  <div class="note-rail"><span class="no">N°12</span><h2 class="head">Use it in code</h2></div>
+  <div class="note-rail"><span class="no">N°14</span><h2 class="head">Use it in code</h2></div>
   <div class="note-body">
     <div class="cells">
       <div class="code-box"><header><span>Any page</span><button class="chip" data-copy="c1">Copy</button></header><pre id="c1">&lt;link rel="stylesheet" href="css/brand.css"&gt;

@@ -436,7 +436,7 @@
     // Each brand's display face as a canvas font: its weight and the family stack its --font-* token names.
     const display = Object.fromEntries(own(t.style).map(([brand, s]) => {
       const family = t.font[s.displayFont.match(/--font-(\w+)/)[1]].$value;
-      return [brand, { font: (size) => `${s.displayWeight} ${size}px ${family}`, tracking: parseFloat(s.displayTracking) }];
+      return [brand, { font: (size) => `${s.displayWeight} ${size}px ${family}`, tracking: parseFloat(s.displayTracking), upper: s.displayCase === 'uppercase' }];
     }));
     const [sta, tria, x] = await Promise.all([
       loadLogo('assets/logos/sta-lockup-color.svg'), loadLogo('assets/logos/tria-wordmark-mono.svg'), loadImg('assets/devices/scribble-x.svg'),
@@ -452,10 +452,10 @@
     canvas.width = W; canvas.height = H;
     $('#mk-size').textContent = `${W} × ${H}`;
     cx.textBaseline = 'alphabetic'; cx.letterSpacing = '0px';
-    const title = parseTitle(mk.title || ' ');
     const display = assets.display[mk.brand];
+    const title = parseTitle(display.upper ? (mk.title || ' ').toUpperCase() : mk.title || ' ');
     if (mk.brand === 'podcast') {
-      cx.fillStyle = paper; cx.fillRect(0, 0, W, H);
+      cx.fillStyle = color('stock'); cx.fillRect(0, 0, W, H);
       cx.fillStyle = cx.createPattern(grainTile, 'repeat'); cx.fillRect(0, 0, W, H);
       const lw = W * f.logo; const lh = lw / assets.sta.aspect;
       cx.drawImage(assets.sta.img, W - pad - lw, H - pad - lh, lw, lh);
@@ -567,6 +567,104 @@
       $('.close', overlay).addEventListener('click', close);
       document.addEventListener('keydown', onKey);
       $('.close', overlay).focus();
+    });
+  }
+
+  /* ---------- Export a board as an image ---------- */
+  // The page renders the board itself: a clone, with every stylesheet, font and image inlined as data,
+  // drawn through an SVG foreignObject onto a canvas at the board's real pixel size.
+  const urlPattern = /url\(\s*["']?([^"')]+?)["']?\s*\)/g;
+  const dataUrls = new Map();
+  const toDataUrl = (url) => {
+    if (!dataUrls.has(url)) {
+      dataUrls.set(url, fetch(url).then((r) => { if (!r.ok) throw new Error(`${url}: ${r.status}`); return r.blob(); })
+        .then((blob) => new Promise((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.readAsDataURL(blob); }))
+        // A failure is not remembered: the next export fetches again.
+        .catch((err) => { dataUrls.delete(url); throw err; }));
+    }
+    return dataUrls.get(url);
+  };
+  const inlineUrls = async (css, base) => {
+    // Data URLs are inline already; a fragment (#n, or %23n inside the grain texture) points into its own SVG.
+    const urls = [...new Set([...css.matchAll(urlPattern)].map((m) => m[1]).filter((u) => !/^(data:|#|%23)/.test(u)))];
+    const found = new Map(await Promise.all(urls.map(async (u) => [u, await toDataUrl(new URL(u, base).href)])));
+    return css.replace(urlPattern, (whole, u) => (found.has(u) ? `url("${found.get(u)}")` : whole));
+  };
+  // The stylesheet files as written, not the CSSOM: Chrome drops a font shorthand holding var() from cssText
+  // when a later longhand in the same rule overrides part of it.
+  const fileCss = async (href) => {
+    const response = await fetch(href);
+    if (!response.ok) throw new Error(`${href}: ${response.status}`);
+    const text = await response.text();
+    const imports = [...text.matchAll(/@import\s+url\(\s*["']?([^"')]+)["']?\s*\)\s*;/g)];
+    const inlined = await Promise.all(imports.map((m) => fileCss(new URL(m[1], href).href)));
+    const body = imports.reduce((css, m, i) => css.replace(m[0], inlined[i]), text);
+    return inlineUrls(body, href);
+  };
+  let pageCss = null;
+  const renderBoard = async (board) => {
+    pageCss ??= Promise.all([...document.styleSheets].map((sheet) => (sheet.href ? fileCss(sheet.href) : inlineUrls(sheet.ownerNode.textContent, location.href)))).then((parts) => parts.join('\n'))
+      .catch((err) => { pageCss = null; throw err; });
+    const css = await pageCss;
+    const W = board.offsetWidth;
+    const H = board.offsetHeight;
+    const scale = Number(board.dataset.exportWidth || W) / W;
+    const clone = board.cloneNode(true);
+    clone.style.transform = 'none';
+    clone.style.left = '0';
+    clone.style.top = '0';
+    for (const el of clone.querySelectorAll('[contenteditable]')) el.setAttribute('contenteditable', 'false');
+    const images = [...board.querySelectorAll('img')];
+    await Promise.all([...clone.querySelectorAll('img')].map(async (img, i) => img.setAttribute('src', await toDataUrl(images[i].currentSrc || images[i].src))));
+    const brand = board.closest('[data-brand]')?.dataset.brand ?? 'club';
+    // Outside the page there is no body to inherit from, so the board's text settings travel with it.
+    const around = getComputedStyle(board.parentElement);
+    const inherited = ['font-family', 'font-size', 'font-weight', 'line-height', 'color'].map((p) => `${p}: ${around.getPropertyValue(p)};`).join(' ').replaceAll('"', "'");
+    const markup = new XMLSerializer().serializeToString(clone);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W * scale}" height="${H * scale}" viewBox="0 0 ${W} ${H}"><foreignObject x="0" y="0" width="${W}" height="${H}"><div xmlns="http://www.w3.org/1999/xhtml" data-brand="${brand}" style="position: relative; width: ${W}px; height: ${H}px; color-scheme: light; ${inherited}"><style><![CDATA[${css}]]></style>${markup}</div></foreignObject></svg>`;
+    // A data: URL, not a blob: one: Chrome taints the canvas for a foreignObject SVG loaded from a blob.
+    const image = new Image();
+    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    await image.decode();
+    // The SVG document loads its own fonts; a short wait lets them settle before the raster is taken.
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(W * scale);
+    canvas.height = Math.round(H * scale);
+    canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+    const type = board.dataset.exportType === 'jpeg' ? 'image/jpeg' : 'image/png';
+    return new Promise((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('empty canvas'))), type, 0.92));
+  };
+  const exportName = (board) => {
+    const brand = board.closest('[data-brand]')?.dataset.brand === 'podcast' ? 'sta' : 'tria';
+    const name = [...board.classList].find((c) => c.startsWith('b-')).slice(2);
+    const size = board.dataset.exportWidth ? `${board.dataset.exportWidth}` : `${board.offsetWidth}x${board.offsetHeight}`;
+    return `${brand}-${name}-${size}.${board.dataset.exportType === 'jpeg' ? 'jpg' : 'png'}`;
+  };
+  for (const wrap of $$('.board-wrap')) {
+    const full = $('[data-full]', wrap);
+    if (!full) continue;
+    const board = $('.board', wrap);
+    const format = board.dataset.exportType === 'jpeg' ? 'JPG' : 'PNG';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'chip';
+    button.textContent = format;
+    button.setAttribute('aria-label', `Download ${$('header b', wrap).textContent} as ${format}`);
+    full.before(button);
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      button.textContent = 'Rendering';
+      try {
+        const result = await saveBlob(await renderBoard(board), exportName(board), button);
+        if (result === 'unavailable') stampOn(button, 'Blocked');
+      } catch (err) {
+        console.error(err);
+        stampOn(button, 'Failed');
+      } finally {
+        button.disabled = false;
+        button.textContent = format;
+      }
     });
   }
 

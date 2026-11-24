@@ -7,13 +7,17 @@ export const colors = {
   "tape": "#F7D52A",
   "highlighter": "#F4DD6C",
   "redline": "#A8180F",
-  "redlineDark": "#FF6A5C"
+  "redlineDark": "#FF6A5C",
+  "stock": "#F2EFE8",
+  "nightRaised": "#16130E",
+  "pencil": "#E2D9BE",
+  "pencilDark": "#3B3422"
 } as const;
 export type ColorName = keyof typeof colors;
 
 export const fonts = {
   "serif": "'Geist Serif', 'Iowan Old Style', Georgia, serif",
-  "fraunces": "'Fraunces', 'Iowan Old Style', Georgia, serif",
+  "condensed": "'Anton', 'Impact', 'Arial Narrow', sans-serif",
   "hand": "'Gochi Hand', 'Comic Sans MS', cursive",
   "sans": "'Instrument Sans', 'Helvetica Neue', Arial, sans-serif",
   "mono": "'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace",
@@ -54,16 +58,20 @@ export const themes = {
     "alert": [
       "#A8180F",
       "#FF6A5C"
+    ],
+    "line": [
+      "#231F20",
+      "#FFFFFF"
     ]
   },
   "podcast": {
     "bg": [
-      "#F7D52A",
+      "#F2EFE8",
       "#000000"
     ],
     "surface": [
       "#FFFFFF",
-      "#000000"
+      "#16130E"
     ],
     "ink": [
       "#231F20",
@@ -88,6 +96,10 @@ export const themes = {
     "alert": [
       "#A8180F",
       "#FF6A5C"
+    ],
+    "line": [
+      "#E2D9BE",
+      "#3B3422"
     ]
   }
 } as const;
@@ -102,5 +114,6 @@ export const themeVariables = {
   "onAccent": "--on-accent",
   "mark": "--mark",
   "onMark": "--on-mark",
-  "alert": "--alert"
+  "alert": "--alert",
+  "line": "--line"
 } as const satisfies Record<ThemeRole, `--${string}`>;

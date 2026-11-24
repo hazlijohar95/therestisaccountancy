@@ -71,3 +71,20 @@ test('no grey is hardcoded in the guide or the brand layer', () => {
     assert.deepEqual(greys, [], name);
   }
 });
+
+test('no stylesheet outside the token build sets a custom property that a token defines', () => {
+  // A page stylesheet that reuses a token's name silently overrides it: .cells once took the guide's page gutter as its gap.
+  const tokenNames = new Set([...read('css/tokens.css').matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
+  const others = { 'guide/guide.css': css['guide/guide.css'], 'css/brand.css': css['css/brand.css'], ...Object.fromEntries(walk('broadcast').filter((f) => f.endsWith('.css')).map((f) => [f, read(f)])) };
+  for (const [file, text] of Object.entries(others)) {
+    const set = [...text.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]);
+    assert.deepEqual(set.filter((name) => tokenNames.has(name)), [], file);
+  }
+});
+
+test('every artboard can be exported: one b- class names its file, and a full-size button marks it', () => {
+  const boards = [...html.matchAll(/class="board ([^"]+)"/g)].map((m) => m[1].split(/\s+/).filter((c) => c.startsWith('b-')));
+  assert.ok(boards.length >= 10);
+  assert.deepEqual(boards.filter((names) => names.length !== 1), []);
+  assert.equal((html.match(/data-full>/g) || []).length, boards.length);
+});

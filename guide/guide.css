@@ -22,7 +22,7 @@ body, .bar, .note, .cells > *, .marquee, .intro { transition: background-color v
 .logo-tria { display: block; aspect-ratio: 4.2739; background: currentColor; mask: url("../assets/logos/tria-wordmark-mono.svg") center / contain no-repeat; }
 
 /* Bar */
-.bar { position: sticky; top: 0; z-index: 30; background: var(--bg); border-bottom: var(--stroke-heavy) solid var(--ink); }
+.bar { position: sticky; top: 0; z-index: 30; background: var(--bg); border-bottom: var(--divider) solid var(--ink); }
 .bar-in { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-4); min-height: 64px; }
 .bar-logo { display: block; width: 150px; }
 .bar-logo img { width: 100%; vertical-align: middle; }
@@ -70,7 +70,7 @@ body, .bar, .note, .cells > *, .marquee, .intro { transition: background-color v
 .facts span { font: 600 var(--size-small)/1.3 var(--font-sans); }
 
 /* Notes */
-.note { border-top: var(--stroke-heavy) solid var(--ink); padding-block: clamp(40px, 6vw, 96px); display: grid; gap: clamp(24px, 4vw, 64px); }
+.note { border-top: var(--divider) solid var(--ink); padding-block: clamp(40px, 6vw, 96px); display: grid; gap: clamp(24px, 4vw, 64px); }
 @media (min-width: 1000px) { .note { grid-template-columns: minmax(0, 320px) minmax(0, 1fr); } .note-rail { position: sticky; top: 96px; align-self: start; } }
 .note-rail .no { display: block; font-size: clamp(4rem, 2.6rem + 4.4vw, 7.5rem); line-height: .82; letter-spacing: -.06em; }
 .note-rail .head { margin: 14px 0 12px; }
@@ -79,7 +79,7 @@ body, .bar, .note, .cells > *, .marquee, .intro { transition: background-color v
 
 /* Brands */
 .compare { width: 100%; border-collapse: collapse; min-width: 560px; }
-.compare th, .compare td { text-align: start; vertical-align: top; padding: 14px 12px; border-bottom: var(--stroke-hair) solid var(--ink); }
+.compare th, .compare td { text-align: start; vertical-align: top; padding: 14px 12px; border-bottom: var(--stroke-hair) solid var(--line); }
 .compare thead th { border-bottom-width: var(--stroke-heavy); font: 700 var(--size-body)/1.2 var(--font-sans); padding-top: 0; }
 .compare tbody th { font: 600 var(--size-label)/1.4 var(--font-sans); width: 18%; }
 .compare tbody tr:hover { background: color-mix(in srgb, var(--mark) 40%, transparent); }
@@ -94,14 +94,14 @@ body, .bar, .note, .cells > *, .marquee, .intro { transition: background-color v
 @media (max-width: 600px) {
   .compare { min-width: 0; }
   .compare thead { display: none; }
-  .compare tr { display: grid; padding: 10px 0; border-bottom: var(--stroke-hair) solid var(--ink); }
+  .compare tr { display: grid; padding: 10px 0; border-bottom: var(--stroke-hair) solid var(--line); }
   .compare th, .compare td { border: 0; padding: 3px 0; width: auto; }
   .compare td::before { content: attr(data-l); display: block; font: 600 var(--size-label)/1.4 var(--font-sans); }
 }
 
 /* Logos */
-.tester { border: var(--stroke-rule) solid var(--ink); }
-.tester-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 16px; padding: 10px 12px; border-bottom: var(--stroke-rule) solid var(--ink); background: var(--bg); }
+.tester { border: var(--frame) solid var(--ink); box-shadow: var(--elevation); }
+.tester-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 16px; padding: 10px 12px; border-bottom: var(--frame) solid var(--ink); background: var(--bg); }
 #grounds button { padding: 0 11px; font-size: var(--size-label); }
 @media (max-width: 600px) { #grounds { width: 100%; } #grounds button { padding: 0 4px; } }
 .tester-stage { position: relative; display: grid; place-items: center; height: clamp(220px, 28vw, 360px); transition: background-color var(--motion-settle) var(--motion-ease); overflow: hidden; }
@@ -115,7 +115,7 @@ body, .bar, .note, .cells > *, .marquee, .intro { transition: background-color v
 .logo-file .stage { min-height: 168px; padding: 28px; }
 .logo-file .stage img, .logo-file .mono-art { display: block; width: 84%; height: auto; }
 .mono-art { background: currentColor; mask: center / contain no-repeat; }
-.logo-file figcaption { display: grid; gap: 8px; align-content: start; padding: 12px 14px 14px; border-top: var(--stroke-rule) solid var(--ink); font-size: var(--size-small); }
+.logo-file figcaption { display: grid; gap: 8px; align-content: start; padding: 12px 14px 14px; border-top: var(--frame) solid var(--ink); font-size: var(--size-small); }
 .logo-file .facts-line { font-variant-numeric: tabular-nums; font-size: var(--size-label); }
 .logo-file .chip { min-height: 32px; padding: 0 10px; }
 .clear-wrap { display: grid; place-items: center; padding: 18px 0 14px; }
@@ -126,8 +126,8 @@ body, .bar, .note, .cells > *, .marquee, .intro { transition: background-color v
 .specs p { margin: 6px 0 0; font-size: var(--size-small); }
 
 /* Colour */
-.chips-list { display: grid; border: var(--stroke-rule) solid var(--ink); }
-.chiprow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 6px 20px; min-height: clamp(84px, 9vw, 116px); padding: 14px 18px; border: 0; border-bottom: var(--stroke-rule) solid var(--color-ink); text-align: start; font: inherit; cursor: copy; }
+.chips-list { display: grid; border: var(--frame) solid var(--ink); box-shadow: var(--elevation); }
+.chiprow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 6px 20px; min-height: clamp(84px, 9vw, 116px); padding: 14px 18px; border: 0; border-bottom: max(var(--frame), var(--stroke-hair)) solid var(--line); text-align: start; font: inherit; cursor: copy; }
 .chiprow:last-child { border-bottom: 0; }
 .chiprow .nm { font-size: clamp(1.8rem, 1rem + 2.6vw, 3.4rem); line-height: 1; letter-spacing: -.035em; text-transform: capitalize; transition: translate var(--motion-quick) var(--motion-ease); }
 .chiprow:hover .nm, .chiprow:focus-visible .nm { translate: 14px; }
@@ -137,7 +137,7 @@ body, .bar, .note, .cells > *, .marquee, .intro { transition: background-color v
 @media (max-width: 600px) { .chiprow { grid-template-columns: minmax(0, 1fr); } .chiprow .meta { justify-items: start; text-align: start; } }
 .mix { display: grid; gap: 14px; }
 .mix-label { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: var(--size-small); margin-bottom: 6px; }
-.mix-bar { display: flex; height: 44px; border: var(--stroke-rule) solid var(--ink); }
+.mix-bar { display: flex; height: 44px; border: var(--frame) solid var(--ink); }
 .pair-chip { display: inline-grid; place-items: center; width: 40px; height: 26px; font: 700 var(--size-label)/1 var(--font-sans); border: var(--stroke-hair) solid var(--ink); vertical-align: middle; }
 .pass { font-weight: 700; }
 
@@ -149,8 +149,8 @@ body, .bar, .note, .cells > *, .marquee, .intro { transition: background-color v
 .tt-sample { font-size: var(--tt, 72px); line-height: .95; overflow-wrap: anywhere; }
 .setting dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 0; font-size: var(--size-small); }
 .setting dd { margin: 0; }
-.ladder { border-top: var(--stroke-heavy) solid var(--ink); }
-.step { display: grid; grid-template-columns: minmax(0, 10em) minmax(0, 1fr); gap: 16px; align-items: baseline; padding: 14px 0; border-bottom: var(--stroke-hair) solid var(--ink); }
+.ladder { border-top: var(--divider) solid var(--ink); }
+.step { display: grid; grid-template-columns: minmax(0, 10em) minmax(0, 1fr); gap: 16px; align-items: baseline; padding: 14px 0; border-bottom: var(--stroke-hair) solid var(--line); }
 .step .label { display: grid; gap: 2px; }
 .step > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 600px) { .step { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
@@ -169,14 +169,14 @@ body, .bar, .note, .cells > *, .marquee, .intro { transition: background-color v
 .spaces { gap: 7px; }
 .spaces i { display: block; height: 12px; background: var(--ink); }
 .shadow-demo { display: flex; flex-wrap: wrap; gap: 24px; padding: 4px 8px 12px 0; }
-.sbox { padding: 18px 20px; border: var(--stroke-rule) solid var(--ink); background: var(--surface); box-shadow: var(--depth) var(--depth) 0 var(--ink); font: 600 var(--size-small)/1 var(--font-sans); }
+.sbox { padding: 18px 20px; border: var(--frame) solid var(--ink); background: var(--surface); box-shadow: var(--elevation); font: 600 var(--size-small)/1 var(--font-sans); }
 .angles { display: flex; flex-wrap: wrap; gap: 28px; align-items: center; padding-block: 12px; font-size: 1.2rem; }
 
 /* Demo cells: a stage, a name and the class that makes it. Devices and motion share them. */
 .devices { --min: 230px; }
 .demos > div { display: grid; gap: 4px; align-content: start; padding-bottom: 14px; }
 .demos > div > :not(.demo-stage) { margin-inline: 14px; }
-.demo-stage { display: grid; place-items: center; min-height: 160px; padding: 20px; margin-bottom: 8px; border-bottom: var(--stroke-hair) solid var(--ink); overflow: hidden; }
+.demo-stage { display: grid; place-items: center; min-height: 160px; padding: 20px; margin-bottom: 8px; border-bottom: var(--stroke-hair) solid var(--line); overflow: hidden; }
 .demo-stage.flush { padding-bottom: 0; }
 .demo-stage.paper { background: var(--color-paper); color: var(--color-ink); }
 .demo-stage .host img { width: 150px; }
@@ -209,14 +209,14 @@ body, .bar, .note, .cells > *, .marquee, .intro { transition: background-color v
 .maker-controls .seg { width: 100%; }
 .maker-controls textarea { min-height: 92px; resize: vertical; }
 .maker-preview { display: grid; place-items: center; align-content: center; gap: 12px; padding: clamp(18px, 3vw, 36px); background: var(--bg); }
-.maker-preview canvas { display: block; max-width: 100%; max-height: 72vh; width: auto; height: auto; border: var(--stroke-rule) solid var(--ink); box-shadow: var(--shadow-hard) var(--shadow-hard) 0 var(--ink); }
+.maker-preview canvas { display: block; max-width: 100%; max-height: 72vh; width: auto; height: auto; border: var(--frame) solid var(--ink); box-shadow: var(--elevation); }
 
 /* Applications: each board is built at its real pixel size and scaled to fit its frame. */
 .boards { gap: 40px; }
 .board-wrap { display: grid; gap: 10px; align-content: start; }
 .board-wrap header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; align-items: center; }
 .board-wrap .frame + header { margin-top: 28px; }
-.frame { position: relative; overflow: hidden; border: var(--stroke-rule) solid var(--ink); }
+.frame { position: relative; overflow: hidden; border: var(--frame) solid var(--ink); box-shadow: var(--elevation); }
 .board { position: absolute; top: 0; left: 0; transform-origin: 0 0; overflow: hidden; }
 .board [contenteditable]:hover { outline: var(--stroke-rule) dashed var(--color-redline); outline-offset: 4px; }
 .board [contenteditable]:focus { outline: var(--stroke-rule) solid var(--color-redline); outline-offset: 4px; }
@@ -262,7 +262,7 @@ body, .bar, .note, .cells > *, .marquee, .intro { transition: background-color v
 
 /* Code */
 .code-box { display: grid; align-content: start; }
-.code-box header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 8px 8px 16px; border-bottom: var(--stroke-rule) solid var(--ink); font: 700 var(--size-small)/1 var(--font-sans); }
+.code-box header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 8px 8px 16px; border-bottom: var(--frame) solid var(--ink); font: 700 var(--size-small)/1 var(--font-sans); }
 .code-box pre { margin: 0; padding: 18px 16px; overflow-x: auto; font-size: var(--size-label); line-height: 1.6; }
 
 /* Footer */
@@ -274,3 +274,104 @@ body, .bar, .note, .cells > *, .marquee, .intro { transition: background-color v
 /* A stamp that lands where you clicked: feedback for copy and save. */
 .fly { position: fixed; z-index: 90; translate: -50% -50%; pointer-events: none; }
 .fly .stamp { font-size: 1.3rem; }
+
+/* Social kit and merch: the podcast brand on real formats, each board at its real pixel size. */
+/* A photo prints into the newsprint: black and white, backdrop lifted to white, multiplied onto the paper. */
+.ink-photo { mix-blend-mode: multiply; display: block; }
+/* Printed artwork: it keeps its light values when the page goes dark, so the board on screen is the file it exports. */
+.b-thumb, .b-post, .b-story, .b-art, .b-share, .b-stickers, .b-tote, .b-mug { color-scheme: light; color: var(--color-ink); }
+.b-thumb, .b-post, .b-story, .b-art, .b-share, .b-stickers, .b-post .shot, .b-story .shot { background: var(--texture-grain), var(--color-stock); color: var(--color-ink); }
+/* A strip is tape: torn at both ends, laid at an angle, stopping short of the edges. Set its start, --len, --w and --a. */
+.strip { position: absolute; width: var(--len, 700px); height: var(--w, 120px); background: linear-gradient(rgb(255 255 255 / .22), transparent 55%), var(--color-tape); mask: url("../assets/devices/tape.svg") center / 100% 100% no-repeat; transform: rotate(var(--a, -62deg)); transform-origin: 0 0; }
+
+.b-thumb { width: 1280px; height: 720px; }
+.b-thumb .s1 { left: 250px; top: 760px; --len: 790px; --w: 190px; }
+.b-thumb .s2 { left: 560px; top: 740px; --len: 560px; --w: 64px; }
+.b-thumb .lock { position: absolute; left: 56px; top: 44px; width: 270px; }
+.b-thumb .t { position: absolute; left: 56px; top: 178px; width: 860px; margin: 0; font: 400 104px/.94 var(--font-condensed); text-transform: uppercase; letter-spacing: .005em; }
+/* VS, circled twice by hand, as the designer marks it. It takes the colour of the title around it. */
+.vs { position: relative; display: inline-block; padding: 0 .26em; }
+.vs::before, .vs::after { content: ""; position: absolute; inset: -.1em -.04em -.04em -.06em; border: .055em solid currentColor; border-radius: 50%; rotate: -6deg; pointer-events: none; }
+.vs::after { inset: -.04em -.08em -.08em -.02em; rotate: 4deg; }
+.b-thumb .brush { display: inline-block; }
+/* The studio backdrop darkens toward its edges, so the photo fades in rather than showing a box. */
+.b-thumb .ink-photo { position: absolute; right: -20px; bottom: 0; height: 720px; mask: linear-gradient(90deg, transparent, #000 22%); }
+.b-thumb .nametag { position: absolute; left: 740px; bottom: 44px; font-size: 56px; }
+
+.b-post { width: 1080px; height: 1350px; }
+.b-post .shot { position: absolute; left: 0; top: 0; width: 1080px; height: 780px; overflow: hidden; }
+.b-post .shot img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 15%; }
+.b-post > .tape { position: absolute; left: 64px; top: 60px; font-size: 50px; }
+.b-post .nametag { position: absolute; left: 64px; top: 610px; font-size: 40px; }
+.b-post .t { position: absolute; left: 64px; right: 64px; top: 830px; margin: 0; font: 400 96px/.92 var(--font-condensed); text-transform: uppercase; letter-spacing: .005em; }
+.b-post footer { position: absolute; left: 64px; right: 64px; bottom: 60px; display: flex; justify-content: space-between; align-items: center; font: 600 32px/1 var(--font-sans); text-transform: uppercase; letter-spacing: .06em; }
+.b-post footer img { width: 250px; }
+
+/* Stories keep the top 250px and bottom 340px clear: the app draws over them. */
+.b-story { width: 1080px; height: 1920px; }
+.b-story .s1 { left: 640px; top: 1462px; --len: 1340px; --w: 200px; --a: -72deg; }
+.b-story .lock { position: absolute; left: 72px; top: 260px; width: 400px; }
+.b-story > .tape { position: absolute; left: 72px; top: 480px; font-size: 56px; }
+.b-story .t { position: absolute; left: 72px; right: 72px; top: 590px; margin: 0; font: 400 184px/.9 var(--font-condensed); text-transform: uppercase; letter-spacing: .005em; }
+.b-story > .scribble { position: absolute; left: 390px; top: 450px; width: 110px; color: var(--color-ink); }
+.b-story .brush { display: inline-block; }
+.b-story .shot { position: absolute; left: 0; right: 0; top: 960px; height: 510px; overflow: hidden; }
+.b-story .shot img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+.b-story .platforms { position: absolute; left: 72px; right: 72px; top: 1488px; justify-content: space-between; }
+.b-story .platforms small { font-size: 28px; }
+.b-story .platforms span { font-size: 52px; }
+
+.b-art { width: 1400px; height: 1400px; }
+.b-art .lock { position: absolute; left: 150px; top: 150px; width: 1100px; }
+/* The hosts print into the lower half; a torn edge of newsprint lies across the seam. */
+.b-art .hosts-shot { position: absolute; left: 0; right: 0; bottom: 0; height: 690px; display: grid; grid-template-columns: 1fr 1fr; background: var(--texture-grain), var(--color-stock); }
+.b-art .hosts-shot img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+.b-art .hosts-shot::before { content: ""; position: absolute; left: 0; right: 0; top: -2px; height: 34px; z-index: 1; background: var(--texture-grain), var(--color-stock); mask: url("../assets/devices/torn-edge.svg") center / 100% 100% no-repeat; }
+.b-art .s1 { left: 980px; top: 820px; --len: 520px; --w: 110px; --a: -24deg; }
+.art-tiny { width: 55px; height: 55px; display: grid; place-items: center; background: var(--texture-grain), var(--color-stock); }
+.art-tiny img { width: 46px; }
+
+.b-share { width: 1200px; height: 627px; }
+.b-share .pane { position: absolute; left: 0; top: 0; bottom: 0; width: 710px; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding: 52px 90px 52px 56px; background: var(--color-night); color: var(--color-paper); clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%); z-index: 1; }
+.b-share .pane .tape { font-size: 34px; }
+.b-share .t { margin: 0; font: 400 74px/.98 var(--font-condensed); text-transform: uppercase; letter-spacing: .005em; }
+.b-share .hl { color: var(--color-tape); }
+.b-share .pane img { width: 250px; }
+.b-share .ink-photo { position: absolute; top: 0; height: 627px; width: 330px; object-fit: cover; }
+.b-share .h2 { mask: linear-gradient(90deg, transparent, #000 14%); }
+.b-share .h1 { left: 560px; object-position: 45% 50%; }
+.b-share .h2 { left: 880px; width: 320px; object-position: 55% 50%; }
+
+.merch-real { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+.merch-real figure { margin: 0; display: grid; grid-template-rows: auto 1fr; }
+.merch-real img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: 50% 20%; }
+.merch-real figcaption { display: grid; gap: 4px; padding: 14px 16px 16px; font-size: var(--size-small); }
+
+/* Die-cut stickers: each sits on its own white margin, lifted a little off the backing sheet. */
+.b-stickers { width: 1200px; height: 900px; }
+.sticker { position: absolute; display: grid; place-items: center; padding: 18px 24px; background: var(--color-paper); border-radius: 28px; filter: drop-shadow(0 8px 14px rgb(35 31 32 / .2)); }
+.sticker.k1 { left: 70px; top: 70px; width: 470px; rotate: -4deg; }
+.sticker.k1 img { width: 100%; }
+.sticker.k2 { left: 640px; top: 80px; padding: 26px 30px; border-radius: 999px; rotate: 7deg; }
+.sticker.k2 .tape { font-size: 62px; }
+.sticker.k3 { left: 620px; top: 270px; rotate: -3deg; font: 400 58px/1 var(--font-hand); }
+.sticker.k4 { left: 80px; top: 430px; padding: 30px 34px; }
+.sticker.k4 .stamp { font-size: 64px; background: none; }
+.sticker.k5 { left: 500px; top: 420px; padding: 28px 34px; background: var(--color-night); rotate: 3deg; }
+.sticker.k5 img { width: 330px; }
+.sticker.k6 { left: 975px; top: 440px; width: 170px; height: 170px; border-radius: 50%; }
+.sticker.k6 .scribble { width: 92px; color: var(--color-ink); }
+.sticker.k7 { left: 110px; top: 690px; rotate: -5deg; font: 600 66px/1 var(--font-sans); font-variant-numeric: tabular-nums; }
+.sticker.k8 { left: 500px; top: 700px; padding: 22px 28px; background: var(--color-tape); rotate: 2deg; font: 600 34px/1 var(--font-sans); text-transform: uppercase; letter-spacing: .06em; }
+
+.b-tote { width: 1000px; height: 1150px; background: var(--color-paper); }
+.b-tote .handle { position: absolute; top: 60px; width: 230px; height: 300px; border: 26px solid #E3D8BE; border-bottom: 0; border-radius: 115px 115px 0 0; }
+.b-tote .h1 { left: 260px; }
+.b-tote .h2 { left: 510px; }
+.b-tote .bag { position: absolute; left: 150px; top: 300px; width: 700px; height: 790px; display: grid; justify-items: center; align-content: center; gap: 44px; overflow: hidden; background: var(--texture-grain), #EFE6D1; box-shadow: 0 40px 60px -40px rgb(35 31 32 / .45); }
+.b-tote .bag img { position: relative; width: 560px; }
+.b-tote .bag .s1 { left: -40px; top: 230px; --len: 300px; --w: 70px; --a: -38deg; }
+
+.b-mug { width: 1200px; height: 475px; display: grid; grid-template-columns: 1fr 380px; gap: 80px; align-items: center; padding: 0 80px; background: var(--color-paper); }
+.b-mug img { width: 100%; }
+.b-mug .ledger { font-size: 32px; }
