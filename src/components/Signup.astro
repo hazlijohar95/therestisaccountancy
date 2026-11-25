@@ -1,0 +1,42 @@
+---
+import { actions } from 'astro:actions';
+
+/** The free newsletter's sign-up. It posts to /newsletter/subscribe, which works from any page, prerendered or not. */
+interface Props {
+  /** Where on the site it was signed up from. */
+  source: 'footer' | 'home' | 'newsletter';
+  title?: string;
+  lead?: string;
+}
+
+const { source, title = 'The newsletter, free.', lead = 'Essays, the podcast and the week’s practice news, by email. Free, whether or not you join the club.' } = Astro.props;
+const id = `signup-${source}`;
+---
+
+<form class="signup" method="POST" action={`/newsletter/subscribe${actions.newsletter.subscribe}`} aria-labelledby={id}>
+  <div class="copy">
+    <h2 class="serif" id={id}>{title}</h2>
+    <p>{lead}</p>
+  </div>
+  <div class="field">
+    <label class="small" for={`${id}-email`}>Email</label>
+    <div class="row">
+      <input class="input" id={`${id}-email`} name="email" type="email" autocomplete="email" required />
+      <input type="hidden" name="source" value={source} />
+      <div class="trap" aria-hidden="true"><input name="trap" tabindex="-1" autocomplete="off" /></div>
+      <button class="btn" type="submit">Subscribe</button>
+    </div>
+  </div>
+</form>
+
+<style>
+  .signup { display: grid; gap: var(--space-5); }
+  .copy { display: grid; gap: var(--space-2); }
+  h2 { margin: 0; font-size: var(--size-head); line-height: 1.1; }
+  p { margin: 0; max-width: 30em; }
+  .field { display: grid; gap: var(--space-2); }
+  .row { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+  .input { flex: 1 1 16rem; min-width: 0; }
+  .trap { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); }
+  @media (min-width: 1000px) { .signup { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; } }
+</style>

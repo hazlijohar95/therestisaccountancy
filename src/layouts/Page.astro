@@ -7,11 +7,15 @@ interface Props {
   title?: string;
   description?: string;
   noindex?: boolean;
+  /** False on a page whose task contradicts the footer's newsletter sign-up, like unsubscribing from it. */
+  signup?: boolean;
 }
+
+const { signup = true, ...base } = Astro.props;
 ---
 
-<Base {...Astro.props}>
+<Base {...base}>
   <Bar />
   <main id="main"><slot /></main>
-  <Footer />
+  <Footer signup={signup} />
 </Base>

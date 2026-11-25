@@ -16,7 +16,7 @@ const method = [
 <Page title="Practice planner" description="Start from the income you want. See how many clients it takes, the sales calls a month to get there, and the month your hours run out. Free, and nothing leaves the page.">
   <PageHead label="Practice planner" title="Work back from the income you want." lead="A free tool from the club. It turns the income you want into clients, sales calls and a path month by month. Nothing is sent anywhere." />
   <Planner no={1} />
-  <Section id="method" no={2} title="How is it worked out?" intro="Four lines. Your own figures, nobody else's.">
+  <Section id="method" no={2} title="How is it worked out?" intro="Four lines. Your own figures, nobody else’s.">
     <dl class="facts">
       {method.map(({ term, detail }) => <div><dt>{term}</dt><dd>{detail}</dd></div>)}
     </dl>
@@ -28,5 +28,5 @@ const method = [
 </Page>
 
 <style>
-  .note { margin: var(--space-5) 0 0; max-width: 52ch; }
+  .note { margin: var(--space-5) 0 0; max-width: 30em; }
 </style>

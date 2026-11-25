@@ -1,6 +1,5 @@
 ---
-import { getCollection } from 'astro:content';
-import Episodes from '../components/Episodes.astro';
+import PostList from '../components/PostList.astro';
 import Hosts from '../components/Hosts.astro';
 import Closing from '../components/Closing.astro';
 import Logo from '../components/Logo.astro';
@@ -8,21 +7,17 @@ import Section from '../components/Section.astro';
 import { podcast } from '../data/club.ts';
 import Page from '../layouts/Page.astro';
 import { listOf } from '../lib/format.ts';
+import { postsInColumn } from '../server/posts.ts';
 
-const episodes = (await getCollection('episodes')).sort((a, b) => b.data.number - a.data.number);
+const episodes = await postsInColumn('podcast');
 const n = (base: number) => base + (episodes.length ? 1 : 0);
 
-const platforms = [
-  { verb: 'Watch on', name: 'YouTube' },
-  { verb: 'Listen on', name: 'Spotify' },
-  { verb: 'Listen on', name: 'Apple Podcasts' },
-];
 ---
 
-<Page title="Podcast" description="Stick to Accounting, the club's podcast. News, analysis and interviews. Free and public.">
+<Page title="Podcast" description="Stick to Accounting, the club’s podcast. News, analysis and interviews. Free and public.">
   <section class="night" aria-labelledby="page-title">
     <div class="wrap masthead">
-      <p class="label top">The club's podcast</p>
+      <p class="label top">The club’s podcast</p>
       <h1 id="page-title"><Logo brand="podcast" label="Stick to Accounting, Podcast Show" class="podcast-logo" /></h1>
       <p class="lead">Three hosts. One mic. The numbers behind the news.</p>
     </div>
@@ -33,18 +28,16 @@ const platforms = [
   </Section>
   {
     episodes.length > 0 && (
-      <Section id="episodes" no={2} title="What has it asked?" intro="Each episode, and the programme where members work it through.">
-        <Episodes episodes={episodes} />
+      <Section id="episodes" no={2} title="What has it asked?" intro="Newest first.">
+        <PostList posts={episodes} showColumn={false} />
       </Section>
     )
   }
   <Section id="hosts" no={n(2)} title="Who hosts it?" intro={`${listOf(podcast.hostNames)}.`}>
     <Hosts />
   </Section>
-  <Section id="listen" no={n(3)} title="Where can I listen?" intro={podcast.find}>
-    <div class="platforms">
-      {platforms.map((p) => <span><small>{p.verb}</small><span>{p.name}</span></span>)}
-    </div>
+  <Section id="listen" no={n(3)} title="Where can I listen?">
+    <p class="lead">{podcast.find}</p>
   </Section>
   <Closing title="The episodes ask. The club answers." lead="Bring the questions from the show to the room, with your own clients and figures." />
 </Page>
@@ -55,5 +48,4 @@ const platforms = [
   h1 { margin: var(--space-6) 0 0; }
   h1 :global(.podcast-logo) { width: min(100%, 640px); }
   .lead { margin: 0 0 var(--space-4); }
-  .platforms > span { display: grid; gap: 2px; }
 </style>

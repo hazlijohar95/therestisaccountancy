@@ -1,6 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
 import { openStore } from './server/instance.ts';
-import { needsPayment, requiredRole } from './server/paths.ts';
+import { needsPayment, paidAccess, requiredRole } from './server/paths.ts';
 
 export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.member = null;
@@ -18,6 +18,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     context.locals.calls = store.calls;
     context.locals.listings = store.listings;
     context.locals.fees = store.fees;
+    context.locals.newsletter = store.newsletter;
     const key = await context.session?.get('signedIn');
     context.locals.member = key ? await store.club.sessionMember(key) : null;
 
@@ -27,7 +28,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
     if (role === 'admin' && context.locals.member?.role !== 'admin') return context.redirect('/members');
     const member = context.locals.member;
-    if (role === 'member' && member?.role === 'member' && needsPayment(context.url.pathname) && (await store.billing.access(member.id)) === 'unpaid') {
+    if (role === 'member' && member && needsPayment(context.url.pathname) && !paidAccess(member.role, await store.billing.access(member.id))) {
       return context.redirect('/members/pay');
     }
     return await next();

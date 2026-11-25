@@ -16,7 +16,7 @@ const method = [
 <Page title="Rate tool" description="Work out the lowest hourly rate that pays your income and your running costs. Free, and nothing leaves the page.">
   <PageHead label="Rate tool" title="Price from your costs up." lead="A free tool from the club. Put in your own numbers. Nothing is sent anywhere." />
   <RateCalculator no={1} />
-  <Section id="method" no={2} title="How is it worked out?" intro="Three lines. No market data, no guesses about anyone else's fees.">
+  <Section id="method" no={2} title="How is it worked out?" intro="Three lines. No market data, no guesses about anyone else’s fees.">
     <dl class="facts">
       {method.map(({ term, detail }) => <div><dt>{term}</dt><dd>{detail}</dd></div>)}
     </dl>
@@ -28,5 +28,5 @@ const method = [
 </Page>
 
 <style>
-  .note { margin: var(--space-5) 0 0; max-width: 52ch; }
+  .note { margin: var(--space-5) 0 0; max-width: 30em; }
 </style>

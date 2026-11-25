@@ -1,0 +1,40 @@
+---
+import PageHead from '../../components/PageHead.astro';
+import Page from '../../layouts/Page.astro';
+import { CONFIRM_DAYS, type ConfirmRefusal } from '../../server/newsletter.ts';
+
+export const prerender = false;
+
+/*
+ * Opening the link only shows a button; pressing it confirms. Mail scanners open every link in a letter, so confirming
+ * on a plain visit would sign up any address someone typed into the form. Pressing it twice is safe.
+ */
+const posted = Astro.request.method === 'POST';
+const form = posted ? await Astro.request.formData().catch(() => null) : null;
+const sent = form?.get('token');
+const token = posted ? (typeof sent === 'string' ? sent : '') : (Astro.url.searchParams.get('token') ?? '');
+const result = posted && token ? await Astro.locals.newsletter.confirm(token) : null;
+const refused = {
+  expired: { title: 'That link has run out.', lead: `Confirmation links work for ${CONFIRM_DAYS} days. Subscribe again and we will send a new one.` },
+  unknown: { title: 'That link does not work.', lead: 'It may be incomplete, or a newer email replaced it. Subscribe again and we will send a new link.' },
+} as const satisfies Record<ConfirmRefusal, { title: string; lead: string }>;
+---
+
+<Page title="Newsletter" noindex signup={false}>
+  {
+    !posted && token ? (
+      <PageHead label="Newsletter" title="Confirm your email." lead="One more step. Press the button and the newsletter starts coming to you.">
+        <form method="POST" action="/newsletter/confirm">
+          <input type="hidden" name="token" value={token} />
+          <button class="btn" type="submit">Yes, send me the newsletter</button>
+        </form>
+      </PageHead>
+    ) : result?.ok ? (
+      <PageHead label="Newsletter" title="You’re on the list." lead={`The newsletter now comes to ${result.value.email}. Every one has a link at the bottom to stop it.`} />
+    ) : (
+      <PageHead label="Newsletter" {...refused[result?.reason ?? 'unknown']}>
+        <a class="btn" href="/newsletter">Subscribe again</a>
+      </PageHead>
+    )
+  }
+</Page>

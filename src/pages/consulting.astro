@@ -1,0 +1,56 @@
+---
+/* Draft copy: the offer and how engagements are scoped are for the hosts to confirm. Enquiries go to the club's inbox. */
+import Closing from '../components/Closing.astro';
+import PageHead from '../components/PageHead.astro';
+import Section from '../components/Section.astro';
+import { programmeBySlug, programmePath, type Programme } from '../data/programmes.ts';
+import Page from '../layouts/Page.astro';
+
+const inbox = 'club@better-accountant.com';
+const enquiry = `mailto:${inbox}?subject=${encodeURIComponent('Consulting enquiry')}`;
+
+const areas = (['pricing', 'advisory', 'ai', 'growth'] as const).flatMap((slug) => programmeBySlug(slug) ?? []) satisfies Programme[];
+
+const steps = [
+  { term: 'Write to us', detail: 'Your firm, the problem, and when it needs solving. A paragraph is enough.' },
+  { term: 'A call', detail: 'A host calls to understand the firm and its figures, and says plainly whether we can help.' },
+  { term: 'A written scope', detail: 'What we will do, what you will have at the end, and what it costs, before any work starts.' },
+];
+
+const proof = [
+  { href: '/podcast', label: 'Stick to Accounting', detail: 'The podcast: news, analysis and interviews.' },
+  { href: '/programmes', label: 'The programmes', detail: 'How we teach pricing, clients, advisory, AI and growth.' },
+  { href: '/fees', label: 'The fee survey', detail: 'What Malaysian practices charge, in the open.' },
+  { href: '/newsletter', label: 'The newsletter', detail: 'What we think, written down.' },
+];
+---
+
+<Page title="Consulting" description="Consulting from The Rest Is Accountancy: the hosts work with one firm on one problem, from pricing and advisory to AI and growth.">
+  <PageHead label="Consulting" title="One firm. One problem. Worked through with you." lead="For a practice that wants the hosts on its own figures and clients, not a programme’s worked example.">
+    <a class="btn" href={enquiry}>Write to us</a>
+    <p class="small address">Or write to <a href={enquiry}>{inbox}</a>.</p>
+  </PageHead>
+  <Section id="areas" no={1} title="What do we help with?" intro="The same ground as the programmes, applied to your firm alone.">
+    <ul class="ruled areas">
+      {areas.map((p) => <li><a class="serif" href={programmePath(p)}>{p.name}</a><span>{p.promise}</span></li>)}
+    </ul>
+  </Section>
+  <Section id="how" no={2} title="How does it start?">
+    <dl class="facts">
+      {steps.map((s) => <div><dt>{s.term}</dt><dd>{s.detail}</dd></div>)}
+    </dl>
+  </Section>
+  <Section id="proof" no={3} title="How do we work?" intro="In public. Judge us by what is already out there.">
+    <ul class="ruled areas">
+      {proof.map((p) => <li><a class="serif" href={p.href}>{p.label}</a><span>{p.detail}</span></li>)}
+    </ul>
+  </Section>
+  <Closing title="Not ready for consulting?" lead="The club works on the same problems with other practices, every week." />
+</Page>
+
+<style>
+  .address { flex-basis: 100%; margin: 0; }
+  .areas li { display: grid; gap: var(--space-1); padding-block: var(--space-4); }
+  .areas a { font-size: var(--size-head); line-height: 1.15; text-decoration: none; }
+  .areas a:hover { text-decoration: underline; text-decoration-thickness: var(--stroke-hair); }
+</style>

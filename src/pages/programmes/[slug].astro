@@ -1,13 +1,13 @@
 ---
 import type { GetStaticPaths } from 'astro';
-import { getCollection } from 'astro:content';
-import Episodes from '../../components/Episodes.astro';
+import PostList from '../../components/PostList.astro';
 import Closing from '../../components/Closing.astro';
 import PageHead from '../../components/PageHead.astro';
 import Section from '../../components/Section.astro';
 import { obstacleFor, programmeCount, teaching } from '../../data/club.ts';
 import { programmePath, programmes, type Programme } from '../../data/programmes.ts';
 import Page from '../../layouts/Page.astro';
+import { postsAbout } from '../../server/posts.ts';
 
 export const getStaticPaths = (() => programmes.map((programme) => ({ params: { slug: programme.slug }, props: { programme } }))) satisfies GetStaticPaths;
 
@@ -21,7 +21,7 @@ const obstacle = obstacleFor(programme);
 const previous = programmes[index - 1];
 const next = programmes[index + 1];
 const count = (n: number) => String(n).padStart(2, '0');
-const episodes = (await getCollection('episodes', (e) => e.data.programme === programme.slug)).sort((a, b) => b.data.number - a.data.number);
+const posts = await postsAbout(programme.slug);
 ---
 
 <Page title={programme.name} description={`${programme.name}. ${programme.promise} ${obstacle?.answer ?? ''}`.trim()}>
@@ -46,9 +46,9 @@ const episodes = (await getCollection('episodes', (e) => e.data.programme === pr
     <p class="lead">{teaching}</p>
   </Section>
   {
-    episodes.length > 0 && (
-      <Section id="podcast" no={obstacle ? 4 : 3} title="Heard it on the podcast?" intro="Episodes of Stick to Accounting that ask what this programme answers.">
-        <Episodes episodes={episodes} showProgramme={false} />
+    posts.length > 0 && (
+      <Section id="reading" no={obstacle ? 4 : 3} title="Where has it come up?" intro="Posts and episodes that ask what this programme answers.">
+        <PostList posts={posts} />
       </Section>
     )
   }
@@ -60,7 +60,7 @@ const episodes = (await getCollection('episodes', (e) => e.data.programme === pr
 </Page>
 
 <style>
-  blockquote { margin: 0 0 var(--space-5); font-size: clamp(1.75rem, 1.2rem + 2vw, 2.75rem); line-height: 1.1; letter-spacing: -.02em; text-wrap: balance; }
+  blockquote { margin: 0 0 var(--space-5); font-size: clamp(1.75rem, 1.2rem + 2vw, 2.75rem); line-height: 1.1; text-wrap: balance; }
   .lead { margin: 0; }
   .modules { list-style: none; margin: 0; padding: 0; border-top: var(--stroke-rule) solid var(--ink); }
   .modules li { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); align-items: baseline; gap: var(--space-4); padding-block: var(--space-4); border-bottom: var(--stroke-hair) solid var(--ink); font-size: var(--size-lead); }

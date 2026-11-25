@@ -1,13 +1,11 @@
 /* The copy shared across pages. Copy used by one page lives in that page.
    Programme details, session formats and the calculator's starting figures are drafts until the club confirms them. */
-import type { ImageMetadata } from 'astro';
 import type { RateInputs } from '../lib/rate.ts';
-import abuPhoto from '../assets/hosts/abu-studio.jpg';
-import hazliPhoto from '../assets/hosts/hazli-studio.jpg';
 import { capitalised, numberWord } from '../lib/format.ts';
 import { programmeBySlug, programmePath, programmes, type Programme, type ProgrammeSlug } from './programmes.ts';
 import type { SessionKind } from './sessions.ts';
 import { LINK_DAYS } from './links.ts';
+import { authors } from './authors.ts';
 
 export interface Link {
   readonly href: `/${string}` | `#${string}`;
@@ -28,19 +26,11 @@ const ProgrammeCount = capitalised(programmeCount);
 export const join: Link = { href: '/join', label: 'Request membership' };
 export const signIn: Link = { href: '/sign-in', label: 'Sign in' };
 
-export const nav: readonly Link[] = [
-  { href: '/membership', label: 'Membership' },
-  { href: '/programmes', label: 'Programmes' },
-  { href: '/podcast', label: 'Podcast' },
-  { href: '/tools', label: 'Tools' },
-  { href: '/directory', label: 'Find an accountant' },
-  { href: '/about', label: 'About' },
-];
 
 export const hero = {
   eyebrow: ['Club, membership and community', 'Members by request'],
   title: ['You passed the exams.', 'Now for the rest.'],
-  lead: "A members' club for accountants who run a practice, or mean to. We work on what the syllabus left out. Pricing. Clients. Advisory. AI. The business of the firm.",
+  lead: "A members’ club for accountants who run a practice, or mean to. We work on what the syllabus left out. Pricing. Clients. Advisory. AI. The business of the firm.",
   secondary: { href: '#stuck', label: 'Where are you stuck?' } satisfies Link,
   brief: [
     { term: 'For', detail: 'Accountants in practice, or on the way there' },
@@ -64,16 +54,16 @@ export interface Obstacle {
 }
 
 export const stuck = {
-  title: 'What is in your way?',
+  title: 'Where are you stuck?',
   intro: 'Pick the one that is true this week. Each has a place in the club.',
   obstacles: [
-    { question: "I haven't opened my practice yet.", leadsTo: toProgramme(programme('foundations')), answer: 'Foundations takes you from qualified to trading. Firm structure, your practising certificate, tax agent approval, anti-money-laundering duties, engagement letters and your first clients.' },
+    { question: "I haven’t opened my practice yet.", leadsTo: toProgramme(programme('foundations')), answer: 'Foundations takes you from qualified to trading. Firm structure, your practising certificate, tax agent approval, anti-money-laundering duties, engagement letters and your first clients.' },
     { question: 'I charge too little, and I know it.', leadsTo: toProgramme(programme('pricing')), answer: 'Pricing moves you from hours to fixed fees. Work out your floor, build packages a client can compare, reprice the clients you already have and hold the number once you have said it.' },
-    { question: "Enquiries come in. Clients don't.", leadsTo: toProgramme(programme('clients')), answer: 'Clients covers the first call, the proposal and the follow-up, without turning into someone you would avoid.' },
-    { question: 'Nobody knows my firm exists.', leadsTo: toProgramme(programme('visibility')), answer: "Visibility is a plan you can keep. Choose what you want to be known for, then turn one idea a week into a post, a letter and a talk. In your voice, not an agency's." },
-    { question: 'AI is doing the work I bill for.', leadsTo: toProgramme(programme('ai')), answer: "AI shows where the tools help a practice, where they don't, and where client data must stay put. Prompts, workflows and safeguards, kept current as the tools change." },
+    { question: "Enquiries come in. Clients don’t.", leadsTo: toProgramme(programme('clients')), answer: 'Clients covers the first call, the proposal and the follow-up, without turning into someone you would avoid.' },
+    { question: 'Nobody knows my firm exists.', leadsTo: toProgramme(programme('visibility')), answer: "Visibility is a plan you can keep. Choose what you want to be known for, then turn one idea a week into a post, a letter and a talk. In your voice, not an agency’s." },
+    { question: 'AI is doing the work I bill for.', leadsTo: toProgramme(programme('ai')), answer: "AI shows where the tools help a practice, where they don’t, and where client data must stay put. Prompts, workflows and safeguards, kept current as the tools change." },
     { question: 'I want to advise, not just file.', leadsTo: toProgramme(programme('advisory')), answer: 'Advisory turns compliance clients into advisory clients. Management accounts clients actually read, cash forecasts, tax planning through the year, and how to charge for all of it.' },
-    { question: "I'm busy, but the firm isn't growing.", leadsTo: toProgramme(programme('growth')), answer: 'Growth is about the firm itself: what you want it to be in three years, a week that repeats, systems before staff and your first hire. You finish with a written plan for that firm, read and answered by the hosts.' },
+    { question: "I’m busy, but the firm isn’t growing.", leadsTo: toProgramme(programme('growth')), answer: 'Growth is about the firm itself: what you want it to be in three years, a week that repeats, systems before staff and your first hire. You finish with a written plan for that firm, read and answered by the hosts.' },
     { question: 'I make every decision alone.', leadsTo: { href: '/#room', label: 'The room' }, answer: 'That is what the room is for. Bring a quote, a client, a hire or a bad week. Better said in the room than decided alone.' },
   ] satisfies readonly Obstacle[],
 } as const;
@@ -83,9 +73,9 @@ export const obstacleFor = (p: Programme): Obstacle | undefined => stuck.obstacl
 
 export const room = {
   label: 'The room',
-  title: "A partners' meeting for firms of one.",
+  title: "A partners’ meeting for firms of one.",
   paragraphs: [
-    "A large firm decides things in a room. Partners argue, check each other's numbers and leave with a plan. On your own, the room is your head at eleven at night.",
+    "A large firm decides things in a room. Partners argue, check each other’s numbers and leave with a plan. On your own, the room is your head at eleven at night.",
     'The club is that room. It is not a networking group. Nobody is selling to you.',
   ],
   who: ['The three hosts of Stick to Accounting', 'Accountants who run a practice, or mean to', 'Guests who know one subject well'],
@@ -106,8 +96,8 @@ export const week = {
     { term: 'Clinics', detail: 'An open floor. Bring a quote, a client or a problem. Leave with an answer or a next step.' },
   ] satisfies readonly (Term & { term: SessionKind })[],
   between: [
-    { term: 'Between sessions', detail: "The members' room, online and open all week. Ask before you decide." },
-    { term: "When you're stuck", detail: 'A short one-to-one call with a host, booked when you need it, to get you moving again.' },
+    { term: 'Between sessions', detail: "The members’ room, online and open all week. Ask before you decide." },
+    { term: "When you’re stuck", detail: 'A short one-to-one call with a host, booked when you need it, to get you moving again.' },
   ] satisfies readonly Term[],
 } as const;
 
@@ -138,28 +128,18 @@ export const rate = {
   ] satisfies readonly RateField[],
 } as const;
 
-export interface Host {
-  readonly name: string;
-  readonly photo: ImageMetadata;
-  readonly alt: string;
-}
-
 export const podcast = {
   title: 'Not ready to join?',
   intro: 'Start with the podcast. It is free and public. The episodes ask the questions. The club is where members work out the answers.',
   lead: 'News. Analysis. Interviews. Hosted by Hazli Johar, Abu Musa and Shukri Yusof.',
-  find: 'Search for Stick to Accounting wherever you listen.',
-  hostNames: ['Hazli Johar', 'Abu Musa', 'Shukri Yusof'],
-  hosts: [
-    { name: 'Hazli Johar', photo: hazliPhoto, alt: 'Hazli Johar at the microphone' },
-    { name: 'Abu Musa', photo: abuPhoto, alt: 'Abu Musa on set' },
-  ] satisfies readonly Host[],
+  find: 'Search for Stick to Accounting on YouTube, Spotify or Apple Podcasts.',
+  hostNames: authors.map((a) => a.name),
 } as const;
 
 export const fit = {
   title: 'Is this for you?',
   intro: 'The room works when everyone in it comes to work. Be honest with yourself here.',
-  yes: ['You run a practice, or plan to within the year', "You price by the hour and suspect you shouldn't", 'You are good at the work and unsure about the business', 'You want peers who will tell you the truth'],
+  yes: ['You run a practice, or plan to within the year', "You price by the hour and suspect you shouldn’t", 'You are good at the work and unsure about the business', 'You want peers who will tell you the truth'],
   notYet: ['You want a certificate more than a better firm', 'You came to sell to accountants', 'You want answers without doing the work'],
 } as const;
 
@@ -188,9 +168,9 @@ export const joining = {
 
 export const joinSection = {
   label: 'Join',
-  title: "The syllabus ended. The work didn't.",
+  title: "The syllabus ended. The work didn’t.",
   lead: 'Tell us who you are and where your practice stands. We reply to every request by email.',
-  stages: ['I run a practice', "I'm about to open one", 'I work in a firm', 'I work in industry'],
+  stages: ['I run a practice', "I’m about to open one", 'I work in a firm', 'I work in industry'],
   card: { role: 'Member', namePlaceholder: 'Your name', number: 'Pending' },
   messages: {
     name: 'Enter your name.',

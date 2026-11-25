@@ -24,7 +24,7 @@ const { title, lead } = Astro.props;
 
 <style>
   .in { display: grid; gap: var(--space-7); align-items: end; padding-block: clamp(72px, 10vw, 144px); }
-  .headline { margin: 0; max-width: 13ch; font-size: clamp(2.5rem, 1.3rem + 4vw, 5rem); line-height: 1; letter-spacing: -.035em; text-wrap: balance; }
+  .headline { margin: 0; max-width: 13ch; font-size: var(--size-title); line-height: 1; text-wrap: balance; }
   .side { display: grid; gap: var(--space-5); }
   .lead { margin: 0; max-width: 44ch; }
   .actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }

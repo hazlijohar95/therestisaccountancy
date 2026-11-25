@@ -1,0 +1,29 @@
+---
+import type { GetStaticPaths } from 'astro';
+import PageHead from '../../components/PageHead.astro';
+import PostList from '../../components/PostList.astro';
+import Section from '../../components/Section.astro';
+import { columns, type Column } from '../../data/columns.ts';
+import Page from '../../layouts/Page.astro';
+import { postsInColumn } from '../../server/posts.ts';
+
+/* The podcast's column page is /podcast. */
+export const getStaticPaths = (() =>
+  columns.filter((column) => column.slug !== 'podcast').map((column) => ({ params: { column: column.slug }, props: { column } }))) satisfies GetStaticPaths;
+
+interface Props {
+  column: Column;
+}
+
+const { column } = Astro.props;
+const posts = await postsInColumn(column.slug);
+---
+
+<Page title={column.name} description={`${column.name}: ${column.tagline} From The Rest Is Accountancy’s newsletter.`}>
+  <PageHead label="A newsletter column" title={column.name} lead={column.tagline}>
+    <a class="btn ghost" href="/newsletter">The whole newsletter</a>
+  </PageHead>
+  <Section id="posts" no={1} title="What has it covered?" intro={posts.length ? 'Newest first.' : 'Nothing yet. The first post reaches subscribers by email.'}>
+    {posts.length > 0 && <PostList posts={posts} showColumn={false} />}
+  </Section>
+</Page>

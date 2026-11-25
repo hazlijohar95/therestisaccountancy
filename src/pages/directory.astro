@@ -36,13 +36,10 @@ const checks = [
     lead="Every practice here is run by a member of The Rest Is Accountancy, a club for accountants in practice. Pick your state and the work you need, then contact them directly. Your enquiry goes straight to them."
   />
 
-  <section class="sec wrap" id="practices" aria-labelledby="practices-title">
-    <div class="rail">
-      <span class="no serif">N°1</span>
-      <h2 class="head" id="practices-title">Practices</h2>
+  <Section id="practices" no={1} title="Practices">
       {
         total > 0 && (
-          <form class="filter" method="get" action="/directory#practices" role="search" aria-label="Filter the practices">
+          <form slot="rail" class="filter" method="get" action="/directory#practices" role="search" aria-label="Filter the practices">
             <div class="field">
               <label for="state">State</label>
               <select class="input" id="state" name="state">
@@ -64,7 +61,6 @@ const checks = [
           </form>
         )
       }
-    </div>
     <div class="results">
       {
         total === 0 ? (
@@ -94,7 +90,7 @@ const checks = [
         )
       }
     </div>
-  </section>
+  </Section>
 
   <Section id="checks" no={2} title="What does the club check?" intro="Enough for you to know who you are dealing with. Not their work.">
     <dl class="facts">{checks.map(({ term, detail }) => <div><dt>{term}</dt><dd>{detail}</dd></div>)}</dl>
@@ -103,17 +99,13 @@ const checks = [
 </Page>
 
 <style>
-  .no { display: block; font-size: clamp(3.5rem, 2.4rem + 3.6vw, 6.5rem); line-height: .82; letter-spacing: -.06em; }
-  .rail .head { margin: var(--space-5) 0 var(--space-3); }
-  .rail p { margin: 0; max-width: 38ch; }
   .filter { display: grid; gap: var(--space-4); max-width: 420px; margin-top: var(--space-5); }
   .go { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5); }
   .results { display: grid; align-content: start; gap: var(--space-5); }
   .count { margin: 0; font-size: var(--size-head); line-height: 1.15; text-wrap: balance; }
-  .empty { margin: 0; padding-block: var(--space-5); border-block: var(--stroke-hair) solid var(--ink); max-width: 60ch; }
+  .empty { margin: 0; padding-block: var(--space-5); border-block: var(--stroke-hair) solid var(--ink); max-width: 30em; }
   .entries { margin: 0; padding: 0; list-style: none; border-top: var(--stroke-rule) solid var(--ink); }
   .entries > li { border-bottom: var(--stroke-hair) solid var(--ink); }
   .group { margin: var(--space-6) 0 0; }
-  .aside { margin: var(--space-6) 0 0; max-width: 60ch; }
-  @media (min-width: 1000px) { .rail { position: sticky; top: calc(var(--bar) + 40px); align-self: start; } }
+  .aside { margin: var(--space-6) 0 0; max-width: 30em; }
 </style>

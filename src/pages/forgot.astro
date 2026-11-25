@@ -29,9 +29,9 @@ const error = result?.error ? (isInputError(result.error) ? result.error.fields.
           <form method="POST" action={formAction(Astro.url, actions.requestLink)} class="form">
             <div class="field">
               <label for="email">Email</label>
-              <input class="input" id="email" name="email" type="email" autocomplete="username" required />
+              <input class="input" id="email" name="email" type="email" autocomplete="username" required aria-invalid={error ? 'true' : undefined} aria-describedby={error ? 'form-error' : undefined} autofocus={error ? true : undefined} />
             </div>
-            {error && <p class="error" role="alert">{error}</p>}
+            {error && <p class="error" id="form-error" role="alert">{error}</p>}
             <button class="btn" type="submit">Email me a link</button>
             <p class="small"><a href="/sign-in">Back to sign in</a></p>
           </form>
@@ -44,7 +44,7 @@ const error = result?.error ? (isInputError(result.error) ? result.error.fields.
 <style>
   .in { display: grid; gap: var(--space-8); padding-block: clamp(32px, 4vw, 48px) clamp(80px, 10vw, 144px); }
   .top { margin: 0 0 var(--space-6); padding-bottom: var(--space-4); border-bottom: var(--stroke-hair) solid var(--ink); }
-  .headline { margin: 0 0 var(--space-5); max-width: 10ch; font-size: clamp(2.75rem, 1.2rem + 5vw, 5.5rem); line-height: .98; letter-spacing: -.035em; }
+  .headline { margin: 0 0 var(--space-5); max-width: 10ch; font-size: var(--size-page); line-height: .98; }
   .lead { margin: 0; max-width: 36ch; }
   .form { display: grid; gap: var(--space-5); align-content: start; max-width: 440px; }
   .form .btn { justify-self: start; }

@@ -3,7 +3,7 @@ title: Proposal outline
 programme: clients
 module: 2
 kind: Template
-summary: A proposal that repeats the client's problem in their own words, offers three ways to solve it and makes saying yes a single step.
+summary: A proposal that repeats the client’s problem in their own words, offers three ways to solve it and makes saying yes a single step.
 ---
 
 > Send it within two working days of the first call, while the call is fresh for both of you. Two pages is enough. Longer proposals are not read.

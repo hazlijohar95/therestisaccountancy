@@ -9,6 +9,7 @@ import { createIncidents } from './incidents.ts';
 import { createLimits } from './limits.ts';
 import { createListings } from './listings.ts';
 import { createMailings } from './mailings.ts';
+import { createNewsletter } from './newsletter.ts';
 import { createPlans } from './plans.ts';
 import { createSchedule } from './schedule.ts';
 
@@ -48,6 +49,7 @@ export class ClubStore extends DurableObject<Env> {
   readonly #calls;
   readonly #listings;
   readonly #fees;
+  readonly #newsletter;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -64,11 +66,12 @@ export class ClubStore extends DurableObject<Env> {
     this.#calls = createCalls(db);
     this.#listings = createListings(db);
     this.#fees = createFees(db);
+    this.#newsletter = createNewsletter(db);
     const email = (env.ADMIN_EMAIL ?? '').trim().toLowerCase();
     if (email) this.#club.appointAdmin({ email, name: 'Admin' });
   }
 
   open() {
-    return { club: this.#club, community: this.#community, limits: this.#limits, mailings: this.#mailings, schedule: this.#schedule, billing: this.#billing, incidents: this.#incidents, plans: this.#plans, calls: this.#calls, listings: this.#listings, fees: this.#fees };
+    return { club: this.#club, community: this.#community, limits: this.#limits, mailings: this.#mailings, schedule: this.#schedule, billing: this.#billing, incidents: this.#incidents, plans: this.#plans, calls: this.#calls, listings: this.#listings, fees: this.#fees, newsletter: this.#newsletter };
   }
 }

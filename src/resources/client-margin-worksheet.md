@@ -3,7 +3,7 @@ title: Client margin worksheet
 programme: pricing
 module: 1
 kind: Worksheet
-summary: Every client's fee set against the hours they take and your floor, so you can see who costs you money and whom to reprice first.
+summary: Every client’s fee set against the hours they take and your floor, so you can see who costs you money and whom to reprice first.
 ---
 
 > Fill this in straight after the lesson on your floor rate. You need your floor from the [rate tool](/tools/rate) and an honest count of each client's hours, emails, calls and chasing included. If you keep no time records, estimate now, keep a timesheet for one month, then fill it in again.

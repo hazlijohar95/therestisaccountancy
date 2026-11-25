@@ -49,14 +49,14 @@ const text = purpose ? copy[purpose] : null;
               <input type="hidden" name="email" value={holder.email} autocomplete="username" />
               <div class="field">
                 <label for="password">Password</label>
-                <input class="input" id="password" name="password" type="password" autocomplete="new-password" minlength={MIN_PASSWORD_LENGTH} required aria-invalid={fieldErrors.password ? 'true' : undefined} aria-describedby="password-hint" />
+                <input class="input" id="password" name="password" type="password" autocomplete="new-password" minlength={MIN_PASSWORD_LENGTH} required aria-invalid={fieldErrors.password ? 'true' : undefined} aria-describedby={fieldErrors.password ? 'password-hint password-error' : 'password-hint'} autofocus={fieldErrors.password ? true : undefined} />
                 <span class="hint" id="password-hint">At least {MIN_PASSWORD_LENGTH} characters. A short sentence works well.</span>
-                {fieldErrors.password?.[0] && <span class="error">{fieldErrors.password[0]}</span>}
+                {fieldErrors.password?.[0] && <span class="error" id="password-error">{fieldErrors.password[0]}</span>}
               </div>
               <div class="field">
                 <label for="confirm">The same password again</label>
-                <input class="input" id="confirm" name="confirm" type="password" autocomplete="new-password" required aria-invalid={fieldErrors.confirm ? 'true' : undefined} />
-                {fieldErrors.confirm?.[0] && <span class="error">{fieldErrors.confirm[0]}</span>}
+                <input class="input" id="confirm" name="confirm" type="password" autocomplete="new-password" required aria-invalid={fieldErrors.confirm ? 'true' : undefined} aria-describedby={fieldErrors.confirm ? 'confirm-error' : undefined} autofocus={fieldErrors.confirm && !fieldErrors.password ? true : undefined} />
+                {fieldErrors.confirm?.[0] && <span class="error" id="confirm-error">{fieldErrors.confirm[0]}</span>}
               </div>
               {error && <p class="error" role="alert">{error}</p>}
               <button class="btn" type="submit">{text.submit}</button>
@@ -66,7 +66,7 @@ const text = purpose ? copy[purpose] : null;
           <div>
             <p class="label top">Members</p>
             <h1 class="headline serif" id="page-title">This link no longer works.</h1>
-            <p class="lead">Each link works once. An invitation lasts {LINK_DAYS.welcome} days and a reset link {LINK_DAYS.reset} days. Ask the club for a new one, or <a href="/sign-in">sign in</a> if you have set a password since.</p>
+            <p class="lead">Each link works once. An invitation lasts {LINK_DAYS.welcome} days and a reset link {LINK_DAYS.reset} days. <a href="/forgot">Get a new link by email</a>, or <a href="/sign-in">sign in</a> if you have set a password since.</p>
           </div>
         )
       }
@@ -77,7 +77,7 @@ const text = purpose ? copy[purpose] : null;
 <style>
   .in { display: grid; gap: var(--space-8); padding-block: clamp(32px, 4vw, 48px) clamp(80px, 10vw, 144px); }
   .top { margin: 0 0 var(--space-6); padding-bottom: var(--space-4); border-bottom: var(--stroke-hair) solid var(--ink); }
-  .headline { margin: 0 0 var(--space-5); max-width: 12ch; font-size: clamp(2.75rem, 1.2rem + 5vw, 5.5rem); line-height: .98; letter-spacing: -.035em; text-wrap: balance; }
+  .headline { margin: 0 0 var(--space-5); max-width: 12ch; font-size: var(--size-page); line-height: .98; text-wrap: balance; }
   .lead { margin: 0; max-width: 40ch; }
   .form { display: grid; gap: var(--space-5); align-content: start; max-width: 440px; }
   .form .btn { justify-self: start; }

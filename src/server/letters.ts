@@ -71,6 +71,20 @@ export function passwordLetter(link: { email: string; name: string; purpose: Lin
   };
 }
 
+/** Asks someone who signed up for the free newsletter to confirm the address is theirs. Nothing goes to it until they do. */
+export function newsletterConfirmLetter(to: { email: string; link: string; expiresAt: string }): Letter {
+  return {
+    to: to.email,
+    subject: 'Confirm your email for the newsletter',
+    lines: [
+      `Someone, hopefully you, signed up for the newsletter from ${site.name} with this address. Confirm it and you're on the list.`,
+      { href: to.link, label: 'Yes, send me the newsletter' },
+      `The link works until ${formatDay(to.expiresAt)}. After that, subscribe again on the site and we'll send a new one.`,
+      "Didn't subscribe? Ignore this email. We won't write again.",
+    ],
+  };
+}
+
 /** Tells the admins a request has come in. Only ever sent to them, never to the address typed into the form. */
 export function joinRequestLetter(admins: readonly string[], request: Pick<JoinRequest, 'name' | 'email' | 'stage'>, adminUrl: string): Letter {
   return {

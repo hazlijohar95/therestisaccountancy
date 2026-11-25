@@ -168,7 +168,7 @@ test('names the first figure out of range, in form order', () => {
   assert.deepEqual(plan({ ...steady, conversion: 101 }), { kind: 'invalid', field: 'conversion' });
   assert.deepEqual(plan({ ...steady, churn: -5 }), { kind: 'invalid', field: 'churn' });
   assert.deepEqual(plan({ ...steady, fee: Number.NaN, hoursPerWeek: Number.NaN }), { kind: 'invalid', field: 'fee' });
-  assert.equal(explain({ ...steady, fee: Number.NaN }).answer, 'Check the number marked in red.');
+  assert.equal(explain({ ...steady, fee: Number.NaN }).answer, 'One of the figures is out of range.');
 });
 
 test('never throws and never produces a number that is not finite', () => {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { requiredRole, safeNext } from './paths.ts';
+import { paidAccess, requiredRole, safeNext } from './paths.ts';
 
 test('member and admin areas are guarded, and nothing else is', () => {
   assert.equal(requiredRole('/members'), 'member');
@@ -20,3 +20,10 @@ test('a return path never leaves the site', () => {
   assert.equal(safeNext(null), '/members');
 });
 
+
+test('members-only reading needs a paid or grace membership; admins never pay', () => {
+  assert.equal(paidAccess('member', 'paid'), true);
+  assert.equal(paidAccess('member', 'grace'), true);
+  assert.equal(paidAccess('member', 'unpaid'), false);
+  assert.equal(paidAccess('admin', 'unpaid'), true);
+});

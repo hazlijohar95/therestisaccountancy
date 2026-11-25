@@ -3,7 +3,7 @@ title: Prompt pack for a practice
 programme: ai
 module: 2
 kind: Prompts
-summary: Seven prompts for the work AI does well in a practice, with the firm's rules on client data set out before any of them.
+summary: Seven prompts for the work AI does well in a practice, with the firm’s rules on client data set out before any of them.
 ---
 
 > Agree the rules with everyone in the firm before anyone uses a prompt. Then fill in each prompt's blanks. The more context you give, the better the answer.

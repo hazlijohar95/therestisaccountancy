@@ -1,0 +1,44 @@
+---
+import { actions, isInputError } from 'astro:actions';
+import Notice from '../../components/Notice.astro';
+import PageHead from '../../components/PageHead.astro';
+import Page from '../../layouts/Page.astro';
+
+/* Every sign-up form posts here, so it works from prerendered pages, which cannot run an action themselves. */
+export const prerender = false;
+
+const result = Astro.getActionResult(actions.newsletter.subscribe);
+if (!result) return Astro.redirect('/newsletter');
+const badEmail = result.error ? isInputError(result.error) : false;
+const error = result.error ? (isInputError(result.error) ? (result.error.fields.email?.[0] ?? 'Enter your email address.') : result.error.message) : null;
+---
+
+<Page title="Newsletter" noindex signup={false}>
+  {
+    result.data ? (
+      <PageHead
+        label="Newsletter"
+        title={result.data.message}
+        lead={`If ${result.data.email} is not on the list already, a link to confirm it is on its way. Nothing after a few minutes? Check your spam folder.`}
+      />
+    ) : (
+      <>
+        <PageHead label="Newsletter" title="Not subscribed yet." />
+        <Notice tone="error" id="newsletter-error">{error}</Notice>
+        <form class="wrap form" method="POST" action={`/newsletter/subscribe${actions.newsletter.subscribe}`}>
+          <div class="field">
+            <label for="newsletter-email">Email</label>
+            <input class="input" id="newsletter-email" name="email" type="email" autocomplete="email" required aria-invalid={badEmail ? 'true' : undefined} aria-describedby="newsletter-error" autofocus />
+            <input type="hidden" name="source" value="newsletter" />
+          </div>
+          <button class="btn" type="submit">Subscribe</button>
+        </form>
+      </>
+    )
+  }
+</Page>
+
+<style>
+  .form { display: grid; gap: var(--space-5); max-width: 440px; padding-block: var(--space-7) clamp(80px, 10vw, 144px); }
+  .form .btn { justify-self: start; }
+</style>

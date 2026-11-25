@@ -1,0 +1,40 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { Image } from 'astro:assets';
+import PageHead from '../components/PageHead.astro';
+import PostList from '../components/PostList.astro';
+import Section from '../components/Section.astro';
+import { photos } from '../data/author-photos.ts';
+import { authors, type Author } from '../data/authors.ts';
+import Page from '../layouts/Page.astro';
+import { postsBy } from '../server/posts.ts';
+
+export const getStaticPaths = (() => authors.map((author) => ({ params: { handle: author.handle }, props: { author } }))) satisfies GetStaticPaths;
+
+interface Props {
+  author: Author;
+}
+
+const { author } = Astro.props;
+const photo = photos[author.handle];
+const posts = await postsBy(author.handle);
+---
+
+<Page title={author.name} description={`${author.name}, ${author.role.toLowerCase()} at The Rest Is Accountancy and Stick to Accounting.`}>
+  <PageHead label={author.role} title={author.name} lead="Host of Stick to Accounting and of the club." />
+  {
+    photo && (
+      <div class="wrap portrait">
+        <Image src={photo.src} alt={photo.alt} widths={[320, 480, 640]} sizes="(min-width: 1000px) 320px, 60vw" />
+      </div>
+    )
+  }
+  <Section id="posts" no={1} title={`What has ${author.name.split(' ')[0]} written?`} intro={posts.length ? 'Newest first.' : 'Nothing published yet.'}>
+    {posts.length > 0 && <PostList posts={posts} />}
+  </Section>
+</Page>
+
+<style>
+  .portrait { padding-block: clamp(40px, 5vw, 64px); }
+  .portrait img { display: block; width: min(100%, 320px); height: auto; aspect-ratio: 1; object-fit: cover; filter: grayscale(1); }
+</style>

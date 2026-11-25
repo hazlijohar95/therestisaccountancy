@@ -14,6 +14,7 @@ const { id, no, title, intro } = Astro.props;
     <span class="no serif">N°{no}</span>
     <h2 class="head" id={`${id}-title`}>{title}</h2>
     {intro && <p>{intro}</p>}
+    <slot name="rail" />
   </div>
   <div class="reveal"><slot /></div>
 </section>

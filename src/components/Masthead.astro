@@ -19,8 +19,8 @@ const { label, title, narrow = false } = Astro.props;
 <style>
   .masthead { display: grid; gap: var(--space-4); padding-block: clamp(32px, 4vw, 48px) clamp(48px, 6vw, 80px); }
   .top { margin: 0 0 var(--space-4); padding-bottom: var(--space-4); border-bottom: var(--stroke-hair) solid var(--ink); }
-  .headline { margin: 0; font-size: clamp(2.5rem, 1.2rem + 4.4vw, 5rem); line-height: 1; letter-spacing: -.035em; text-wrap: balance; overflow-wrap: anywhere; }
+  .headline { margin: 0; font-size: var(--size-page); line-height: 1; text-wrap: balance; overflow-wrap: anywhere; }
   .narrow { max-width: 18ch; }
-  .lead { max-width: 60ch; }
+  .lead { max-width: 30em; }
   .lead :global(p) { margin: 0; }
 </style>

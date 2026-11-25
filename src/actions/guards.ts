@@ -29,7 +29,7 @@ export const admin = (locals: App.Locals): Member => {
   return member;
 };
 
-type LimitedForm = 'join' | 'sign-in' | 'link' | 'checkout' | 'survey' | 'listing' | 'call';
+type LimitedForm = 'join' | 'sign-in' | 'link' | 'checkout' | 'survey' | 'listing' | 'call' | 'newsletter';
 
 /** The key a form's posts are counted under: the form and the address they come from. */
 export const formKey = (context: ActionAPIContext, form: LimitedForm) => `${form} ${sourceOf(context.request.headers.get('cf-connecting-ip') ?? 'unknown')}`;
@@ -62,7 +62,7 @@ export const newPassword = {
   confirm: z.string(),
 };
 export const passwordsMatch = (v: { password: string; confirm: string }) => v.password === v.confirm;
-export const mismatch = { message: 'The two passwords are different.', path: ['confirm'] };
+export const mismatch = { message: 'Enter the same password in both fields.', path: ['confirm'] };
 
 /** A new session id for every sign-in, tied to the epoch it was opened in. */
 export const startSession = async (context: ActionAPIContext, key: SessionKey) => {

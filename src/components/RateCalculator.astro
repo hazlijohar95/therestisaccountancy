@@ -39,7 +39,7 @@ interface Props {
         })
       }
     </div>
-    <div class="out" aria-live="polite">
+    <div class="out">
       <table class="ledger">
         <tbody>
           <tr><th scope="row">Income you want</th><td data-out="income"></td></tr>
@@ -48,14 +48,16 @@ interface Props {
           <tr><th scope="row">Billable hours a year</th><td data-out="billable"></td></tr>
         </tbody>
       </table>
-      <p class="rate"><span class="label">Your lowest fair rate, per hour</span><output class="fig serif" data-out="hourly"></output></p>
-      <p class="note" data-out="note"></p>
+      <div class="said" aria-live="polite">
+        <p class="rate"><span class="label">Your lowest fair rate, per hour</span><output class="fig serif" data-out="hourly"></output></p>
+        <p class="note" data-out="note"></p>
+      </div>
     </div>
   </form>
 </Section>
 
 <script>
-  import { find } from '../lib/dom.ts';
+  import { find, rangeFix } from '../lib/dom.ts';
   import { floorRate, type RateInputs } from '../lib/rate.ts';
 
   const ringgit = new Intl.NumberFormat('en-MY', { maximumFractionDigits: 0 });
@@ -86,7 +88,7 @@ interface Props {
         : floorRate({ income, costs, hoursPerWeek, weeksOff, unpaidShare });
     if (!result) {
       for (const key of ['revenue', 'billable', 'hourly']) out(key).textContent = '—';
-      out('note').textContent = 'Check the number marked in red.';
+      out('note').textContent = rangeFix(form) ?? '';
       return;
     }
     out('revenue').textContent = ringgit.format(result.revenue);
@@ -103,13 +105,6 @@ interface Props {
 <style>
   .calc { display: grid; gap: var(--space-8); }
   .fields { display: grid; gap: var(--space-5); }
-  .unit { position: relative; }
-  .unit::before { content: attr(data-unit); position: absolute; inset: 0 auto 0 var(--space-4); display: grid; place-items: center; font-weight: 600; pointer-events: none; }
-  .unit[data-unit="RM"] .input { padding-inline-start: 3.1rem; }
-  .unit[data-unit="%"]::before { inset: 0 var(--space-4) 0 auto; }
-  .unit[data-unit="%"] .input { padding-inline-end: 2.6rem; }
-  .input { font-variant-numeric: tabular-nums; appearance: textfield; -moz-appearance: textfield; }
-  .input::-webkit-inner-spin-button, .input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   .ledger { font-size: var(--size-body); border-top: var(--stroke-rule) solid var(--ink); }
   .ledger th { font-weight: 400; }
   .rate { display: grid; gap: var(--space-3); margin: var(--space-7) 0 0; }

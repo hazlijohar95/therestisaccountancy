@@ -1,7 +1,7 @@
 /* Shared layout for the club's page. Type, colour, buttons, fields, the ledger and the member card come from
    @therestisaccountancy/brand/css; each section's own layout is scoped to its component. */
 
-:root { --gutter: max(20px, 4vw); --bar: 68px; scroll-padding-top: calc(var(--bar) + 24px); interpolate-size: allow-keywords; }
+:root { --gutter: max(20px, 4vw); --bar: 68px; --size-page: clamp(2.75rem, 1.2rem + 5.2vw, 6rem); scroll-padding-top: calc(var(--bar) + 24px); interpolate-size: allow-keywords; }
 @media (prefers-reduced-motion: no-preference) { :root { scroll-behavior: smooth; } }
 
 .wrap { width: 100%; max-width: calc(var(--grid-max) + var(--gutter) * 2); margin-inline: auto; padding-inline: var(--gutter); }
@@ -15,6 +15,7 @@ p, li, dd { text-wrap: pretty; }
 
 /* Logos are the brand's mono files drawn in currentColor. */
 .logo { display: block; aspect-ratio: var(--aspect); background: currentColor; mask: var(--logo) center / contain no-repeat; }
+@media (forced-colors: active) { .logo { background: CanvasText; } }
 /* Below 300px the podcast's tape label is illegible: the brand rule says use the wordmark. */
 @media (max-width: 339px) { .logo[style*="--logo-narrow"] { mask-image: var(--logo-narrow); } }
 
@@ -46,3 +47,14 @@ p, li, dd { text-wrap: pretty; }
   }
 }
 @keyframes rise { from { opacity: 0; translate: 0 28px; } }
+
+/* Form controls shared by the calculators, the fee survey, the join form and the directory filter. */
+select.input { appearance: none; padding-inline-end: 48px; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: right 24px center, right 18px center; background-size: 6px 6px; background-repeat: no-repeat; cursor: pointer; }
+.input[type="number"] { font-variant-numeric: tabular-nums; appearance: textfield; -moz-appearance: textfield; }
+.input[type="number"]::-webkit-inner-spin-button, .input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+/* A number field with its unit drawn inside: <div class="unit" data-unit="RM"> or "%". */
+.unit { position: relative; }
+.unit::before { content: attr(data-unit); position: absolute; inset: 0 auto 0 var(--space-4); display: grid; place-items: center; font-weight: 600; pointer-events: none; }
+.unit[data-unit="RM"] .input { padding-inline-start: 3.1rem; }
+.unit[data-unit="%"]::before { inset: 0 var(--space-4) 0 auto; }
+.unit[data-unit="%"] .input { padding-inline-end: 2.6rem; }

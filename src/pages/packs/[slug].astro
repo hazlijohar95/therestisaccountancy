@@ -1,0 +1,48 @@
+---
+import type { GetStaticPaths } from 'astro';
+import Closing from '../../components/Closing.astro';
+import PageHead from '../../components/PageHead.astro';
+import Section from '../../components/Section.astro';
+import { programmePath } from '../../data/programmes.ts';
+import Page from '../../layouts/Page.astro';
+import { tally } from '../../lib/format.ts';
+import { allPacks, packName, type Pack } from '../../server/packs.ts';
+import { resourcePath } from '../../server/resources.ts';
+
+export const getStaticPaths = (async () => (await allPacks()).map((pack) => ({ params: { slug: pack.programme.slug }, props: { pack } }))) satisfies GetStaticPaths;
+
+interface Props {
+  pack: Pack;
+}
+
+const { pack } = Astro.props;
+const { programme } = pack;
+const name = packName(pack);
+---
+
+<Page title={name} description={`${name}: ${tally(pack.resources.length, 'template')}, written alongside the ${programme.name} programme. ${programme.promise}`}>
+  <PageHead label="Builder pack" title={name} lead={`${tally(pack.resources.length, 'template')}, written alongside the ${programme.name} programme. ${programme.promise}`}>
+    <a class="btn" href="/join">Request membership</a>
+    <a class="btn ghost" href={programmePath(programme)}>The {programme.name} programme</a>
+  </PageHead>
+  <Section id="inside" no={1} title="What is inside?" intro="Members open each one in the members’ area and download it.">
+    <ul class="ruled items">
+      {
+        pack.resources.map((resource) => (
+          <li>
+            <span class="label">{resource.data.kind} · Module {resource.data.module}</span>
+            <a class="serif" href={resourcePath(resource)}>{resource.data.title}</a>
+            <span>{resource.data.summary}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </Section>
+  <Closing title={`${name} comes with membership.`} lead="Every pack, every programme, the live sessions and the members’ room, in one membership." />
+</Page>
+
+<style>
+  .items li { display: grid; gap: var(--space-1); padding-block: var(--space-4); }
+  .items a { font-size: var(--size-head); line-height: 1.15; text-decoration: none; }
+  .items a:hover { text-decoration: underline; text-decoration-thickness: var(--stroke-hair); }
+</style>

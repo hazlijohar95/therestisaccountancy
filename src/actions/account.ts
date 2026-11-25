@@ -9,7 +9,7 @@ import { email, mismatch, newPassword, oneLine, passwordsMatch, formKey, paidMem
 
 const signInRefusals: Record<SignInRefusal, Refusal> = {
   'no-match': { code: 'UNAUTHORIZED', message: 'That email and password do not match.' },
-  suspended: { code: 'FORBIDDEN', message: 'Your membership is paused. Ask the club about it.' },
+  suspended: { code: 'FORBIDDEN', message: 'Your membership is paused. Write to club@better-accountant.com to ask about it.' },
 };
 
 export const account = {
@@ -75,7 +75,7 @@ export const account = {
     input: z.object({ token: z.string().min(1), ...newPassword }).refine(passwordsMatch, mismatch),
     handler: async (input, context) => {
       const result = await context.locals.club.setPasswordFromLink(input.token, input.password);
-      if (!result) throw new ActionError({ code: 'NOT_FOUND', message: 'This link has been used or has expired. Ask the club for a new one.' });
+      if (!result) throw new ActionError({ code: 'NOT_FOUND', message: 'This link has been used or has expired. Get a new one from the sign-in page.' });
       await startSession(context, result.key);
       return { purpose: result.purpose };
     },

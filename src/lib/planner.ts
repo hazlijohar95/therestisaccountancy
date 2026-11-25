@@ -1,3 +1,4 @@
+import { tally } from './format.ts';
 import { WEEKS_IN_YEAR } from './rate.ts';
 
 /** The planner's figures, in the order the form asks for them. */
@@ -180,7 +181,6 @@ export function plan(inputs: PlannerInputs): Plan {
 const whole = new Intl.NumberFormat('en-MY', { maximumFractionDigits: 0 });
 const tenths = new Intl.NumberFormat('en-MY', { maximumFractionDigits: 1 });
 const ringgit = (value: number) => `RM ${whole.format(value)}`;
-const tally = (count: number, one: string, many = `${one}s`) => `${whole.format(count)} ${count === 1 ? one : many}`;
 const hoursOf = (hours: Hours) => `${whole.format(hours.needed)} of ${whole.format(hours.available)}`;
 
 const blockers: Record<Blocker, string> = {
@@ -227,7 +227,7 @@ export function explain(inputs: PlannerInputs): Explanation {
   const result = plan(inputs);
   switch (result.kind) {
     case 'invalid':
-      return { figure: NONE, answer: 'Check the number marked in red.', notes: [], ledger: emptyLedger, rows: [] };
+      return { figure: NONE, answer: 'One of the figures is out of range.', notes: [], ledger: emptyLedger, rows: [] };
     case 'blocked':
       return { figure: NONE, answer: blockers[result.blocker], notes: [], ledger: emptyLedger, rows: [] };
     case 'there': {

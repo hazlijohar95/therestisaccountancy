@@ -21,9 +21,6 @@ const Heading = level === 1 ? 'h1' : 'h2';
       <Heading class="headline serif" id="join-title">{joinSection.title}</Heading>
       <p class="lead">{joinSection.lead}</p>
     </div>
-    <div class="card" aria-hidden="true">
-      <MemberCard name={card.namePlaceholder} number={card.number} />
-    </div>
     <form
       class="form"
       id="join-form"
@@ -56,6 +53,9 @@ const Heading = level === 1 ? 'h1' : 'h2';
       <button class="btn" type="submit">{join.label}</button>
       <p class="status" id="join-status" role="status" hidden></p>
     </form>
+    <div class="card" aria-hidden="true">
+      <MemberCard name={card.namePlaceholder} number={card.number} />
+    </div>
   </div>
 </section>
 
@@ -85,9 +85,12 @@ const Heading = level === 1 ? 'h1' : 'h2';
     show(field, ok ? null : fallback.get(field.key) ?? '');
     return ok;
   };
+  /* The region is shown first and filled a frame later: text that arrives with the region itself is often not read. */
   const say = (message: string) => {
-    status.textContent = message;
     status.hidden = false;
+    requestAnimationFrame(() => {
+      status.textContent = message;
+    });
   };
 
   nameField.input.addEventListener('input', () => {
@@ -116,7 +119,9 @@ const Heading = level === 1 ? 'h1' : 'h2';
       const sent = document.createElement('p');
       sent.className = 'sent';
       sent.textContent = text('sent').replace('{email}', data.email);
+      sent.tabIndex = -1;
       form.replaceChildren(sent);
+      sent.focus();
       return;
     }
     if (isInputError(error)) {
@@ -131,12 +136,10 @@ const Heading = level === 1 ? 'h1' : 'h2';
 
 <style>
   .in { display: grid; gap: var(--space-8); padding-block: clamp(80px, 11vw, 168px); }
-  .headline { margin: var(--space-5) 0; max-width: 12ch; font-size: clamp(2.75rem, 1.3rem + 5vw, 6.25rem); line-height: .98; letter-spacing: -.035em; text-wrap: balance; }
+  .headline { margin: var(--space-5) 0; max-width: 12ch; font-size: var(--size-page); line-height: .98; text-wrap: balance; }
   .lead { margin: 0; }
-  .card { order: 1; }
   .form { display: grid; gap: var(--space-5); max-width: 520px; }
   .form .btn { justify-self: start; }
-  select.input { appearance: none; padding-inline-end: 48px; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: right 24px center, right 18px center; background-size: 6px 6px; background-repeat: no-repeat; cursor: pointer; }
   .status { margin: 0; font-weight: 600; }
   .trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
   .form :global(.sent) { margin: 0; font-size: var(--size-head); line-height: 1.15; }

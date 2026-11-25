@@ -219,7 +219,7 @@ const resultsIntro = !report
               return (
                 <div class="field">
                   <label for={figure}>{copy.question}</label>
-                  <div class="unit">
+                  <div class="unit" data-unit="RM">
                     <input class="input" id={figure} name={figure} type="number" inputmode="numeric" min={copy.min} max={copy.max} step="1" value={posted(figure)} aria-describedby={ids} aria-invalid={error ? 'true' : undefined} />
                   </div>
                   <span class="hint" id={`${figure}-hint`}>{copy.hint}</span>
@@ -270,21 +270,21 @@ const resultsIntro = !report
   .few td { text-align: start; }
 
   /* The middle half as a rule on a hairline axis from RM 0, with a tick at the median. Positions come from the row. */
-  .bar { --track: color-mix(in srgb, var(--ink) 30%, transparent); position: relative; display: block; min-width: 8rem; height: 14px; margin-top: var(--space-2); background: linear-gradient(var(--track), var(--track)) center / 100% var(--stroke-hair) no-repeat; }
+  .bar { position: relative; display: block; min-width: 8rem; height: 14px; margin-top: var(--space-2); background: linear-gradient(var(--ink), var(--ink)) center / 100% var(--stroke-hair) no-repeat; }
   .bar::before { content: ""; position: absolute; top: 50%; left: var(--lo); width: calc(var(--hi) - var(--lo)); height: var(--stroke-rule); translate: 0 -50%; background: var(--ink); }
   .bar::after { content: ""; position: absolute; inset-block: 0; left: var(--mid); width: var(--stroke-rule); translate: -50% 0; background: var(--ink); }
 
   .facts { max-width: 760px; }
   .years { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font-weight: 600; }
 
-  .waiting { display: grid; gap: var(--space-4); max-width: 60ch; }
+  .waiting { display: grid; gap: var(--space-4); max-width: 30em; }
   .waiting p { margin: 0; }
   .count { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3); }
   .progress { display: block; height: var(--stroke-heavy); background: linear-gradient(var(--ink), var(--ink)) left / var(--done) 100% no-repeat, linear-gradient(var(--ink), var(--ink)) center / 100% var(--stroke-hair) no-repeat; }
 
-  .thanks { display: grid; gap: var(--space-4); max-width: 60ch; padding-block: var(--space-5); border-block: var(--stroke-rule) solid var(--ink); }
+  .thanks { display: grid; gap: var(--space-4); max-width: 30em; padding-block: var(--space-5); border-block: var(--stroke-rule) solid var(--ink); }
   .thanks p { margin: 0; }
-  .closed { margin: 0; max-width: 60ch; }
+  .closed { margin: 0; max-width: 30em; }
 
   .survey { display: grid; gap: var(--space-8); max-width: 640px; }
   .survey > p { margin: 0; }
@@ -295,19 +295,15 @@ const resultsIntro = !report
   .options { display: grid; }
   .option { display: flex; align-items: center; gap: var(--space-3); min-height: 44px; cursor: pointer; }
   .option input { flex: none; width: 1.25rem; height: 1.25rem; margin: 0; accent-color: var(--ink); }
-  .scale { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .scale { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 52px); gap: var(--space-2); }
   .point { position: relative; cursor: pointer; }
   .point input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
-  .point span { display: grid; place-items: center; width: 52px; height: 52px; border: var(--edge) solid var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; transition: background-color var(--motion-quick), color var(--motion-quick); }
+  .point span { display: grid; place-items: center; width: 100%; height: 52px; border: var(--edge) solid var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; transition: background-color var(--motion-quick), color var(--motion-quick); }
   .point input:checked + span { background: var(--ink); color: var(--bg); }
+  @media (forced-colors: active) { .point input:checked + span { forced-color-adjust: none; background: SelectedItem; color: SelectedItemText; } .bar::before, .bar::after { background: CanvasText; } }
   .point input:focus-visible + span { outline: var(--stroke-heavy) solid var(--ink); outline-offset: 3px; }
   .client { display: grid; gap: var(--space-2); padding-block: var(--space-4); border-block: var(--stroke-hair) solid var(--ink); }
   .client p { margin: 0; }
-  .unit { position: relative; }
-  .unit::before { content: "RM"; position: absolute; inset: 0 auto 0 var(--space-4); display: grid; place-items: center; font-weight: 600; pointer-events: none; }
-  .unit .input { padding-inline-start: 3.1rem; font-variant-numeric: tabular-nums; appearance: textfield; -moz-appearance: textfield; }
-  .unit .input::-webkit-inner-spin-button, .unit .input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-  select.input { appearance: none; padding-inline-end: 48px; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: right 24px center, right 18px center; background-size: 6px 6px; background-repeat: no-repeat; cursor: pointer; }
   .error { color: var(--alert); font-size: var(--size-small); font-weight: 600; }
   .survey .btn { justify-self: start; }
   .trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }

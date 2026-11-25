@@ -9,17 +9,17 @@ import { listOf } from '../lib/format.ts';
 
 const voice = [
   { term: 'Full stops, not hype.', detail: 'Three hosts. One mic. The numbers behind the news. Never the ultimate must-listen anything.' },
-  { term: 'Ask the real question.', detail: 'Will AI sign the audit report? Not "AI in auditing: key trends for the year ahead".' },
+  { term: 'Ask the real question.', detail: 'Will AI sign the audit report? Not “AI in auditing: key trends for the year ahead”.' },
   { term: 'Dry, never snide.', detail: 'Death and taxes were certain. Then AI joined. We laugh with the profession, not at clients.' },
-  { term: 'Local and exact.', detail: 'Say "RM 48,200 in fees for the quarter", not "a big chunk of revenue". Figures, places and dates, stated plainly.' },
+  { term: 'Local and exact.', detail: 'Say “RM 48,200 in fees for the quarter”, not “a big chunk of revenue”. Figures, places and dates, stated plainly.' },
 ];
 ---
 
-<Page title="About" description="The Rest Is Accountancy is a members' club for accountants who run a practice, or mean to, hosted by the three hosts of Stick to Accounting.">
+<Page title="About" description="The Rest Is Accountancy is a members’ club for accountants who run a practice, or mean to, hosted by the three hosts of Stick to Accounting.">
   <PageHead
     label="About"
     title="The exams teach the standards. Nobody teaches the rest."
-    lead="The Rest Is Accountancy is a members' club for accountants who run a practice, or mean to. It is hosted by the three hosts of Stick to Accounting."
+    lead="The Rest Is Accountancy is a members’ club for accountants who run a practice, or mean to. It is hosted by the three hosts of Stick to Accounting."
   />
   <Section id="why" no={1} title="Why does it exist?">
     <p class="lead">The syllabus teaches the standards. It does not teach you to price, to sell, to hire or to say no. Those are learned from people who have done them, usually one awkward conversation at a time.</p>
@@ -41,6 +41,6 @@ const voice = [
   .voice { margin: 0; border-top: var(--stroke-rule) solid var(--ink); }
   .voice > div { display: grid; gap: var(--space-2); padding-block: var(--space-5); border-bottom: var(--stroke-hair) solid var(--ink); }
   .voice dt { font-size: var(--size-head); line-height: 1.1; }
-  .voice dd { margin: 0; max-width: 56ch; }
+  .voice dd { margin: 0; max-width: 30em; }
   @media (min-width: 720px) { .voice > div { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: var(--space-6); align-items: baseline; } }
 </style>

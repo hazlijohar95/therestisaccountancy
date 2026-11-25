@@ -97,6 +97,7 @@ const groups: readonly { legend: string; fields: readonly Field[] }[] = [
                     inputmode={limits[field.name].whole ? 'numeric' : 'decimal'}
                     min={limits[field.name].min}
                     max={limits[field.name].max}
+                    data-whole={limits[field.name].whole ? '' : undefined}
                     step={field.step}
                     value={start[field.name]}
                     aria-describedby={field.hint ? `${id}-hint` : undefined}
@@ -153,7 +154,7 @@ const groups: readonly { legend: string; fields: readonly Field[] }[] = [
           <th scope="row" data-cell="month"></th>
           <td data-cell="clients"></td>
           <td data-cell="fees"></td>
-          <td class="track"><span class="bar" aria-hidden="true"></span><span class="mark" data-cell="marks"></span></td>
+          <td class="track"><span class="bar" aria-hidden="true"></span><span class="milestone" data-cell="marks"></span></td>
         </tr>
       </template>
     </div>
@@ -161,7 +162,7 @@ const groups: readonly { legend: string; fields: readonly Field[] }[] = [
 </Section>
 
 <script>
-  import { find } from '../lib/dom.ts';
+  import { find, rangeFix } from '../lib/dom.ts';
   import { explain, withinLimits, type PlannerField, type PlannerInputs, type TableRow } from '../lib/planner.ts';
 
   const form = find('#planner-form', HTMLFormElement);
@@ -211,7 +212,7 @@ const groups: readonly { legend: string; fields: readonly Field[] }[] = [
     };
     const view = explain(inputs);
     out('figure').textContent = view.figure;
-    out('answer').textContent = view.answer;
+    out('answer').textContent = rangeFix(form) ?? view.answer;
     out('notes').replaceChildren(...view.notes.map(paragraph));
     for (const [key, value] of Object.entries(view.ledger)) out(key).textContent = value;
     body.replaceChildren(...view.rows.map(row));
@@ -229,33 +230,29 @@ const groups: readonly { legend: string; fields: readonly Field[] }[] = [
   .fields { display: grid; gap: var(--space-7); }
   fieldset { display: grid; gap: var(--space-5); margin: 0; padding: 0; border: 0; }
   legend { width: 100%; margin-bottom: var(--space-5); padding: 0 0 var(--space-3); border-bottom: var(--stroke-hair) solid var(--ink); }
-  .unit { position: relative; }
-  .unit::before { content: attr(data-unit); position: absolute; inset: 0 auto 0 var(--space-4); display: grid; place-items: center; font-weight: 600; pointer-events: none; }
-  .unit[data-unit="RM"] .input { padding-inline-start: 3.1rem; }
-  .unit[data-unit="%"]::before { inset: 0 var(--space-4) 0 auto; }
-  .unit[data-unit="%"] .input { padding-inline-end: 2.6rem; }
-  .input { font-variant-numeric: tabular-nums; appearance: textfield; -moz-appearance: textfield; }
-  .input::-webkit-inner-spin-button, .input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
   .out { display: grid; gap: var(--space-6); }
   .figure { display: grid; gap: var(--space-3); margin: 0; }
   .fig { font-size: clamp(3.5rem, 2rem + 5vw, 6.5rem); line-height: .9; letter-spacing: -.04em; font-variant-numeric: lining-nums tabular-nums; }
   .said { display: grid; gap: var(--space-3); }
   .answer { margin: 0; max-width: 44ch; font-size: var(--size-lead); line-height: 1.45; }
-  .notes { display: grid; gap: var(--space-2); max-width: 52ch; }
+  .notes { display: grid; gap: var(--space-2); max-width: 30em; }
   .notes :global(p) { margin: 0; }
   .ledger { font-size: var(--size-body); border-top: var(--stroke-rule) solid var(--ink); }
   .ledger th { font-weight: 400; }
 
   /* The path: one compact ruled row a month, with a bar drawn from the row's --fill. */
   .months { font-size: var(--size-small); border-top: 0; }
-  .months th, .months td { padding-block: var(--space-2); }
+  .months th, .months td { padding-block: var(--space-2); font-variant-numeric: tabular-nums; }
   .months thead th { font-weight: 600; }
+  /* The brand keeps figure headers on one line; these are phrases, and must wrap to fit a phone. */
+  .months thead th:not(:first-child) { white-space: normal; }
   .months thead th:last-child, .months .track { width: 45%; text-align: start; white-space: normal; }
   .bar { display: block; inline-size: calc(var(--fill, 0) * 100%); block-size: var(--stroke-heavy); background: var(--ink); }
   tr[data-over] .bar { background: repeating-linear-gradient(90deg, var(--ink) 0 3px, transparent 3px 6px); }
-  .mark { display: block; margin-top: var(--space-1); font-weight: 600; }
-  .mark:empty { display: none; }
+  .path { overflow-x: auto; }
+  .milestone { display: block; margin-top: var(--space-1); font-weight: 600; }
+  .milestone:empty { display: none; }
   tr[data-mark] th { font-weight: 600; }
 
   @media (min-width: 760px) { .calc { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; } }

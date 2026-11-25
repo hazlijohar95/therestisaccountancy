@@ -30,7 +30,7 @@ interface Props {
 
 <style>
   .in { display: grid; gap: clamp(40px, 5vw, 72px); padding-block: clamp(80px, 11vw, 168px); }
-  .headline { margin: var(--space-5) 0 0; max-width: 14ch; font-size: clamp(2.6rem, 1.3rem + 4.4vw, 5.75rem); line-height: 1; letter-spacing: -.035em; text-wrap: balance; }
+  .headline { margin: var(--space-5) 0 0; max-width: 14ch; font-size: var(--size-page); line-height: 1; text-wrap: balance; }
   .copy { display: grid; gap: var(--space-4); align-content: end; }
   .lead { margin: 0; }
   @media (min-width: 1000px) { .in { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-9); } .cols { grid-column: 1 / -1; } }

@@ -21,6 +21,7 @@ declare namespace App {
     calls: import('./server/instance.ts').Store['calls'];
     listings: import('./server/instance.ts').Store['listings'];
     fees: import('./server/instance.ts').Store['fees'];
+    newsletter: import('./server/instance.ts').Store['newsletter'];
   }
   interface SessionData {
     signedIn: import('./server/club.ts').SessionKey;

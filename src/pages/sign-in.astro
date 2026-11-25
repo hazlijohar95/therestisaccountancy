@@ -28,13 +28,13 @@ const error = result?.error && !isInputError(result.error) ? result.error.messag
         {signedOut?.data && <p class="note" role="status">You have signed out.</p>}
         <div class="field">
           <label for="email">Email</label>
-          <input class="input" id="email" name="email" type="email" autocomplete="username" required />
+          <input class="input" id="email" name="email" type="email" autocomplete="username" required aria-invalid={error ? 'true' : undefined} aria-describedby={error ? 'form-error' : undefined} autofocus={error ? true : undefined} />
         </div>
         <div class="field">
           <label for="password">Password</label>
           <input class="input" id="password" name="password" type="password" autocomplete="current-password" required />
         </div>
-        {error && <p class="error" role="alert">{error}</p>}
+        {error && <p class="error" id="form-error" role="alert">{error}</p>}
         <button class="btn" type="submit">Sign in</button>
         <p class="small">Forgot your password, or lost your invitation? <a href="/forgot">Get a new link by email</a>.</p>
         <p class="small">Not a member yet? <a href="/join">Request membership</a>.</p>
@@ -46,7 +46,7 @@ const error = result?.error && !isInputError(result.error) ? result.error.messag
 <style>
   .in { display: grid; gap: var(--space-8); padding-block: clamp(32px, 4vw, 48px) clamp(80px, 10vw, 144px); }
   .top { margin: 0 0 var(--space-6); padding-bottom: var(--space-4); border-bottom: var(--stroke-hair) solid var(--ink); }
-  .headline { margin: 0 0 var(--space-5); max-width: 10ch; font-size: clamp(2.75rem, 1.2rem + 5vw, 5.5rem); line-height: .98; letter-spacing: -.035em; }
+  .headline { margin: 0 0 var(--space-5); max-width: 10ch; font-size: var(--size-page); line-height: .98; }
   .lead { margin: 0; max-width: 36ch; }
   .form { display: grid; gap: var(--space-5); align-content: start; max-width: 440px; }
   .form .btn { justify-self: start; }

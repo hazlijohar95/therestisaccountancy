@@ -1,0 +1,45 @@
+---
+import Closing from '../components/Closing.astro';
+import PageHead from '../components/PageHead.astro';
+import Section from '../components/Section.astro';
+import { productsOf, type Product } from '../data/products.ts';
+import Page from '../layouts/Page.astro';
+
+const shelves = [
+  { id: 'apps', title: 'What do we make?', intro: 'Software for running a practice.', items: productsOf('app') },
+  { id: 'tools', title: 'Which question are you asking?', intro: 'Free tools. The calculators work on the page and send nothing anywhere. The survey is anonymous.', items: productsOf('tool') },
+].filter((shelf) => shelf.items.length > 0);
+const external = (p: Product) => p.href.startsWith('https://');
+---
+
+<Page title="Products" description="Software from The Rest Is Accountancy: the rate tool, the practice planner and the fee survey.">
+  <PageHead label="Products" title="Your numbers first." lead="Software we build for practices, starting with the questions every practice asks: what to charge, how many clients that takes, and what everyone else charges." />
+  {
+    shelves.map((shelf, s) => (
+      <Section id={shelf.id} no={s + 1} title={shelf.title} intro={shelf.intro}>
+        <div class="ep-list">
+          {shelf.items.map((product, i) => (
+            <a class="ep-row" href={product.href} rel={external(product) ? 'noopener' : undefined}>
+              <span class="no">{String(i + 1).padStart(2, '0')}</span>
+              <span class="what">
+                <span class="label">{product.name}</span>
+                <h3>{product.question}</h3>
+                <span class="small">{product.summary}</span>
+              </span>
+              <span class="go" aria-hidden="true">{external(product) ? '↗' : '→'}</span>
+            </a>
+          ))}
+        </div>
+      </Section>
+    ))
+  }
+  <Closing title="Numbers first. Then the work." lead="Members bring these figures to the programmes and the live sessions, and work out what to do next.">
+    <a class="btn ghost" href="/membership">See membership</a>
+  </Closing>
+</Page>
+
+<style>
+  .ep-row { grid-template-columns: 4.5rem minmax(0, 1fr) auto; }
+  .what { display: grid; gap: var(--space-1); }
+  @media (max-width: 600px) { .ep-row { grid-template-columns: 3rem minmax(0, 1fr) auto; } }
+</style>

@@ -25,13 +25,14 @@ interface Props {
 
 <style>
   .grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
-  article { position: relative; display: grid; align-content: start; gap: var(--space-2); padding: var(--space-5) var(--space-5) var(--space-6); scroll-margin-top: calc(var(--bar) + 40px); transition: background-color var(--motion-settle) var(--motion-ease), color var(--motion-settle) var(--motion-ease); }
-  article:target, article:has(a:hover), article:has(a:focus-visible) { background: var(--ink); color: var(--bg); }
+  article { position: relative; display: grid; align-content: start; gap: var(--space-2); padding: var(--space-5) var(--space-5) var(--space-6); scroll-margin-top: calc(var(--bar) + 40px); transition: background-color var(--motion-quick) var(--motion-ease), color var(--motion-quick) var(--motion-ease); }
+  article:target, article:has(a:focus-visible) { background: var(--ink); color: var(--bg); }
+  @media (hover: hover) { article:has(a:hover) { background: var(--ink); color: var(--bg); } }
   .num { font-size: 1.25rem; line-height: 1; }
   .head { margin: var(--space-6) 0 0; }
   .head a { text-decoration: none; }
   .head a::after { content: ""; position: absolute; inset: 0; }
-  .head a:focus-visible { outline: none; }
+  .head a:focus-visible { outline-color: transparent; }
   p { margin: 0; font-weight: 600; }
   ul { list-style: none; margin: var(--space-4) 0 0; padding: 0; font-size: var(--size-small); }
   li { padding-block: var(--space-2); border-top: var(--stroke-hair) solid; }

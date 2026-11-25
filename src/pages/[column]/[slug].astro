@@ -1,0 +1,112 @@
+---
+import { render } from 'astro:content';
+import Closing from '../../components/Closing.astro';
+import { authorByHandle, authorPath, type Author } from '../../data/authors.ts';
+import { join } from '../../data/club.ts';
+import { columnBySlug, columnPath } from '../../data/columns.ts';
+import { programmeBySlug, programmePath, type Programme } from '../../data/programmes.ts';
+import Page from '../../layouts/Page.astro';
+import { formatDay } from '../../lib/format.ts';
+import { paidAccess } from '../../server/paths.ts';
+import { postAt } from '../../server/posts.ts';
+
+/* Rendered per request: a members-only post shows its body to members alone. */
+export const prerender = false;
+
+const post = await postAt(Astro.params.column ?? '', Astro.params.slug ?? '');
+const column = post && columnBySlug(post.data.column);
+if (!post || !column) return new Response(null, { status: 404 });
+
+const member = Astro.locals.member;
+const open = post.data.access === 'free' || (member !== null && paidAccess(member.role, await Astro.locals.billing.access(member.id)));
+const { Content } = await render(post);
+const byline = post.data.authors.flatMap((h) => authorByHandle(h) ?? []) satisfies Author[];
+const topics = post.data.topics.flatMap((slug) => programmeBySlug(slug) ?? []) satisfies Programme[];
+const listen = post.data.listen;
+const platforms = listen
+  ? [
+      { name: 'YouTube', verb: 'Watch on', href: listen.youtube },
+      { name: 'Spotify', verb: 'Listen on', href: listen.spotify },
+      { name: 'Apple Podcasts', verb: 'Listen on', href: listen.apple },
+    ].flatMap((p) => (p.href ? [{ ...p, href: p.href }] : []))
+  : [];
+---
+
+<Page title={post.data.title} description={post.data.dek}>
+  <article class="wrap post">
+    <header>
+      <p class="label"><a href={columnPath(column)}>{column.name}</a>{post.data.episode && ` · Episode ${post.data.episode}`}</p>
+      <h1 class="headline serif">{post.data.title}</h1>
+      <p class="lead">{post.data.dek}</p>
+      <p class="small byline">
+        {byline.map((author, i) => (
+          <>
+            {i > 0 && ', '}
+            <a href={authorPath(author)}>{author.name}</a>
+          </>
+        ))}
+        <span> · {formatDay(post.data.date)}</span>
+        {post.data.access === 'members' && <span> · Members</span>}
+      </p>
+      {
+        platforms.length > 0 && (
+          <div class="listen">
+            {platforms.map((p) => <a class="btn ghost" href={p.href} rel="noopener">{p.verb} {p.name}</a>)}
+          </div>
+        )
+      }
+    </header>
+    {
+      open ? (
+        <div class="body"><Content /></div>
+      ) : (
+        <div class="wall">
+          <p class="serif">The rest of this post is for members.</p>
+          {member ? (
+            <>
+              <p>Your membership needs a payment before you can read it. Pay, and every members’ post opens.</p>
+              <div class="listen">
+                <a class="btn" href="/members/pay">Pay for membership</a>
+              </div>
+            </>
+          ) : (
+            <>
+              <p>Members read every post, work through the programmes and bring their own figures to the live sessions.</p>
+              <div class="listen">
+                <a class="btn" href={join.href}>{join.label}</a>
+                <a class="btn ghost" href={`/sign-in?next=${encodeURIComponent(Astro.url.pathname)}`}>Sign in</a>
+              </div>
+            </>
+          )}
+        </div>
+      )
+    }
+    {
+      topics.length > 0 && (
+        <aside class="topics" aria-label="Work it through">
+          <p class="label">Work it through in the club</p>
+          <ul class="ruled">
+            {topics.map((p) => <li><a href={programmePath(p)}>{p.name}</a> <span class="small">{p.promise}</span></li>)}
+          </ul>
+        </aside>
+      )
+    }
+  </article>
+  <Closing title="Read it here. Work it through in the club." lead="Each post’s topic is a programme. Members take it from reading to doing, with the hosts and each other." />
+</Page>
+
+<style>
+  .post { display: grid; gap: var(--space-7); max-width: calc(35em + var(--gutter) * 2); padding-block: clamp(48px, 6vw, 96px); }
+  header { display: grid; gap: var(--space-4); }
+  header p, h1 { margin: 0; }
+  .label a { text-decoration: none; }
+  .headline { font-size: clamp(2.25rem, 1.2rem + 3.6vw, 4.25rem); line-height: 1; text-wrap: balance; }
+  .listen { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+  .body { font-size: var(--size-lead); line-height: 1.6; }
+  .body :global(h2) { margin-block: var(--space-7) var(--space-3); font: 400 var(--size-head)/1.1 var(--display-font); letter-spacing: var(--display-tracking); font-synthesis: none; text-wrap: balance; }
+  .body :global(h3) { margin-block: var(--space-6) var(--space-2); font: 700 var(--size-lead)/1.3 var(--font-sans); }
+  .wall { display: grid; gap: var(--space-4); padding-block: var(--space-6); border-block: var(--stroke-rule) solid var(--ink); }
+  .wall p { margin: 0; }
+  .wall .serif { font-size: var(--size-head); }
+  .topics { display: grid; gap: var(--space-2); }
+</style>

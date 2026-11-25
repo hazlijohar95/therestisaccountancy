@@ -1,0 +1,39 @@
+---
+import Closing from '../../components/Closing.astro';
+import PageHead from '../../components/PageHead.astro';
+import Section from '../../components/Section.astro';
+import Page from '../../layouts/Page.astro';
+import { tally } from '../../lib/format.ts';
+import { allPacks, packName, packPath } from '../../server/packs.ts';
+
+const packs = await allPacks();
+const total = packs.reduce((n, pack) => n + pack.resources.length, 0);
+---
+
+<Page title="Packs" description="Builder packs from The Rest Is Accountancy: templates, checklists, scripts, prompts and worksheets for running a practice, one pack per programme.">
+  <PageHead label="Packs" title="Ready to use with your own clients." lead={`${tally(total, 'template')} in ${tally(packs.length, 'pack')}. Letters, checklists, scripts, prompts and worksheets, each written alongside a programme. Members copy them into Word or Google Docs and make them their own.`} />
+  <Section id="packs" no={1} title="Which part of the practice?" intro="One pack per programme. See what is in each before you join.">
+    <div class="ep-list">
+      {
+        packs.map((pack, i) => (
+          <a class="ep-row" href={packPath(pack)}>
+            <span class="no">{String(i + 1).padStart(2, '0')}</span>
+            <span class="what">
+              <span class="label">{tally(pack.resources.length, 'template')}</span>
+              <h3>{packName(pack)}</h3>
+              <span class="small">{pack.programme.promise}</span>
+            </span>
+            <span class="go" aria-hidden="true">→</span>
+          </a>
+        ))
+      }
+    </div>
+  </Section>
+  <Closing title="Every pack comes with membership." lead="Members download each template, and work through the programme it was written for." />
+</Page>
+
+<style>
+  .ep-row { grid-template-columns: 4.5rem minmax(0, 1fr) auto; }
+  .what { display: grid; gap: var(--space-1); }
+  @media (max-width: 600px) { .ep-row { grid-template-columns: 3rem minmax(0, 1fr) auto; } }
+</style>

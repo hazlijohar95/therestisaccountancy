@@ -4,23 +4,44 @@ import Hero from '../components/Hero.astro';
 import Inside from '../components/Inside.astro';
 import Join from '../components/Join.astro';
 import Podcast from '../components/Podcast.astro';
+import PostList from '../components/PostList.astro';
 import Questions from '../components/Questions.astro';
 import RateCalculator from '../components/RateCalculator.astro';
 import Room from '../components/Room.astro';
+import Section from '../components/Section.astro';
+import Signup from '../components/Signup.astro';
 import Stuck from '../components/Stuck.astro';
 import Week from '../components/Week.astro';
 import Page from '../layouts/Page.astro';
+import { allPosts } from '../server/posts.ts';
+
+const latest = (await allPosts()).slice(0, 3);
+let n = 0;
+const no = () => ++n;
 ---
 
-<Page>
+<Page signup={false}>
   <Hero />
-  <Stuck no={1} />
-  <Room no={2} />
-  <Inside no={3} />
-  <Week no={4} />
-  <RateCalculator no={5} />
-  <Podcast no={6} />
-  <Fit no={7} />
-  <Questions no={8} />
-  <Join no={9} />
+  {
+    latest.length > 0 && (
+      <Section id="latest" no={no()} title="What is new?" intro="From the newsletter and the podcast.">
+        <PostList posts={latest} />
+        <p><a href="/newsletter">The whole newsletter →</a></p>
+      </Section>
+    )
+  }
+  <Stuck no={no()} />
+  <Room no={no()} />
+  <Inside no={no()} />
+  <Week no={no()} />
+  <RateCalculator no={no()} />
+  <Podcast no={no()} />
+  <section class="wrap capture"><Signup source="home" /></section>
+  <Fit no={no()} />
+  <Questions no={no()} />
+  <Join no={no()} />
 </Page>
+
+<style>
+  .capture { padding-block: 0 clamp(56px, 7vw, 96px); }
+</style>

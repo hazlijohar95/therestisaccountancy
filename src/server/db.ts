@@ -255,6 +255,21 @@ const MIGRATIONS: readonly string[] = [
   `
   ALTER TABLE subscriptions ADD COLUMN noticed_for TEXT;
   `,
+  `
+  CREATE TABLE subscribers (
+    id INTEGER PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'confirmed', 'unsubscribed')),
+    source TEXT NOT NULL,
+    token_hash TEXT UNIQUE,
+    token_expires_at TEXT,
+    confirm_sent_at TEXT,
+    unsubscribe_key TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    confirmed_at TEXT,
+    unsubscribed_at TEXT
+  );
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

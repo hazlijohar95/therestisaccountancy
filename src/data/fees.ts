@@ -92,7 +92,7 @@ export const feeFigures: Readonly<Record<FeeFigure, FigureCopy>> = {
   },
   bookkeeping: {
     label: 'Monthly bookkeeping',
-    question: "Monthly fee for keeping this client's books",
+    question: "Monthly fee for keeping this client’s books",
     hint: 'What you charge each month.',
     per: 'a month',
     min: 50,
@@ -100,7 +100,7 @@ export const feeFigures: Readonly<Record<FeeFigure, FigureCopy>> = {
   },
   taxReturn: {
     label: 'Tax return and computation',
-    question: "Annual fee for this client's tax return and computation",
+    question: "Annual fee for this client’s tax return and computation",
     hint: 'What you charge once a year.',
     per: 'a year',
     min: 100,

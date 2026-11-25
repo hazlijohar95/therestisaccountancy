@@ -37,3 +37,8 @@ export const formAction = (url: URL, action: { toString(): string }) => {
   for (const [key, value] of new URLSearchParams(String(action).replace(/^\?/, ''))) target.searchParams.set(key, value);
   return `${target.pathname}${target.search}`;
 };
+
+const counted = new Intl.NumberFormat('en-MY', { maximumFractionDigits: 0 });
+
+/** "1 template", "15 templates": a count with its noun, singular or plural. */
+export const tally = (count: number, one: string, many = `${one}s`) => `${counted.format(count)} ${count === 1 ? one : many}`;

@@ -19,11 +19,10 @@ const { question, group, size = 'large' } = Astro.props;
   summary { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); padding-block: var(--space-5); cursor: pointer; list-style: none; }
   summary::-webkit-details-marker { display: none; }
   summary:focus-visible { outline-offset: -4px; }
-  .q { line-height: 1.12; transition: translate var(--motion-settle) var(--motion-ease); }
+  .q { line-height: 1.12; }
   .q[data-size="large"] { font-size: clamp(1.35rem, 1.05rem + 1.1vw, 2rem); }
   .q[data-size="small"] { font-size: clamp(1.2rem, 1.05rem + .6vw, 1.5rem); }
-  summary:hover .q { translate: var(--space-2) 0; }
-  .a { display: grid; justify-items: start; gap: var(--space-3); max-width: 60ch; padding-bottom: var(--space-6); }
+  .a { display: grid; justify-items: start; gap: var(--space-3); max-width: 30em; padding-bottom: var(--space-6); }
   .a :global(p) { margin: 0; }
   .a :global(a) { font-weight: 600; }
   .a :global(a)::after { content: " \2192"; }
@@ -34,8 +33,13 @@ const { question, group, size = 'large' } = Astro.props;
   .x::after { rotate: 90deg; }
   details[open] .x::after { rotate: 0deg; }
 
+  @media (forced-colors: active) { .x::before, .x::after { background: CanvasText; } }
+
+  /* The brand's reduced-motion reset cannot reach ::details-content, so the opening is opt-in here. */
   @supports selector(::details-content) {
-    details::details-content { block-size: 0; overflow: clip; transition: block-size var(--motion-settle) var(--motion-ease), content-visibility var(--motion-settle) allow-discrete; }
-    details[open]::details-content { block-size: auto; }
+    @media (prefers-reduced-motion: no-preference) {
+      details::details-content { block-size: 0; overflow: clip; transition: block-size var(--motion-settle) var(--motion-ease), content-visibility var(--motion-settle) allow-discrete; }
+      details[open]::details-content { block-size: auto; }
+    }
   }
 </style>

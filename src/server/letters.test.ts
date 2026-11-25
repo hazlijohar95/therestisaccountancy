@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { renderLetter } from '../emails/render.tsx';
 import { calendarFile, sessionEvent } from './calendar.ts';
+import { newsletterConfirmLetter } from './letters.ts';
 
 const letter = (lines: Parameters<typeof renderLetter>[0]['lines'], unsubscribe?: string) => ({ to: 'aina@firm.com.my', subject: 'Hello', lines, ...(unsubscribe && { unsubscribe }) });
 
@@ -28,4 +29,17 @@ test('an optional email carries its unsubscribe link in the footer', async () =>
 test('a backslash in a session title is escaped in the calendar file', () => {
   const ics = calendarFile(sessionEvent({ id: 1, title: 'A\\B', kind: 'Clinics', startsAt: '2026-11-26T12:00:00Z', minutes: 60, link: 'https://meet.example/x', detail: '', going: 0, attending: false }, 'better-accountant.com'));
   assert.ok(ics.includes('SUMMARY:A\\\\B\r\n'));
+});
+
+test('the newsletter confirmation has one button, says why it came, and when the link runs out', async () => {
+  const letter = newsletterConfirmLetter({ email: 'aina@firm.com.my', link: 'https://club.test/newsletter/confirm?token=t', expiresAt: '2026-12-01T10:00:00Z' });
+  assert.equal(letter.to, 'aina@firm.com.my');
+  assert.equal(letter.from, undefined, 'it comes from the club, not a host');
+  assert.equal(letter.unsubscribe, undefined, 'nobody is on the list yet');
+  const { html, text } = await renderLetter(letter);
+  assert.ok(html.includes('href="https://club.test/newsletter/confirm?token=t"'));
+  assert.ok(html.includes('>Yes, send me the newsletter<'));
+  assert.ok(text.includes('signed up for the newsletter from The Rest Is Accountancy with this address'));
+  assert.ok(text.includes('The link works until 1 Dec 2026.'));
+  assert.ok(text.includes("Didn't subscribe? Ignore this email."));
 });
