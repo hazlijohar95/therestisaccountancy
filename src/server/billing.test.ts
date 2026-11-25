@@ -31,7 +31,7 @@ test('a paid checkout opens a month, saves the card, and a repeated callback cha
   const w = await world();
   assert.equal(w.billing.access(w.member.id), 'unpaid');
   w.billing.opened('p1', w.member.id, 'checkout', 9900);
-  assert.equal(w.billing.openCheckout(w.member.id), 'p1');
+  assert.equal(w.billing.unpaid(w.member.id, 'checkout'), 'p1');
 
   const first = w.billing.paid('p1', true);
   assert.equal(first?.standing.access, 'paid');
@@ -39,7 +39,7 @@ test('a paid checkout opens a month, saves the card, and a repeated callback cha
   assert.equal(first?.standing.cardOnFile, true);
   assert.equal(w.billing.paid('p1', true), null, 'CHIP calling back again is ignored');
   assert.equal(w.billing.paid('unknown', true), null, 'a purchase that is not ours is ignored');
-  assert.equal(w.billing.openCheckout(w.member.id), null);
+  assert.equal(w.billing.unpaid(w.member.id, 'checkout'), null);
 });
 
 test('renewals come due half a day early, retry daily through the grace period, then stop', async () => {
@@ -88,4 +88,6 @@ test('turning renewal off means no charge, and access lasts to the end of the mo
   w.later(27 * DAY);
   assert.deepEqual(w.billing.dueRenewals(), []);
   assert.equal(w.billing.access(w.member.id), 'paid');
+  w.later(DAY);
+  assert.equal(w.billing.access(w.member.id), 'unpaid', 'no grace without a renewal coming');
 });

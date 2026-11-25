@@ -2,7 +2,7 @@ import { ActionError, defineAction } from 'astro:actions';
 import { z } from 'astro/zod';
 import { SESSION_KINDS } from '../data/sessions.ts';
 import { sessionLetters } from '../server/letters.ts';
-import { absolute, admin, id, sendLater, signedIn } from './guards.ts';
+import { absolute, admin, id, paidMember, sendLater } from './guards.ts';
 
 /** Malaysia keeps UTC+8 all year, so a local date and time map to one instant. */
 export const malaysiaTime = (date: string, time: string): string => {
@@ -16,7 +16,7 @@ export const sessions = {
     accept: 'form',
     input: z.object({ session: id, going: z.enum(['true', 'false']) }),
     handler: async (input, context) => {
-      const member = signedIn(context.locals);
+      const member = await paidMember(context.locals);
       const result = await context.locals.schedule.rsvp(member.id, input.session, input.going === 'true');
       if (!result) throw new ActionError({ code: 'NOT_FOUND', message: 'That session is over or was called off.' });
       if (result.changed && result.session.attending) sendLater(context, sessionLetters('confirmed', result.session, [member], absolute(context, '/')));

@@ -45,6 +45,9 @@ export type RenewalOutcome = 'paid' | 'pending' | 'declined' | 'card-refused';
 
 /** Charges one month to a member's saved card. */
 export async function renew(billing: Store['billing'], renewal: Renewal, siteUrl: string): Promise<RenewalOutcome> {
+  /* A previous attempt CHIP may have charged after all (a timeout, a lost callback): count it instead of charging again. */
+  const earlier = await billing.unpaid(renewal.memberId, 'renewal');
+  if (earlier && (await settle(billing, earlier))) return 'paid';
   const gateway = club();
   const purchase = await gateway.purchase({
     email: renewal.email,
@@ -64,7 +67,8 @@ export async function renew(billing: Store['billing'], renewal: Renewal, siteUrl
     }
     return charged.status === 'pending_charge' ? 'pending' : (await billing.failed(purchase.id, false), 'declined');
   } catch (error) {
-    if (!(error instanceof ChipRefusal)) throw error;
+    /* Only a 400 is CHIP saying no. Anything else (an outage, a timeout) is unknown: leave it for the next run to check. */
+    if (!(error instanceof ChipRefusal) || error.status !== 400) throw error;
     await billing.failed(purchase.id, error.cardRefused);
     return error.cardRefused ? 'card-refused' : 'declined';
   }

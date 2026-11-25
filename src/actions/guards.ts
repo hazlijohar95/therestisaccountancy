@@ -14,6 +14,15 @@ export const signedIn = (locals: App.Locals): Member => {
   return locals.member;
 };
 
+/** A signed-in member whose membership is paid, or in its grace period. Admins never pay. */
+export const paidMember = async (locals: App.Locals): Promise<Member> => {
+  const member = signedIn(locals);
+  if (member.role === 'member' && (await locals.billing.access(member.id)) === 'unpaid') {
+    throw new ActionError({ code: 'FORBIDDEN', message: 'Your membership needs a payment first.' });
+  }
+  return member;
+};
+
 export const admin = (locals: App.Locals): Member => {
   const member = signedIn(locals);
   if (member.role !== 'admin') throw new ActionError({ code: 'FORBIDDEN', message: 'Only a club admin can do that.' });

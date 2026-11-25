@@ -102,7 +102,7 @@ export function sessionLetters(news: SessionNews, session: LiveSession, members:
   const when = `${formatMoment(session.startsAt)} Malaysia time, ${session.minutes} minutes`;
   const body = {
     confirmed: { subject: `You're coming: ${session.title}`, lines: [`You're down for ${session.title}, ${when}.`, 'The calendar file attached adds it to your calendar. Join here when it starts:', { href: session.link }] },
-    reminder: { subject: `Tomorrow: ${session.title}`, lines: [`${session.title} starts ${when}.`, 'Join here when it starts:', { href: session.link }] },
+    reminder: { subject: `Coming up: ${session.title}`, lines: [`${session.title} starts ${when}.`, 'Join here when it starts:', { href: session.link }] },
     cancelled: { subject: `Called off: ${session.title}`, lines: [`${session.title}, planned for ${when}, is called off. The calendar file attached removes it from your calendar.`] },
   } as const satisfies Record<SessionNews, { subject: string; lines: readonly Line[] }>;
   const { subject, lines } = body[news];

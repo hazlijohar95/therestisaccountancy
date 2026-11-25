@@ -3,7 +3,7 @@ import { z } from 'astro/zod';
 import { isChannelSlug, LIMITS, PAGE_SIZE, threadPath, type ChannelSlug } from '../data/community.ts';
 import { MODERATIONS, type PostPlace, type PostRefusal } from '../server/community.ts';
 import { replyLetter } from '../server/letters.ts';
-import { absolute, id, sendLater, settle, signedIn, type Refusal } from './guards.ts';
+import { absolute, id, paidMember, sendLater, settle, signedIn, type Refusal } from './guards.ts';
 
 const postRefusals: Record<PostRefusal, Refusal> = {
   'not-found': { code: 'NOT_FOUND', message: 'That post or thread is no longer here.' },
@@ -35,14 +35,14 @@ export const community = {
   startThread: defineAction({
     accept: 'form',
     input: z.object({ channel, title, body }),
-    handler: async (input, context) => landing(await context.locals.community.startThread(signedIn(context.locals), input)),
+    handler: async (input, context) => landing(await context.locals.community.startThread(await paidMember(context.locals), input)),
   }),
 
   reply: defineAction({
     accept: 'form',
     input: z.object({ thread: id, body }),
     handler: async (input, context) => {
-      const member = signedIn(context.locals);
+      const member = await paidMember(context.locals);
       const landed = landing(settle(await context.locals.community.reply(member, input.thread, input), postRefusals));
       const { title, recipients } = await context.locals.mailings.replyNotices(landed.threadId, member.id);
       const url = absolute(context, `${threadPath(landed.threadId, landed.page)}#post-${landed.postId}`);
@@ -55,13 +55,13 @@ export const community = {
   editPost: defineAction({
     accept: 'form',
     input: z.object({ post: id, body }),
-    handler: async (input, context) => landing(settle(await context.locals.community.editPost(signedIn(context.locals), input.post, input), postRefusals)),
+    handler: async (input, context) => landing(settle(await context.locals.community.editPost(await paidMember(context.locals), input.post, input), postRefusals)),
   }),
 
   deletePost: defineAction({
     accept: 'form',
     input: z.object({ post: id }),
-    handler: async (input, context) => landing(settle(await context.locals.community.deletePost(signedIn(context.locals), input.post), postRefusals)),
+    handler: async (input, context) => landing(settle(await context.locals.community.deletePost(await paidMember(context.locals), input.post), postRefusals)),
   }),
 
   moderateThread: defineAction({

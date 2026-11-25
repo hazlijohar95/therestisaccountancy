@@ -2,7 +2,7 @@ import { STATUS_SQL } from './club.ts';
 import { integer, oneOf, optionalText, text, type Db } from './db.ts';
 import type { Recipient } from './mailings.ts';
 
-/** Whether a member may use the members' area. Grace keeps them in for a few days while a renewal is retried. */
+/** Whether a member may use the members' area. Grace keeps a renewing member in for a few days while the charge is retried. */
 export const ACCESS = ['paid', 'grace', 'unpaid'] as const;
 export type Access = (typeof ACCESS)[number];
 
@@ -53,7 +53,8 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
     const at = now().getTime();
     const cardOnFile = optionalText(row, 'card_token') !== null;
     const renews = integer(row, 'renews') === 1;
-    return { access: until > at ? 'paid' : until + GRACE_MS > at ? 'grace' : 'unpaid', paidUntil, cardOnFile, renews };
+    const grace = cardOnFile && renews ? GRACE_MS : 0;
+    return { access: until > at ? 'paid' : until + grace > at ? 'grace' : 'unpaid', paidUntil, cardOnFile, renews };
   };
 
   return {
@@ -71,9 +72,9 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
       );
     },
 
-    /** The member's most recent checkout still waiting to be paid, to check on when they come back from CHIP. */
-    openCheckout(memberId: number): string | null {
-      const row = db.prepare(`SELECT purchase_id FROM payments WHERE member_id = ? AND kind = 'checkout' AND status = 'created' ORDER BY created_at DESC LIMIT 1`).get(memberId);
+    /** The member's most recent purchase of a kind still waiting to be paid, to ask CHIP about before acting again. */
+    unpaid(memberId: number, kind: PaymentKind): string | null {
+      const row = db.prepare(`SELECT purchase_id FROM payments WHERE member_id = ? AND kind = ? AND status = 'created' ORDER BY created_at DESC LIMIT 1`).get(memberId, kind);
       return row ? text(row, 'purchase_id') : null;
     },
 

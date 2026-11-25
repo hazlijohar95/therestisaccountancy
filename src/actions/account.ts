@@ -5,7 +5,7 @@ import { joinSection } from '../data/club.ts';
 import type { SignInRefusal } from '../server/club.ts';
 import { joinRequestLetter, passwordLetter } from '../server/letters.ts';
 import { send } from '../server/mail.ts';
-import { email, mismatch, newPassword, oneLine, passwordsMatch, settle, shareable, signedIn, startSession, throttle, type Refusal } from './guards.ts';
+import { email, mismatch, newPassword, oneLine, passwordsMatch, paidMember, settle, shareable, signedIn, startSession, throttle, type Refusal } from './guards.ts';
 
 const signInRefusals: Record<SignInRefusal, Refusal> = {
   'no-match': { code: 'UNAUTHORIZED', message: 'That email and password do not match.' },
@@ -104,7 +104,7 @@ export const account = {
     accept: 'form',
     input: z.object({ lesson: z.string(), done: z.enum(['true', 'false']) }),
     handler: async (input, context) => {
-      const member = signedIn(context.locals);
+      const member = await paidMember(context.locals);
       if (!(await getEntry('lessons', input.lesson))) throw new ActionError({ code: 'NOT_FOUND', message: 'There is no such lesson.' });
       await context.locals.club.setLessonDone(member.id, input.lesson, input.done === 'true');
       return { done: input.done === 'true' };
