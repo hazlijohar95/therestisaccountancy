@@ -3,8 +3,9 @@ import { getEntry } from 'astro:content';
 import { z } from 'astro/zod';
 import { joinSection } from '../data/club.ts';
 import type { SignInRefusal } from '../server/club.ts';
-import { joinRequestLetter, passwordLetter, send } from '../server/mail.ts';
-import { email, mismatch, newPassword, passwordsMatch, settle, shareable, signedIn, startSession, type Refusal } from './guards.ts';
+import { joinRequestLetter, passwordLetter } from '../server/letters.ts';
+import { send } from '../server/mail.ts';
+import { email, mismatch, newPassword, oneLine, passwordsMatch, settle, shareable, signedIn, startSession, type Refusal } from './guards.ts';
 
 const signInRefusals: Record<SignInRefusal, Refusal> = {
   'no-match': { code: 'UNAUTHORIZED', message: 'That email and password do not match.' },
@@ -15,7 +16,7 @@ export const account = {
   join: defineAction({
     accept: 'form',
     input: z.object({
-      name: z.string().trim().min(1, joinSection.messages.name).max(60),
+      name: z.string().transform(oneLine).pipe(z.string().min(1, joinSection.messages.name).max(60)),
       email,
       stage: z.enum(joinSection.stages),
     }),

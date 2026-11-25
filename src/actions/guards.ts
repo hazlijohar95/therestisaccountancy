@@ -2,7 +2,8 @@ import { ActionError, type ActionAPIContext, type ActionErrorCode } from 'astro:
 import { z } from 'astro/zod';
 import { joinSection } from '../data/club.ts';
 import type { Member, PasswordLink, SessionKey } from '../server/club.ts';
-import { passwordLetter, send } from '../server/mail.ts';
+import { passwordLetter } from '../server/letters.ts';
+import { send } from '../server/mail.ts';
 import { MIN_PASSWORD_LENGTH } from '../server/password.ts';
 import type { Result } from '../server/result.ts';
 
@@ -29,7 +30,9 @@ export const settle = <T, R extends string>(result: Result<T, R>, refusals: Reco
 };
 
 export const email = z.string().trim().toLowerCase().pipe(z.email(joinSection.messages.email));
-export const memberName = z.string().trim().min(1, 'Enter a name.').max(60, 'Keep the name under 60 characters.');
+/** A person's name on one line: runs of whitespace, line breaks included, become one space. It goes into email subjects. */
+export const oneLine = (value: string) => value.replace(/\s+/g, ' ').trim();
+export const memberName = z.string().transform(oneLine).pipe(z.string().min(1, 'Enter a name.').max(60, 'Keep the name under 60 characters.'));
 export const id = z.coerce.number().int().positive();
 export const newPassword = {
   password: z.string().min(MIN_PASSWORD_LENGTH, `Use at least ${MIN_PASSWORD_LENGTH} characters.`).max(200),
