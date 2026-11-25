@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { renderLetter } from '../emails/render.tsx';
 import { createBilling, GRACE_MS } from './billing.ts';
 import { createClub, type Member } from './club.ts';
-import { createListings, directorySummary, listingListedLetter, listingQueuedLetter, listingReturnedLetter, type ListingContent } from './listings.ts';
+import { createListings, directorySummary, listingApprovedLetter, listingQueuedLetter, listingReturnedLetter, type ListingContent } from './listings.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
 
@@ -294,11 +294,25 @@ test('the member hears from the host who listed it, at their own address, with a
   const w = await world();
   const aina = await w.member('Aina Rahman', 'aina@firm.com.my');
   const listed = w.listed(aina.id, practice());
-  const letter = listingListedLetter(listed, w.host, 'https://better-accountant.com');
+  const letter = listingApprovedLetter(listed, w.host, 'https://better-accountant.com');
   assert.equal(letter.to, 'aina@firm.com.my');
   assert.equal(letter.from, 'Hazli from The Rest Is Accountancy');
   const { html } = await renderLetter(letter);
   assert.ok(html.includes(`href="https://better-accountant.com/directory?state=Selangor#listing-${aina.id}"`));
+});
+
+test('approving a paused listing tells the member it shows once they unpause, and links to no entry', async () => {
+  const w = await world();
+  const aina = await w.member('Aina Rahman', 'aina@firm.com.my');
+  const { listing } = w.listings.save(aina.id, practice());
+  w.listings.setPaused(aina.id, true);
+  const approved = value(w.listings.approve(aina.id, w.host.id, listing.updatedAt));
+  const letter = listingApprovedLetter(approved, w.host, 'https://better-accountant.com');
+  assert.equal(letter.subject, 'Your directory listing is approved');
+  const { html, text } = await renderLetter(letter);
+  assert.ok(text.includes('It is paused, so it goes in the directory when you unpause it.'));
+  assert.ok(html.includes('href="https://better-accountant.com/members/listing"'));
+  assert.ok(!html.includes('/directory?'), 'no link to an entry the public cannot see');
 });
 
 test('a returned listing carries the note as plain text', async () => {

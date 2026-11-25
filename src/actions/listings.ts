@@ -2,7 +2,7 @@ import { ActionError, defineAction } from 'astro:actions';
 import { z } from 'astro/zod';
 import { isServiceSlug, LISTING_LIMITS, states, type ServiceSlug } from '../data/directory.ts';
 import { tidy } from '../server/community.ts';
-import { listingListedLetter, listingQueuedLetter, listingReturnedLetter, type DecisionRefusal } from '../server/listings.ts';
+import { decisionOf, listingApprovedLetter, listingQueuedLetter, listingReturnedLetter, type DecisionRefusal } from '../server/listings.ts';
 import { absolute, admin, email, id, oneLine, paidMember, sendLater, settle, throttle, type Refusal } from './guards.ts';
 
 const decisionRefusals: Record<DecisionRefusal, Refusal> = {
@@ -75,8 +75,8 @@ export const listings = {
     handler: async (input, context) => {
       const host = admin(context.locals);
       const listing = settle(await context.locals.listings.approve(input.member, host.id, input.seen), decisionRefusals);
-      sendLater(context, [listingListedLetter(listing, host, absolute(context, '/'))]);
-      return { practice: listing.practice, decision: 'listed' as const };
+      sendLater(context, [listingApprovedLetter(listing, host, absolute(context, '/'))]);
+      return { decision: decisionOf(listing) };
     },
   }),
 
@@ -94,7 +94,7 @@ export const listings = {
       const host = admin(context.locals);
       const listing = settle(await context.locals.listings.sendBack(input.member, input.seen, input.note), decisionRefusals);
       sendLater(context, [listingReturnedLetter(listing, input.note, host, absolute(context, '/'))]);
-      return { practice: listing.practice, decision: 'returned' as const };
+      return { decision: decisionOf(listing) };
     },
   }),
 };

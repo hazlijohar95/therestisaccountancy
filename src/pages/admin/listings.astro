@@ -7,7 +7,7 @@ import { LISTING_LIMITS, listingPath } from '../../data/directory.ts';
 import Members from '../../layouts/Members.astro';
 import { postedFields } from '../../lib/form.ts';
 import { capitalised, formAction, formatDay, numberWord } from '../../lib/format.ts';
-import type { Listing } from '../../server/listings.ts';
+import { DECISIONS, type Decision, type Listing } from '../../server/listings.ts';
 
 export const prerender = false;
 
@@ -17,7 +17,14 @@ const here = new URL('/admin/listings', Astro.url);
 const approved = Astro.getActionResult(actions.approveListing);
 const returned = Astro.getActionResult(actions.returnListing);
 const decided = approved?.data ?? returned?.data;
-if (decided) return Astro.redirect(`/admin/listings?${decided.decision}`);
+if (decided) return Astro.redirect(`/admin/listings?done=${decided.decision}`);
+const done = DECISIONS.find((d) => d === Astro.url.searchParams.get('done'));
+const doneNotice: Record<Decision, string> = {
+  listed: 'Approved. It is in the directory, and the member has been emailed.',
+  paused: 'Approved. The member has it paused, so it shows once they unpause it. They have been emailed.',
+  hidden: 'Approved. It stays out of the directory while the membership is unpaid or suspended. The member has been emailed.',
+  returned: 'Returned. The member has your note by email.',
+};
 
 const failure = [approved, returned].map((r) => (r?.error && !isInputError(r.error) ? r.error.message : null)).find(Boolean) ?? null;
 const noteError = returned?.error && isInputError(returned.error) ? (returned.error.fields.note?.[0] ?? null) : null;
@@ -49,8 +56,7 @@ const groups = [
     </p>
   </Masthead>
 
-  {Astro.url.searchParams.has('listed') && <Notice>Approved. It is in the directory, and the member has been emailed.</Notice>}
-  {Astro.url.searchParams.has('returned') && <Notice>Returned. The member has your note by email.</Notice>}
+  {done && <Notice>{doneNotice[done]}</Notice>}
   {failure && <Notice tone="error">{failure}</Notice>}
 
   {

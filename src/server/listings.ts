@@ -4,7 +4,7 @@ import { capitalised, firstName, numberWord } from '../lib/format.ts';
 import { GRACE_MS } from './billing.ts';
 import { STATUS_SQL } from './club.ts';
 import { attempt, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
-import type { Letter } from './letters.ts';
+import type { Letter, Line } from './letters.ts';
 import type { Result } from './result.ts';
 
 /** What a member writes about their practice. All of it is shown in the directory. */
@@ -68,6 +68,12 @@ export interface Directory {
 }
 
 export type DecisionRefusal = 'not-found' | 'changed' | 'already';
+
+/** What a host's decision left the public seeing: listed and shown, approved but hidden for a reason, or returned. */
+export const DECISIONS = ['listed', 'paused', 'hidden', 'returned'] as const;
+export type Decision = (typeof DECISIONS)[number];
+export const decisionOf = (listing: Listing): Decision =>
+  listing.review.state === 'returned' ? 'returned' : listing.shown ? 'listed' : listing.paused ? 'paused' : 'hidden';
 
 const DAY_MS = 86_400_000;
 const iso = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -285,18 +291,26 @@ export function listingQueuedLetter(admins: readonly string[], listing: Listing,
   };
 }
 
-/** Tells the member their practice is in the directory. */
-export function listingListedLetter(listing: Listing, host: { readonly name: string }, siteUrl: string): Letter {
+/**
+ * Tells the member a host approved their listing. Approval does not always mean it shows: a paused listing waits for
+ * the member to unpause it, so the letter says which, and never links to an entry the public cannot see.
+ */
+export function listingApprovedLetter(listing: Listing, host: { readonly name: string }, siteUrl: string): Letter {
+  const at = (path: string) => new URL(path, siteUrl).href;
+  const opening: readonly Line[] = listing.shown
+    ? [`${listing.practice} is now in the club's directory, where business owners look for an accountant.`, { href: at(listingPath(listing)), label: 'See your listing' }]
+    : listing.paused
+      ? [`I approved your listing for ${listing.practice}. It is paused, so it goes in the directory when you unpause it.`, { href: at('/members/listing'), label: 'Unpause it' }]
+      : [`I approved your listing for ${listing.practice}. It shows in the directory while your membership is paid up.`, { href: at('/members/account'), label: 'See your membership' }];
   return {
     to: listing.email,
     from: fromHost(host),
-    subject: 'Your practice is in the directory',
+    subject: listing.shown ? 'Your practice is in the directory' : 'Your directory listing is approved',
     lines: [
       hi(listing.name),
-      `${listing.practice} is now in the club's directory, where business owners look for an accountant.`,
-      { href: new URL(listingPath(listing), siteUrl).href, label: 'See your listing' },
+      ...opening,
       'Enquiries come straight to you, by email or through your website. The club never sees them.',
-      { href: new URL('/members/listing', siteUrl).href, text: 'Too busy for new clients? Pause it from your listing page, and unpause it when you have room.' },
+      ...(listing.shown ? [{ href: at('/members/listing'), text: 'Too busy for new clients? Pause it from your listing page, and unpause it when you have room.' }] : []),
       'If you change what it says, a host checks it again before it goes back up.',
       firstName(host.name),
     ],

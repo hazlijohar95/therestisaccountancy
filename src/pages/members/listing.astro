@@ -30,9 +30,9 @@ const savedNotice: Record<SaveOutcome, string> = {
 };
 
 const standing = (l: Listing | null): string => {
-  if (!l) return "Business owners use the club's directory to find an accountant. Write your listing below and a host checks it before it goes up.";
-  if (l.review.state === 'returned') return 'A host sent your listing back with a note. Change what it asks, then send it again.';
-  if (l.review.state === 'pending') return l.paused ? 'A host is checking your listing. It is paused, so it stays out of the directory until you unpause it.' : 'A host is checking your listing. It goes in the directory once they approve it, and we email you when it does.';
+  if (!l) return "Business owners use the club's directory to find an accountant, and a host checks each listing before it goes up.";
+  if (l.review.state === 'returned') return 'A host sent your listing back with this note.';
+  if (l.review.state === 'pending') return l.paused ? 'A host is checking your listing, which stays out of the directory while it is paused.' : 'A host is checking your listing, and we email you once it is in the directory.';
   if (l.shown) return 'Your practice is in the directory, where business owners can find it.';
   return l.paused ? 'Your listing is paused, so business owners cannot see it until you unpause it.' : 'Your listing is approved, but it is out of the directory until your membership is paid up.';
 };
