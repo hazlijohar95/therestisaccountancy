@@ -1,7 +1,7 @@
 import { site } from '../data/site.ts';
 import { firstName, formatDay, formatMoment } from '../lib/format.ts';
 import type { JoinRequest, LinkPurpose } from './club.ts';
-import { calendarFile } from './calendar.ts';
+import { calendarFile, sessionEvent } from './calendar.ts';
 import type { Recipient, Subscriber } from './mailings.ts';
 import type { LiveSession } from './schedule.ts';
 
@@ -153,7 +153,7 @@ export function sessionLetters(news: SessionNews, session: LiveSession, members:
     },
   } as const satisfies Record<SessionNews, { subject: string; lines: readonly Line[] }>;
   const { subject, lines } = body[news];
-  const attachments = news === 'reminder' ? null : [{ filename: 'session.ics', type: 'text/calendar; charset=utf-8', content: calendarFile(session, new URL(siteUrl).hostname, news === 'cancelled') }];
+  const attachments = news === 'reminder' ? null : [{ filename: 'session.ics', type: 'text/calendar; charset=utf-8', content: calendarFile(sessionEvent(session, new URL(siteUrl).hostname), news === 'cancelled') }];
   return members.map((to) => {
     const letter = { to: to.email, subject: flat(subject), lines: [hi(to.name), ...lines] };
     return attachments ? { ...letter, attachments } : letter;
