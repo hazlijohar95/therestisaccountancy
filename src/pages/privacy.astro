@@ -7,9 +7,14 @@ const kept = [
   { term: 'When you request membership', detail: 'Your name, your work email and where your practice stands.' },
   { term: 'When you become a member', detail: 'Your name, your email, your member number, a one-way hash of your password, and the lessons you mark as done. Nobody can read your password, including us.' },
   { term: 'When you sign in', detail: 'One cookie that keeps you signed in. It holds a random identifier and nothing about you.' },
+  { term: 'When you pay', detail: 'Whether you pay by the month or the year, the date your membership is paid until, and the reference CHIP gives each payment. Your card or bank details go to CHIP, never to us.' },
+  { term: 'When you write your plan', detail: 'What you write in each section, and the hosts’ answer. Only you and the hosts can read it.' },
+  { term: 'When you book a call', detail: 'The time you booked and what you said you are stuck on. Only you and the host can see it.' },
+  { term: 'When you list your practice', detail: 'What you write in your listing, and when you made the declaration. Once a host approves it, the listing is public on Find an accountant, including the contact email you chose to show.' },
+  { term: 'When you answer the fee survey', detail: 'Your answers, and the day they arrived. Nothing that says who you are: no name, no email, no address. A host reads the answers before any results are published, and the results never show a group smaller than five.' },
 ];
 
-const not = ['No analytics or advertising trackers', 'No third-party scripts or fonts: everything loads from this site', 'The rate tool runs in your browser and sends nothing'];
+const not = ['No analytics or advertising trackers', 'No third-party scripts or fonts: everything loads from this site', 'The rate tool and the planner run in your browser and send nothing'];
 ---
 
 <Page title="Privacy" description="What The Rest Is Accountancy keeps about you, and why.">
@@ -23,7 +28,7 @@ const not = ['No analytics or advertising trackers', 'No third-party scripts or 
     <ul class="ruled">{not.map((item) => <li>{item}</li>)}</ul>
   </Section>
   <Section id="use" no={3} title="What is it used for?">
-    <p class="lead">To reply to your request, to let you sign in, and to show your progress through the programmes. It is not sold or shared.</p>
+    <p class="lead">To reply to your request, to let you sign in, to keep your membership paid, to show your progress, and to run the plan, the calls, the directory and the fee survey as each section above describes. It is not sold or shared.</p>
   </Section>
   <Section id="rights" no={4} title="Can I see or delete it?">
     <p class="lead">Yes. Reply to any email from the club and ask. Malaysia's Personal Data Protection Act 2010 gives you the right to see and correct what we hold.</p>
