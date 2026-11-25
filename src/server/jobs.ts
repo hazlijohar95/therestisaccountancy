@@ -19,22 +19,35 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
   const store = await openStore();
   const letters: Letter[] = [];
   let summary: { readonly letter: Letter; readonly lastId: number } | null = null;
+  /* Each source runs on its own, so one failing query never holds back the emails after it. */
+  const step = (name: string, run: () => Promise<void>) =>
+    run().catch((error: unknown) => report('job', `The hourly job's ${name} step failed; it runs again next hour`, error));
   try {
-    for (const renewal of await store.billing.dueRenewals()) {
-      const outcome = await renew(store.billing, renewal, siteUrl).catch(async (error: unknown) => {
-        await report('renewal', `Renewal for ${renewal.email} could not be charged; it is retried tomorrow`, error);
-        return 'error' as const;
-      });
-      if (outcome === 'declined' || outcome === 'card-refused') {
-        await report('renewal', `Renewal for ${renewal.email} was ${outcome === 'declined' ? 'declined' : 'refused: the saved card no longer works'}`);
-        const accessUntil = new Date(new Date(renewal.paidUntil).getTime() + GRACE_MS).toISOString();
-        letters.push(renewalLetter(renewal, { term: renewal.term, cardRefused: outcome === 'card-refused', accessUntil, payUrl: url('/members/pay') }));
+    await step('renewals', async () => {
+      for (const renewal of await store.billing.dueRenewals()) {
+        const outcome = await renew(store.billing, renewal, siteUrl).catch(async (error: unknown) => {
+          await report('renewal', `Renewal for ${renewal.email} could not be charged; it is retried tomorrow`, error);
+          return 'error' as const;
+        });
+        if (outcome === 'declined' || outcome === 'card-refused') {
+          await report('renewal', `Renewal for ${renewal.email} was ${outcome === 'declined' ? 'declined' : 'refused: the saved card no longer works'}`);
+          const accessUntil = new Date(new Date(renewal.paidUntil).getTime() + GRACE_MS).toISOString();
+          letters.push(renewalLetter(renewal, { term: renewal.term, cardRefused: outcome === 'card-refused', accessUntil, payUrl: url('/members/pay') }));
+        }
       }
-    }
-    for (const notice of await store.billing.renewalNotices()) letters.push(renewalNoticeLetter(notice, { term: notice.term, chargesAt: notice.chargesAt, accountUrl: url('/members/account') }));
-    for (const due of await store.billing.paymentReminders()) letters.push(paymentDueLetter(due, { term: due.term, paidUntil: due.paidUntil, payUrl: url('/members/pay') }));
-    for (const { session, attendees } of await store.schedule.dueReminders()) letters.push(...sessionLetters('reminder', session, attendees, siteUrl));
-    for (const call of await store.calls.dueReminders()) letters.push(...callLetters('reminder', call, siteUrl));
+    });
+    await step('renewal notices', async () => {
+      for (const notice of await store.billing.renewalNotices()) letters.push(renewalNoticeLetter(notice, { term: notice.term, chargesAt: notice.chargesAt, accountUrl: url('/members/account') }));
+    });
+    await step('payment reminders', async () => {
+      for (const due of await store.billing.paymentReminders()) letters.push(paymentDueLetter(due, { term: due.term, paidUntil: due.paidUntil, payUrl: url('/members/pay') }));
+    });
+    await step('session reminders', async () => {
+      for (const { session, attendees } of await store.schedule.dueReminders()) letters.push(...sessionLetters('reminder', session, attendees, siteUrl));
+    });
+    await step('call reminders', async () => {
+      for (const call of await store.calls.dueReminders()) letters.push(...callLetters('reminder', call, siteUrl));
+    });
 
     const week = digestWeek(at);
     if (week && (await store.mailings.claimDigest(week))) {
