@@ -2,6 +2,7 @@ import { env } from 'cloudflare:workers';
 import { site } from '../data/site.ts';
 import { renderLetter } from '../emails/render.tsx';
 import type { Letter } from './letters.ts';
+import { report } from './report.ts';
 
 /** Sends the letter from the club's address. False if it did not go; the caller decides what the person sees. */
 export async function send(letter: Letter): Promise<boolean> {
@@ -18,7 +19,7 @@ export async function send(letter: Letter): Promise<boolean> {
     });
     return true;
   } catch (error) {
-    console.error('Email did not send', letter.subject, error);
+    await report('email', `“${letter.subject}” to ${[letter.to].flat().join(', ')} did not send`, error);
     return false;
   }
 }

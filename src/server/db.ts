@@ -165,6 +165,10 @@ const MIGRATIONS: readonly string[] = [
   UPDATE members SET unsubscribe_key = lower(hex(randomblob(16)));
   CREATE UNIQUE INDEX members_by_unsubscribe_key ON members (unsubscribe_key);
   `,
+  `
+  CREATE TABLE incidents (id INTEGER PRIMARY KEY, at TEXT NOT NULL, kind TEXT NOT NULL, detail TEXT NOT NULL, reported_at TEXT);
+  CREATE INDEX incidents_unreported ON incidents (reported_at, id);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

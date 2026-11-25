@@ -3,6 +3,7 @@ import { createBilling } from './billing.ts';
 import { createClub } from './club.ts';
 import { createCommunity } from './community.ts';
 import { migrate, type Db } from './db.ts';
+import { createIncidents } from './incidents.ts';
 import { createLimits } from './limits.ts';
 import { createMailings } from './mailings.ts';
 import { createSchedule } from './schedule.ts';
@@ -38,6 +39,7 @@ export class ClubStore extends DurableObject<Env> {
   readonly #mailings;
   readonly #schedule;
   readonly #billing;
+  readonly #incidents;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -49,11 +51,12 @@ export class ClubStore extends DurableObject<Env> {
     this.#mailings = createMailings(db);
     this.#schedule = createSchedule(db);
     this.#billing = createBilling(db);
+    this.#incidents = createIncidents(db);
     const email = (env.ADMIN_EMAIL ?? '').trim().toLowerCase();
     if (email) this.#club.appointAdmin({ email, name: 'Admin' });
   }
 
   open() {
-    return { club: this.#club, community: this.#community, limits: this.#limits, mailings: this.#mailings, schedule: this.#schedule, billing: this.#billing };
+    return { club: this.#club, community: this.#community, limits: this.#limits, mailings: this.#mailings, schedule: this.#schedule, billing: this.#billing, incidents: this.#incidents };
   }
 }

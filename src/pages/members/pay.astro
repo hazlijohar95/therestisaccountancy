@@ -6,6 +6,7 @@ import { monthlyRate } from '../../data/membership.ts';
 import Members from '../../layouts/Members.astro';
 import { formAction, formatDay } from '../../lib/format.ts';
 import { settle } from '../../server/payments.ts';
+import { report } from '../../server/report.ts';
 
 export const prerender = false;
 
@@ -20,7 +21,7 @@ if (started?.data) return Astro.redirect(started.data.url);
 const back = Astro.url.searchParams.get('back');
 if (back === 'paid') {
   const open = await Astro.locals.billing.unpaid(me.id, 'checkout');
-  if (open) await settle(Astro.locals.billing, open).catch((error: unknown) => console.error('Could not check the payment with CHIP', error));
+  if (open) await settle(Astro.locals.billing, open).catch((error: unknown) => report('payment', `Payment ${open} could not be checked with CHIP on return`, error));
 }
 const standing = await Astro.locals.billing.standing(me.id);
 if (back === 'paid' && standing.access === 'paid') return Astro.redirect('/members?paid');

@@ -145,3 +145,18 @@ export function paymentDueLetter(to: Recipient, due: { paidUntil: string; rate: 
     lines: [`Hello ${to.name},`, `Your paid month ends on ${formatDay(due.paidUntil)}. To carry on, pay the next month (${due.rate}) here:`, { href: due.payUrl, label: 'Pay the next month' }, 'If you would rather stop, do nothing. Your access ends a few days after that date.'],
   };
 }
+
+/** For admins: what failed since the last summary, so nothing goes wrong unseen. */
+export function incidentsLetter(admins: readonly string[], incidents: readonly { at: string; kind: string; detail: string }[], adminUrl: string): Letter {
+  const shown = incidents.slice(0, 50);
+  return {
+    to: admins,
+    subject: incidents.length === 1 ? 'One problem on the club site' : `${incidents.length} problems on the club site`,
+    lines: [
+      'These went wrong since the last summary. Each is also in the Worker logs on Cloudflare.',
+      ...shown.map((i) => `${formatMoment(i.at)} · ${i.kind} · ${i.detail}`),
+      ...(incidents.length > shown.length ? [`And ${incidents.length - shown.length} more.`] : []),
+      { href: adminUrl, label: 'Open the admin page' },
+    ],
+  };
+}

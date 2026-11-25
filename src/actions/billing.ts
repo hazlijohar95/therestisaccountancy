@@ -1,6 +1,7 @@
 import { ActionError, defineAction } from 'astro:actions';
 import { z } from 'astro/zod';
 import { checkout } from '../server/payments.ts';
+import { report } from '../server/report.ts';
 import { absolute, signedIn } from './guards.ts';
 
 export const billing = {
@@ -12,7 +13,7 @@ export const billing = {
       try {
         return { url: await checkout(context.locals.billing, member, absolute(context, '/')) };
       } catch (error) {
-        console.error('CHIP checkout failed', error);
+        await report('payment', `CHIP could not open a payment page for ${member.email}`, error);
         throw new ActionError({ code: 'BAD_GATEWAY', message: 'The payment page did not open. Try again in a minute.' });
       }
     },

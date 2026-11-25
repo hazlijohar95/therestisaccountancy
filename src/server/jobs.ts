@@ -2,10 +2,12 @@ import { channelBySlug, threadPath } from '../data/community.ts';
 import { openStore } from './instance.ts';
 import { GRACE_MS } from './billing.ts';
 import { monthlyRate } from '../data/membership.ts';
-import { digestLetter, paymentDueLetter, renewalLetter, sessionLetters, type Letter } from './letters.ts';
+import { summaryDue } from './incidents.ts';
+import { digestLetter, incidentsLetter, paymentDueLetter, renewalLetter, sessionLetters, type Letter } from './letters.ts';
 import { send } from './mail.ts';
 import { digestWeek } from './mailings.ts';
 import { renew } from './payments.ts';
+import { report } from './report.ts';
 
 const WEEK_MS = 7 * 86_400_000;
 /** Letters go a few at a time, so a long list never trips the sending limits all at once. */
@@ -18,11 +20,12 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
   const letters: Letter[] = [];
   try {
     for (const renewal of await store.billing.dueRenewals()) {
-      const outcome = await renew(store.billing, renewal, siteUrl).catch((error: unknown) => {
-        console.error('Renewal could not be charged', renewal.memberId, error);
+      const outcome = await renew(store.billing, renewal, siteUrl).catch(async (error: unknown) => {
+        await report('renewal', `Renewal for ${renewal.email} could not be charged; it is retried tomorrow`, error);
         return 'error' as const;
       });
       if (outcome === 'declined' || outcome === 'card-refused') {
+        await report('renewal', `Renewal for ${renewal.email} was ${outcome === 'declined' ? 'declined' : 'refused: the saved card no longer works'}`);
         const accessUntil = new Date(new Date(renewal.paidUntil).getTime() + GRACE_MS).toISOString();
         letters.push(renewalLetter(renewal, { cardRefused: outcome === 'card-refused', accessUntil, payUrl: url('/members/pay') }));
       }
@@ -46,6 +49,14 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
         for (const to of await store.mailings.digestRecipients()) letters.push(digestLetter(to, news));
       }
     }
+
+    if (summaryDue(at)) {
+      const incidents = await store.incidents.takeUnreported();
+      const admins = await store.club.adminEmails();
+      if (incidents.length && admins.length) letters.push(incidentsLetter(admins, incidents, url('/admin')));
+    }
+  } catch (error) {
+    await report('job', 'The hourly job stopped part way; the rest runs next hour', error);
   } finally {
     store[Symbol.dispose]();
   }
