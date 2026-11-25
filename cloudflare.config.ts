@@ -20,6 +20,8 @@ export default defineConfig({
     exports: {
       ClubStore: exports.durableObject({ storage: 'sqlite' }),
     },
+    domains: ['better-accountant.com', 'www.better-accountant.com'],
+    workersDev: false,
     observability: { enabled: true },
   },
 });
