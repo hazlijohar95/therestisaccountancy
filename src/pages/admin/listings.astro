@@ -1,0 +1,127 @@
+---
+import { actions, isInputError } from 'astro:actions';
+import ListingEntry from '../../components/ListingEntry.astro';
+import Masthead from '../../components/Masthead.astro';
+import Notice from '../../components/Notice.astro';
+import { LISTING_LIMITS, listingPath } from '../../data/directory.ts';
+import Members from '../../layouts/Members.astro';
+import { postedFields } from '../../lib/form.ts';
+import { capitalised, formAction, formatDay, numberWord } from '../../lib/format.ts';
+import type { Listing } from '../../server/listings.ts';
+
+export const prerender = false;
+
+/* Forms post from the bare path, so a notice from an earlier action never shows beside the next one's result. */
+const here = new URL('/admin/listings', Astro.url);
+
+const approved = Astro.getActionResult(actions.approveListing);
+const returned = Astro.getActionResult(actions.returnListing);
+const decided = approved?.data ?? returned?.data;
+if (decided) return Astro.redirect(`/admin/listings?${decided.decision}`);
+
+const failure = [approved, returned].map((r) => (r?.error && !isInputError(r.error) ? r.error.message : null)).find(Boolean) ?? null;
+const noteError = returned?.error && isInputError(returned.error) ? (returned.error.fields.note?.[0] ?? null) : null;
+const posted = returned?.error ? await postedFields(Astro.request) : () => '';
+const retrying = noteError ? Number(posted('member')) : null;
+
+const { waiting, rest } = await Astro.locals.listings.forHosts();
+const title = waiting.length === 0 ? 'Nothing to check.' : `${capitalised(numberWord(waiting.length))} ${waiting.length === 1 ? 'listing' : 'listings'} to check.`;
+
+const standing = (l: Listing): string => {
+  if (l.review.state === 'pending') return `Sent ${formatDay(l.updatedAt)}${l.paused ? '. Paused by the member, so it stays hidden once approved until they unpause it.' : '.'}`;
+  if (l.review.state === 'returned') return 'Returned with a note. Waiting for the member to change it.';
+  if (l.shown) return `In the directory since ${formatDay(l.review.approvedAt)}.`;
+  return l.paused ? `Approved ${formatDay(l.review.approvedAt)}. Paused by the member.` : `Approved ${formatDay(l.review.approvedAt)}. Hidden while the membership is unpaid or suspended.`;
+};
+
+const groups = [
+  { id: 'waiting', title: 'Waiting for a check', items: waiting, open: true, empty: 'Nothing waiting. New and changed listings appear here, oldest first.' },
+  { id: 'rest', title: 'Everything else', items: rest, open: false, empty: 'No other listings yet.' },
+];
+---
+
+<Members title="Directory · Admin">
+  <Masthead label="Admin · Directory" title={title}>
+    <p>
+      A check answers two questions. Is this person a member? Is the practice real and theirs: the name, the town, the
+      website? You are not vouching for their work, and the directory says so. Approve it and it goes up. Return it with
+      a note and the member gets your note by email.
+    </p>
+  </Masthead>
+
+  {Astro.url.searchParams.has('listed') && <Notice>Approved. It is in the directory, and the member has been emailed.</Notice>}
+  {Astro.url.searchParams.has('returned') && <Notice>Returned. The member has your note by email.</Notice>}
+  {failure && <Notice tone="error">{failure}</Notice>}
+
+  {
+    groups.map((group) => (
+      <section class="wrap block" aria-labelledby={`${group.id}-title`}>
+        <h2 class="head" id={`${group.id}-title`}>{group.title}</h2>
+        {group.items.length === 0 ? (
+          <p class="empty">{group.empty}</p>
+        ) : (
+          <ol class="checks">
+            {group.items.map((l) => (
+              <li class="check">
+                <p class="small who">
+                  <a href={`/admin/members/${l.memberId}`}>{l.name}</a> · {l.email} · {standing(l)}
+                  {l.shown && <> · <a href={listingPath(l)}>See it in the directory</a></>}
+                </p>
+                {l.review.state === 'returned' && <blockquote class="note">{l.review.note}</blockquote>}
+                {group.open ? (
+                  <ListingEntry listing={l} />
+                ) : (
+                  <details class="read">
+                    <summary><span class="serif practice">{l.practice}</span> <span class="small">{l.town}, {l.state}</span></summary>
+                    <ListingEntry listing={l} />
+                  </details>
+                )}
+                <div class="decide">
+                  {l.review.state !== 'listed' && (
+                    <form method="POST" action={formAction(here, actions.approveListing)}>
+                      <input type="hidden" name="member" value={l.memberId} />
+                      <input type="hidden" name="seen" value={l.updatedAt} />
+                      <button class="btn" type="submit">Approve</button>
+                    </form>
+                  )}
+                  {l.review.state !== 'returned' && (
+                    <details class="send-back" open={retrying === l.memberId}>
+                      <summary>{l.review.state === 'listed' ? 'Take it down with a note' : 'Return with a note'}</summary>
+                      <form method="POST" action={formAction(here, actions.returnListing)} class="field">
+                        <input type="hidden" name="member" value={l.memberId} />
+                        <input type="hidden" name="seen" value={l.updatedAt} />
+                        <label for={`note-${l.memberId}`}>What needs to change</label>
+                        <textarea class="input" id={`note-${l.memberId}`} name="note" rows="3" required maxlength={LISTING_LIMITS.note} aria-invalid={retrying === l.memberId ? 'true' : undefined}>{retrying === l.memberId ? posted('note') : ''}</textarea>
+                        <span class="hint">The member gets this by email, word for word.</span>
+                        {retrying === l.memberId && <span class="error">{noteError}</span>}
+                        <button class="btn ghost" type="submit">{l.review.state === 'listed' ? 'Take it down' : 'Return it'}</button>
+                      </form>
+                    </details>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+    ))
+  }
+</Members>
+
+<style>
+  .block { display: grid; gap: var(--space-5); padding-block: clamp(48px, 6vw, 80px) 0; }
+  .checks { display: grid; margin: 0; padding: 0; list-style: none; border-top: var(--stroke-rule) solid var(--ink); }
+  .check { display: grid; gap: var(--space-3); padding-block: var(--space-5); border-bottom: var(--stroke-hair) solid var(--ink); }
+  .who { margin: 0; overflow-wrap: anywhere; }
+  .note { margin: 0; padding: var(--space-2) 0 var(--space-2) var(--space-4); border-left: var(--stroke-heavy) solid var(--ink); white-space: pre-line; overflow-wrap: anywhere; }
+  .read summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-4); }
+  .practice { font-size: var(--size-head); line-height: 1.1; text-decoration: underline; text-decoration-thickness: var(--stroke-hair); text-underline-offset: .18em; }
+  .decide { display: flex; flex-wrap: wrap; align-items: start; gap: var(--space-4); }
+  .decide form { margin: 0; }
+  .send-back summary { cursor: pointer; min-height: 48px; display: flex; align-items: center; text-decoration: underline; text-underline-offset: .2em; }
+  .send-back .field { margin-top: var(--space-3); width: min(480px, 100%); }
+  .send-back .btn { justify-self: start; }
+  textarea.input { resize: vertical; line-height: 1.5; }
+  .error { color: var(--alert); font-weight: 600; }
+  .empty { margin: 0; padding-block: var(--space-5); border-block: var(--stroke-hair) solid var(--ink); }
+</style>

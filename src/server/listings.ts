@@ -1,6 +1,6 @@
 import { listingPath, services, states, type ServiceSlug, type State } from '../data/directory.ts';
 import { site } from '../data/site.ts';
-import { firstName } from '../lib/format.ts';
+import { capitalised, firstName, numberWord } from '../lib/format.ts';
 import { GRACE_MS } from './billing.ts';
 import { STATUS_SQL } from './club.ts';
 import { attempt, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
@@ -50,7 +50,8 @@ export interface Listing extends PublicListing {
  * What a save did. Submitted: a first listing. Resubmitted: a listed or returned one, now back with the hosts.
  * Updated: still waiting for a check, with new content. Unchanged: nothing to save.
  */
-export type SaveOutcome = 'submitted' | 'resubmitted' | 'updated' | 'unchanged';
+export const SAVE_OUTCOMES = ['submitted', 'resubmitted', 'updated', 'unchanged'] as const;
+export type SaveOutcome = (typeof SAVE_OUTCOMES)[number];
 
 export interface DirectoryFilter {
   readonly state?: State | undefined;
@@ -248,6 +249,15 @@ export function createListings(db: Db, now: () => Date = () => new Date()) {
       });
     },
   };
+}
+
+/** The count above the directory's results. Practices from elsewhere that take clients anywhere are counted apart. */
+export function directorySummary({ total, matches, anywhere }: Directory, { state, service }: DirectoryFilter): string {
+  const practices = (n: number) => `${capitalised(numberWord(n))} ${n === 1 ? 'practice' : 'practices'}`;
+  if (!state && !service) return `${practices(total)} ${total === 1 ? 'is' : 'are'} listed.`;
+  const here = `${practices(matches.length)}${state ? ` in ${state}` : ''} ${matches.length === 1 ? 'matches' : 'match'}.`;
+  if (anywhere.length === 0) return here;
+  return `${here} ${practices(anywhere.length)} based elsewhere ${anywhere.length === 1 ? 'takes' : 'take'} clients anywhere in Malaysia.`;
 }
 
 /*

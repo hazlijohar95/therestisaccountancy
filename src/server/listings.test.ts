@@ -3,11 +3,10 @@ import { test } from 'node:test';
 import { renderLetter } from '../emails/render.tsx';
 import { createBilling, GRACE_MS } from './billing.ts';
 import { createClub, type Member } from './club.ts';
-import { createListings, listingListedLetter, listingQueuedLetter, listingReturnedLetter, type ListingContent } from './listings.ts';
+import { createListings, directorySummary, listingListedLetter, listingQueuedLetter, listingReturnedLetter, type ListingContent } from './listings.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
 
-const DAY = 86_400_000;
 const PASSWORD = 'correct horse battery';
 
 const value = <T, R extends string>(result: Result<T, R>): T => {
@@ -253,6 +252,13 @@ test('the directory filters by state and service, and a state also finds practic
   assert.deepEqual([names(kl.matches), names(kl.anywhere)], [['Osman Accounting'], []], 'a practice in the state is never counted twice');
   const perlisAudit = w.listings.directory({ state: 'Perlis', service: 'audit' });
   assert.deepEqual([names(perlisAudit.matches), names(perlisAudit.anywhere)], [[], []]);
+
+  const summary = (filter: Parameters<typeof w.listings.directory>[0]) => directorySummary(w.listings.directory(filter), filter);
+  assert.equal(summary({}), 'Four practices are listed.');
+  assert.equal(summary({ state: 'Selangor' }), 'Two practices in Selangor match. One practice based elsewhere takes clients anywhere in Malaysia.');
+  assert.equal(summary({ service: 'payroll' }), 'One practice matches.');
+  assert.equal(summary({ state: 'Johor', service: 'payroll' }), 'No practices in Johor match. One practice based elsewhere takes clients anywhere in Malaysia.');
+  assert.equal(summary({ state: 'Perlis', service: 'audit' }), 'No practices in Perlis match.');
 });
 
 test('hosts see what waits for a check first, oldest first, then everything else', async () => {
