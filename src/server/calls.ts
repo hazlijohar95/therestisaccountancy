@@ -74,7 +74,7 @@ const SLOT = `WITH slot AS (
     CASE
       WHEN s.cancelled_at IS NOT NULL OR s.host_id IS NULL THEN 'cancelled'
       WHEN s.booked_by IS NOT NULL THEN
-        CASE WHEN strftime('%Y-%m-%dT%H:%M:%SZ', s.starts_at, printf('+%d minutes', s.minutes)) > ? THEN 'booked' ELSE 'over' END
+        CASE WHEN strftime('%Y-%m-%dT%H:%M:%SZ', s.starts_at, '+' || s.minutes || ' minutes') > ? THEN 'booked' ELSE 'over' END
       WHEN s.starts_at > ? THEN 'open'
       ELSE 'over'
     END AS state
@@ -170,7 +170,7 @@ export function createCalls(db: Db, now: () => Date = () => new Date()) {
           .run(hostId, iso(start), slot.minutes, slot.link, iso(at)).lastInsertRowid;
         const overlapping = db.prepare(
           `${SLOT} SELECT count(*) AS n FROM slot WHERE host_id = ? AND id != ? AND state IN ('open', 'booked')
-           AND starts_at < ? AND strftime('%Y-%m-%dT%H:%M:%SZ', starts_at, printf('+%d minutes', minutes)) > ?`,
+           AND starts_at < ? AND strftime('%Y-%m-%dT%H:%M:%SZ', starts_at, '+' || minutes || ' minutes') > ?`,
         );
         if (count(overlapping.get(...clock(at), hostId, id, iso(later(start, slot.minutes * 60_000)), iso(start))) > 0) refuse('overlaps');
         return id;

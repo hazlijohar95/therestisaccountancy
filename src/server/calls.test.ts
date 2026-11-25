@@ -68,6 +68,15 @@ test('a slot opens only while it can still be booked, and never over another slo
   value(add(shift(THURSDAY, 0.25 * HOUR), 30));
 });
 
+test("a host's next slot starts from the call link they used last", async () => {
+  const w = await world();
+  assert.equal(w.calls.lastLink(w.hazli.id), null);
+  value(w.calls.add(w.hazli.id, { startsAt: THURSDAY, minutes: 30, link: 'https://meet.example/first' }));
+  value(w.calls.add(w.hazli.id, { startsAt: shift(THURSDAY, HOUR), minutes: 30, link: 'https://meet.example/second' }));
+  assert.equal(w.calls.lastLink(w.hazli.id), 'https://meet.example/second');
+  assert.equal(w.calls.lastLink(w.shukri.id), null, 'each host starts from their own');
+});
+
 test('a member books an open slot: they and the host get the call, and it leaves the open list', async () => {
   const w = await world();
   const id = w.slot(THURSDAY);
