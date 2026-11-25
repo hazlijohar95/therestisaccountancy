@@ -12,8 +12,8 @@ importers:
         specifier: ^11.1.14
         version: 11.1.14(astro@7.4.13(@types/node@24.19.2)(yaml@2.9.1))
       '@therestisaccountancy/brand':
-        specifier: link:../brand-system
-        version: link:../brand-system
+        specifier: link:./brand
+        version: link:brand
       astro:
         specifier: ^7.4.13
         version: 7.4.13(@types/node@24.19.2)(yaml@2.9.1)

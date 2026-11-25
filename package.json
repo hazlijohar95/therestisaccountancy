@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@astrojs/node": "^11.1.14",
-    "@therestisaccountancy/brand": "link:../brand-system",
+    "@therestisaccountancy/brand": "link:./brand",
     "astro": "^7.4.13"
   },
   "devDependencies": {
