@@ -31,7 +31,8 @@ test('a paid checkout opens a month, saves the card, and a repeated callback cha
   const w = await world();
   assert.equal(w.billing.access(w.member.id), 'unpaid');
   w.billing.opened('p1', w.member.id, 'checkout', 9900);
-  assert.equal(w.billing.unpaid(w.member.id, 'checkout'), 'p1');
+  w.billing.opened('p0', w.member.id, 'checkout', 9900);
+  assert.deepEqual(w.billing.unpaid(w.member.id, 'checkout'), ['p0', 'p1'], 'every open checkout, newest first');
 
   const first = w.billing.paid('p1', true);
   assert.equal(first?.standing.access, 'paid');
@@ -39,7 +40,7 @@ test('a paid checkout opens a month, saves the card, and a repeated callback cha
   assert.equal(first?.standing.cardOnFile, true);
   assert.equal(w.billing.paid('p1', true), null, 'CHIP calling back again is ignored');
   assert.equal(w.billing.paid('unknown', true), null, 'a purchase that is not ours is ignored');
-  assert.equal(w.billing.unpaid(w.member.id, 'checkout'), null);
+  assert.deepEqual(w.billing.unpaid(w.member.id, 'checkout'), ['p0']);
 });
 
 test('renewals come due half a day early, retry daily through the grace period, then stop', async () => {

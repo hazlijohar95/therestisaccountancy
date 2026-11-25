@@ -61,7 +61,7 @@ export const community = {
   deletePost: defineAction({
     accept: 'form',
     input: z.object({ post: id }),
-    handler: async (input, context) => landing(settle(await context.locals.community.deletePost(await paidMember(context.locals), input.post), postRefusals)),
+    handler: async (input, context) => landing(settle(await context.locals.community.deletePost(signedIn(context.locals), input.post), postRefusals)),
   }),
 
   moderateThread: defineAction({

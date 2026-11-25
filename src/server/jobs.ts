@@ -18,6 +18,7 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
   const url = (path: string) => new URL(path, siteUrl).href;
   const store = await openStore();
   const letters: Letter[] = [];
+  let summary: { readonly letter: Letter; readonly lastId: number } | null = null;
   try {
     for (const renewal of await store.billing.dueRenewals()) {
       const outcome = await renew(store.billing, renewal, siteUrl).catch(async (error: unknown) => {
@@ -51,9 +52,9 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
     }
 
     if (summaryDue(at)) {
-      const incidents = await store.incidents.takeUnreported();
+      const { incidents, lastId } = await store.incidents.unreported();
       const admins = await store.club.adminEmails();
-      if (incidents.length && admins.length) letters.push(incidentsLetter(admins, incidents, url('/admin')));
+      if (incidents.length && admins.length) summary = { letter: incidentsLetter(admins, incidents, url('/admin')), lastId };
     }
   } catch (error) {
     await report('job', 'The hourly job stopped part way; the rest runs next hour', error);
@@ -66,4 +67,13 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
     sent += (await Promise.all(letters.slice(i, i + SENDING_AT_ONCE).map(send))).filter(Boolean).length;
   }
   if (letters.length) console.log(`Hourly job sent ${sent} of ${letters.length} emails`);
+  /* The summary is marked sent only once it has gone; if it fails, its failures wait for tomorrow's. */
+  if (summary && (await send(summary.letter))) {
+    const after = await openStore();
+    try {
+      await after.incidents.reported(summary.lastId);
+    } finally {
+      after[Symbol.dispose]();
+    }
+  }
 }

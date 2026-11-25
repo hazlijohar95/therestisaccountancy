@@ -1,4 +1,4 @@
-import { text, type Db } from './db.ts';
+import { integer, text, type Db } from './db.ts';
 
 /** What went wrong without anyone watching: an email, a payment check, a renewal, the hourly job. */
 export const INCIDENT_KINDS = ['email', 'payment', 'renewal', 'job'] as const;
@@ -23,13 +23,16 @@ export function createIncidents(db: Db, now: () => Date = () => new Date()) {
       db.prepare('INSERT INTO incidents (at, kind, detail) VALUES (?, ?, ?)').run(iso(now()), kind, detail.slice(0, 500));
     },
 
-    /** Every failure not yet in a summary, oldest first, now marked as reported. A second call the same hour finds none. */
-    takeUnreported(): Incident[] {
-      return db.transaction(() => {
-        const rows = db.prepare('SELECT at, kind, detail FROM incidents WHERE reported_at IS NULL ORDER BY id').all();
-        db.prepare('UPDATE incidents SET reported_at = ? WHERE reported_at IS NULL').run(iso(now()));
-        return rows.map((row) => ({ at: text(row, 'at'), kind: text(row, 'kind'), detail: text(row, 'detail') }));
-      });
+    /** Every failure not yet in a summary, oldest first, with the last id to mark once the summary has gone. */
+    unreported(): { readonly incidents: Incident[]; readonly lastId: number } {
+      const rows = db.prepare('SELECT id, at, kind, detail FROM incidents WHERE reported_at IS NULL ORDER BY id').all();
+      const last = rows.at(-1);
+      return { incidents: rows.map((row) => ({ at: text(row, 'at'), kind: text(row, 'kind'), detail: text(row, 'detail') })), lastId: last ? integer(last, 'id') : 0 };
+    },
+
+    /** Marks failures up to an id as reported, after the summary holding them was sent. A summary that failed leaves them for the next. */
+    reported(lastId: number): void {
+      db.prepare('UPDATE incidents SET reported_at = ? WHERE reported_at IS NULL AND id <= ?').run(iso(now()), lastId);
     },
   };
 }

@@ -4,9 +4,8 @@ import { LISTS, type List } from './mailings.ts';
 const isList = (value: string | null): value is List => LISTS.some((list) => list === value);
 
 /**
- * A POST to /unsubscribe: either a mail app's one-click request (RFC 8058) or the button on the unsubscribe page. It
- * is answered here, before Astro, because mail apps post it from their own servers with no Origin header, which
- * Astro's cross-site check would refuse. The key in the link is the only authority it needs.
+ * A POST to /unsubscribe: either a mail app's one-click request (RFC 8058) or the button on the unsubscribe page.
+ * Answered in the Worker before Astro (see worker.ts). The key in the link is the only authority it needs.
  */
 export async function unsubscribe(request: Request): Promise<Response> {
   const url = new URL(request.url);

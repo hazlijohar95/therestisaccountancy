@@ -20,8 +20,10 @@ if (started?.data) return Astro.redirect(started.data.url);
 /* Back from CHIP: its callback may not have landed yet, so ask CHIP directly. */
 const back = Astro.url.searchParams.get('back');
 if (back === 'paid') {
-  const open = await Astro.locals.billing.unpaid(me.id, 'checkout');
-  if (open) await settle(Astro.locals.billing, open).catch((error: unknown) => report('payment', `Payment ${open} could not be checked with CHIP on return`, error));
+  /* The member may have opened the payment page more than once and paid any of them. */
+  for (const open of await Astro.locals.billing.unpaid(me.id, 'checkout')) {
+    await settle(Astro.locals.billing, open).catch((error: unknown) => report('payment', `Payment ${open} could not be checked with CHIP on return`, error));
+  }
 }
 const standing = await Astro.locals.billing.standing(me.id);
 if (back === 'paid' && standing.access === 'paid') return Astro.redirect('/members?paid');

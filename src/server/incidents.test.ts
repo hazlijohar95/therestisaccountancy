@@ -4,18 +4,19 @@ import { migrate } from './db.ts';
 import { createIncidents, summaryDue } from './incidents.ts';
 import { openDatabase } from './node-db.ts';
 
-test('failures are summarised once, then only new ones', () => {
+test('failures are summarised once the summary has gone, then only new ones', () => {
   const db = openDatabase(':memory:');
   migrate(db);
   const incidents = createIncidents(db, () => new Date('2026-11-25T01:00:00Z'));
   incidents.record('email', 'Reset to aina@firm.com.my did not send');
   incidents.record('renewal', 'x'.repeat(900));
-  const first = incidents.takeUnreported();
-  assert.deepEqual(first.map((i) => i.kind), ['email', 'renewal']);
-  assert.equal(first[1]?.detail.length, 500, 'details are kept short');
-  assert.deepEqual(incidents.takeUnreported(), [], 'a rerun sends nothing twice');
+  const first = incidents.unreported();
+  assert.deepEqual(first.incidents.map((i) => i.kind), ['email', 'renewal']);
+  assert.equal(first.incidents[1]?.detail.length, 500, 'details are kept short');
+  assert.equal(incidents.unreported().incidents.length, 2, 'until the summary is sent, they stay unreported');
   incidents.record('job', 'boom');
-  assert.equal(incidents.takeUnreported().length, 1);
+  incidents.reported(first.lastId);
+  assert.deepEqual(incidents.unreported().incidents.map((i) => i.detail), ['boom'], 'one recorded meanwhile waits for the next summary');
 });
 
 test('the summary is due in the 9 am hour in Malaysia', () => {

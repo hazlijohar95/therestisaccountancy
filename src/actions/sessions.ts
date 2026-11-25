@@ -4,10 +4,12 @@ import { SESSION_KINDS } from '../data/sessions.ts';
 import { sessionLetters } from '../server/letters.ts';
 import { absolute, admin, id, paidMember, sendLater } from './guards.ts';
 
-/** Malaysia keeps UTC+8 all year, so a local date and time map to one instant. */
-export const malaysiaTime = (date: string, time: string): string => {
+/** Malaysia keeps UTC+8 all year, so a local date and time map to one instant. Null for a date or time that does not exist. */
+export const malaysiaTime = (date: string, time: string): string | null => {
   const [y = 0, m = 1, d = 1] = date.split('-').map(Number);
   const [hh = 0, mm = 0] = time.split(':').map(Number);
+  const day = new Date(Date.UTC(y, m - 1, d));
+  if (day.getUTCFullYear() !== y || day.getUTCMonth() !== m - 1 || day.getUTCDate() !== d || hh > 23 || mm > 59) return null;
   return new Date(Date.UTC(y, m - 1, d, hh - 8, mm)).toISOString().replace(/\.\d{3}Z$/, 'Z');
 };
 
@@ -38,6 +40,7 @@ export const sessions = {
     handler: async ({ date, time, ...input }, context) => {
       admin(context.locals);
       const startsAt = malaysiaTime(date, time);
+      if (!startsAt) throw new ActionError({ code: 'BAD_REQUEST', message: 'That date or time does not exist.' });
       if (new Date(startsAt).getTime() <= Date.now()) throw new ActionError({ code: 'BAD_REQUEST', message: 'That time has passed. Pick one ahead.' });
       return { id: await context.locals.schedule.add({ ...input, startsAt }) };
     },

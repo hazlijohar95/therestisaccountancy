@@ -85,10 +85,12 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
       );
     },
 
-    /** The member's most recent purchase of a kind still waiting to be paid, to ask CHIP about before acting again. */
-    unpaid(memberId: number, kind: PaymentKind): string | null {
-      const row = db.prepare(`SELECT purchase_id FROM payments WHERE member_id = ? AND kind = ? AND status = 'created' ORDER BY created_at DESC LIMIT 1`).get(memberId, kind);
-      return row ? text(row, 'purchase_id') : null;
+    /** The member's recent purchases of a kind still waiting to be paid, newest first, to ask CHIP about before acting again. */
+    unpaid(memberId: number, kind: PaymentKind): string[] {
+      return db
+        .prepare(`SELECT purchase_id FROM payments WHERE member_id = ? AND kind = ? AND status = 'created' ORDER BY created_at DESC, rowid DESC LIMIT 5`)
+        .all(memberId, kind)
+        .map((row) => text(row, 'purchase_id'));
     },
 
     /**

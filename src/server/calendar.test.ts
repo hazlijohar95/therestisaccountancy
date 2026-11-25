@@ -13,3 +13,10 @@ test('a session becomes a calendar event with its times, escaped text and a stab
   assert.ok(ics.split('\r\n').every((line) => new TextEncoder().encode(line).length <= 75), 'long lines are folded');
   assert.match(calendarFile(session, 'better-accountant.com', true), /METHOD:CANCEL[\s\S]*STATUS:CANCELLED/);
 });
+
+test('folding long lines never splits a character', () => {
+  const ics = calendarFile({ ...session, title: `${'Pricing clinic '.repeat(4)}🎙️🎙️🎙️🎙️🎙️` }, 'better-accountant.com');
+  const unfolded = ics.replace(/\r\n /g, '');
+  assert.ok(unfolded.includes('🎙️🎙️🎙️🎙️🎙️'));
+  assert.ok(!/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(ics), 'no lone surrogate');
+});

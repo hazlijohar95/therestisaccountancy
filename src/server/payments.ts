@@ -49,8 +49,9 @@ export type RenewalOutcome = 'paid' | 'pending' | 'declined' | 'card-refused';
 /** Charges one month to a member's saved card. */
 export async function renew(billing: Store['billing'], renewal: Renewal, siteUrl: string): Promise<RenewalOutcome> {
   /* A previous attempt CHIP may have charged after all (a timeout, a lost callback): count it instead of charging again. */
-  const earlier = await billing.unpaid(renewal.memberId, 'renewal');
-  if (earlier && (await settle(billing, earlier))) return 'paid';
+  for (const earlier of await billing.unpaid(renewal.memberId, 'renewal')) {
+    if (await settle(billing, earlier)) return 'paid';
+  }
   const gateway = club();
   const purchase = await gateway.purchase({
     email: renewal.email,

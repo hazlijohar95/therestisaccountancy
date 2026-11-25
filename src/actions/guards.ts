@@ -29,10 +29,16 @@ export const admin = (locals: App.Locals): Member => {
   return member;
 };
 
-/** A public form takes a few posts a minute from one source. */
-export const throttle = async (context: ActionAPIContext, form: 'join' | 'sign-in' | 'link') => {
-  const source = sourceOf(context.request.headers.get('cf-connecting-ip') ?? 'unknown');
-  if (!(await context.locals.limits.allow(`${form} ${source}`))) throw new ActionError({ code: 'TOO_MANY_REQUESTS', message: 'Too many tries from here. Wait a minute and try again.' });
+type LimitedForm = 'join' | 'sign-in' | 'link' | 'checkout';
+
+/** The key a form's posts are counted under: the form and the address they come from. */
+export const formKey = (context: ActionAPIContext, form: LimitedForm) => `${form} ${sourceOf(context.request.headers.get('cf-connecting-ip') ?? 'unknown')}`;
+
+export const tooManyTries = () => new ActionError({ code: 'TOO_MANY_REQUESTS', message: 'Too many tries from here. Wait a minute and try again.' });
+
+/** A form takes a few posts a minute from one source. */
+export const throttle = async (context: ActionAPIContext, form: LimitedForm) => {
+  if (!(await context.locals.limits.allow(formKey(context, form)))) throw tooManyTries();
 };
 
 export interface Refusal {

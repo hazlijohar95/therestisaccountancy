@@ -2,7 +2,7 @@ import { ActionError, defineAction } from 'astro:actions';
 import { z } from 'astro/zod';
 import { checkout } from '../server/payments.ts';
 import { report } from '../server/report.ts';
-import { absolute, signedIn } from './guards.ts';
+import { absolute, signedIn, throttle } from './guards.ts';
 
 export const billing = {
   /** Sends the member to CHIP to pay a month and save a card. */
@@ -10,6 +10,7 @@ export const billing = {
     accept: 'form',
     handler: async (_input, context) => {
       const member = signedIn(context.locals);
+      await throttle(context, 'checkout');
       try {
         return { url: await checkout(context.locals.billing, member, absolute(context, '/')) };
       } catch (error) {

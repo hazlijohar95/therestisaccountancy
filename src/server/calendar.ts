@@ -4,17 +4,19 @@ import type { LiveSession } from './schedule.ts';
 const stamp = (value: string | Date) => new Date(value).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 /** RFC 5545 text: backslash, semicolon and comma escaped, line breaks as \n. */
 const escape = (value: string) => value.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\r?\n/g, '\\n');
-/** Lines longer than 75 octets continue on the next line after a space. */
+/** Lines longer than 75 octets continue on the next line after a space, never splitting a character. */
 const fold = (line: string) => {
+  const bytes = (s: string) => new TextEncoder().encode(s).length;
   const parts: string[] = [];
-  let rest = line;
-  while (new TextEncoder().encode(rest).length > 75) {
-    let cut = 74;
-    while (new TextEncoder().encode(rest.slice(0, cut)).length > 74) cut--;
-    parts.push(rest.slice(0, cut));
-    rest = rest.slice(cut);
+  let part = '';
+  for (const char of line) {
+    if (bytes(part + char) > (parts.length ? 74 : 75)) {
+      parts.push(part);
+      part = '';
+    }
+    part += char;
   }
-  return [...parts, rest].join('\r\n ');
+  return [...parts, part].join('\r\n ');
 };
 
 /** A calendar file for one session. The same UID every time, so a second import updates the first. */
