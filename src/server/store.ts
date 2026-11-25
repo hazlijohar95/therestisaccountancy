@@ -2,6 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { createClub } from './club.ts';
 import { createCommunity } from './community.ts';
 import { migrate, type Db } from './db.ts';
+import { createLimits } from './limits.ts';
 
 /** The Durable Object's SQLite behind the club's Db interface. */
 function durableDb(storage: DurableObjectStorage): Db {
@@ -30,6 +31,7 @@ function durableDb(storage: DurableObjectStorage): Db {
 export class ClubStore extends DurableObject<Env> {
   readonly #club;
   readonly #community;
+  readonly #limits;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -37,11 +39,12 @@ export class ClubStore extends DurableObject<Env> {
     migrate(db);
     this.#club = createClub(db);
     this.#community = createCommunity(db);
+    this.#limits = createLimits(db);
     const email = (env.ADMIN_EMAIL ?? '').trim().toLowerCase();
     if (email) this.#club.appointAdmin({ email, name: 'Admin' });
   }
 
   open() {
-    return { club: this.#club, community: this.#community };
+    return { club: this.#club, community: this.#community, limits: this.#limits };
   }
 }

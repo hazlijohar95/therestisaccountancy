@@ -10,6 +10,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   try {
     context.locals.club = store.club;
     context.locals.community = store.community;
+    context.locals.limits = store.limits;
     const key = await context.session?.get('signedIn');
     context.locals.member = key ? await store.club.sessionMember(key) : null;
 

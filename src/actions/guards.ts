@@ -1,9 +1,9 @@
 import { ActionError, type ActionAPIContext, type ActionErrorCode } from 'astro:actions';
-import { env } from 'cloudflare:workers';
 import { z } from 'astro/zod';
 import { joinSection } from '../data/club.ts';
 import type { Member, PasswordLink, SessionKey } from '../server/club.ts';
 import { passwordLetter } from '../server/letters.ts';
+import { sourceOf } from '../server/limits.ts';
 import { send } from '../server/mail.ts';
 import { MIN_PASSWORD_LENGTH } from '../server/password.ts';
 import type { Result } from '../server/result.ts';
@@ -19,11 +19,10 @@ export const admin = (locals: App.Locals): Member => {
   return member;
 };
 
-/** A public form takes a few posts a minute from one address. Cloudflare counts per location, so the limit is approximate. */
+/** A public form takes a few posts a minute from one source. */
 export const throttle = async (context: ActionAPIContext, form: 'join' | 'sign-in' | 'link') => {
-  const address = context.request.headers.get('cf-connecting-ip') ?? 'unknown';
-  const { success } = await env.FORMS.limit({ key: `${form}:${address}` });
-  if (!success) throw new ActionError({ code: 'TOO_MANY_REQUESTS', message: 'Too many tries from here. Wait a minute and try again.' });
+  const source = sourceOf(context.request.headers.get('cf-connecting-ip') ?? 'unknown');
+  if (!(await context.locals.limits.allow(`${form} ${source}`))) throw new ActionError({ code: 'TOO_MANY_REQUESTS', message: 'Too many tries from here. Wait a minute and try again.' });
 };
 
 export interface Refusal {

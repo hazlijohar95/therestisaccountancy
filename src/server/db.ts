@@ -96,6 +96,11 @@ const MIGRATIONS: readonly string[] = [
   `
   ALTER TABLE invites ADD COLUMN created_at TEXT;
   `,
+  `
+  CREATE TABLE form_posts (key TEXT NOT NULL, at INTEGER NOT NULL);
+  CREATE INDEX form_posts_by_key ON form_posts (key);
+  CREATE INDEX form_posts_by_time ON form_posts (at);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

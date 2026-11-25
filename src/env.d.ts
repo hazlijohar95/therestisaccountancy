@@ -13,6 +13,7 @@ declare namespace App {
      */
     club: import('./server/instance.ts').Store['club'];
     community: import('./server/instance.ts').Store['community'];
+    limits: import('./server/instance.ts').Store['limits'];
   }
   interface SessionData {
     signedIn: import('./server/club.ts').SessionKey;

@@ -14,8 +14,6 @@ export default defineConfig({
       ASSETS: bindings.assets(),
       EMAIL: bindings.sendEmail({ allowedSenderAddresses: [sender] }),
       MAIL_FROM: bindings.text(sender),
-      /** Posts to the public forms (join, sign-in, forgot password), counted per address. */
-      FORMS: bindings.rateLimit({ namespace: '1001', simple: { limit: 5, period: 60 } }),
       /** The admin appointed on start. They set a password with a link from the forgot-password page. */
       ADMIN_EMAIL: bindings.secret(),
     },
