@@ -36,7 +36,7 @@ summary: Everything to do between a client saying yes and the first piece of wor
 ### 3. The engagement
 
 - [ ] Scope agreed in writing, on your schedule of services
-- [ ] Fee agreed, with how and when it is paid: RM [Fee], [billed monthly, quarterly or yearly]
+- [ ] Fee agreed, with how and when it is paid: RM [Fee], [Billed monthly, quarterly or yearly]
 - [ ] Engagement letter sent: [Your firm's engagement letter, with terms checked by an adviser]
 - [ ] Engagement letter signed and returned: [Date]
 - [ ] Previous accountant contacted, with the client's permission, for anything you need to take over: [Your professional body's guidance on this, if it has any]

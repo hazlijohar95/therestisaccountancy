@@ -28,9 +28,9 @@ From [Date the new fee starts], your fee will be RM [New fee] a month, up from R
 - [Service, as it is now]
 - [Service, as it is now]
 
-Nothing else changes. You keep me as your accountant, and the same [replies, reminders and meetings] you have now.
+Nothing else changes. You keep me as your accountant, and the same [Replies, reminders and meetings] you have now.
 
-If you would rather keep your fee where it is, we can reduce what I do to fit it. I would suggest [The smaller package, or the work that would stop]. Let me know by [A date a month before the change] which you prefer, and I will send a new schedule of services for you to sign.
+If you would rather keep your fee where it is, I can reduce the work to fit it. I would suggest [The smaller package, or the work that would stop]. Let me know by [A date a month before the change] which you prefer, and I will send a new schedule of services for you to sign.
 
 If you have any questions, call me on [Phone number] or reply to this letter.
 
