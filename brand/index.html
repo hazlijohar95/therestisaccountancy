@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en-GB" data-brand="club">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRIA Brand System</title>
+<link rel="preload" href="assets/fonts/geist-serif-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/instrument-sans-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/brand.css">
+<link rel="stylesheet" href="guide/guide.css">
+</head>
+<body class="grain">
+
+<header class="bar">
+  <div class="bar-in">
+    <a class="bar-logo" href="#top" aria-label="Back to top">
+      <span class="logo-tria brand-club-only" aria-hidden="true"></span>
+      <img class="brand-pod-only when-light" src="assets/logos/sta-lockup-color.svg" alt="">
+      <img class="brand-pod-only when-dark" src="assets/logos/sta-lockup-reversed.svg" alt="">
+    </a>
+    <nav class="notes-nav" aria-label="Notes">
+      <a href="#architecture">Brands</a><a href="#logos">Logos</a><a href="#colour">Colour</a><a href="#type">Type</a><a href="#rules">Rules</a><a href="#devices">Devices</a><a href="#components">Components</a><a href="#motion">Motion</a><a href="#maker">Cover maker</a><a href="#applications">Applications</a><a href="#social">Social</a><a href="#merch">Merch</a><a href="#voice">Voice</a><a href="#code">Code</a>
+    </nav>
+    <div class="seg brand-switch" role="group" aria-label="View the system as" style="--n:2">
+      <span class="thumb" aria-hidden="true"></span>
+      <button type="button" data-pick="club" aria-pressed="true">Club</button>
+      <button type="button" data-pick="podcast" aria-pressed="false">Podcast</button>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+<section class="hero" aria-label="The two brands">
+  <div class="hero-cell club-cell" data-brand="club">
+    <i class="crop tl"></i><i class="crop tr"></i><i class="crop bl"></i><i class="crop br"></i>
+    <div class="cell-top"><span>Club, Membership &amp; Community</span><span class="now">Now showing</span></div>
+    <span class="logo-tria hero-mark" role="img" aria-label="The Rest Is Accountancy"></span>
+    <div class="cell-foot">
+      <button class="btn ghost" type="button" data-pick="club">See it in this voice</button>
+    </div>
+  </div>
+  <div class="hero-cell pod-cell torn" data-brand="podcast">
+    <i class="crop tl"></i><i class="crop tr"></i>
+    <div class="cell-top"><span>Media &amp; Podcast</span><span class="tape now">Now showing</span></div>
+    <span class="scribble hero-x" aria-hidden="true"></span>
+    <img class="hero-lock when-light" src="assets/logos/sta-tagline-color.svg" alt="Stick to Accounting, Podcast Show. Death, Taxes and Ai.">
+    <img class="hero-lock when-dark" src="assets/logos/sta-tagline-reversed.svg" alt="Stick to Accounting, Podcast Show. Death, Taxes and Ai.">
+    <div class="cell-foot">
+      <p class="hand">News. Analysis. Interviews.</p>
+      <button class="btn" type="button" data-pick="podcast">See it in this voice</button>
+    </div>
+  </div>
+</section>
+
+<div class="marquee" aria-hidden="true">
+  <div><span>The Rest Is Accountancy</span><span class="sep">✕</span><span class="italic">Death, Taxes and Ai.</span><span class="sep">✕</span><span>News. Analysis. Interviews.</span><span class="sep">✕</span><span class="italic">Stick to accounting.</span><span class="sep">✕</span></div>
+</div>
+
+<section class="intro">
+  <div>
+    <h1 class="poster">One system.<br><span class="italic">Two voices.</span></h1>
+  </div>
+  <div class="cells facts" id="facts">
+    <div><b data-fact="brands">2</b><span>brands</span></div>
+    <div><b data-fact="colours">7</b><span>colours</span></div>
+    <div><b data-fact="faces">6</b><span>typefaces</span></div>
+    <div><b data-fact="checks">24</b><span>of 24 contrast checks</span></div>
+  </div>
+</section>
+
+<section id="architecture" class="note">
+  <div class="note-rail"><span class="no">N°1</span><h2 class="head">Two brands, one house</h2></div>
+  <div class="note-body">
+    <div class="scroll"><table class="compare">
+      <thead><tr><th></th><th>The Rest Is Accountancy</th><th>Stick to Accounting</th></tr></thead>
+      <tbody>
+        <tr><th>Role</th><td>Club, membership and community</td><td>Media and podcast</td></tr>
+        <tr><th>Ground</th><td>Night black or clean paper</td><td>Tape yellow. Logos sit on white panels.</td></tr>
+        <tr><th>Accent</th><td>None. Inverse bars carry emphasis.</td><td>Tape yellow, highlighter, marker</td></tr>
+        <tr><th>Display</th><td><span class="display" data-brand="club">Geist Serif 400</span></td><td><span class="display" data-brand="podcast">Anton, caps</span></td></tr>
+        <tr><th>Buttons</th><td>Flat. Invert on hover.</td><td>Tape with a sheen of light. Lifts 1px on hover.</td></tr>
+        <tr><th>Hand marks</th><td>Never</td><td>Tape, X, underline, arrow</td></tr>
+        <tr><th>Attribute</th><td><code>data-brand="club"</code></td><td><code>data-brand="podcast"</code></td></tr>
+      </tbody>
+    </table></div>
+    <div class="endorse cells">
+      <div class="stage"><img class="when-light" src="assets/logos/sta-lockup-color.svg" alt="Stick to Accounting"><img class="when-dark" src="assets/logos/sta-lockup-reversed.svg" alt="Stick to Accounting"></div>
+      <div class="stage"><span class="hand">a podcast from</span><span class="logo-tria" role="img" aria-label="The Rest Is Accountancy"></span></div>
+      <div class="stage left"><b>Endorsement</b><p class="small">Club mark at most 45% of the lockup's width.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="logos" class="note">
+  <div class="note-rail"><span class="no">N°2</span><h2 class="head">Logos</h2><p>Use the files. Never retype a name.</p></div>
+  <div class="note-body">
+    <div class="tester">
+      <div class="tester-head"><b>Ground test</b><div class="seg" id="grounds" role="group" aria-label="Ground" style="--n:5"><span class="thumb" aria-hidden="true"></span></div></div>
+      <div class="tester-stage" id="ground-stage"><div class="ground-logo" id="ground-logo"></div><span class="stamp" id="ground-stamp"></span></div>
+      <p class="small" id="ground-note"></p>
+    </div>
+    <div class="cells lockups" id="logo-files" aria-live="polite"></div>
+    <div class="cells specs">
+      <div><div class="clear-wrap"><div class="clear"><img src="assets/logos/sta-lockup-color.svg" alt="Clear space around the podcast lockup"></div></div><b>Clear space</b><p>x on every side. x is the tape’s height.</p></div>
+      <div><b>Minimum size</b><p>Podcast lockup 140px or 35mm. Club wordmark 110px or 28mm.</p></div>
+      <div><b>Which lockup</b><p>Tagline as the hero. Lockup elsewhere. Wordmark where the tape won’t fit.</p></div>
+      <div><b>Never</b><p>Stretch, recolour, tilt, or set on a photo.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="colour" class="note">
+  <div class="note-rail"><span class="no">N°3</span><h2 class="head">Colour</h2><p>No grey. Yellow is tape or highlighter, never text on a light ground. Click a colour to copy it.</p></div>
+  <div class="note-body">
+    <div class="chips-list" id="palette" aria-live="polite"></div>
+    <div class="mix">
+      <div><div class="mix-label"><b>Club</b><span>night 70 · paper 28 · redline 2</span></div><div class="mix-bar"><i style="flex:70;background:var(--color-night)"></i><i style="flex:28;background:var(--color-paper)"></i><i style="flex:2;background:var(--color-redline)"></i></div></div>
+      <div><div class="mix-label"><b>Podcast</b><span>newsprint 50 · ink 25 · tape 15 · paper 8 · redline 2</span></div><div class="mix-bar"><i style="flex:50;background:var(--color-stock)"></i><i style="flex:25;background:var(--color-ink)"></i><i style="flex:15;background:var(--color-tape)"></i><i style="flex:8;background:var(--color-paper)"></i><i style="flex:2;background:var(--color-redline)"></i></div></div>
+    </div>
+    <div class="scroll"><table class="ledger" id="pairs"><caption>Contrast, WCAG 2.2</caption><thead><tr><th>Pair</th><th>Club light</th><th>Club dark</th><th>Podcast light</th><th>Podcast dark</th><th>Min</th></tr></thead><tbody></tbody></table></div>
+  </div>
+</section>
+
+<section id="type" class="note">
+  <div class="note-rail"><span class="no">N°4</span><h2 class="head">Type</h2></div>
+  <div class="note-body">
+    <div class="tt-controls">
+      <div class="field"><label for="tt-text">Try a headline</label><input class="input" id="tt-text" value="Death, Taxes and Ai." maxlength="80"></div>
+      <div class="field"><label for="tt-size">Size <output id="tt-size-out">72</output>px</label><input class="range" id="tt-size" type="range" min="28" max="160" value="72"></div>
+    </div>
+    <div class="cells settings">
+      <div data-brand="club" class="setting"><span class="label">Club · quiet</span><div class="display tt-sample">Death, taxes and AI.</div><dl><dt>Face</dt><dd>Geist Serif</dd><dt>Weight</dt><dd>400, the only one</dd><dt>Tracking</dt><dd>−0.02em</dd></dl></div>
+      <div data-brand="podcast" class="setting"><span class="label">Podcast · loud</span><div class="display tt-sample">Death, taxes and AI.</div><dl><dt>Face</dt><dd>Anton</dd><dt>Weight</dt><dd>400, the only one</dd><dt>Case</dt><dd>Capitals, +0.005em</dd></dl></div>
+    </div>
+    <div class="ladder" id="ladder"></div>
+    <div class="cells families">
+      <div data-brand="club"><span class="display aa">Aa</span><b>Geist Serif</b><p>Club display. 400 only.</p></div>
+      <div data-brand="podcast"><span class="display aa">Aa</span><b>Anton</b><p>Podcast display. Capitals, one weight.</p></div>
+      <div data-brand="podcast"><span class="hand aa">Aa</span><b>Gochi Hand</b><p>Podcast marker notes. One phrase per layout.</p></div>
+      <div><span class="aa" style="font-weight:600">Aa</span><b>Instrument Sans</b><p>Text, UI and figures.</p></div>
+      <div><code class="aa">Aa</code><b>Geist Mono</b><p>Code and hex values.</p></div>
+      <div data-brand="podcast"><span class="aa" style="font-family:var(--font-pixel)">Aa</span><b>Geist Pixel</b><p>Podcast timecodes and the live label.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="rules" class="note">
+  <div class="note-rail"><span class="no">N°5</span><h2 class="head">Rules, space, angles</h2></div>
+  <div class="note-body">
+    <div class="cells rules-grid">
+      <div><span class="label">Stroke</span><div class="strokes"><div><i style="border-top:var(--stroke-hair) solid"></i><code>hair 1px</code></div><div><i style="border-top:var(--stroke-rule) solid"></i><code>rule 2px</code></div><div><i style="border-top:var(--stroke-heavy) solid"></i><code>heavy 4px</code></div><div><i style="border-top:var(--stroke-heavy) double"></i><code>total, double</code></div></div></div>
+      <div><span class="label">Shadow</span><div class="shadow-demo"><div data-brand="club" class="sbox">club: none</div><div data-brand="podcast" class="sbox">podcast: none, fill and space</div></div></div>
+      <div><span class="label">Angles</span><div class="angles"><span class="tape">tape −3°</span><span class="nametag"><span class="role">tag</span><span class="name">−2°</span></span><span class="stamp">stamp −8°</span></div></div>
+      <div><span class="label">Space</span><div class="spaces" id="spaces"></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="devices" class="note">
+  <div class="note-rail"><span class="no">N°6</span><h2 class="head">Graphic devices</h2><p>Two or three per layout.</p></div>
+  <div class="note-body">
+    <div class="cells demos devices" data-brand="podcast">
+      <div><div class="demo-stage"><span class="tape" style="font-size:1.7rem">Podcast Show</span></div><b>Tape label</b><code>.tape</code></div>
+      <div><div class="demo-stage"><span class="display brush" style="font-size:2.6rem">accounting</span></div><b>Brush stroke</b><code>.brush</code></div>
+      <div><div class="demo-stage"><span style="font:600 1.4rem/1.3 var(--font-sans)">Who signs off <span class="mark">the AI audit</span>?</span></div><b>Marker</b><code>.mark</code></div>
+      <div><div class="demo-stage"><span class="row"><span class="scribble" style="font-size:3.2rem;color:var(--ink)"></span><span class="arrow" style="font-size:3rem;color:var(--alert)"></span><span class="underlined display" style="font-size:1.6rem">wrong<span class="underline"></span></span></span></div><b>Marker strokes</b><code>.scribble .arrow .underline</code></div>
+      <div><div class="demo-stage flush"><div class="host"><img class="cutout" src="assets/hosts/placeholder.svg" alt=""><span class="nametag"><span class="role">podcaster</span><span class="name">Hazli Johar</span></span></div></div><b>Cut-out and name tag</b><code>.cutout .nametag</code></div>
+      <div><div class="demo-stage"><span class="stamp" style="font-size:1.6rem">Audited</span></div><b>Auditor's stamp</b><code>.stamp</code></div>
+      <div><div class="demo-stage"><table class="ledger"><tbody><tr><td>Fees</td><td>48,200</td></tr><tr><td>Write-offs</td><td><span class="neg">3,150</span></td></tr></tbody><tfoot><tr><td>Net</td><td><span class="total">45,050</span></td></tr></tfoot></table></div><b>Double rule, red brackets</b><code>.total .neg</code></div>
+      <div><div class="demo-stage torn paper"><span class="label">torn edge</span></div><b>Torn paper</b><code>.torn</code></div>
+      <div><div class="demo-stage"><span class="live">Recording</span></div><b>Live dot</b><code>.live</code></div>
+    </div>
+  </div>
+</section>
+
+<section id="components" class="note">
+  <div class="note-rail"><span class="no">N°7</span><h2 class="head">Components</h2></div>
+  <div class="note-body">
+    <div class="cells two">
+      <div data-brand="club" class="pad"><span class="label">Club buttons</span><div class="row"><button class="btn">Become a member</button><button class="btn ghost">See events</button><button class="btn" disabled>Sold out</button></div></div>
+      <div data-brand="podcast" class="pad"><span class="label">Podcast buttons</span><div class="row"><button class="btn">Listen now</button><button class="btn ghost">All episodes</button><button class="btn" disabled>Coming soon</button></div></div>
+    </div>
+
+    <div class="block" data-brand="podcast">
+      <div class="block-head"><b>Player</b></div>
+      <div class="player" id="player" data-state="loading">
+        <button class="play" type="button" aria-label="Play"><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z" fill="currentColor"/></svg></button>
+        <div class="meta"><b>Ep. 42 · What's going wrong in our accounting schools?</b><span class="live" hidden>Playing</span></div>
+        <div class="wave" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+        <div class="row2"><span class="time"><span class="cur">0:00</span> / <span class="dur">0:00</span></span><span class="row"><button class="speed" type="button" aria-label="Playback speed">1×</button><span class="small">Space plays · arrows seek</span></span></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-head"><b>Episode list</b></div>
+      <div class="ep-list" data-brand="podcast">
+        <a class="ep-row" href="#components"><span class="no">42</span><span><span class="label">Interview</span><h3>What's going wrong in our accounting schools?</h3></span><span class="dur">52:10</span><span class="go" aria-hidden="true">→</span></a>
+        <a class="ep-row" href="#components"><span class="no">43</span><span><span class="label">Analysis</span><h3>E-invoicing: who is actually ready?</h3></span><span class="dur">38:44</span><span class="go" aria-hidden="true">→</span></a>
+        <a class="ep-row" href="#components"><span class="no">44</span><span><span class="label">News</span><h3>Who signs off the AI audit?</h3></span><span class="dur">41:02</span><span class="go" aria-hidden="true">→</span></a>
+      </div>
+    </div>
+
+    <div class="cells two">
+      <div class="pad center" data-brand="club">
+        <span class="label">Member card</span>
+        <div class="member" id="member"><span class="logo-tria logo" aria-hidden="true"></span><span></span><div class="who"><div><span>Member</span><b>Aina Rahman</b></div><div class="no"><span>No.</span><br>0001</div></div></div>
+      </div>
+      <div class="pad" data-brand="club">
+        <span class="label">Event</span>
+        <article class="event"><div class="date"><b>11</b><span>Dec</span></div><div class="body"><h3>Members' evening</h3><dl><dt>Time</dt><dd>7.30pm to 10.30pm</dd><dt>Venue</dt><dd>Kuala Lumpur, sent on RSVP</dd></dl><div><button class="btn">RSVP</button></div></div></article>
+        <span class="label">Join form</span>
+        <form class="join" id="join" novalidate>
+          <div class="field"><label for="join-email">Work email</label><input class="input" id="join-email" type="email" autocomplete="email" required><span class="hint">One letter a month.</span><span class="error" id="join-error" hidden>Enter an email like name@firm.com.my</span></div>
+          <button class="btn" type="submit">Request membership</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="cells two" data-brand="podcast">
+      <div class="pad"><span class="label">Hosts</span>
+        <div class="hosts">
+          <div class="host"><img class="cutout" src="assets/hosts/placeholder.svg" alt=""><span class="nametag"><span class="role">podcaster</span><span class="name">Shukri Yusof</span></span></div>
+          <div class="host"><img class="cutout" src="assets/hosts/placeholder.svg" alt=""><span class="nametag"><span class="role">podcaster</span><span class="name">Hazli Johar</span></span></div>
+          <div class="host"><img class="cutout" src="assets/hosts/placeholder.svg" alt=""><span class="nametag"><span class="role">podcaster</span><span class="name">Abu Musa</span></span></div>
+        </div>
+      </div>
+      <div class="pad"><figure class="quote"><span class="tape">Quote card</span><blockquote>The syllabus teaches the standard. Nobody teaches the client.</blockquote><figcaption>Sample guest, ep. 42</figcaption></figure>
+        <div class="platforms"><a href="#components"><small>Watch on</small><span>YouTube</span></a><a href="#components"><small>Listen on</small><span>Spotify</span></a><a href="#components"><small>Listen on</small><span>Apple Podcasts</span></a></div>
+      </div>
+    </div>
+
+    <div class="block" data-brand="club">
+      <div class="scroll"><table class="ledger"><caption>Ledger table: the club's way to show numbers</caption>
+        <thead><tr><th>Club events, 2026</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Year to date</th></tr></thead>
+        <tbody><tr><td>Ticket income</td><td>18,400</td><td>22,950</td><td>27,300</td><td>68,650</td></tr><tr><td>Sponsorship</td><td>12,000</td><td>12,000</td><td>18,000</td><td>42,000</td></tr><tr><td>Venue and catering</td><td><span class="neg">21,760</span></td><td><span class="neg">24,100</span></td><td><span class="neg">29,880</span></td><td><span class="neg">75,740</span></td></tr></tbody>
+        <tfoot><tr><td>Surplus (RM)</td><td><span class="total">8,640</span></td><td><span class="total">10,850</span></td><td><span class="total">15,420</span></td><td><span class="total">34,910</span></td></tr></tfoot>
+      </table></div>
+    </div>
+    <p class="small">Names, figures and audio are samples.</p>
+  </div>
+</section>
+
+<section id="motion" class="note">
+  <div class="note-rail"><span class="no">N°8</span><h2 class="head">Motion</h2></div>
+  <div class="note-body">
+    <div class="cells demos motion-grid" data-brand="podcast">
+      <div><div class="demo-stage"><span class="tape" id="m-tape" style="font-size:1.6rem">Ep. 44</span></div><b>Slap</b><code>420ms · overshoot</code><button class="chip" type="button" data-replay="m-tape">Replay</button></div>
+      <div><div class="demo-stage"><span class="stamp" id="m-stamp" style="font-size:1.5rem">Approved</span></div><b>Stamp</b><code>420ms · overshoot</code><button class="chip" type="button" data-replay="m-stamp">Replay</button></div>
+      <div><div class="demo-stage"><button class="btn" type="button">Press me</button></div><b>Press</b><code>160ms · ease-out</code></div>
+      <div><div class="demo-stage"><div class="seg" style="--n:2" id="m-seg"><span class="thumb" aria-hidden="true"></span><button type="button" aria-pressed="true">Club</button><button type="button" aria-pressed="false">Podcast</button></div></div><b>Slide</b><code>420ms · ease-out</code></div>
+    </div>
+  </div>
+</section>
+
+<section id="maker" class="note">
+  <div class="note-rail"><span class="no">N°9</span><h2 class="head">Cover maker</h2></div>
+  <div class="note-body">
+    <div class="maker cells">
+      <form class="maker-controls" id="maker">
+        <div class="field"><span class="label">Brand</span><div class="seg" id="mk-brand" style="--n:2"><span class="thumb"></span><button type="button" data-v="podcast" aria-pressed="true">Podcast</button><button type="button" data-v="club" aria-pressed="false">Club</button></div></div>
+        <div class="field"><span class="label">Format</span><div class="seg" id="mk-format" style="--n:3"><span class="thumb"></span><button type="button" data-v="square" aria-pressed="true">Square</button><button type="button" data-v="thumb" aria-pressed="false">Thumbnail</button><button type="button" data-v="story" aria-pressed="false">Story</button></div></div>
+        <div class="field"><label for="mk-label">Label</label><input class="input" id="mk-label" value="Ep. 44" maxlength="24"></div>
+        <div class="field"><label for="mk-title">Title</label><textarea class="input" id="mk-title" rows="3" maxlength="120">Who signs off the *AI audit*?</textarea><span class="hint">*Asterisks* mark a word.</span></div>
+        <div class="field"><label for="mk-note">Footnote</label><input class="input" id="mk-note" value="with Hazli, Shukri &amp; Abu" maxlength="48"></div>
+        <div class="row"><button class="btn" type="button" id="mk-save">Download PNG</button><button class="btn ghost" type="button" id="mk-reset">Reset</button></div>
+        <p class="small" id="mk-msg" aria-live="polite"></p>
+      </form>
+      <div class="maker-preview"><canvas id="mk-canvas" width="1080" height="1080" aria-label="Cover preview"></canvas><span class="small" id="mk-size">1080 × 1080</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="applications" class="note">
+  <div class="note-rail"><span class="no">N°10</span><h2 class="head">Applications</h2><p>Click any text to rewrite it.</p></div>
+  <div class="note-body boards">
+    <div class="board-wrap"><header><b>YouTube channel banner</b><span class="row"><span class="label">1500 × 500</span><button class="chip" data-full>Full size</button></span></header>
+      <div class="frame"><div class="board b-yt" data-brand="podcast">
+        <div class="tagline" contenteditable spellcheck="false">News. Analysis. Interviews.</div>
+        <div class="lock brush"><img src="assets/logos/sta-lockup-color.svg" alt="Stick to Accounting"></div>
+        <span class="scribble x" aria-hidden="true"></span>
+        <div class="platforms"><a><small>Watch on</small><span>YouTube</span></a><a><small>Listen on</small><span>Spotify</span></a><a><small>Listen on</small><span>Apple Podcasts</span></a></div>
+        <div class="h" style="left:955px;top:150px;width:280px"><img class="cutout" src="assets/hosts/placeholder.svg" alt=""><span class="nametag" style="left:40px;top:250px"><span class="role">podcaster</span><span class="name">Shukri Yusof</span></span></div>
+        <div class="h" style="left:1290px;top:120px;width:300px"><img class="cutout" src="assets/hosts/placeholder.svg" alt=""><span class="nametag" style="left:30px;top:260px"><span class="role">podcaster</span><span class="name">Abu Musa</span></span></div>
+        <div class="h" style="left:1110px;top:-20px;width:290px"><img class="cutout" src="assets/hosts/placeholder.svg" alt=""><span class="nametag" style="left:170px;top:110px"><span class="role">podcaster</span><span class="name">Hazli Johar</span></span></div>
+        <div class="tear"></div>
+      </div></div>
+    </div>
+    <div class="pair-boards">
+      <div class="board-wrap"><header><b>Club event invite</b><span class="row"><span class="label">1080 × 1350</span><button class="chip" data-full>Full size</button></span></header>
+        <div class="frame"><div class="board b-invite" data-brand="club">
+          <span class="logo-tria" role="img" aria-label="The Rest Is Accountancy"></span>
+          <h2 class="display" contenteditable spellcheck="false">Members' evening.</h2>
+          <dl><dt>Date</dt><dd contenteditable spellcheck="false">Thursday 11 December 2026</dd><dt>Time</dt><dd contenteditable spellcheck="false">7.30pm to 10.30pm</dd><dt>Venue</dt><dd contenteditable spellcheck="false">Kuala Lumpur, sent on RSVP</dd><dt>RSVP</dt><dd contenteditable spellcheck="false">By 1 December</dd></dl>
+        </div></div>
+      </div>
+      <div class="board-wrap"><header><b>LinkedIn cover, club</b><span class="row"><span class="label">1584 × 396</span><button class="chip" data-full>Full size</button></span></header>
+        <div class="frame"><div class="board b-li" data-brand="club">
+          <span class="logo-tria" role="img" aria-label="The Rest Is Accountancy"></span>
+          <p contenteditable spellcheck="false">Club and community for accountants.</p>
+        </div></div>
+        <header><b>Profile pictures</b><span class="label">1080 × 1080</span></header>
+        <div class="avatars cells"><div class="av club-av" data-brand="club"><span class="logo-tria" aria-label="Club avatar" role="img"></span></div><div class="av pod-av" data-brand="podcast"><img src="assets/logos/sta-lockup-color.svg" alt="Podcast avatar"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="social" class="note" data-brand="podcast">
+  <div class="note-rail"><span class="no">N°11</span><h2 class="head">Social kit</h2><p>Real episodes, real hosts, real sizes. Photos are the hosts' own shoots, set in black and white and printed into the newsprint. Click any text to rewrite it.</p></div>
+  <div class="note-body boards">
+    <div class="board-wrap"><header><b>YouTube thumbnail</b><span class="row"><span class="label">1280 × 720</span><button class="chip" data-full>Full size</button></span></header>
+      <div class="frame"><div class="board b-thumb">
+        <i class="strip s1"></i><i class="strip s2"></i>
+        <img class="lock" src="assets/logos/sta-lockup-color.svg" alt="Stick to Accounting">
+        <h3 class="t" contenteditable spellcheck="false">Traditional firm<br><span class="vs">vs</span><br><span class="brush">Modern firm</span></h3>
+        <img class="ink-photo" src="guide/photos/hazli-standing.jpg" alt="Hazli Johar">
+        <span class="nametag"><span class="role">podcaster</span><span class="name">Hazli Johar</span></span>
+      </div></div>
+    </div>
+    <div class="pair-boards">
+      <div class="board-wrap"><header><b>Instagram post</b><span class="row"><span class="label">1080 × 1350</span><button class="chip" data-full>Full size</button></span></header>
+        <div class="frame"><div class="board b-post">
+          <div class="shot torn"><img class="ink-photo" src="guide/photos/abu-studio.jpg" alt="Abu Musa"></div>
+          <span class="tape">New episode</span>
+          <span class="nametag"><span class="role">podcaster</span><span class="name">Abu Musa</span></span>
+          <h3 class="t" contenteditable spellcheck="false">Internal accountants <span class="vs">vs</span> <span class="brush">external</span> accountants</h3>
+          <footer><img src="assets/logos/sta-wordmark-color.svg" alt="Stick to Accounting"><span>YouTube · Spotify · Apple Podcasts</span></footer>
+        </div></div>
+      </div>
+      <div class="board-wrap"><header><b>Instagram story</b><span class="row"><span class="label">1080 × 1920</span><button class="chip" data-full>Full size</button></span></header>
+        <div class="frame"><div class="board b-story">
+          <i class="strip s1"></i>
+          <img class="lock" src="assets/logos/sta-lockup-color.svg" alt="Stick to Accounting">
+          <span class="tape">Out now</span>
+          <span class="scribble" aria-hidden="true"></span>
+          <h3 class="t" contenteditable spellcheck="false">Myths in <span class="brush">accounting</span></h3>
+          <div class="shot torn"><img class="ink-photo" src="guide/photos/hazli-studio.jpg" alt="Hazli Johar"></div>
+          <div class="platforms"><a><small>Watch on</small><span>YouTube</span></a><a><small>Listen on</small><span>Spotify</span></a><a><small>Listen on</small><span>Apple Podcasts</span></a></div>
+        </div></div>
+      </div>
+    </div>
+    <div class="pair-boards">
+      <div class="board-wrap"><header><b>Podcast cover art</b><span class="row"><span class="label">1400 × 1400</span><button class="chip" data-full>Full size</button></span></header>
+        <div class="frame"><div class="board b-art" data-export-width="3000" data-export-type="jpeg">
+          <img class="lock" src="assets/logos/sta-lockup-color.svg" alt="Stick to Accounting">
+          <div class="hosts-shot"><img class="ink-photo" src="guide/photos/hazli-studio.jpg" alt="Hazli Johar"><img class="ink-photo" src="guide/photos/abu-studio.jpg" alt="Abu Musa"></div>
+          <i class="strip s1"></i>
+        </div></div>
+        <p class="small">Apple takes 1400 to 3000px square; export this at 3000. The lockup at 55px, the smallest size the apps show a cover:</p>
+        <div class="art-tiny" aria-hidden="true"><img src="assets/logos/sta-lockup-color.svg" alt=""></div>
+      </div>
+      <div class="board-wrap"><header><b>LinkedIn and X share image</b><span class="row"><span class="label">1200 × 627</span><button class="chip" data-full>Full size</button></span></header>
+        <div class="frame"><div class="board b-share">
+          <div class="pane">
+            <span class="tape">New episode</span>
+            <h3 class="t" contenteditable spellcheck="false">Traditional firm<br><span class="vs">vs</span> <span class="hl">modern firm</span></h3>
+            <img src="assets/logos/sta-wordmark-reversed.svg" alt="Stick to Accounting">
+          </div>
+          <img class="ink-photo h1" src="guide/photos/hazli-studio.jpg" alt="Hazli Johar">
+          <img class="ink-photo h2" src="guide/photos/abu-studio.jpg" alt="Abu Musa">
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="merch" class="note" data-brand="podcast">
+  <div class="note-rail"><span class="no">N°12</span><h2 class="head">Merch</h2><p>Two tees exist already. The rest are concepts, drawn as print files.</p></div>
+  <div class="note-body boards">
+    <div class="cells merch-real">
+      <figure><img src="guide/photos/tee-black.jpg" alt="The black tee: the tagline lockup, reversed, across the chest"><figcaption><b>Black tee</b><span>In use. Tagline lockup, reversed, across the chest. The mockup from your files.</span></figcaption></figure>
+      <figure><img class="ink-photo" src="guide/photos/hazli-portrait.jpg" alt="Hazli Johar wearing the black tee"><figcaption><b>On air and on shoots</b><span>Hazli Johar in the black tee.</span></figcaption></figure>
+      <figure><img class="ink-photo" src="guide/photos/abu-studio.jpg" alt="Abu Musa wearing the white tee"><figcaption><b>White tee</b><span>In use. Tagline lockup in colour. Abu Musa on set.</span></figcaption></figure>
+    </div>
+    <div class="board-wrap"><header><b>Sticker sheet</b><span class="row"><span class="label">Concept · 1200 × 900</span><button class="chip" data-full>Full size</button></span></header>
+      <div class="frame"><div class="board b-stickers">
+        <span class="sticker k1"><img src="assets/logos/sta-lockup-color.svg" alt="Stick to Accounting"></span>
+        <span class="sticker k2"><span class="tape">Out now</span></span>
+        <span class="sticker k3"><span>Death, Taxes and Ai.</span></span>
+        <span class="sticker k4"><span class="stamp">Audited</span></span>
+        <span class="sticker k5"><img src="assets/logos/sta-wordmark-reversed.svg" alt="Stick to Accounting"></span>
+        <span class="sticker k6"><span class="scribble"></span></span>
+        <span class="sticker k7"><span class="neg">3,150</span></span>
+        <span class="sticker k8"><span>News. Analysis. Interviews.</span></span>
+      </div></div>
+    </div>
+    <div class="pair-boards">
+      <div class="board-wrap"><header><b>Tote bag</b><span class="row"><span class="label">Concept · print 380 × 420 mm</span><button class="chip" data-full>Full size</button></span></header>
+        <div class="frame"><div class="board b-tote">
+          <i class="handle h1"></i><i class="handle h2"></i>
+          <div class="bag">
+            <i class="strip s1"></i>
+            <img src="assets/logos/sta-tagline-color.svg" alt="Stick to Accounting. Death, Taxes and Ai.">
+          </div>
+        </div></div>
+      </div>
+      <div class="board-wrap"><header><b>Mug wrap</b><span class="row"><span class="label">Concept · print 230 × 95 mm</span><button class="chip" data-full>Full size</button></span></header>
+        <div class="frame"><div class="board b-mug">
+          <img src="assets/logos/sta-tagline-color.svg" alt="Stick to Accounting. Death, Taxes and Ai.">
+          <table class="ledger"><tbody><tr><td>Coffee</td><td>1</td></tr><tr><td>Deadlines</td><td><span class="neg">1</span></td></tr></tbody><tfoot><tr><td>Net</td><td><span class="total">0</span></td></tr></tfoot></table>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="voice" class="note">
+  <div class="note-rail"><span class="no">N°13</span><h2 class="head">Voice</h2></div>
+  <div class="note-body">
+    <div class="cells voice">
+      <div><h3 class="head">Full stops, not hype.</h3><div class="say"><b>yes</b><span>Three hosts. One mic. The numbers behind the news.</span><b>no</b><s>The ultimate must-listen podcast for finance pros!!</s></div></div>
+      <div><h3 class="head">Ask the real question.</h3><div class="say"><b>yes</b><span>Will AI sign the audit report?</span><b>no</b><s>AI in Auditing: Key Trends and Insights for 2026</s></div></div>
+      <div><h3 class="head">Dry, never snide.</h3><div class="say"><b>yes</b><span>Death and taxes were certain. Then AI joined.</span><b>no</b><s>Clients who can't read a P&amp;L, a thread</s></div></div>
+      <div><h3 class="head">Local and exact.</h3><div class="say"><b>yes</b><span>RM 48,200 in fees for Q3 2026</span><b>no</b><s>a big chunk of revenue recently</s></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="code" class="note">
+  <div class="note-rail"><span class="no">N°14</span><h2 class="head">Use it in code</h2></div>
+  <div class="note-body">
+    <div class="cells">
+      <div class="code-box"><header><span>Any page</span><button class="chip" data-copy="c1">Copy</button></header><pre id="c1">&lt;link rel="stylesheet" href="css/brand.css"&gt;
+
+&lt;body data-brand="podcast"&gt;
+  &lt;span class="tape"&gt;Ep. 44&lt;/span&gt;
+  &lt;h1 class="title"&gt;Who signs off &lt;span class="mark"&gt;the AI audit&lt;/span&gt;?&lt;/h1&gt;
+  &lt;a class="btn" href="…"&gt;Listen now&lt;/a&gt;
+&lt;/body&gt;</pre></div>
+      <div class="code-box"><header><span>React</span><button class="chip" data-copy="c3">Copy</button></header><pre id="c3">import { ClubLogo, PodcastLogo } from "@therestisaccountancy/brand/logo"
+
+&lt;ClubLogo title="The Rest Is Accountancy" size={160} /&gt;
+&lt;PodcastLogo layout="tagline" variant="reversed" /&gt;
+&lt;PodcastLogo variant="mono" color="#A8180F" /&gt;</pre></div>
+      <div class="code-box"><header><span>Change a token</span><button class="chip" data-copy="c2">Copy</button></header><pre id="c2"># edit tokens/tokens.json, then
+pnpm build:tokens
+
+# after new artwork from the designer
+pnpm extract:logos &amp;&amp; pnpm build:logos
+
+pnpm test</pre></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="foot ground" data-brand="club">
+  <span class="logo-tria" role="img" aria-label="The Rest Is Accountancy"></span>
+  <p>Logo artwork by Kavindu Sooriya Design. Copyright transferred to The Rest Is Accountancy on 6 January 2024.</p>
+</footer>
+
+<script src="guide/guide.js"></script>
+</body>
+</html>

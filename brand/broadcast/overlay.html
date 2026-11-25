@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stick to Accounting · Broadcast overlay</title>
+<link rel="stylesheet" href="../css/brand.css">
+<link rel="stylesheet" href="overlay.css">
+</head>
+<body data-brand="podcast">
+<div class="stage" id="stage">
+
+  <section class="view view-show" data-view="show">
+    <div class="backdrop paper" id="backdrop"></div>
+    <div id="cams"></div>
+
+    <div class="bug bug-clock" id="clock">
+      <span class="live" id="status"></span>
+      <span class="clock-time" id="clock-time"></span>
+      <span class="clock-meta"><span id="clock-period"></span><span id="clock-day"></span></span>
+    </div>
+
+    <div class="bug bug-from" id="from"></div>
+
+    <div class="lt" id="lt">
+      <div class="lt-bug"><img src="../assets/logos/sta-wordmark-color.svg" alt="Stick to Accounting"></div>
+      <div class="lt-kicker"><span><b id="label"></b><span id="kicker"></span></span></div>
+      <div class="lt-head"><span class="display" id="head"></span></div>
+      <div class="lt-ticker tick" id="ticker"></div>
+    </div>
+  </section>
+
+  <section class="view view-countdown paper" data-view="countdown">
+    <div class="cd-logo"><img src="../assets/logos/sta-tagline-color.svg" alt="Stick to Accounting. Death, Taxes and Ai."></div>
+    <p class="cd-soon">Starting soon</p>
+    <div class="cd-clock"><span class="cd-swipe" aria-hidden="true"></span><span id="cd-clock" role="timer">05:00</span></div>
+    <div class="cd-side">
+      <span class="tape">Up next</span>
+      <div class="cd-next"><p class="display" id="cd-next"></p></div>
+      <p class="cd-when">Watch on YouTube. Listen on Spotify and Apple Podcasts.</p>
+    </div>
+    <div class="cd-ticker tick" id="cd-ticker"></div>
+  </section>
+
+  <section class="view view-card" data-view="card">
+    <canvas id="card" width="1080" height="1350" role="img" aria-label="Social card"></canvas>
+  </section>
+
+  <div class="stinger" id="stinger" aria-hidden="true">
+    <i></i><i></i><i></i>
+    <div class="stinger-logo"><img src="../assets/logos/sta-lockup-color.svg" alt=""></div>
+  </div>
+</div>
+<script type="module" src="overlay.js"></script>
+</body>
+</html>

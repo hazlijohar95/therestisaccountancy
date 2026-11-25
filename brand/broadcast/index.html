@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stick to Accounting · Broadcast kit</title>
+<link rel="stylesheet" href="../css/brand.css">
+<link rel="stylesheet" href="control.css">
+</head>
+<body class="grain" data-brand="podcast">
+
+<header class="top">
+  <div class="top-logo"><img src="../assets/logos/sta-lockup-color.svg" alt="Stick to Accounting"></div>
+  <div>
+    <h1 class="title">Broadcast kit.</h1>
+    <p class="lead">One lower third, five layouts, a countdown and a card. All of it reads one state, and that state is the URL.</p>
+  </div>
+</header>
+
+<main class="room">
+  <form class="panel controls" id="controls" autocomplete="off"></form>
+
+  <div class="monitor">
+    <div class="screen" id="screen"><iframe id="preview" title="Overlay preview"></iframe></div>
+    <div class="panel actions">
+      <div class="row">
+        <button class="btn" type="button" id="stinger">Play stinger</button>
+        <button class="btn ghost" type="button" id="restart">Restart countdown</button>
+        <button class="btn ghost" type="button" id="save">Download PNG</button>
+        <button class="btn ghost" type="button" id="reset">Reset</button>
+      </div>
+      <div class="field">
+        <span class="label">Overlay URL, 1920 × 1080, transparent. Add it as a browser source.</span>
+        <div class="url"><code id="url"></code><button class="chip" type="button" id="copy">Copy</button><a class="chip" id="open" target="_blank" rel="noopener">Open</a></div>
+        <span class="hint">Buttons go to air at once. Typed text goes to air when you leave the field; until then only this preview shows it. Any overlay open in this browser follows. The demo camera feeds show only in this preview. Hosts, rundown and guest are samples from the brand guide.</span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<section class="lessons">
+  <h2 class="head">What TBPN's system does, and what this kit does with it.</h2>
+  <div class="cells lesson-grid">
+    <article><b>One lower third. Eight segments.</b><p>Area drew one chyron. Timeline Reactions, Breaking News, Lightning Round, the Mansion Section and the rest change only its colour and its words.</p><p class="ours">Here: one geometry, three rows. The headline is always paper. The strip above it carries the segment: night by default, tape for the news, redline for a correction.</p></article>
+    <article><b>Two states for every segment.</b><p>First the segment's name fills the bar. Then the name drops to the thin bar above and the story takes the big one.</p><p class="ours">Here: Segment title and Headline. An interview with a guest named puts the guest in the big bar.</p></article>
+    <article><b>The frame never moves.</b><p>Clock top left, presenter top right, lower third at the bottom, in the 1-up, both 2-ups, the 3-up and the blank.</p><p class="ours">Here: five layouts in one table of camera windows. Nothing else changes between them.</p></article>
+    <article><b>Sponsors are furniture.</b><p>Two rails under the headline carry sponsor marks and a market ticker. A third slot sits top right.</p><p class="ours">Here: no sponsor is invented. The ticker runs the rundown. The top-right slot carries the club until a sponsor is sold.</p></article>
+    <article><b>The show starts before it starts.</b><p>A five-minute countdown opens every broadcast. The package also carries a two-second logo transition.</p><p class="ours">Here: the countdown cuts to the show at zero. Three diagonal strips, night, tape and newsprint, cover each change of view or layout.</p></article>
+    <article><b>The same system prints.</b><p>The social cards are trading cards: a category tag, a portrait, a name strip, one verb.</p><p class="ours">Here: the Card view draws from the same segment, headline and guest, and downloads as a 1080 × 1350 PNG.</p></article>
+    <article><b>The website is a billboard.</b><p>tbpn.com says three things on one screen: what it is, when it is on, and where to find it. Then it asks for an email.</p><p class="ours">Not built here. The show's own page should answer the same three questions first.</p></article>
+    <article><b>The jokes are assets.</b><p>The Diet TBPN can, the Ultradome mark and the TBPN ring are part of the same delivery as the logo.</p><p class="ours">Not built here. This brand already owns its jokes: the auditor's stamp and the red brackets.</p></article>
+  </div>
+</section>
+
+<script type="module" src="control.js"></script>
+</body>
+</html>
