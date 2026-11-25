@@ -12,10 +12,3 @@ export function safeNext(value: string | null, fallback = '/members'): string {
   return value;
 }
 
-/** Pages of the site that used to live at this address. Their links still arrive from search engines and old bookmarks. */
-const OLD_SITE = ['/products', '/enterprise', '/legal', '/pricing', '/blog', '/careers', '/contact'];
-
-/** Where an old-site path now goes, or null for a path of this site. */
-export function movedPath(pathname: string): string | null {
-  return OLD_SITE.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)) ? '/' : null;
-}

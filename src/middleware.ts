@@ -1,12 +1,10 @@
 import { defineMiddleware } from 'astro:middleware';
 import { openStore } from './server/instance.ts';
-import { movedPath, requiredRole } from './server/paths.ts';
+import { requiredRole } from './server/paths.ts';
 
 export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.member = null;
   if (context.isPrerendered) return next();
-  const moved = movedPath(context.url.pathname);
-  if (moved) return context.redirect(moved, 301);
 
   const store = await openStore();
   try {
