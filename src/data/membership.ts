@@ -50,5 +50,8 @@ export const DEFAULT_TERM: Term = 'month';
 /** The months a term gives beyond what its price buys at the monthly rate: 2 for a year. */
 export const monthsFree = (term: Term) => terms[term].months - terms[term].sen / terms.month.sen;
 
+/** "a month or a year" */
+export const anyTerm = TERMS.map((term) => `a ${term}`).join(' or ');
+
 /** "RM 99 a month or RM 990 a year" */
 export const everyRate = TERMS.map((term) => terms[term].label).join(' or ');

@@ -2,7 +2,7 @@
 import { actions } from 'astro:actions';
 import Masthead from '../../components/Masthead.astro';
 import Notice from '../../components/Notice.astro';
-import { everyRate, monthsFree, TERMS, terms } from '../../data/membership.ts';
+import { anyTerm, everyRate, monthsFree, TERMS, terms } from '../../data/membership.ts';
 import Members from '../../layouts/Members.astro';
 import { capitalised, formAction, formatDay, numberWord } from '../../lib/format.ts';
 import { settle } from '../../server/payments.ts';
@@ -30,7 +30,6 @@ if (back === 'paid' && standing.access === 'paid') return Astro.redirect('/membe
 
 const lapsed = standing.access === 'unpaid' && standing.paidUntil !== null;
 const current = standing.access !== 'unpaid' && standing.paidUntil !== null;
-const anyTerm = TERMS.map((term) => `a ${term}`).join(' or ');
 const offers = TERMS.map((term) => {
   const free = monthsFree(term);
   return { term, label: terms[term].label, price: terms[term].price, saving: free > 0 ? `${capitalised(numberWord(free))} months free.` : null };

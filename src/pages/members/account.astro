@@ -2,7 +2,7 @@
 import { actions, isInputError } from 'astro:actions';
 import Masthead from '../../components/Masthead.astro';
 import Members from '../../layouts/Members.astro';
-import { everyRate, TERMS, terms } from '../../data/membership.ts';
+import { anyTerm, everyRate, TERMS, terms } from '../../data/membership.ts';
 import { formAction, formatDay } from '../../lib/format.ts';
 import { memberNumber } from '../../server/club.ts';
 import { MIN_PASSWORD_LENGTH } from '../../server/password.ts';
@@ -26,11 +26,10 @@ const plan = !standing
       : !standing.renews
         ? `Paid until ${until}. Renewal is off, so your membership ends then.`
         : standing.cardOnFile
-          ? `${terms[standing.term].label}. Paid until ${until}, then your card is charged ${terms[standing.term].price} for the next ${standing.term}.`
+          ? `Paid until ${until}. Your card is then charged ${terms[standing.term].price} for the next ${standing.term}.`
           : `${terms[standing.term].label}. Paid until ${until}. We email you a link to pay for the next ${standing.term} a few days before.`;
 /* A card renews at the term of the last paid checkout, so paying for the other term is how a member changes it. */
 const renewsByCard = standing !== null && standing.cardOnFile && standing.renews && standing.access === 'paid';
-const anyTerm = TERMS.map((term) => `a ${term}`).join(' or ');
 const prefs = await Astro.locals.mailings.prefs(member.id);
 const choices = [
   { name: 'replies', label: 'Replies in threads I posted in', hint: 'At most one email per thread every six hours.', on: prefs.replies },
