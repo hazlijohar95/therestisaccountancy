@@ -107,6 +107,9 @@ const likePattern = (query: string) => `%${query.replace(/[\\%_]/g, '\\$&')}%`;
 const DAY_MS = 86_400_000;
 /** A member asking for their own link gets at most one in this window, so the form cannot be used to flood an inbox. */
 const LINK_REQUEST_GAP_MS = 10 * 60_000;
+/** Admins hear of at most this many new join requests an hour. The rest still wait on the admin page. */
+export const JOIN_ALERTS_PER_HOUR = 5;
+const HOUR_MS = 3_600_000;
 
 /** Every operation the club performs on its members. The database is passed in so tests can use a throwaway one. */
 export function createClub(db: Db, now: () => Date = () => new Date()) {
@@ -174,11 +177,17 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
 
   return {
     /** Saves a request. A second request from the same email while one is pending updates it instead. */
-    recordJoinRequest(input: { name: string; email: string; stage: string }): void {
-      db.prepare(
-        `INSERT INTO join_requests (name, email, stage) VALUES (?, ?, ?)
-         ON CONFLICT (email) WHERE status = 'pending' DO UPDATE SET name = excluded.name, stage = excluded.stage, created_at = excluded.created_at`,
-      ).run(input.name, input.email, input.stage);
+    /** Saves the request, or refreshes the pending one from the same email. True when the admins should be told: a new request within the hourly allowance. */
+    recordJoinRequest(input: { name: string; email: string; stage: string }): boolean {
+      return db.transaction(() => {
+        const repeat = db.prepare(`SELECT 1 FROM join_requests WHERE email = ? AND status = 'pending'`).get(input.email) !== undefined;
+        const lastHour = count(db.prepare('SELECT count(*) AS n FROM join_requests WHERE created_at > ?').get(iso(new Date(now().getTime() - HOUR_MS))));
+        db.prepare(
+          `INSERT INTO join_requests (name, email, stage, created_at) VALUES (?, ?, ?, ?)
+           ON CONFLICT (email) WHERE status = 'pending' DO UPDATE SET name = excluded.name, stage = excluded.stage, created_at = excluded.created_at`,
+        ).run(input.name, input.email, input.stage, iso(now()));
+        return !repeat && lastHour < JOIN_ALERTS_PER_HOUR;
+      });
     },
 
     /** Pending requests, or the most recent decisions, newest first. Without a filter, all of them, pending first. */

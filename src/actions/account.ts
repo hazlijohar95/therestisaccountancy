@@ -5,7 +5,7 @@ import { joinSection } from '../data/club.ts';
 import type { SignInRefusal } from '../server/club.ts';
 import { joinRequestLetter, passwordLetter } from '../server/letters.ts';
 import { send } from '../server/mail.ts';
-import { email, mismatch, newPassword, oneLine, passwordsMatch, settle, shareable, signedIn, startSession, type Refusal } from './guards.ts';
+import { email, mismatch, newPassword, oneLine, passwordsMatch, settle, shareable, signedIn, startSession, throttle, type Refusal } from './guards.ts';
 
 const signInRefusals: Record<SignInRefusal, Refusal> = {
   'no-match': { code: 'UNAUTHORIZED', message: 'That email and password do not match.' },
@@ -19,14 +19,19 @@ export const account = {
       name: z.string().transform(oneLine).pipe(z.string().min(1, joinSection.messages.name).max(60)),
       email,
       stage: z.enum(joinSection.stages),
+      /** A field people never see. Bots that fill every field get a thank-you and nothing is saved. */
+      website: z.string().optional(),
     }),
-    handler: async (input, context) => {
+    handler: async ({ website, ...request }, context) => {
+      await throttle(context, 'join');
+      if (website) return { email: request.email };
       const { club } = context.locals;
-      await club.recordJoinRequest(input);
-      const admins = await club.adminEmails();
-      const adminUrl = new URL('/admin', context.site ?? context.url).href;
-      if (admins.length) context.locals.cfContext.waitUntil(send(joinRequestLetter(admins, input, adminUrl)));
-      return { email: input.email };
+      if (await club.recordJoinRequest(request)) {
+        const admins = await club.adminEmails();
+        const adminUrl = new URL('/admin', context.site ?? context.url).href;
+        if (admins.length) context.locals.cfContext.waitUntil(send(joinRequestLetter(admins, request, adminUrl)));
+      }
+      return { email: request.email };
     },
   }),
 
@@ -35,6 +40,7 @@ export const account = {
     accept: 'form',
     input: z.object({ email }),
     handler: async (input, context) => {
+      await throttle(context, 'link');
       const link = await context.locals.club.requestLink(input.email);
       if (link) context.locals.cfContext.waitUntil(send(passwordLetter(shareable(link, context))));
       return { email: input.email };
@@ -45,6 +51,7 @@ export const account = {
     accept: 'form',
     input: z.object({ email: z.string().trim(), password: z.string() }),
     handler: async (input, context) => {
+      await throttle(context, 'sign-in');
       const access = settle(await context.locals.club.authenticate(input.email, input.password), signInRefusals);
       await startSession(context, access.key);
       return { role: access.member.role };

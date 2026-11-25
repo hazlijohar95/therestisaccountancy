@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
-import { createClub, type Club } from './club.ts';
+import { createClub, JOIN_ALERTS_PER_HOUR, type Club } from './club.ts';
 import { SCHEMA_VERSION } from './db.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
@@ -31,6 +31,21 @@ const activeMember = async (club: Club, email = 'aina@firm.com.my', name = 'Aina
 };
 
 const admin = (club: Club, email = 'admin@club.test', name = 'Admin') => club.ensureAdmin({ email, name, password: PASSWORD });
+
+test('admins hear of each new request, up to the hourly allowance', () => {
+  let clock = new Date('2026-11-24T10:00:00Z');
+  const club = createClub(openDatabase(':memory:'), () => clock);
+  const ask = (n: number) => club.recordJoinRequest({ name: `Person ${n}`, email: `p${n}@firm.com.my`, stage: 'I run a practice' });
+
+  assert.equal(ask(0), true);
+  assert.equal(ask(0), false, 'a repeat from the same email is not news');
+  for (let n = 1; n < JOIN_ALERTS_PER_HOUR; n++) assert.equal(ask(n), true);
+  assert.equal(ask(JOIN_ALERTS_PER_HOUR), false, 'past the allowance the request is saved without an alert');
+  assert.equal(club.joinRequests({ decided: false }).length, JOIN_ALERTS_PER_HOUR + 1, 'every request still waits on the admin page');
+
+  clock = new Date(clock.getTime() + 61 * 60_000);
+  assert.equal(ask(99), true, 'an hour later alerts resume');
+});
 
 test('a second request from the same email updates the pending one', () => {
   const club = fresh();
