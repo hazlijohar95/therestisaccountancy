@@ -3,7 +3,7 @@ import type { LiveSession } from './schedule.ts';
 
 const stamp = (value: string | Date) => new Date(value).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 /** RFC 5545 text: backslash, semicolon and comma escaped, line breaks as \n. */
-const escape = (value: string) => value.replace(/[\;,]/g, (c) => `\\${c}`).replace(/\r?\n/g, '\\n');
+const escape = (value: string) => value.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\r?\n/g, '\\n');
 /** Lines longer than 75 octets continue on the next line after a space. */
 const fold = (line: string) => {
   const parts: string[] = [];

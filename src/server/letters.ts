@@ -6,19 +6,17 @@ import type { Recipient } from './mailings.ts';
 import type { LiveSession } from './schedule.ts';
 
 /** A paragraph of text, or a link the club built. Only built links become clickable: typed input never does. */
-export type Line = string | { readonly href: string };
+export type Line = string | { readonly href: string; readonly label?: string };
 
-/** One email, written once. The text part and the HTML part come from the same lines. */
+/** One email, written once. The React Email template turns its lines into the HTML and the text part. */
 export interface Letter {
   readonly to: string | readonly string[];
   readonly subject: string;
   readonly lines: readonly Line[];
   readonly attachments?: readonly { readonly filename: string; readonly type: string; readonly content: string }[];
+  /** Where one click stops this kind of email. Sent as List-Unsubscribe too, so mail apps offer it. */
+  readonly unsubscribe?: string;
 }
-
-const escape = (value: string) => value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-export const asText = (line: Line) => (typeof line === 'string' ? line : line.href);
-export const asHtml = (line: Line) => (typeof line === 'string' ? `<p>${escape(line)}</p>` : `<p><a href="${escape(line.href)}">${escape(line.href)}</a></p>`);
 
 /** A password link: an invitation for someone without a password, a reset for a member who has one. */
 export function passwordLetter(link: { email: string; name: string; purpose: LinkPurpose; link: string; expiresAt: string; rate: string | null }): Letter {
@@ -28,7 +26,7 @@ export function passwordLetter(link: { email: string; name: string; purpose: Lin
       subject: `Your invitation to ${site.name}`,
       lines: [
         `Your membership of ${site.name} is ready. Set your password with this link. It works once, until ${until}.`,
-        { href: link.link },
+        { href: link.link, label: 'Set your password' },
         link.rate
           ? `Membership is ${link.rate}. Once your password is set, you pay the first month online, and you are in.`
           : 'Then sign in and open the programme that matters most to you this month.',
@@ -38,13 +36,13 @@ export function passwordLetter(link: { email: string; name: string; purpose: Lin
       subject: `Reset your ${site.name} password`,
       lines: [
         `Someone asked to reset the password for your membership. Choose a new one with this link. It works once, until ${until}, and signs you out everywhere else.`,
-        { href: link.link },
+        { href: link.link, label: 'Choose a new password' },
         'If it was not you, ignore this email. Your password stays as it is.',
       ],
     },
   } as const satisfies Record<LinkPurpose, { subject: string; lines: readonly Line[] }>;
   const { subject, lines } = body[link.purpose];
-  return { to: link.email, subject, lines: [`Hello ${link.name},`, ...lines, site.name] };
+  return { to: link.email, subject, lines: [`Hello ${link.name},`, ...lines] };
 }
 
 /** Tells the admins a request has come in. Only ever sent to them, never to the address typed into the form. */
@@ -52,7 +50,7 @@ export function joinRequestLetter(admins: readonly string[], request: Pick<JoinR
   return {
     to: admins,
     subject: `Membership request from ${request.name}`,
-    lines: [`${request.name} (${request.email}) asked to join. Where they are: ${request.stage}.`, 'Read it and decide:', { href: adminUrl }],
+    lines: [`${request.name} (${request.email}) asked to join. Where they are: ${request.stage}.`, 'Read it and decide:', { href: adminUrl, label: 'Open the admin page' }],
   };
 }
 
@@ -60,14 +58,14 @@ export function joinRequestLetter(admins: readonly string[], request: Pick<JoinR
 const flat = (value: string) => value.replace(/\s+/g, ' ').trim();
 
 /** The closing lines of every optional email: where to stop it. */
-const optOut = (settingsUrl: string): Line[] => ['To change which emails the club sends you:', { href: settingsUrl }, site.name];
+const optOut = (settingsUrl: string): Line[] => ['To change which emails the club sends you:', { href: settingsUrl }];
 
 /** Tells a member someone replied in a thread they posted in. */
 export function replyLetter(to: Recipient, reply: { title: string; by: string; url: string; settingsUrl: string }): Letter {
   return {
     to: to.email,
     subject: flat(`New reply: ${reply.title}`),
-    lines: [`Hello ${to.name},`, `${reply.by} replied in “${reply.title}”, a thread you posted in.`, { href: reply.url }, ...optOut(reply.settingsUrl)],
+    lines: [`Hello ${to.name},`, `${reply.by} replied in “${reply.title}”, a thread you posted in.`, { href: reply.url, label: 'Read the reply' }, ...optOut(reply.settingsUrl)],
   };
 }
 
@@ -101,15 +99,15 @@ export type SessionNews = 'confirmed' | 'reminder' | 'cancelled';
 export function sessionLetters(news: SessionNews, session: LiveSession, members: readonly Recipient[], siteUrl: string): Letter[] {
   const when = `${formatMoment(session.startsAt)} Malaysia time, ${session.minutes} minutes`;
   const body = {
-    confirmed: { subject: `You're coming: ${session.title}`, lines: [`You're down for ${session.title}, ${when}.`, 'The calendar file attached adds it to your calendar. Join here when it starts:', { href: session.link }] },
-    reminder: { subject: `Coming up: ${session.title}`, lines: [`${session.title} starts ${when}.`, 'Join here when it starts:', { href: session.link }] },
+    confirmed: { subject: `You're coming: ${session.title}`, lines: [`You're down for ${session.title}, ${when}.`, 'The calendar file attached adds it to your calendar. Join here when it starts:', { href: session.link, label: 'Join the call' }] },
+    reminder: { subject: `Coming up: ${session.title}`, lines: [`${session.title} starts ${when}.`, 'Join here when it starts:', { href: session.link, label: 'Join the call' }] },
     cancelled: { subject: `Called off: ${session.title}`, lines: [`${session.title}, planned for ${when}, is called off. The calendar file attached removes it from your calendar.`] },
   } as const satisfies Record<SessionNews, { subject: string; lines: readonly Line[] }>;
   const { subject, lines } = body[news];
   const sessionsUrl = new URL('/members/sessions', siteUrl).href;
   const attachments = news === 'reminder' ? null : [{ filename: 'session.ics', type: 'text/calendar; charset=utf-8', content: calendarFile(session, new URL(siteUrl).hostname, news === 'cancelled') }];
   return members.map((to) => {
-    const letter = { to: to.email, subject: flat(subject), lines: [`Hello ${to.name},`, ...lines, 'Every session:', { href: sessionsUrl }, site.name] };
+    const letter = { to: to.email, subject: flat(subject), lines: [`Hello ${to.name},`, ...lines, 'Every session:', { href: sessionsUrl }] };
     return attachments ? { ...letter, attachments } : letter;
   });
 }
@@ -125,8 +123,7 @@ export function renewalLetter(to: Recipient, failure: { cardRefused: boolean; ac
         ? 'Your card on file can no longer be charged, so your membership did not renew.'
         : 'The charge for this month was declined. We will try the same card again tomorrow.',
       `You keep access until ${formatDay(failure.accessUntil)}. To pay now, or with another card:`,
-      { href: failure.payUrl },
-      site.name,
+      { href: failure.payUrl, label: 'Pay now' },
     ],
   };
 }
@@ -136,6 +133,6 @@ export function paymentDueLetter(to: Recipient, due: { paidUntil: string; rate: 
   return {
     to: to.email,
     subject: `Your ${site.name} month ends on ${formatDay(due.paidUntil)}`,
-    lines: [`Hello ${to.name},`, `Your paid month ends on ${formatDay(due.paidUntil)}. To carry on, pay the next month (${due.rate}) here:`, { href: due.payUrl }, 'If you would rather stop, do nothing. Your access ends a few days after that date.', site.name],
+    lines: [`Hello ${to.name},`, `Your paid month ends on ${formatDay(due.paidUntil)}. To carry on, pay the next month (${due.rate}) here:`, { href: due.payUrl, label: 'Pay the next month' }, 'If you would rather stop, do nothing. Your access ends a few days after that date.'],
   };
 }

@@ -7,18 +7,25 @@
     "build": "pnpm check && astro build",
     "preview": "astro preview --port 4175",
     "check": "cf workers types && astro check",
-    "test": "node --test \"src/**/*.test.ts\"",
+    "test": "node --import tsx --test \"src/**/*.test.ts\" \"src/**/*.test.tsx\"",
     "deploy": "cf deploy"
   },
   "dependencies": {
     "@astrojs/cloudflare": "15.0.0-beta.6",
+    "@astrojs/react": "^7.1.9",
+    "@react-email/components": "^1.0.12",
     "@therestisaccountancy/brand": "link:./brand",
-    "astro": "^7.4.13"
+    "astro": "^7.4.13",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@types/node": "^24.19.2",
+    "@types/react": "^19.3.2",
+    "@types/react-dom": "^19.3.0",
     "cf": "^1.0.0-rc.5",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.3"
   },
   "engines": {
