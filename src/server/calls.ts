@@ -7,8 +7,8 @@ import type { Recipient } from './mailings.ts';
 import type { Result } from './result.ts';
 import { REMINDER_LEAD_MS } from './schedule.ts';
 
+/** Every state a slot can be in. Slot below holds what each one carries. */
 export const SLOT_STATES = ['open', 'booked', 'cancelled', 'over'] as const;
-export type SlotState = (typeof SLOT_STATES)[number];
 
 /** Booking closes this long before a call starts, and a member who cancels later than this gives the slot up. */
 export const BOOKING_CLOSES_MS = 2 * 3_600_000;
