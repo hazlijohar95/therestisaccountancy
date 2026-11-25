@@ -1,0 +1,264 @@
+---
+import { rate } from '../data/club.ts';
+import { explain, limits, type PlannerField, type PlannerInputs } from '../lib/planner.ts';
+import { floorRate, WEEKS_IN_YEAR, type RateInputs } from '../lib/rate.ts';
+import Section from './Section.astro';
+
+interface Props {
+  no: number;
+}
+
+interface Field {
+  readonly name: PlannerField;
+  readonly label: string;
+  readonly unit?: 'RM' | '%';
+  readonly hint?: string;
+  readonly step?: number;
+}
+
+const rateStart = (name: keyof RateInputs) => {
+  const field = rate.fields.find((candidate) => candidate.name === name);
+  if (!field) throw new Error(`No rate field ${name}`);
+  return field.start;
+};
+const floor = floorRate({
+  income: rateStart('income'),
+  costs: rateStart('costs'),
+  hoursPerWeek: rateStart('hoursPerWeek'),
+  weeksOff: rateStart('weeksOff'),
+  unpaidShare: rateStart('unpaidShare'),
+});
+if (!floor) throw new Error('The rate tool starts with no billable hours');
+
+/** Starting figures for the visitor to replace, not claims about the market. The rate tool's carry over, so the two tools tell one story. */
+const start: PlannerInputs = {
+  income: rateStart('income'),
+  costs: rateStart('costs'),
+  /* A price above the floor, as the rate tool says: RM 544 for four hours rounds up to RM 600. */
+  fee: Math.ceil((floor.hourly * rate.hoursPerClient) / 100) * 100,
+  clients: 3,
+  months: 18,
+  conversion: 30,
+  churn: 10,
+  hoursPerClient: rate.hoursPerClient,
+  hoursPerWeek: Math.round(floor.billableHours / WEEKS_IN_YEAR),
+};
+const view = explain(start);
+
+const groups: readonly { legend: string; fields: readonly Field[] }[] = [
+  {
+    legend: 'The firm you want',
+    fields: [
+      { name: 'income', label: 'Income you want a year', unit: 'RM', step: 1000 },
+      { name: 'costs', label: 'Running costs a year', unit: 'RM', step: 1000, hint: 'Rent, software, insurance, subscriptions, help.' },
+      { name: 'fee', label: 'Average fee per client, a month', unit: 'RM', step: 50, hint: 'Keep it above your floor from the rate tool.' },
+    ],
+  },
+  {
+    legend: 'Where you are',
+    fields: [
+      { name: 'clients', label: 'Clients today' },
+      { name: 'months', label: 'Months to get there', hint: `Up to ${limits.months.max}.` },
+    ],
+  },
+  {
+    legend: 'How clients come and go',
+    fields: [
+      { name: 'conversion', label: 'Sales calls that become clients', unit: '%' },
+      { name: 'churn', label: 'Clients who leave in a year', unit: '%' },
+    ],
+  },
+  {
+    legend: 'Your time',
+    fields: [
+      { name: 'hoursPerClient', label: 'Hours a client takes a month', step: 0.5 },
+      { name: 'hoursPerWeek', label: 'Billable hours you have a week', step: 0.5, hint: 'After leave, admin and sales, averaged over the year.' },
+    ],
+  },
+];
+---
+
+<Section id="planner" no={Astro.props.no} title="How many clients does it take?" intro="Start from the income you want and work back. Change any number. Nothing leaves this page.">
+  <form class="planner" id="planner-form" aria-label="Practice planner">
+    <div class="calc">
+      <div class="fields">
+        {
+          groups.map((group) => (
+            <fieldset>
+              <legend class="label">{group.legend}</legend>
+              {group.fields.map((field) => {
+                const id = `planner-${field.name}`;
+                const input = (
+                  <input
+                    class="input"
+                    id={id}
+                    name={field.name}
+                    type="number"
+                    inputmode={limits[field.name].whole ? 'numeric' : 'decimal'}
+                    min={limits[field.name].min}
+                    max={limits[field.name].max}
+                    step={field.step}
+                    value={start[field.name]}
+                    aria-describedby={field.hint ? `${id}-hint` : undefined}
+                  />
+                );
+                return (
+                  <div class="field">
+                    <label for={id}>{field.label}</label>
+                    {field.unit ? <div class="unit" data-unit={field.unit}>{input}</div> : input}
+                    {field.hint && <span class="hint" id={`${id}-hint`}>{field.hint}</span>}
+                  </div>
+                );
+              })}
+            </fieldset>
+          ))
+        }
+      </div>
+      <div class="out">
+        <p class="figure"><span class="label">Clients you need</span><output class="fig serif" data-out="figure">{view.figure}</output></p>
+        <div class="said" aria-live="polite">
+          <p class="answer" data-out="answer">{view.answer}</p>
+          <div class="notes" data-out="notes">{view.notes.map((note) => <p>{note}</p>)}</div>
+        </div>
+        <table class="ledger">
+          <caption>A year at the target</caption>
+          <tbody>
+            <tr><th scope="row">Fees</th><td data-out="fees">{view.ledger.fees}</td></tr>
+            <tr><th scope="row">Running costs</th><td data-out="costs">{view.ledger.costs}</td></tr>
+            <tr><th scope="row">Left for you</th><td><span class="total" data-out="left">{view.ledger.left}</span></td></tr>
+          </tbody>
+        </table>
+        <table class="ledger">
+          <caption>Getting there</caption>
+          <tbody>
+            <tr><th scope="row">The gap, in clients</th><td data-out="gap">{view.ledger.gap}</td></tr>
+            <tr><th scope="row">New clients a month</th><td data-out="newPerMonth">{view.ledger.newPerMonth}</td></tr>
+            <tr><th scope="row">Sales calls a month</th><td data-out="calls">{view.ledger.calls}</td></tr>
+            <tr><th scope="row">Hours needed a month</th><td data-out="hours">{view.ledger.hours}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="path" data-out="path" hidden>
+      <table class="ledger months">
+        <caption>Month by month</caption>
+        <thead>
+          <tr><th scope="col">Month</th><th scope="col">Clients</th><th scope="col">Fees that month</th><th scope="col">Milestone</th></tr>
+        </thead>
+        <tbody data-out="rows"></tbody>
+      </table>
+      <template id="planner-row">
+        <tr>
+          <th scope="row" data-cell="month"></th>
+          <td data-cell="clients"></td>
+          <td data-cell="fees"></td>
+          <td class="track"><span class="bar" aria-hidden="true"></span><span class="mark" data-cell="marks"></span></td>
+        </tr>
+      </template>
+    </div>
+  </form>
+</Section>
+
+<script>
+  import { find } from '../lib/dom.ts';
+  import { explain, withinLimits, type PlannerField, type PlannerInputs, type TableRow } from '../lib/planner.ts';
+
+  const form = find('#planner-form', HTMLFormElement);
+  const template = find('#planner-row', HTMLTemplateElement, form);
+  const body = find('[data-out="rows"]', HTMLTableSectionElement, form);
+  const out = (key: string) => find(`[data-out="${key}"]`, HTMLElement, form);
+
+  const read = (name: PlannerField): number => {
+    const input = find(`[name="${name}"]`, HTMLInputElement, form);
+    const value = input.valueAsNumber;
+    if (withinLimits(name, value)) input.removeAttribute('aria-invalid');
+    else input.setAttribute('aria-invalid', 'true');
+    return value;
+  };
+
+  const row = (data: TableRow): HTMLTableRowElement => {
+    const tr = template.content.firstElementChild?.cloneNode(true);
+    if (!(tr instanceof HTMLTableRowElement)) throw new Error('Expected a table row in #planner-row');
+    const cell = (name: string) => find(`[data-cell="${name}"]`, HTMLElement, tr);
+    cell('month').textContent = data.month;
+    cell('clients').textContent = data.clients;
+    cell('fees').textContent = data.fees;
+    cell('marks').textContent = data.marks;
+    tr.style.setProperty('--fill', String(data.fill));
+    tr.toggleAttribute('data-over', data.over);
+    tr.toggleAttribute('data-mark', data.marks !== '');
+    return tr;
+  };
+
+  const paragraph = (text: string): HTMLParagraphElement => {
+    const p = document.createElement('p');
+    p.textContent = text;
+    return p;
+  };
+
+  const render = () => {
+    const inputs: PlannerInputs = {
+      income: read('income'),
+      costs: read('costs'),
+      fee: read('fee'),
+      clients: read('clients'),
+      months: read('months'),
+      conversion: read('conversion'),
+      churn: read('churn'),
+      hoursPerClient: read('hoursPerClient'),
+      hoursPerWeek: read('hoursPerWeek'),
+    };
+    const view = explain(inputs);
+    out('figure').textContent = view.figure;
+    out('answer').textContent = view.answer;
+    out('notes').replaceChildren(...view.notes.map(paragraph));
+    for (const [key, value] of Object.entries(view.ledger)) out(key).textContent = value;
+    body.replaceChildren(...view.rows.map(row));
+    out('path').hidden = view.rows.length === 0;
+  };
+
+  form.addEventListener('input', render);
+  form.addEventListener('submit', (event) => event.preventDefault());
+  render();
+</script>
+
+<style>
+  .planner { display: grid; gap: var(--space-9); }
+  .calc { display: grid; gap: var(--space-8); }
+  .fields { display: grid; gap: var(--space-7); }
+  fieldset { display: grid; gap: var(--space-5); margin: 0; padding: 0; border: 0; }
+  legend { width: 100%; margin-bottom: var(--space-5); padding: 0 0 var(--space-3); border-bottom: var(--stroke-hair) solid var(--ink); }
+  .unit { position: relative; }
+  .unit::before { content: attr(data-unit); position: absolute; inset: 0 auto 0 var(--space-4); display: grid; place-items: center; font-weight: 600; pointer-events: none; }
+  .unit[data-unit="RM"] .input { padding-inline-start: 3.1rem; }
+  .unit[data-unit="%"]::before { inset: 0 var(--space-4) 0 auto; }
+  .unit[data-unit="%"] .input { padding-inline-end: 2.6rem; }
+  .input { font-variant-numeric: tabular-nums; appearance: textfield; -moz-appearance: textfield; }
+  .input::-webkit-inner-spin-button, .input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+  .out { display: grid; gap: var(--space-6); }
+  .figure { display: grid; gap: var(--space-3); margin: 0; }
+  .fig { font-size: clamp(3.5rem, 2rem + 5vw, 6.5rem); line-height: .9; letter-spacing: -.04em; font-variant-numeric: lining-nums tabular-nums; }
+  .said { display: grid; gap: var(--space-3); }
+  .answer { margin: 0; max-width: 44ch; font-size: var(--size-lead); line-height: 1.45; }
+  .notes { display: grid; gap: var(--space-2); max-width: 52ch; }
+  .notes :global(p) { margin: 0; }
+  .ledger { font-size: var(--size-body); border-top: var(--stroke-rule) solid var(--ink); }
+  .ledger th { font-weight: 400; }
+
+  /* The path: one compact ruled row a month, with a bar drawn from the row's --fill. */
+  .months { font-size: var(--size-small); border-top: 0; }
+  .months th, .months td { padding-block: var(--space-2); }
+  .months thead th { font-weight: 600; }
+  .months thead th:last-child, .track { width: 45%; text-align: start; white-space: normal; }
+  .bar { display: block; inline-size: calc(var(--fill, 0) * 100%); block-size: var(--stroke-heavy); background: var(--ink); }
+  tr[data-over] .bar { background: repeating-linear-gradient(90deg, var(--ink) 0 3px, transparent 3px 6px); }
+  .mark { display: block; margin-top: var(--space-1); font-weight: 600; }
+  .mark:empty { display: none; }
+  tr[data-mark] th { font-weight: 600; }
+
+  @media (min-width: 760px) {
+    .calc { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+    .out { position: sticky; top: calc(var(--bar) + 24px); }
+  }
+</style>
