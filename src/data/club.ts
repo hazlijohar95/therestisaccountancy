@@ -26,20 +26,6 @@ const ProgrammeCount = capitalised(programmeCount);
 export const join: Link = { href: '/join', label: 'Request membership' };
 export const signIn: Link = { href: '/sign-in', label: 'Sign in' };
 
-
-export const hero = {
-  eyebrow: ['Club, membership and community', 'Members by request'],
-  title: ['You passed the exams.', 'Now for the rest.'],
-  lead: "A members’ club for accountants who run a practice, or mean to. We work on what the syllabus left out. Pricing. Clients. Advisory. AI. The business of the firm.",
-  secondary: { href: '#stuck', label: 'Where are you stuck?' } satisfies Link,
-  brief: [
-    { term: 'For', detail: 'Accountants in practice, or on the way there' },
-    { term: 'Inside', detail: `${ProgrammeCount}, live sessions and a members' room` },
-    { term: 'Hosts', detail: 'The three hosts of Stick to Accounting' },
-    { term: 'Joining', detail: 'By request' },
-  ] satisfies readonly Term[],
-} as const;
-
 const programme = (slug: ProgrammeSlug): Programme => {
   const found = programmeBySlug(slug);
   if (!found) throw new Error(`No programme ${slug}`);
@@ -64,7 +50,7 @@ export const stuck = {
     { question: 'AI is doing the work I bill for.', leadsTo: toProgramme(programme('ai')), answer: "AI shows where the tools help a practice, where they don’t, and where client data must stay put. Prompts, workflows and safeguards, kept current as the tools change." },
     { question: 'I want to advise, not just file.', leadsTo: toProgramme(programme('advisory')), answer: 'Advisory turns compliance clients into advisory clients. Management accounts clients actually read, cash forecasts, tax planning through the year, and how to charge for all of it.' },
     { question: "I’m busy, but the firm isn’t growing.", leadsTo: toProgramme(programme('growth')), answer: 'Growth is about the firm itself: what you want it to be in three years, a week that repeats, systems before staff and your first hire. You finish with a written plan for that firm, read and answered by the hosts.' },
-    { question: 'I make every decision alone.', leadsTo: { href: '/#room', label: 'The room' }, answer: 'That is what the room is for. Bring a quote, a client, a hire or a bad week. Better said in the room than decided alone.' },
+    { question: 'I make every decision alone.', leadsTo: { href: '/membership#room', label: 'The room' }, answer: 'That is what the room is for. Bring a quote, a client, a hire or a bad week. Better said in the room than decided alone.' },
   ] satisfies readonly Obstacle[],
 } as const;
 
@@ -129,7 +115,6 @@ export const rate = {
 } as const;
 
 export const podcast = {
-  title: 'Not ready to join?',
   intro: 'Start with the podcast. It is free and public. The episodes ask the questions. The club is where members work out the answers.',
   lead: 'News. Analysis. Interviews. Hosted by Hazli Johar, Abu Musa and Shukri Yusof.',
   find: 'Search for Stick to Accounting on YouTube, Spotify or Apple Podcasts.',

@@ -1,47 +1,152 @@
 ---
-import Fit from '../components/Fit.astro';
-import Hero from '../components/Hero.astro';
-import Inside from '../components/Inside.astro';
-import Join from '../components/Join.astro';
-import Podcast from '../components/Podcast.astro';
+import { Image } from 'astro:assets';
+import Logo from '../components/Logo.astro';
+import Module from '../components/Module.astro';
 import PostList from '../components/PostList.astro';
-import Questions from '../components/Questions.astro';
-import RateCalculator from '../components/RateCalculator.astro';
-import Room from '../components/Room.astro';
-import Section from '../components/Section.astro';
 import Signup from '../components/Signup.astro';
-import Stuck from '../components/Stuck.astro';
-import Week from '../components/Week.astro';
+import Story from '../components/Story.astro';
+import { photos } from '../data/author-photos.ts';
+import { authorPath, authors } from '../data/authors.ts';
+import { podcast } from '../data/club.ts';
+import { products } from '../data/products.ts';
+import { programmePath, programmes } from '../data/programmes.ts';
 import Page from '../layouts/Page.astro';
-import { allPosts } from '../server/posts.ts';
+import { allPosts, postsAbout, postsBy, postsInColumn } from '../server/posts.ts';
 
-const latest = (await allPosts()).slice(0, 3);
-let n = 0;
-const no = () => ++n;
+/*
+ * Every's home page, in its order: the lead stack, recent posts, what we build, topics, one host, the podcast and the
+ * newsletter. Each module that lists posts shows only once it has some, so an empty newsletter leaves no blank boxes.
+ */
+const posts = await allPosts();
+const [lead, ...rest] = posts;
+const secondary = rest.slice(0, 2);
+const recent = rest.slice(2, 6);
+const topics = (await Promise.all(programmes.map(async (programme) => ({ programme, posts: (await postsAbout(programme.slug)).slice(0, 4) }))))
+  .filter((topic) => topic.posts.length > 0)
+  .slice(0, 4);
+const featured = (await Promise.all(authors.map(async (author) => ({ author, posts: (await postsBy(author.handle)).slice(0, 3) })))).find((a) => a.posts.length > 0);
+const featuredPhoto = featured && photos[featured.author.handle];
+const episodes = (await postsInColumn('podcast')).slice(0, 3);
 ---
 
 <Page signup={false}>
-  <Hero />
+  <section class="night" aria-labelledby="page-title">
+    <div class="wrap intro">
+      <h1 class="headline serif" id="page-title">Ideas, tools and training for accountants who run a practice.</h1>
+      <p class="lead">The newsletter, the Stick to Accounting podcast, free tools and the club’s programmes.</p>
+    </div>
+  </section>
+
   {
-    latest.length > 0 && (
-      <Section id="latest" no={no()} title="What is new?" intro="From the newsletter and the podcast.">
-        <PostList posts={latest} />
-        <p><a href="/newsletter">The whole newsletter →</a></p>
-      </Section>
+    lead && (
+      <Module id="latest" label="Latest" href="/newsletter">
+        <div class="stack">
+          <Story post={lead} lead />
+          {secondary.length > 0 && <div class="side">{secondary.map((post) => <Story post={post} />)}</div>}
+        </div>
+      </Module>
     )
   }
-  <Stuck no={no()} />
-  <Room no={no()} />
-  <Inside no={no()} />
-  <Week no={no()} />
-  <RateCalculator no={no()} />
-  <Podcast no={no()} />
+
+  {
+    recent.length > 0 && (
+      <Module id="recent" label="Recent posts" href="/newsletter">
+        <div class="grid four">{recent.map((post) => <Story post={post} />)}</div>
+      </Module>
+    )
+  }
+
+  <Module id="products" label="Built by us" href="/products" intro="Free tools for the questions every practice asks.">
+    <ul class="grid three cards">
+      {
+        products.map((product) => (
+          <li>
+            <a class="card" href={product.href} rel={product.href.startsWith('https://') ? 'noopener' : undefined}>
+              <span class="label">{product.name}</span>
+              <span class="serif q">{product.question}</span>
+              <span class="small">{product.summary}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </Module>
+
+  {
+    topics.map(({ programme, posts: about }) => (
+      <Module id={`topic-${programme.slug}`} label={programme.name} href={programmePath(programme)} intro={programme.promise}>
+        <div class="grid four">{about.map((post) => <Story post={post} />)}</div>
+      </Module>
+    ))
+  }
+
+  {
+    featured && (
+      <Module id="host" label="From our hosts" href={authorPath(featured.author)}>
+        <div class="host">
+          <div class="who">
+            {featuredPhoto && <Image src={featuredPhoto.src} alt={featuredPhoto.alt} widths={[240, 480]} sizes="240px" loading="lazy" />}
+            <p class="serif name">{featured.author.name}</p>
+            <p class="small">{featured.author.role}</p>
+          </div>
+          <div>
+            <PostList posts={featured.posts} />
+            <p class="more"><a href={authorPath(featured.author)}>Read more from {featured.author.name.split(' ')[0]} →</a></p>
+          </div>
+        </div>
+      </Module>
+    )
+  }
+
+  <Module id="podcast" label="Podcast" href="/podcast">
+    <div class="pod">
+      <div class="show">
+        <Logo brand="podcast" label="Stick to Accounting, Podcast Show" class="podcast-logo" />
+        <p class="lead">{podcast.lead}</p>
+        <p class="small">{podcast.find}</p>
+      </div>
+      {
+        episodes.length > 0 && (
+          <div>
+            <PostList posts={episodes} showColumn={false} />
+            <p class="more"><a href="/podcast">Latest episodes →</a></p>
+          </div>
+        )
+      }
+    </div>
+  </Module>
+
   <section class="wrap capture"><Signup source="home" /></section>
-  <Fit no={no()} />
-  <Questions no={no()} />
-  <Join no={no()} />
 </Page>
 
 <style>
-  .capture { padding-block: 0 clamp(56px, 7vw, 96px); }
+  .intro { display: grid; gap: var(--space-5); padding-block: clamp(40px, 6vw, 88px); }
+  .headline { margin: 0; max-width: 20ch; font-size: var(--size-page); line-height: .98; text-wrap: balance; }
+  .intro .lead { margin: 0; max-width: 40em; }
+
+  .stack, .grid, .host, .pod { display: grid; gap: var(--space-6); }
+  .side { display: grid; align-content: start; gap: var(--space-6); }
+  .side > :global(* + *) { padding-top: var(--space-5); border-top: var(--stroke-hair) solid var(--ink); }
+  .cards { margin: 0; padding: 0; list-style: none; }
+  .card { display: grid; gap: var(--space-2); height: 100%; padding: var(--space-5); border: var(--stroke-hair) solid var(--ink); text-decoration: none; transition: background-color var(--motion-quick); }
+  .card .q { font-size: var(--size-head); line-height: 1.1; text-wrap: balance; }
+  @media (hover: hover) { .card:hover { background-color: color-mix(in srgb, var(--ink) 6%, transparent); } }
+  .who { display: grid; align-content: start; justify-items: start; gap: var(--space-1); }
+  .who img { width: 160px; height: auto; aspect-ratio: 1; object-fit: cover; filter: grayscale(1); margin-bottom: var(--space-3); }
+  .who p, .show p, .more { margin: 0; }
+  .name { font-size: var(--size-head); }
+  .more { padding-top: var(--space-4); }
+  .show { display: grid; justify-items: start; align-content: start; gap: var(--space-3); }
+  .show :global(.podcast-logo) { width: min(100%, 320px); margin-bottom: var(--space-3); }
+  .capture { padding-block: clamp(40px, 5vw, 72px) clamp(56px, 7vw, 96px); }
+
+  @media (min-width: 720px) {
+    .three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1000px) {
+    .stack { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); column-gap: var(--space-8); }
+    .four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .host, .pod:has(> :nth-child(2)) { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); column-gap: var(--space-8); }
+  }
 </style>

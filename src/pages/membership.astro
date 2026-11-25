@@ -4,8 +4,10 @@ import Fit from '../components/Fit.astro';
 import Inside from '../components/Inside.astro';
 import PageHead from '../components/PageHead.astro';
 import Questions from '../components/Questions.astro';
+import Room from '../components/Room.astro';
 import Section from '../components/Section.astro';
 import Steps from '../components/Steps.astro';
+import Stuck from '../components/Stuck.astro';
 import Week from '../components/Week.astro';
 import { join, joining, programmeCount } from '../data/club.ts';
 import Page from '../layouts/Page.astro';
@@ -21,12 +23,14 @@ import { capitalised } from '../lib/format.ts';
     <a class="btn" href={join.href}>{join.label}</a>
     <a class="btn ghost" href="#how">How joining works</a>
   </PageHead>
-  <Inside no={1} />
-  <Week no={2} />
-  <Section id="how" no={3} title={joining.title} intro="Four steps, and nothing to pay until you have seen the rate.">
+  <Stuck no={1} />
+  <Room no={2} />
+  <Inside no={3} />
+  <Week no={4} />
+  <Section id="how" no={5} title={joining.title} intro="Four steps, and nothing to pay until you have seen the rate.">
     <Steps items={joining.steps} />
   </Section>
-  <Fit no={4} />
-  <Questions no={5} />
+  <Fit no={6} />
+  <Questions no={7} />
   <Closing title="Bring the rest of your practice." lead="Tell us where your practice stands. We reply to every request by email." />
 </Page>
