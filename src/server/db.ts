@@ -158,6 +158,13 @@ const MIGRATIONS: readonly string[] = [
   `
   ALTER TABLE subscriptions ADD COLUMN reminded_for TEXT;
   `,
+  `
+  ALTER TABLE members ADD COLUMN digest_opt_in INTEGER NOT NULL DEFAULT 0 CHECK (digest_opt_in IN (0, 1));
+  ALTER TABLE members DROP COLUMN email_digest;
+  ALTER TABLE members ADD COLUMN unsubscribe_key TEXT;
+  UPDATE members SET unsubscribe_key = lower(hex(randomblob(16)));
+  CREATE UNIQUE INDEX members_by_unsubscribe_key ON members (unsubscribe_key);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

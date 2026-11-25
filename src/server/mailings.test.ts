@@ -48,13 +48,19 @@ test('a reply tells everyone else who posted in the thread, at most once every s
   assert.deepEqual(w.mailings.prefs(abu.id), { replies: false, digest: true });
 });
 
-test('the digest goes to active members who want it, once a week', async () => {
+test('the digest goes only to active members who asked for it, once a week', async () => {
   const w = await world();
   const aina = await w.join('aina@firm.com.my', 'Aina');
   await w.join('abu@firm.com.my', 'Abu');
   w.club.appointAdmin({ email: 'new@club.test', name: 'Not yet active' });
-  w.mailings.setPrefs(aina.id, { replies: true, digest: false });
-  assert.deepEqual(w.mailings.digestRecipients().map((r) => r.name), ['Abu']);
+  assert.deepEqual(w.mailings.digestRecipients(), [], 'nobody gets it without asking');
+  w.mailings.setPrefs(aina.id, { replies: true, digest: true });
+  const [subscriber] = w.mailings.digestRecipients();
+  assert.equal(subscriber?.name, 'Aina');
+  assert.equal(w.mailings.unsubscribe(subscriber?.key ?? '', 'digest'), true);
+  assert.deepEqual(w.mailings.digestRecipients(), [], 'one click stops it');
+  assert.equal(w.mailings.prefs(aina.id).replies, true, 'and only that email');
+  assert.equal(w.mailings.unsubscribe('not-a-key', 'replies'), false);
   assert.equal(w.mailings.claimDigest('2026-11-23'), true);
   assert.equal(w.mailings.claimDigest('2026-11-23'), false, 'a rerun the same week sends nothing');
 });

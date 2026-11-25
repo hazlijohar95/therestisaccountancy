@@ -1,0 +1,39 @@
+---
+import Page from '../layouts/Page.astro';
+
+export const prerender = false;
+
+const list = Astro.url.searchParams.get('list');
+const key = Astro.url.searchParams.get('k') ?? '';
+const done = Astro.url.searchParams.has('done');
+const what = list === 'digest' ? 'the weekly email' : list === 'replies' ? 'emails about replies in your threads' : null;
+---
+
+<Page title="Unsubscribe" noindex>
+  <section class="wrap block" aria-labelledby="page-title">
+    {
+      !what ? (
+        <h1 class="head" id="page-title">That link is not complete.</h1>
+      ) : done ? (
+        <>
+          <h1 class="head" id="page-title">Done. No more {what}.</h1>
+          <p>Change your mind any time in <a href="/members/account#email">your account</a>.</p>
+        </>
+      ) : (
+        <>
+          <h1 class="head" id="page-title">Stop {what}?</h1>
+          <form method="POST" action={`/unsubscribe?k=${encodeURIComponent(key)}&list=${list}`}>
+            <input type="hidden" name="from" value="page" />
+            <button class="btn" type="submit">Stop them</button>
+          </form>
+          <p class="small">Emails about your membership, sign-in and sessions you said you would come to still arrive.</p>
+        </>
+      )
+    }
+  </section>
+</Page>
+
+<style>
+  .block { display: grid; gap: var(--space-5); padding-block: clamp(64px, 9vw, 128px); }
+  .block > * { margin: 0; max-width: 640px; }
+</style>

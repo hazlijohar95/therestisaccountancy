@@ -31,7 +31,7 @@ const plan = !standing
 const prefs = await Astro.locals.mailings.prefs(member.id);
 const choices = [
   { name: 'replies', label: 'Replies in threads I posted in', hint: 'At most one email per thread every six hours.', on: prefs.replies },
-  { name: 'digest', label: 'A weekly email on Mondays', hint: 'New threads and the sessions coming up. Only sent when there is news.', on: prefs.digest },
+  { name: 'digest', label: 'A weekly email on Mondays', hint: 'New threads and the sessions coming up. Off unless you turn it on; only sent when there is news.', on: prefs.digest },
 ] as const;
 const fieldErrors = result?.error && isInputError(result.error) ? result.error.fields : {};
 const error = result?.error && !isInputError(result.error) ? result.error.message : null;

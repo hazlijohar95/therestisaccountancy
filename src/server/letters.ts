@@ -2,7 +2,7 @@ import { site } from '../data/site.ts';
 import { formatDay, formatMoment } from '../lib/format.ts';
 import type { JoinRequest, LinkPurpose } from './club.ts';
 import { calendarFile } from './calendar.ts';
-import type { Recipient } from './mailings.ts';
+import type { Recipient, Subscriber } from './mailings.ts';
 import type { LiveSession } from './schedule.ts';
 
 /** A paragraph of text, or a link the club built. Only built links become clickable: typed input never does. */
@@ -54,6 +54,14 @@ export function joinRequestLetter(admins: readonly string[], request: Pick<JoinR
   };
 }
 
+/** One click on this stops the one kind of email, without signing in. Built on the site the settings link names. */
+const unsubscribeUrl = (settingsUrl: string, to: Subscriber, list: 'replies' | 'digest') => {
+  const url = new URL('/unsubscribe', settingsUrl);
+  url.searchParams.set('k', to.key);
+  url.searchParams.set('list', list);
+  return url.href;
+};
+
 /** Typed titles go into subjects on one line. */
 const flat = (value: string) => value.replace(/\s+/g, ' ').trim();
 
@@ -61,9 +69,10 @@ const flat = (value: string) => value.replace(/\s+/g, ' ').trim();
 const optOut = (settingsUrl: string): Line[] => ['To change which emails the club sends you:', { href: settingsUrl }];
 
 /** Tells a member someone replied in a thread they posted in. */
-export function replyLetter(to: Recipient, reply: { title: string; by: string; url: string; settingsUrl: string }): Letter {
+export function replyLetter(to: Subscriber, reply: { title: string; by: string; url: string; settingsUrl: string }): Letter {
   return {
     to: to.email,
+    unsubscribe: unsubscribeUrl(reply.settingsUrl, to, 'replies'),
     subject: flat(`New reply: ${reply.title}`),
     lines: [`Hello ${to.name},`, `${reply.by} replied in “${reply.title}”, a thread you posted in.`, { href: reply.url, label: 'Read the reply' }, ...optOut(reply.settingsUrl)],
   };
@@ -79,7 +88,7 @@ export interface DigestNews {
 }
 
 /** The week in the club. Only written when something happened or is coming up. */
-export function digestLetter(to: Recipient, news: DigestNews): Letter {
+export function digestLetter(to: Subscriber, news: DigestNews): Letter {
   const threads: Line[] = news.threads.length
     ? [
         news.threads.length === 1 ? 'One new thread this week:' : `${news.threads.length} new threads this week:`,
@@ -90,7 +99,7 @@ export function digestLetter(to: Recipient, news: DigestNews): Letter {
   const sessions: Line[] = news.sessions.length
     ? ['Coming up:', ...news.sessions.map((s) => `${s.title}, ${formatMoment(s.startsAt)} Malaysia time`), { href: news.sessionsUrl }]
     : [];
-  return { to: to.email, subject: `This week at ${site.name}`, lines: [`Hello ${to.name},`, ...threads, ...replies, ...sessions, ...optOut(news.settingsUrl)] };
+  return { to: to.email, unsubscribe: unsubscribeUrl(news.settingsUrl, to, 'digest'), subject: `This week at ${site.name}`, lines: [`Hello ${to.name},`, ...threads, ...replies, ...sessions, ...optOut(news.settingsUrl)] };
 }
 
 export type SessionNews = 'confirmed' | 'reminder' | 'cancelled';
