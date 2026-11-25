@@ -111,3 +111,19 @@ test('a member paying by FPX is reminded once before each month ends, and keeps 
   w.later(26 * DAY);
   assert.equal(w.billing.paymentReminders().length, 1, 'reminded again for the next month');
 });
+
+test('a full refund or chargeback takes off the month it bought, once', async () => {
+  const w = await world();
+  w.billing.opened('p1', w.member.id, 'checkout', 9900);
+  w.billing.paid('p1', true);
+  w.billing.opened('p2', w.member.id, 'checkout', 9900);
+  w.billing.paid('p2', false);
+  assert.equal(w.billing.standing(w.member.id).paidUntil, '2026-03-28T10:00:00Z');
+
+  const undone = w.billing.reversed('p1');
+  assert.equal(undone?.standing.paidUntil, '2026-02-28T10:00:00Z');
+  assert.equal(undone?.standing.cardOnFile, false, 'the card saved by the refunded payment is dropped');
+  assert.equal(w.billing.reversed('p1'), null, 'CHIP reporting it again changes nothing');
+  assert.equal(w.billing.reversed('not-ours'), null);
+  assert.equal(w.billing.reversed('p2')?.standing.access, 'unpaid', 'both months refunded: no access');
+});

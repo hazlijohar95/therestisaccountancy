@@ -14,6 +14,8 @@ const purchaseShape = z.object({
   checkout_url: z.string().nullish(),
   is_recurring_token: z.boolean().nullish(),
   reference: z.string().nullish(),
+  /** What is left to refund, in sen. Zero once refunded in full. */
+  refundable_amount: z.number().nullish(),
 });
 export type Purchase = z.infer<typeof purchaseShape>;
 
@@ -112,6 +114,9 @@ export async function signedByChip(body: ArrayBuffer, signature: string, publicK
     return false;
   }
 }
+
+/** A paid purchase undone: refunded in full, or charged back. A partial refund leaves the month in place. */
+export const isReversed = (purchase: Purchase) => purchase.status === 'chargeback' || (purchase.status === 'refunded' && purchase.refundable_amount === 0);
 
 /** A purchase CHIP reports as paid. Anything else (pending, failed, refunded) does not extend a membership. */
 export const isPaid = (purchase: Purchase) => purchase.status === 'paid';

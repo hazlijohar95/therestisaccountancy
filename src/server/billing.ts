@@ -45,6 +45,17 @@ export function monthAfter(from: Date): Date {
   return next;
 }
 
+/** One calendar month back, the inverse of monthAfter for the same day of the month. */
+export function monthBefore(from: Date): Date {
+  const previous = new Date(from);
+  const day = previous.getUTCDate();
+  previous.setUTCDate(1);
+  previous.setUTCMonth(previous.getUTCMonth() - 1);
+  const last = new Date(Date.UTC(previous.getUTCFullYear(), previous.getUTCMonth() + 1, 0)).getUTCDate();
+  previous.setUTCDate(Math.min(day, last));
+  return previous;
+}
+
 /** Who has paid for how long, the payments behind it, and the renewals owed. Money moves in CHIP; this records it. */
 export function createBilling(db: Db, now: () => Date = () => new Date()) {
   const standing = (memberId: number): Standing => {
@@ -103,6 +114,29 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
            ON CONFLICT (member_id) DO UPDATE SET paid_until = excluded.paid_until, card_token = coalesce(excluded.card_token, card_token),
              renews = CASE WHEN excluded.card_token IS NULL THEN renews ELSE 1 END, last_attempt_at = NULL`,
         ).run(memberId, until, token);
+        return { memberId, standing: standing(memberId) };
+      });
+    },
+
+    /**
+     * A paid purchase refunded in full, or charged back: the month it bought comes off the end of the paid time, and a
+     * card saved by it is no longer used. Counted once, however often CHIP reports it. Null for a purchase that is not
+     * the club's, was never paid, or was already reversed.
+     */
+    reversed(purchaseId: string): { readonly memberId: number; readonly standing: Standing } | null {
+      return db.transaction(() => {
+        const payment = db.prepare(`SELECT member_id FROM payments WHERE purchase_id = ? AND status = 'paid' AND reversed_at IS NULL`).get(purchaseId);
+        if (!payment) return null;
+        const memberId = integer(payment, 'member_id');
+        db.prepare('UPDATE payments SET reversed_at = ? WHERE purchase_id = ?').run(iso(now()), purchaseId);
+        const current = db.prepare('SELECT paid_until FROM subscriptions WHERE member_id = ?').get(memberId);
+        if (current) {
+          db.prepare(`UPDATE subscriptions SET paid_until = ?, card_token = CASE WHEN card_token = ? THEN NULL ELSE card_token END WHERE member_id = ?`).run(
+            iso(monthBefore(new Date(text(current, 'paid_until')))),
+            purchaseId,
+            memberId,
+          );
+        }
         return { memberId, standing: standing(memberId) };
       });
     },

@@ -169,6 +169,9 @@ const MIGRATIONS: readonly string[] = [
   CREATE TABLE incidents (id INTEGER PRIMARY KEY, at TEXT NOT NULL, kind TEXT NOT NULL, detail TEXT NOT NULL, reported_at TEXT);
   CREATE INDEX incidents_unreported ON incidents (reported_at, id);
   `,
+  `
+  ALTER TABLE payments ADD COLUMN reversed_at TEXT;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
