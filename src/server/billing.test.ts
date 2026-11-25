@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createBilling, GRACE_MS, monthAfter } from './billing.ts';
+import { createBilling, GRACE_MS, monthAfter, PAY_REMINDER_LEAD_MS } from './billing.ts';
 import { createClub } from './club.ts';
 import { migrate } from './db.ts';
 import { openDatabase } from './node-db.ts';
@@ -90,4 +90,24 @@ test('turning renewal off means no charge, and access lasts to the end of the mo
   assert.equal(w.billing.access(w.member.id), 'paid');
   w.later(DAY);
   assert.equal(w.billing.access(w.member.id), 'unpaid', 'no grace without a renewal coming');
+});
+
+test('a member paying by FPX is reminded once before each month ends, and keeps the grace period', async () => {
+  const w = await world();
+  w.billing.opened('p1', w.member.id, 'checkout', 9900);
+  assert.equal(w.billing.paid('p1', false)?.standing.cardOnFile, false);
+  assert.deepEqual(w.billing.dueRenewals(), [], 'nothing to charge without a card');
+  assert.deepEqual(w.billing.paymentReminders(), [], 'too early');
+
+  w.later(28 * DAY - PAY_REMINDER_LEAD_MS + 3_600_000);
+  assert.deepEqual(w.billing.paymentReminders().map((r) => r.name), ['Aina']);
+  assert.deepEqual(w.billing.paymentReminders(), [], 'once per month');
+
+  w.later(PAY_REMINDER_LEAD_MS);
+  assert.equal(w.billing.access(w.member.id), 'grace');
+  w.billing.opened('p2', w.member.id, 'checkout', 9900);
+  w.billing.paid('p2', false);
+  assert.equal(w.billing.access(w.member.id), 'paid');
+  w.later(26 * DAY);
+  assert.equal(w.billing.paymentReminders().length, 1, 'reminded again for the next month');
 });

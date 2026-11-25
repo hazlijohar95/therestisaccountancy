@@ -40,7 +40,7 @@ const facts = [
   { term: 'Status', detail: statusLabel[member.status] },
   {
     term: 'Paid',
-    detail: member.role === 'admin' ? 'Admins do not pay' : standing.paidUntil ? `Until ${formatDay(standing.paidUntil)}${standing.access === 'grace' ? ', renewal failing' : ''}${standing.cardOnFile && standing.renews ? ', renews by card' : ', not renewing'}` : 'Not yet',
+    detail: member.role === 'admin' ? 'Admins do not pay' : standing.paidUntil ? `Until ${formatDay(standing.paidUntil)}${standing.access === 'grace' ? ', now in the grace period' : ''}, ${!standing.renews ? 'not renewing' : standing.cardOnFile ? 'renews by card' : 'pays each month'}` : 'Not yet',
   },
   { term: 'Role', detail: roleLabel[member.role] },
   { term: 'Since', detail: formatDay(member.joinedAt) },

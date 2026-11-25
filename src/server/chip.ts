@@ -50,10 +50,10 @@ export function chip(config: ChipConfig, fetcher: typeof fetch = fetch) {
 
   return {
     /**
-     * A purchase for one month. A checkout opens CHIP's payment page and saves the card for renewals; a renewal is
-     * charged to a saved card with charge().
+     * A purchase for one month. Given methods to save with, the payer must use one of them and CHIP keeps it for
+     * renewals, charged later with charge(). Without, CHIP offers every method the brand accepts and keeps nothing.
      */
-    async purchase(input: { email: string; name: string; product: string; amount: number; reference: string; saveCard: boolean; callback: string; back?: { paid: string; failed: string } }): Promise<Purchase> {
+    async purchase(input: { email: string; name: string; product: string; amount: number; reference: string; saveWith?: readonly string[]; callback: string; back?: { paid: string; failed: string } }): Promise<Purchase> {
       return purchaseShape.parse(
         await call('/purchases/', {
           method: 'POST',
@@ -64,11 +64,17 @@ export function chip(config: ChipConfig, fetcher: typeof fetch = fetch) {
             purchase: { currency: 'MYR', products: [{ name: input.product, price: input.amount }] },
             send_receipt: true,
             success_callback: input.callback,
-            ...(input.saveCard ? { force_recurring: true, payment_method_whitelist: ['visa', 'mastercard', 'maestro'] } : {}),
+            ...(input.saveWith?.length ? { force_recurring: true, payment_method_whitelist: input.saveWith } : {}),
             ...(input.back ? { success_redirect: input.back.paid, failure_redirect: input.back.failed, cancel_redirect: input.back.failed } : {}),
           },
         }),
       );
+    },
+
+    /** The methods the brand accepts that CHIP can charge again later (cards, when enabled). FPX is never one. */
+    async savableMethods(amount: number): Promise<string[]> {
+      const query = new URLSearchParams({ brand_id: config.brandId, currency: 'MYR', amount: String(amount), recurring: 'true' });
+      return z.object({ available_payment_methods: z.array(z.string()) }).parse(await call(`/payment_methods/?${query}`)).available_payment_methods;
     },
 
     /** Charges a purchase to the card saved by an earlier checkout. */

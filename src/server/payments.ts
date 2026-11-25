@@ -17,16 +17,19 @@ export const chipSigningKey = () => (signingKey ??= club().publicKey().catch((er
   throw error;
 }));
 
-/** Opens CHIP's payment page for a member's first month (or a month with a new card). Returns where to send them. */
+/** Opens CHIP's payment page for a month. Returns where to send the member. */
 export async function checkout(billing: Store['billing'], member: { id: number; email: string; name: string }, siteUrl: string): Promise<string> {
   const url = (path: string) => new URL(path, siteUrl).href;
-  const purchase = await club().purchase({
+  const gateway = club();
+  /* Cards, once CHIP enables them on the brand, are saved for automatic renewal. Until then members pay each month. */
+  const saveWith = await gateway.savableMethods(MONTHLY_PRICE_SEN);
+  const purchase = await gateway.purchase({
     email: member.email,
     name: member.name,
     product: PRODUCT,
     amount: MONTHLY_PRICE_SEN,
     reference: `member-${member.id}`,
-    saveCard: true,
+    saveWith,
     callback: url('/chip/callback'),
     back: { paid: url('/members/pay?back=paid'), failed: url('/members/pay?back=failed') },
   });
@@ -55,7 +58,6 @@ export async function renew(billing: Store['billing'], renewal: Renewal, siteUrl
     product: PRODUCT,
     amount: MONTHLY_PRICE_SEN,
     reference: `member-${renewal.memberId}-renewal`,
-    saveCard: false,
     callback: new URL('/chip/callback', siteUrl).href,
   });
   await billing.opened(purchase.id, renewal.memberId, 'renewal', MONTHLY_PRICE_SEN);

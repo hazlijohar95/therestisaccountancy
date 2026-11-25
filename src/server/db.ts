@@ -155,6 +155,9 @@ const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX payments_by_member ON payments (member_id, created_at);
   `,
+  `
+  ALTER TABLE subscriptions ADD COLUMN reminded_for TEXT;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

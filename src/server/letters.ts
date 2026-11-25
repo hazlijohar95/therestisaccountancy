@@ -30,7 +30,7 @@ export function passwordLetter(link: { email: string; name: string; purpose: Lin
         `Your membership of ${site.name} is ready. Set your password with this link. It works once, until ${until}.`,
         { href: link.link },
         link.rate
-          ? `Membership is ${link.rate}. Once your password is set, you pay the first month by card, and you are in.`
+          ? `Membership is ${link.rate}. Once your password is set, you pay the first month online, and you are in.`
           : 'Then sign in and open the programme that matters most to you this month.',
       ],
     },
@@ -128,5 +128,14 @@ export function renewalLetter(to: Recipient, failure: { cardRefused: boolean; ac
       { href: failure.payUrl },
       site.name,
     ],
+  };
+}
+
+/** A member who pays by hand: their month ends soon. */
+export function paymentDueLetter(to: Recipient, due: { paidUntil: string; rate: string; payUrl: string }): Letter {
+  return {
+    to: to.email,
+    subject: `Your ${site.name} month ends on ${formatDay(due.paidUntil)}`,
+    lines: [`Hello ${to.name},`, `Your paid month ends on ${formatDay(due.paidUntil)}. To carry on, pay the next month (${due.rate}) here:`, { href: due.payUrl }, 'If you would rather stop, do nothing. Your access ends a few days after that date.', site.name],
   };
 }

@@ -1,7 +1,8 @@
 import { channelBySlug, threadPath } from '../data/community.ts';
 import { openStore } from './instance.ts';
 import { GRACE_MS } from './billing.ts';
-import { digestLetter, renewalLetter, sessionLetters, type Letter } from './letters.ts';
+import { monthlyRate } from '../data/membership.ts';
+import { digestLetter, paymentDueLetter, renewalLetter, sessionLetters, type Letter } from './letters.ts';
 import { send } from './mail.ts';
 import { digestWeek } from './mailings.ts';
 import { renew } from './payments.ts';
@@ -10,7 +11,7 @@ const WEEK_MS = 7 * 86_400_000;
 /** Letters go a few at a time, so a long list never trips the sending limits all at once. */
 const SENDING_AT_ONCE = 5;
 
-/** Runs every hour: renewals that are due, reminders for sessions within a day, and on Monday mornings the week's digest. Safe to rerun. */
+/** Runs every hour: renewals that are due, reminders to pay by hand, reminders for sessions within a day, and on Monday mornings the week's digest. Safe to rerun. */
 export async function hourly(at: Date, siteUrl: string): Promise<void> {
   const url = (path: string) => new URL(path, siteUrl).href;
   const store = await openStore();
@@ -26,6 +27,7 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
         letters.push(renewalLetter(renewal, { cardRefused: outcome === 'card-refused', accessUntil, payUrl: url('/members/pay') }));
       }
     }
+    for (const due of await store.billing.paymentReminders()) letters.push(paymentDueLetter(due, { paidUntil: due.paidUntil, rate: monthlyRate, payUrl: url('/members/pay') }));
     for (const { session, attendees } of await store.schedule.dueReminders()) letters.push(...sessionLetters('reminder', session, attendees, siteUrl));
 
     const week = digestWeek(at);

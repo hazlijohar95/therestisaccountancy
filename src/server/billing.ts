@@ -2,7 +2,7 @@ import { STATUS_SQL } from './club.ts';
 import { integer, oneOf, optionalText, text, type Db } from './db.ts';
 import type { Recipient } from './mailings.ts';
 
-/** Whether a member may use the members' area. Grace keeps a renewing member in for a few days while the charge is retried. */
+/** Whether a member may use the members' area. Grace keeps a renewing member in for a few days past the paid month. */
 export const ACCESS = ['paid', 'grace', 'unpaid'] as const;
 export type Access = (typeof ACCESS)[number];
 
@@ -12,7 +12,7 @@ export interface Standing {
   readonly paidUntil: string | null;
   /** CHIP holds a card to charge each month. */
   readonly cardOnFile: boolean;
-  /** The member wants the next month charged. Charged only while a card is on file too. */
+  /** The member means to carry on: a saved card is charged, otherwise they are reminded to pay. */
   readonly renews: boolean;
 }
 
@@ -29,6 +29,8 @@ export const GRACE_MS = 3 * 86_400_000;
 /** A renewal is charged this long before the paid month ends, and retried at most this often. */
 const RENEW_AHEAD_MS = 12 * 3_600_000;
 const RETRY_GAP_MS = 20 * 3_600_000;
+/** Members who pay by hand are reminded this long before the paid month ends. */
+export const PAY_REMINDER_LEAD_MS = 3 * 86_400_000;
 
 const iso = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
 
@@ -53,7 +55,7 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
     const at = now().getTime();
     const cardOnFile = optionalText(row, 'card_token') !== null;
     const renews = integer(row, 'renews') === 1;
-    const grace = cardOnFile && renews ? GRACE_MS : 0;
+    const grace = renews ? GRACE_MS : 0;
     return { access: until > at ? 'paid' : until + grace > at ? 'grace' : 'unpaid', paidUntil, cardOnFile, renews };
   };
 
@@ -119,6 +121,28 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
     setRenews(memberId: number, renews: boolean): Standing {
       db.prepare('UPDATE subscriptions SET renews = ? WHERE member_id = ?').run(renews ? 1 : 0, memberId);
       return standing(memberId);
+    },
+
+    /**
+     * Members without a saved card whose paid month ends within three days, not yet reminded for this month. Each is
+     * marked as reminded for that month, so they hear once per month, and again only after paying for the next.
+     */
+    paymentReminders(): (Recipient & { readonly paidUntil: string })[] {
+      return db.transaction(() => {
+        const at = now().getTime();
+        const rows = db
+          .prepare(
+            `SELECT s.member_id, s.paid_until, m.email, m.name FROM subscriptions s JOIN members m ON m.id = s.member_id
+             WHERE s.renews = 1 AND s.card_token IS NULL AND s.paid_until > ? AND s.paid_until <= ?
+               AND (s.reminded_for IS NULL OR s.reminded_for != s.paid_until) AND ${STATUS_SQL.active}`,
+          )
+          .all(iso(new Date(at)), iso(new Date(at + PAY_REMINDER_LEAD_MS)));
+        const mark = db.prepare('UPDATE subscriptions SET reminded_for = paid_until WHERE member_id = ?');
+        return rows.map((row) => {
+          mark.run(integer(row, 'member_id'));
+          return { email: text(row, 'email'), name: text(row, 'name'), paidUntil: text(row, 'paid_until') };
+        });
+      });
     },
 
     /**

@@ -23,11 +23,11 @@ const plan = !standing
     ? `Not started. Membership is ${monthlyRate}.`
     : standing.access === 'unpaid'
       ? `Your last paid month ended on ${until}.`
-      : standing.cardOnFile && standing.renews
-        ? `${monthlyRate}. Paid until ${until}, then it renews on your card.`
+      : !standing.renews
+        ? `Paid until ${until}. Renewal is off, so your membership ends then.`
         : standing.cardOnFile
-          ? `Paid until ${until}. Renewal is off, so your membership ends then.`
-          : `Paid until ${until}. There is no card on file, so pay again before then to keep your membership.`;
+          ? `${monthlyRate}. Paid until ${until}, then it renews on your card.`
+          : `${monthlyRate}. Paid until ${until}. We email you a link to pay the next month a few days before.`;
 const prefs = await Astro.locals.mailings.prefs(member.id);
 const choices = [
   { name: 'replies', label: 'Replies in threads I posted in', hint: 'At most one email per thread every six hours.', on: prefs.replies },
@@ -55,10 +55,10 @@ const details = [
       <section class="wrap block" id="membership" aria-labelledby="membership-title">
         <h2 class="head" id="membership-title">Membership</h2>
         <p>{plan}</p>
-        {standing.access === 'grace' && <p class="error" role="alert">Your renewal did not go through. Pay before your access ends.</p>}
+        {standing.access === 'grace' && <p class="error" role="alert">Your paid month has ended. Pay within a few days to keep your access.</p>}
         <div class="row">
-          {(!standing.cardOnFile || standing.access !== 'paid') && <a class="btn" href="/members/pay">Pay by card</a>}
-          {standing.cardOnFile && standing.access !== 'unpaid' && (
+          {(!(standing.cardOnFile && standing.renews) || standing.access !== 'paid') && <a class="btn" href="/members/pay">Pay a month</a>}
+          {standing.access !== 'unpaid' && (
             <form method="POST" action={formAction(Astro.url, actions.setRenews)}>
               <input type="hidden" name="renews" value={standing.renews ? 'false' : 'true'} />
               <button class={standing.renews ? 'btn ghost' : 'btn'} type="submit">{standing.renews ? 'Turn off renewal' : 'Turn renewal back on'}</button>

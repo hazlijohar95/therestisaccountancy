@@ -30,14 +30,14 @@ const current = standing.access !== 'unpaid' && standing.paidUntil !== null;
 ---
 
 <Members title="Membership">
-  <Masthead label="Membership" title={lapsed ? 'Your membership needs a payment.' : current ? 'Pay a month by card.' : `Welcome, ${me.name}. One step left.`}>
+  <Masthead label="Membership" title={lapsed ? 'Your membership needs a payment.' : current ? 'Pay for another month.' : `Welcome, ${me.name}. One step left.`}>
     <p>
       {
         lapsed
-          ? `Your last paid month ended on ${formatDay(standing.paidUntil ?? '')}. Pay with a card to carry on; it renews each month on that card.`
+          ? `Your last paid month ended on ${formatDay(standing.paidUntil ?? '')}. Pay a month to carry on.`
           : current
-            ? `You are paid until ${formatDay(standing.paidUntil ?? '')}. Paying now adds a month after that and saves this card for renewals.`
-            : `Membership is ${monthlyRate}. Pay the first month by card and you are in. It renews each month on the same card until you turn renewal off in your account.`
+            ? `You are paid until ${formatDay(standing.paidUntil ?? '')}. Paying now adds a month after that.`
+            : `Membership is ${monthlyRate}. Pay the first month and you are in.`
       }
     </p>
   </Masthead>
@@ -49,9 +49,9 @@ const current = standing.access !== 'unpaid' && standing.paidUntil !== null;
   <section class="wrap block" aria-labelledby="pay-title">
     <h2 class="head" id="pay-title">{monthlyRate}</h2>
     <form method="POST" action={formAction(Astro.url, actions.checkout)}>
-      <button class="btn" type="submit">Pay by card with CHIP</button>
+      <button class="btn" type="submit">Pay {monthlyRate.replace(' a month', '')} with CHIP</button>
     </form>
-    <p class="small">You pay on CHIP's secure page, then come straight back here. CHIP emails you a receipt. Cancel any time: you keep access to the end of the month you paid for.</p>
+    <p class="small">You pay on CHIP's secure page by online banking (FPX), then come straight back here. CHIP emails you a receipt. Before each month ends we email you a link to pay the next. Stop any time: you keep access to the end of the month you paid for.</p>
   </section>
 </Members>
 
