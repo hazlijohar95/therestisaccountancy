@@ -1,0 +1,67 @@
+---
+import { actions, isInputError } from 'astro:actions';
+import Masthead from '../../components/Masthead.astro';
+import Members from '../../layouts/Members.astro';
+import { formAction, formatDay } from '../../lib/format.ts';
+import { memberNumber } from '../../server/club.ts';
+import { MIN_PASSWORD_LENGTH } from '../../server/password.ts';
+
+export const prerender = false;
+
+const member = Astro.locals.member;
+if (!member) return Astro.redirect('/sign-in');
+
+const result = Astro.getActionResult(actions.changePassword);
+const fieldErrors = result?.error && isInputError(result.error) ? result.error.fields : {};
+const error = result?.error && !isInputError(result.error) ? result.error.message : null;
+const details = [
+  { term: 'Name', detail: member.name },
+  { term: 'Email', detail: member.email },
+  { term: 'Member number', detail: memberNumber(member) },
+  { term: 'Member since', detail: formatDay(member.joinedAt) },
+];
+---
+
+<Members title="Account">
+  <Masthead label="Account" title={member.name} />
+  <section class="wrap block" aria-labelledby="details-title">
+    <h2 class="head" id="details-title">Your details</h2>
+    <dl class="facts">{details.map(({ term, detail }) => <div><dt>{term}</dt><dd>{detail}</dd></div>)}</dl>
+    <p class="small">To change your name or email, ask the club.</p>
+  </section>
+  <section class="wrap block" aria-labelledby="password-title">
+    <h2 class="head" id="password-title">Change your password</h2>
+    <p class="small">Changing it signs you out on every other device.</p>
+    <form method="POST" action={formAction(Astro.url, actions.changePassword)} class="form">
+      <input type="hidden" name="email" value={member.email} autocomplete="username" />
+      <div class="field">
+        <label for="current">Current password</label>
+        <input class="input" id="current" name="current" type="password" autocomplete="current-password" required />
+      </div>
+      <div class="field">
+        <label for="password">New password</label>
+        <input class="input" id="password" name="password" type="password" autocomplete="new-password" minlength={MIN_PASSWORD_LENGTH} required aria-invalid={fieldErrors.password ? 'true' : undefined} />
+        <span class="hint">At least {MIN_PASSWORD_LENGTH} characters.</span>
+        {fieldErrors.password?.[0] && <span class="error">{fieldErrors.password[0]}</span>}
+      </div>
+      <div class="field">
+        <label for="confirm">The new password again</label>
+        <input class="input" id="confirm" name="confirm" type="password" autocomplete="new-password" required aria-invalid={fieldErrors.confirm ? 'true' : undefined} />
+        {fieldErrors.confirm?.[0] && <span class="error">{fieldErrors.confirm[0]}</span>}
+      </div>
+      {error && <p class="error" role="alert">{error}</p>}
+      {result?.data && <p class="ok" role="status">Your password has been changed. Anywhere else you were signed in is now signed out.</p>}
+      <button class="btn" type="submit">Change password</button>
+    </form>
+  </section>
+</Members>
+
+<style>
+  .block { display: grid; gap: var(--space-5); padding-block: clamp(48px, 6vw, 80px) 0; }
+  .block > * { max-width: 720px; }
+  .block > .small { margin: 0; }
+  .form { display: grid; gap: var(--space-5); max-width: 440px; }
+  .form .btn { justify-self: start; }
+  .error, .ok { margin: 0; font-weight: 600; }
+  .error { color: var(--alert); }
+</style>

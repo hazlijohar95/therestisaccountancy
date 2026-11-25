@@ -1,0 +1,87 @@
+---
+import { actions, isInputError } from 'astro:actions';
+import Page from '../layouts/Page.astro';
+import { firstName, formAction } from '../lib/format.ts';
+import { LINK_DAYS, LINK_FOR, type LinkPurpose } from '../server/club.ts';
+import { getClub } from '../server/instance.ts';
+import { MIN_PASSWORD_LENGTH } from '../server/password.ts';
+
+export const prerender = false;
+
+const result = Astro.getActionResult(actions.setPassword);
+if (result?.data) return Astro.redirect(`/members?${result.data.purpose}`);
+
+const token = Astro.url.searchParams.get('token') ?? '';
+const holder = token ? getClub().linkMember(token) : null;
+const fieldErrors = result?.error && isInputError(result.error) ? result.error.fields : {};
+const error = result?.error && !isInputError(result.error) ? result.error.message : null;
+
+const copy = {
+  welcome: {
+    label: 'Invitation',
+    title: (name: string) => `Welcome, ${name}.`,
+    lead: (email: string) => `Set a password for ${email}. You will use it with that email to sign in.`,
+    submit: 'Set password and enter',
+  },
+  reset: {
+    label: 'Password reset',
+    title: (name: string) => `Welcome back, ${name}.`,
+    lead: (email: string) => `Choose a new password for ${email}. Setting it signs you out on every other device.`,
+    submit: 'Set new password and enter',
+  },
+} as const satisfies Record<LinkPurpose, { label: string; title: (name: string) => string; lead: (email: string) => string; submit: string }>;
+const purpose = holder ? LINK_FOR[holder.status] : null;
+const text = purpose ? copy[purpose] : null;
+---
+
+<Page title={text?.label ?? "Password link"} noindex>
+  <section class="night" aria-labelledby="page-title">
+    <div class="wrap in">
+      {
+        holder && text ? (
+          <>
+            <div>
+              <p class="label top">{text.label}</p>
+              <h1 class="headline serif" id="page-title">{text.title(firstName(holder.name))}</h1>
+              <p class="lead">{text.lead(holder.email)}</p>
+            </div>
+            <form method="POST" action={formAction(Astro.url, actions.setPassword)} class="form">
+              <input type="hidden" name="token" value={token} />
+              <input type="hidden" name="email" value={holder.email} autocomplete="username" />
+              <div class="field">
+                <label for="password">Password</label>
+                <input class="input" id="password" name="password" type="password" autocomplete="new-password" minlength={MIN_PASSWORD_LENGTH} required aria-invalid={fieldErrors.password ? 'true' : undefined} aria-describedby="password-hint" />
+                <span class="hint" id="password-hint">At least {MIN_PASSWORD_LENGTH} characters. A short sentence works well.</span>
+                {fieldErrors.password?.[0] && <span class="error">{fieldErrors.password[0]}</span>}
+              </div>
+              <div class="field">
+                <label for="confirm">The same password again</label>
+                <input class="input" id="confirm" name="confirm" type="password" autocomplete="new-password" required aria-invalid={fieldErrors.confirm ? 'true' : undefined} />
+                {fieldErrors.confirm?.[0] && <span class="error">{fieldErrors.confirm[0]}</span>}
+              </div>
+              {error && <p class="error" role="alert">{error}</p>}
+              <button class="btn" type="submit">{text.submit}</button>
+            </form>
+          </>
+        ) : (
+          <div>
+            <p class="label top">Members</p>
+            <h1 class="headline serif" id="page-title">This link no longer works.</h1>
+            <p class="lead">Each link works once. An invitation lasts {LINK_DAYS.welcome} days and a reset link {LINK_DAYS.reset} days. Ask the club for a new one, or <a href="/sign-in">sign in</a> if you have set a password since.</p>
+          </div>
+        )
+      }
+    </div>
+  </section>
+</Page>
+
+<style>
+  .in { display: grid; gap: var(--space-8); padding-block: clamp(32px, 4vw, 48px) clamp(80px, 10vw, 144px); }
+  .top { margin: 0 0 var(--space-6); padding-bottom: var(--space-4); border-bottom: var(--stroke-hair) solid var(--ink); }
+  .headline { margin: 0 0 var(--space-5); max-width: 12ch; font-size: clamp(2.75rem, 1.2rem + 5vw, 5.5rem); line-height: .98; letter-spacing: -.035em; text-wrap: balance; }
+  .lead { margin: 0; max-width: 40ch; }
+  .form { display: grid; gap: var(--space-5); align-content: start; max-width: 440px; }
+  .form .btn { justify-self: start; }
+  .error { margin: 0; font-weight: 600; color: var(--alert); }
+  @media (min-width: 900px) { .in { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; } }
+</style>

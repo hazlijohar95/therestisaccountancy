@@ -1,0 +1,57 @@
+---
+import { actions, isInputError } from 'astro:actions';
+import Page from '../layouts/Page.astro';
+import { formAction } from '../lib/format.ts';
+import { safeNext } from '../server/paths.ts';
+
+export const prerender = false;
+
+const next = safeNext(Astro.url.searchParams.get('next'));
+const signedOut = Astro.getActionResult(actions.signOut);
+const result = Astro.getActionResult(actions.signIn);
+
+if (result?.data) return Astro.redirect(result.data.role === 'admin' && next === '/members' ? '/admin' : next);
+if (Astro.locals.member && !signedOut) return Astro.redirect(next);
+
+const error = result?.error && !isInputError(result.error) ? result.error.message : null;
+---
+
+<Page title="Sign in" noindex>
+  <section class="night" aria-labelledby="page-title">
+    <div class="wrap in">
+      <div>
+        <p class="label top">Members</p>
+        <h1 class="headline serif" id="page-title">Sign in to the club.</h1>
+        <p class="lead">New member? Use the link in your invitation to set a password first.</p>
+      </div>
+      <form method="POST" action={formAction(Astro.url, actions.signIn)} class="form">
+        {signedOut?.data && <p class="note" role="status">You have signed out.</p>}
+        <div class="field">
+          <label for="email">Email</label>
+          <input class="input" id="email" name="email" type="email" autocomplete="username" required />
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input class="input" id="password" name="password" type="password" autocomplete="current-password" required />
+        </div>
+        {error && <p class="error" role="alert">{error}</p>}
+        <button class="btn" type="submit">Sign in</button>
+        <p class="small">Forgot your password? Ask the club for a reset link. It reaches you the same way your invitation did.</p>
+        <p class="small">Not a member yet? <a href="/join">Request membership</a>.</p>
+      </form>
+    </div>
+  </section>
+</Page>
+
+<style>
+  .in { display: grid; gap: var(--space-8); padding-block: clamp(32px, 4vw, 48px) clamp(80px, 10vw, 144px); }
+  .top { margin: 0 0 var(--space-6); padding-bottom: var(--space-4); border-bottom: var(--stroke-hair) solid var(--ink); }
+  .headline { margin: 0 0 var(--space-5); max-width: 10ch; font-size: clamp(2.75rem, 1.2rem + 5vw, 5.5rem); line-height: .98; letter-spacing: -.035em; }
+  .lead { margin: 0; max-width: 36ch; }
+  .form { display: grid; gap: var(--space-5); align-content: start; max-width: 440px; }
+  .form .btn { justify-self: start; }
+  .note, .error { margin: 0; font-weight: 600; }
+  .error { color: var(--alert); }
+  .small { margin: 0; }
+  @media (min-width: 900px) { .in { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; } }
+</style>

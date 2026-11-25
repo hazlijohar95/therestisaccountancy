@@ -1,0 +1,41 @@
+---
+interface Props {
+  question: string;
+  /** Rows sharing a group close each other: one open at a time. */
+  group?: string;
+  size?: 'large' | 'small';
+}
+
+const { question, group, size = 'large' } = Astro.props;
+---
+
+<details name={group}>
+  <summary><span class="q serif" data-size={size}>{question}</span><i class="x" aria-hidden="true"></i></summary>
+  <div class="a"><slot /></div>
+</details>
+
+<style>
+  details { border-bottom: var(--stroke-hair) solid var(--ink); }
+  summary { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); padding-block: var(--space-5); cursor: pointer; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary:focus-visible { outline-offset: -4px; }
+  .q { line-height: 1.12; transition: translate var(--motion-settle) var(--motion-ease); }
+  .q[data-size="large"] { font-size: clamp(1.35rem, 1.05rem + 1.1vw, 2rem); }
+  .q[data-size="small"] { font-size: clamp(1.2rem, 1.05rem + .6vw, 1.5rem); }
+  summary:hover .q { translate: var(--space-2) 0; }
+  .a { display: grid; justify-items: start; gap: var(--space-3); max-width: 60ch; padding-bottom: var(--space-6); }
+  .a :global(p) { margin: 0; }
+  .a :global(a) { font-weight: 600; }
+  .a :global(a)::after { content: " \2192"; }
+
+  /* Plus to minus. */
+  .x { position: relative; flex: none; width: 18px; height: 18px; }
+  .x::before, .x::after { content: ""; position: absolute; inset: 50% 0 auto; height: var(--stroke-rule); background: currentColor; translate: 0 -50%; transition: rotate var(--motion-settle) var(--motion-ease); }
+  .x::after { rotate: 90deg; }
+  details[open] .x::after { rotate: 0deg; }
+
+  @supports selector(::details-content) {
+    details::details-content { block-size: 0; overflow: clip; transition: block-size var(--motion-settle) var(--motion-ease), content-visibility var(--motion-settle) allow-discrete; }
+    details[open]::details-content { block-size: auto; }
+  }
+</style>

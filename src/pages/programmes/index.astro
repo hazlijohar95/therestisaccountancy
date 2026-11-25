@@ -1,0 +1,40 @@
+---
+import Closing from '../../components/Closing.astro';
+import PageHead from '../../components/PageHead.astro';
+import Section from '../../components/Section.astro';
+import { teaching } from '../../data/club.ts';
+import { programmePath, programmes } from '../../data/programmes.ts';
+import Page from '../../layouts/Page.astro';
+---
+
+<Page title="Programmes" description="Six programmes for accountants who run a practice: Foundations, Pricing, Clients, Visibility, Advisory and AI.">
+  <PageHead label="Programmes" title="Six programmes. Start with the one that hurts." lead="Each takes one part of running a practice and works it through, a module at a time." />
+  <Section id="all" no={1} title="Which one first?" intro="Pick by the problem in front of you this month. Every programme is included in membership.">
+    <div class="ep-list">
+      {
+        programmes.map((programme, i) => (
+          <a class="ep-row" href={programmePath(programme)}>
+            <span class="no">{String(i + 1).padStart(2, '0')}</span>
+            <span class="what">
+              <h3>{programme.name}</h3>
+              <span class="small">{programme.promise}</span>
+            </span>
+            <span class="small count">{programme.topics.length} modules</span>
+            <span class="go" aria-hidden="true">→</span>
+          </a>
+        ))
+      }
+    </div>
+  </Section>
+  <Section id="taught" no={2} title="How is it taught?">
+    <p class="lead">{teaching}</p>
+  </Section>
+  <Closing title="Every programme comes with membership." lead="One membership opens all six, with the live sessions and the members' room." />
+</Page>
+
+<style>
+  .what { display: grid; gap: var(--space-1); }
+  .count { white-space: nowrap; }
+  .lead { margin: 0; }
+  @media (max-width: 600px) { .count { display: none; } }
+</style>

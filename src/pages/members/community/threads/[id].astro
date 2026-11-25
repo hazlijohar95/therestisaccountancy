@@ -1,0 +1,205 @@
+---
+import { actions, isInputError } from 'astro:actions';
+import Masthead from '../../../../components/Masthead.astro';
+import Notice from '../../../../components/Notice.astro';
+import Pager from '../../../../components/Pager.astro';
+import PostText from '../../../../components/PostText.astro';
+import { channelBySlug, channelPath, LIMITS, PAGE_SIZE, threadPath } from '../../../../data/community.ts';
+import Members from '../../../../layouts/Members.astro';
+import { postedFields } from '../../../../lib/form.ts';
+import { formAction, formatMoment } from '../../../../lib/format.ts';
+import { pageCount, pageHref, pagingOf } from '../../../../lib/paging.ts';
+import { getCommunity } from '../../../../server/instance.ts';
+
+export const prerender = false;
+
+const me = Astro.locals.member;
+if (!me) return Astro.redirect('/sign-in');
+
+/* Act on a finished action first: the thread it touched may be gone, and a redirect keeps a refresh from posting twice. */
+const replied = Astro.getActionResult(actions.reply);
+const edited = Astro.getActionResult(actions.editPost);
+const deleted = Astro.getActionResult(actions.deletePost);
+const moderated = Astro.getActionResult(actions.moderateThread);
+const landed = replied?.data ?? edited?.data;
+if (landed) return Astro.redirect(`${threadPath(landed.threadId, landed.page)}#post-${landed.postId}`);
+if (deleted?.data) {
+  const d = deleted.data;
+  return Astro.redirect(d.threadRemoved ? `${channelPath(d.channel)}?deleted` : `${threadPath(d.threadId, d.page)}#post-${d.postId}`);
+}
+if (moderated?.data) {
+  const m = moderated.data;
+  return Astro.redirect(m.action === 'remove' ? `${channelPath(m.channel)}?removed` : threadPath(m.threadId));
+}
+
+const failure = [replied, edited, deleted, moderated]
+  .map((r) => (r?.error && !isInputError(r.error) ? r.error.message : null))
+  .find((message) => message !== null);
+
+const board = getCommunity();
+const id = Number(Astro.params.id);
+const thread = Number.isInteger(id) ? board.thread(id) : null;
+if (!thread) return failure ? Astro.redirect('/members/community?gone') : new Response(null, { status: 404, statusText: 'Not found' });
+const posted = replied?.error || edited?.error ? await postedFields(Astro.request) : () => '';
+const replyDraft = replied?.error ? posted('body') : '';
+const editDraft = (postId: number, stored: string) => (edited?.error && Number(posted('post')) === postId ? posted('body') : stored);
+
+const paging = pagingOf(Astro.url, PAGE_SIZE.posts);
+const { items: posts, total } = board.posts(thread.id, { limit: paging.size, offset: paging.offset });
+const pages = pageCount(total, paging.size);
+if (paging.page > pages) return Astro.redirect(pageHref(Astro.url, pages));
+
+const isAdmin = me.role === 'admin';
+const canWrite = !thread.locked || isAdmin;
+const editing = Number(Astro.url.searchParams.get('edit'));
+const replyErrors = replied?.error && isInputError(replied.error) ? replied.error.fields : {};
+const editErrors = edited?.error && isInputError(edited.error) ? edited.error.fields : {};
+const channel = channelBySlug(thread.channel);
+const withoutEdit = (() => {
+  const target = new URL(Astro.url);
+  target.searchParams.delete('edit');
+  target.searchParams.delete('_action');
+  return `${target.pathname}${target.search}`;
+})();
+const editHref = (postId: number) => {
+  const target = new URL(withoutEdit, Astro.url);
+  target.searchParams.set('edit', String(postId));
+  return `${target.pathname}${target.search}#post-${postId}`;
+};
+const flags = [thread.pinned ? 'Pinned' : null, thread.locked ? 'Locked' : null].filter(Boolean).join(' · ');
+---
+
+<Members title={thread.title}>
+  <Masthead label="" title={thread.title}>
+    <span slot="label"><a href="/members/community">Community</a> / <a href={channelPath(thread.channel)}>{channel?.name}</a></span>
+    <p>Started by {thread.author?.name ?? 'a former member'} on {formatMoment(thread.createdAt)}.{flags && ` ${flags}.`}</p>
+  </Masthead>
+
+  {failure && <Notice tone="error">{failure}</Notice>}
+
+  {
+    isAdmin && (
+      <section class="wrap moderation" aria-label="Moderation">
+        <span class="small">Admin</span>
+        <form method="POST" action={formAction(Astro.url, actions.moderateThread)}>
+          <input type="hidden" name="thread" value={thread.id} />
+          <button class="btn ghost" name="action" value={thread.pinned ? 'unpin' : 'pin'}>{thread.pinned ? 'Unpin' : 'Pin'}</button>
+          <button class="btn ghost" name="action" value={thread.locked ? 'unlock' : 'lock'}>{thread.locked ? 'Unlock' : 'Lock'}</button>
+        </form>
+        <details class="confirm">
+          <summary class="btn ghost">Remove thread</summary>
+          <form method="POST" action={formAction(Astro.url, actions.moderateThread)}>
+            <input type="hidden" name="thread" value={thread.id} />
+            <p class="small">The thread and every post in it disappear for everyone.</p>
+            <button class="btn" name="action" value="remove">Remove for everyone</button>
+          </form>
+        </details>
+      </section>
+    )
+  }
+
+  <section class="wrap posts" aria-label="Posts">
+    {
+      posts.map((post) => {
+        const mine = post.author?.id === me.id;
+        const isEditing = editing === post.id && mine && !post.deleted && canWrite;
+        return (
+          <article class="post" id={`post-${post.id}`}>
+            <header class="post-meta small">
+              <b>{post.author?.name ?? 'Former member'}</b>
+              {post.author?.role === 'admin' && <span class="tag">Admin</span>}
+              <a href={`#post-${post.id}`}>
+                <time datetime={post.createdAt}>{formatMoment(post.createdAt)}</time>
+              </a>
+              {post.editedAt && !post.deleted && <span>edited</span>}
+            </header>
+            {post.deleted ? (
+              <p class="gone">This post was deleted.</p>
+            ) : isEditing ? (
+              <form method="POST" action={formAction(Astro.url, actions.editPost)} class="form">
+                <input type="hidden" name="post" value={post.id} />
+                <label class="sr" for={`edit-${post.id}`}>Edit your post</label>
+                <textarea class="input" id={`edit-${post.id}`} name="body" rows="8" required maxlength={LIMITS.body.max} aria-invalid={editErrors.body ? 'true' : undefined}>{editDraft(post.id, post.body)}</textarea>
+                {editErrors.body?.[0] && <span class="error">{editErrors.body[0]}</span>}
+                <div class="row">
+                  <button class="btn" type="submit">Save</button>
+                  <a href={`${withoutEdit}#post-${post.id}`}>Cancel</a>
+                </div>
+              </form>
+            ) : (
+              <PostText text={post.body} />
+            )}
+            {!post.deleted && !isEditing && (mine || isAdmin) && (
+              <footer class="row small">
+                {mine && canWrite && <a href={editHref(post.id)}>Edit</a>}
+                <details class="confirm">
+                  <summary>Delete</summary>
+                  <form method="POST" action={formAction(Astro.url, actions.deletePost)}>
+                    <input type="hidden" name="post" value={post.id} />
+                    <span>{mine ? 'Delete your post? Its text is erased.' : 'Delete this post for everyone?'}</span>
+                    <button class="btn" type="submit">Delete</button>
+                  </form>
+                </details>
+              </footer>
+            )}
+          </article>
+        );
+      })
+    }
+    <Pager url={Astro.url} page={paging.page} pages={pages} label="Post pages" />
+  </section>
+
+  <section class="wrap block" aria-labelledby="reply-title">
+    <h2 class="head" id="reply-title">Reply</h2>
+    {
+      canWrite ? (
+        <form method="POST" action={formAction(Astro.url, actions.reply)} class="form">
+          <input type="hidden" name="thread" value={thread.id} />
+          {thread.locked && <p class="small">This thread is locked. As an admin you can still add to it.</p>}
+          <label class="sr" for="reply">Your reply</label>
+          <textarea class="input" id="reply" name="body" rows="6" required maxlength={LIMITS.body.max} aria-invalid={replyErrors.body ? 'true' : undefined}>{replyDraft}</textarea>
+          <span class="hint small">Plain text. Leave a blank line between paragraphs.</span>
+          {replyErrors.body?.[0] && <span class="error">{replyErrors.body[0]}</span>}
+          <button class="btn" type="submit">Post reply</button>
+        </form>
+      ) : (
+        <>
+          <p class="empty">This thread is locked. It stays here to read, but it takes no more replies.</p>
+          {replyDraft && (
+            <div class="field">
+              <label for="unsent">Your reply was not posted. Copy it if you want to keep it.</label>
+              <textarea class="input" id="unsent" rows="6" readonly>{replyDraft}</textarea>
+            </div>
+          )}
+        </>
+      )
+    }
+  </section>
+</Members>
+
+<style>
+  .block { display: grid; gap: var(--space-5); padding-block: clamp(48px, 6vw, 80px) 0; }
+  .moderation { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding-block: var(--space-5); border-bottom: var(--stroke-hair) solid var(--ink); }
+  .moderation form { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; }
+  .moderation .btn, .confirm .btn { min-height: 36px; padding: .4em .8em; font-size: var(--size-small); }
+  .posts { display: grid; padding-top: var(--space-6); }
+  .post { display: grid; gap: var(--space-3); padding-block: var(--space-6); border-bottom: var(--stroke-hair) solid var(--ink); scroll-margin-top: calc(var(--bar) + 24px); }
+  .post:target { box-shadow: inset var(--stroke-heavy) 0 0 var(--ink); padding-inline-start: var(--space-4); }
+  .post-meta { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: baseline; }
+  .post-meta b { overflow-wrap: anywhere; }
+  .post-meta a { color: inherit; }
+  .tag { font-weight: 600; border: var(--stroke-hair) solid var(--ink); padding: 0 .4em; }
+  .gone { margin: 0; font-size: var(--size-small); border-inline-start: var(--stroke-rule) solid var(--ink); padding-inline-start: var(--space-3); }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
+  .confirm summary { cursor: pointer; list-style: none; text-decoration: underline; text-underline-offset: .2em; width: fit-content; }
+  .confirm summary.btn { text-decoration: none; }
+  .confirm summary::-webkit-details-marker { display: none; }
+  .confirm form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin: var(--space-3) 0 0; }
+  .confirm p { margin: 0; }
+  .form { display: grid; gap: var(--space-4); max-width: 720px; }
+  .form .btn { justify-self: start; }
+  textarea.input { min-height: 9rem; resize: vertical; line-height: 1.5; }
+  .error { color: var(--alert); font-weight: 600; }
+  .empty { margin: 0; padding-block: var(--space-5); border-block: var(--stroke-hair) solid var(--ink); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>

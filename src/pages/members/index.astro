@@ -1,0 +1,72 @@
+---
+import MemberCard from '../../components/MemberCard.astro';
+import { programmes } from '../../data/programmes.ts';
+import Members from '../../layouts/Members.astro';
+import { firstName, formatDay } from '../../lib/format.ts';
+import { memberNumber } from '../../server/club.ts';
+import { getClub } from '../../server/instance.ts';
+import { lessonsOf } from '../../server/lessons.ts';
+
+export const prerender = false;
+
+const member = Astro.locals.member;
+if (!member) return Astro.redirect('/sign-in');
+
+const done = getClub().completedLessons(member.id);
+const progress = await Promise.all(
+  programmes.map(async (programme) => {
+    const lessons = await lessonsOf(programme.slug);
+    return { programme, published: lessons.length, done: lessons.filter((l) => done.has(l.id)).length };
+  }),
+);
+const greeting = Astro.url.searchParams.has('welcome')
+  ? { label: 'Your password is set', title: `Welcome to the club, ${firstName(member.name)}.` }
+  : { label: Astro.url.searchParams.has('reset') ? 'Your new password is set' : `Member since ${formatDay(member.joinedAt)}`, title: `Good to see you, ${firstName(member.name)}.` };
+---
+
+<Members title="Members">
+  <section class="night">
+    <div class="wrap masthead">
+      <div>
+        <p class="label top">{greeting.label}</p>
+        <h1 class="headline serif">{greeting.title}</h1>
+        <p class="lead">Pick up the programme that matters most this month. The live sessions and their recordings are under Sessions.</p>
+      </div>
+      <MemberCard name={member.name} number={memberNumber(member)} role={member.role === 'admin' ? 'Admin' : 'Member'} />
+    </div>
+  </section>
+
+  <section class="wrap sec" aria-labelledby="programmes-title">
+    <div class="rail">
+      <h2 class="head" id="programmes-title">Your programmes</h2>
+      <p>Lessons appear here as they are published. Mark each one done as you finish it.</p>
+    </div>
+    <div class="ep-list">
+      {
+        progress.map(({ programme, published, done }, i) => (
+          <a class="ep-row" href={`/members/programmes/${programme.slug}`}>
+            <span class="no">{String(i + 1).padStart(2, '0')}</span>
+            <span class="what">
+              <h3>{programme.name}</h3>
+              <span class="small">{programme.promise}</span>
+            </span>
+            <span class="small count">{published === 0 ? 'Being written' : `${done} of ${published} done`}</span>
+            <span class="go" aria-hidden="true">→</span>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+</Members>
+
+<style>
+  .masthead { display: grid; gap: var(--space-8); align-items: end; padding-block: clamp(32px, 4vw, 48px) clamp(56px, 7vw, 96px); }
+  .top { margin: 0 0 var(--space-6); padding-bottom: var(--space-4); border-bottom: var(--stroke-hair) solid var(--ink); }
+  .headline { margin: 0 0 var(--space-5); max-width: 14ch; font-size: clamp(2.5rem, 1.2rem + 4.4vw, 5rem); line-height: 1; letter-spacing: -.035em; text-wrap: balance; }
+  .lead { margin: 0; max-width: 44ch; }
+  .rail .head { margin: 0 0 var(--space-3); }
+  .rail p { margin: 0; max-width: 38ch; }
+  .what { display: grid; gap: var(--space-1); }
+  .count { white-space: nowrap; }
+  @media (min-width: 1000px) { .masthead { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); column-gap: var(--space-9); } }
+</style>

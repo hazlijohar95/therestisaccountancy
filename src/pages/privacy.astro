@@ -1,0 +1,35 @@
+---
+import PageHead from '../components/PageHead.astro';
+import Section from '../components/Section.astro';
+import Page from '../layouts/Page.astro';
+
+const kept = [
+  { term: 'When you request membership', detail: 'Your name, your work email and where your practice stands.' },
+  { term: 'When you become a member', detail: 'Your name, your email, your member number, a one-way hash of your password, and the lessons you mark as done. Nobody can read your password, including us.' },
+  { term: 'When you sign in', detail: 'One cookie that keeps you signed in. It holds a random identifier and nothing about you.' },
+];
+
+const not = ['No analytics or advertising trackers', 'No third-party scripts or fonts: everything loads from this site', 'The rate tool runs in your browser and sends nothing'];
+---
+
+<Page title="Privacy" description="What The Rest Is Accountancy keeps about you, and why.">
+  <PageHead label="Privacy" title="What we keep, and why." lead="As little as running the club needs. This page describes what the site actually stores." />
+  <Section id="kept" no={1} title="What do we keep?">
+    <dl class="facts">
+      {kept.map(({ term, detail }) => <div><dt>{term}</dt><dd>{detail}</dd></div>)}
+    </dl>
+  </Section>
+  <Section id="not" no={2} title="What do we not do?">
+    <ul class="ruled">{not.map((item) => <li>{item}</li>)}</ul>
+  </Section>
+  <Section id="use" no={3} title="What is it used for?">
+    <p class="lead">To reply to your request, to let you sign in, and to show your progress through the programmes. It is not sold or shared.</p>
+  </Section>
+  <Section id="rights" no={4} title="Can I see or delete it?">
+    <p class="lead">Yes. Reply to any email from the club and ask. Malaysia's Personal Data Protection Act 2010 gives you the right to see and correct what we hold.</p>
+  </Section>
+</Page>
+
+<style>
+  .lead { margin: 0; }
+</style>

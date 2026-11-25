@@ -1,0 +1,119 @@
+---
+import { rate } from '../data/club.ts';
+import Section from './Section.astro';
+
+interface Props {
+  no: number;
+}
+---
+
+<Section id="rate" no={Astro.props.no} title={rate.title} intro={rate.intro}>
+  <form class="calc" id="calc" aria-label="Rate calculator" data-hours-per-client={rate.hoursPerClient}>
+    <div class="fields">
+      {
+        rate.fields.map((field) => {
+          const id = `rate-${field.name}`;
+          const hint = 'hint' in field ? field.hint : undefined;
+          const unit = 'unit' in field ? field.unit : undefined;
+          const input = (
+            <input
+              class="input"
+              id={id}
+              name={field.name}
+              type="number"
+              inputmode="numeric"
+              min={field.min}
+              max={'max' in field ? field.max : undefined}
+              step={'step' in field ? field.step : undefined}
+              value={field.start}
+              aria-describedby={hint ? `${id}-hint` : undefined}
+            />
+          );
+          return (
+            <div class="field">
+              <label for={id}>{field.label}</label>
+              {unit ? <div class="unit" data-unit={unit}>{input}</div> : input}
+              {hint && <span class="hint" id={`${id}-hint`}>{hint}</span>}
+            </div>
+          );
+        })
+      }
+    </div>
+    <div class="out" aria-live="polite">
+      <table class="ledger">
+        <tbody>
+          <tr><th scope="row">Income you want</th><td data-out="income"></td></tr>
+          <tr><th scope="row">Running costs</th><td data-out="costs"></td></tr>
+          <tr><th scope="row">Revenue to cover</th><td><span class="total" data-out="revenue"></span></td></tr>
+          <tr><th scope="row">Billable hours a year</th><td data-out="billable"></td></tr>
+        </tbody>
+      </table>
+      <p class="rate"><span class="label">Your lowest fair rate, per hour</span><output class="fig serif" data-out="hourly"></output></p>
+      <p class="note" data-out="note"></p>
+    </div>
+  </form>
+</Section>
+
+<script>
+  import { find } from '../lib/dom.ts';
+  import { floorRate, type RateInputs } from '../lib/rate.ts';
+
+  const ringgit = new Intl.NumberFormat('en-MY', { maximumFractionDigits: 0 });
+  const form = find('#calc', HTMLFormElement);
+  const hoursPerClient = Number(form.dataset['hoursPerClient']);
+  const out = (key: string) => find(`[data-out="${key}"]`, HTMLElement, form);
+
+  const read = (name: keyof RateInputs): number | null => {
+    const input = find(`[name="${name}"]`, HTMLInputElement, form);
+    const value = input.valueAsNumber;
+    const ok = Number.isFinite(value) && value >= Number(input.min) && (input.max === '' || value <= Number(input.max));
+    if (ok) input.removeAttribute('aria-invalid');
+    else input.setAttribute('aria-invalid', 'true');
+    return ok ? value : null;
+  };
+
+  const render = () => {
+    const income = read('income');
+    const costs = read('costs');
+    const hoursPerWeek = read('hoursPerWeek');
+    const weeksOff = read('weeksOff');
+    const unpaidShare = read('unpaidShare');
+    out('income').textContent = income === null ? '—' : ringgit.format(income);
+    out('costs').textContent = costs === null ? '—' : ringgit.format(costs);
+    const result =
+      income === null || costs === null || hoursPerWeek === null || weeksOff === null || unpaidShare === null
+        ? null
+        : floorRate({ income, costs, hoursPerWeek, weeksOff, unpaidShare });
+    if (!result) {
+      for (const key of ['revenue', 'billable', 'hourly']) out(key).textContent = '—';
+      out('note').textContent = 'Check the number marked in red.';
+      return;
+    }
+    out('revenue').textContent = ringgit.format(result.revenue);
+    out('billable').textContent = ringgit.format(Math.round(result.billableHours));
+    out('hourly').textContent = `RM ${ringgit.format(result.hourly)}`;
+    out('note').textContent = `A client who needs ${hoursPerClient} hours of your time a month should pay at least RM ${ringgit.format(result.hourly * hoursPerClient)} a month.`;
+  };
+
+  form.addEventListener('input', render);
+  form.addEventListener('submit', (event) => event.preventDefault());
+  render();
+</script>
+
+<style>
+  .calc { display: grid; gap: var(--space-8); }
+  .fields { display: grid; gap: var(--space-5); }
+  .unit { position: relative; }
+  .unit::before { content: attr(data-unit); position: absolute; inset: 0 auto 0 var(--space-4); display: grid; place-items: center; font-weight: 600; pointer-events: none; }
+  .unit[data-unit="RM"] .input { padding-inline-start: 3.1rem; }
+  .unit[data-unit="%"]::before { inset: 0 var(--space-4) 0 auto; }
+  .unit[data-unit="%"] .input { padding-inline-end: 2.6rem; }
+  .input { font-variant-numeric: tabular-nums; appearance: textfield; -moz-appearance: textfield; }
+  .input::-webkit-inner-spin-button, .input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .ledger { font-size: var(--size-body); border-top: var(--stroke-rule) solid var(--ink); }
+  .ledger th { font-weight: 400; }
+  .rate { display: grid; gap: var(--space-3); margin: var(--space-7) 0 0; }
+  .fig { font-size: clamp(3.5rem, 2rem + 5vw, 6.5rem); line-height: .9; letter-spacing: -.04em; font-variant-numeric: lining-nums tabular-nums; }
+  .note { margin: var(--space-4) 0 0; max-width: 40ch; }
+  @media (min-width: 760px) { .calc { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; } }
+</style>

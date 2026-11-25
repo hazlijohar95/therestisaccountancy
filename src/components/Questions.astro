@@ -1,0 +1,15 @@
+---
+import { questions } from '../data/club.ts';
+import Row from './Row.astro';
+import Section from './Section.astro';
+
+interface Props {
+  no: number;
+}
+---
+
+<Section id="questions" no={Astro.props.no} title={questions.title}>
+  <div class="rows">
+    {questions.items.map(({ term, detail }) => <Row question={term} size="small"><p>{detail}</p></Row>)}
+  </div>
+</Section>

@@ -1,0 +1,22 @@
+---
+import { Image } from 'astro:assets';
+import { podcast } from '../data/club.ts';
+---
+
+<div class="hosts">
+  {
+    podcast.hosts.map((host) => (
+      <figure>
+        <Image src={host.photo} alt={host.alt} widths={[320, 480, 640, 960]} sizes="(min-width: 1000px) 400px, 45vw" loading="lazy" />
+        <figcaption><b>{host.name}</b><span>Host</span></figcaption>
+      </figure>
+    ))
+  }
+</div>
+
+<style>
+  .hosts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+  figure { display: grid; gap: var(--space-3); margin: 0; }
+  img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; filter: grayscale(1); }
+  figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--space-3); padding-top: var(--space-2); border-top: var(--stroke-hair) solid var(--ink); font-size: var(--size-small); }
+</style>

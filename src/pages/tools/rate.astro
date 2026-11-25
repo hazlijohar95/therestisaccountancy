@@ -1,0 +1,31 @@
+---
+import Closing from '../../components/Closing.astro';
+import PageHead from '../../components/PageHead.astro';
+import RateCalculator from '../../components/RateCalculator.astro';
+import Section from '../../components/Section.astro';
+import Page from '../../layouts/Page.astro';
+
+const method = [
+  { term: 'Revenue to cover', detail: 'The income you want, plus what the practice costs to run.' },
+  { term: 'Billable hours', detail: 'Hours a week, times the weeks you work, less the share of time nobody pays for.' },
+  { term: 'Lowest fair rate', detail: 'Revenue to cover, divided by billable hours, rounded up to the next ringgit.' },
+];
+---
+
+<Page title="Rate tool" description="Work out the lowest hourly rate that pays your income and your running costs. Free, and nothing leaves the page.">
+  <PageHead label="Rate tool" title="Price from your costs up." lead="A free tool from the club. Put in your own numbers. Nothing is sent anywhere." />
+  <RateCalculator no={1} />
+  <Section id="method" no={2} title="How is it worked out?" intro="Three lines. No market data, no guesses about anyone else's fees.">
+    <dl class="facts">
+      {method.map(({ term, detail }) => <div><dt>{term}</dt><dd>{detail}</dd></div>)}
+    </dl>
+    <p class="note">The result is a floor, not a price. Pricing, one of the six programmes, works on what to charge above it.</p>
+  </Section>
+  <Closing title="Know your floor. Now set your price." lead="The Pricing programme takes it from here: packages, repricing, and saying the number out loud.">
+    <a class="btn ghost" href="/programmes/pricing">See Pricing</a>
+  </Closing>
+</Page>
+
+<style>
+  .note { margin: var(--space-5) 0 0; max-width: 52ch; }
+</style>

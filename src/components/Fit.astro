@@ -1,0 +1,21 @@
+---
+import { fit } from '../data/club.ts';
+import Section from './Section.astro';
+
+interface Props {
+  no: number;
+}
+---
+
+<Section id="fit" no={Astro.props.no} title={fit.title} intro={fit.intro}>
+  <div class="pair">
+    <div>
+      <h3 class="label">Yes, if</h3>
+      <ul class="ruled">{fit.yes.map((item) => <li>{item}</li>)}</ul>
+    </div>
+    <div>
+      <h3 class="label">Not yet, if</h3>
+      <ul class="ruled">{fit.notYet.map((item) => <li>{item}</li>)}</ul>
+    </div>
+  </div>
+</Section>

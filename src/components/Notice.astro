@@ -1,0 +1,14 @@
+---
+/** A one-line outcome under the masthead: what just happened, or why it did not. */
+interface Props {
+  tone?: 'ok' | 'error';
+}
+const { tone = 'ok' } = Astro.props;
+---
+
+<p class:list={['wrap', 'notice', tone]} role={tone === 'error' ? 'alert' : 'status'}><slot /></p>
+
+<style>
+  .notice { margin-block: var(--space-7) 0; padding-block: var(--space-4); border-block: var(--stroke-rule) solid var(--ink); font-weight: 600; }
+  .error { color: var(--alert); }
+</style>

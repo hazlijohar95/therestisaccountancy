@@ -1,0 +1,22 @@
+---
+import { stuck } from '../data/club.ts';
+import Row from './Row.astro';
+import Section from './Section.astro';
+
+interface Props {
+  no: number;
+}
+---
+
+<Section id="stuck" no={Astro.props.no} title={stuck.title} intro={stuck.intro}>
+  <div class="rows">
+    {
+      stuck.obstacles.map(({ question, answer, leadsTo }) => (
+        <Row question={question} group="stuck">
+          <p>{answer}</p>
+          <a href={leadsTo.href}>{leadsTo.label}</a>
+        </Row>
+      ))
+    }
+  </div>
+</Section>

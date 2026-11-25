@@ -1,0 +1,14 @@
+---
+import Join from '../components/Join.astro';
+import Section from '../components/Section.astro';
+import Steps from '../components/Steps.astro';
+import { joining } from '../data/club.ts';
+import Page from '../layouts/Page.astro';
+---
+
+<Page title="Request membership" description="Request membership of The Rest Is Accountancy. We read every request and reply by email.">
+  <Join level={1} />
+  <Section id="next" no={1} title="What happens next?">
+    <Steps items={joining.steps} />
+  </Section>
+</Page>

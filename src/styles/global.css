@@ -1,0 +1,48 @@
+/* Shared layout for the club's page. Type, colour, buttons, fields, the ledger and the member card come from
+   @therestisaccountancy/brand/css; each section's own layout is scoped to its component. */
+
+:root { --gutter: max(20px, 4vw); --bar: 68px; scroll-padding-top: calc(var(--bar) + 24px); interpolate-size: allow-keywords; }
+@media (prefers-reduced-motion: no-preference) { :root { scroll-behavior: smooth; } }
+
+.wrap { width: 100%; max-width: calc(var(--grid-max) + var(--gutter) * 2); margin-inline: auto; padding-inline: var(--gutter); }
+p, li, dd { text-wrap: pretty; }
+
+/* A night band: the club's dominant ground. Tokens resolve through light-dark(), so the scheme flips them. */
+.night { color-scheme: dark; background-color: var(--bg); color: var(--ink); }
+
+/* The brand's display setting, for the type this page adds. */
+.serif { font-family: var(--display-font); font-weight: var(--display-weight); font-synthesis: none; font-variation-settings: var(--display-variation); letter-spacing: var(--display-tracking); text-transform: var(--display-case); }
+
+/* Logos are the brand's mono files drawn in currentColor. */
+.logo { display: block; aspect-ratio: var(--aspect); background: currentColor; mask: var(--logo) center / contain no-repeat; }
+/* Below 300px the podcast's tape label is illegible: the brand rule says use the wordmark. */
+@media (max-width: 339px) { .logo[style*="--logo-narrow"] { mask-image: var(--logo-narrow); } }
+
+/* Sections: a numbered rail and a body, ruled from the one before. */
+.sec { display: grid; gap: clamp(32px, 4vw, 56px); padding-block: clamp(72px, 9vw, 144px); background: linear-gradient(var(--ink), var(--ink)) top center / calc(100% - var(--gutter) * 2) var(--stroke-hair) no-repeat; }
+.night + .sec { background: none; }
+@media (min-width: 1000px) { .sec { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); column-gap: var(--space-8); } }
+
+/* Lists drawn in ink rules. */
+.ruled { list-style: none; margin: var(--space-3) 0 0; padding: 0; border-top: var(--stroke-rule) solid var(--ink); }
+.ruled li { padding-block: var(--space-3); border-bottom: var(--stroke-hair) solid var(--ink); }
+.pair { display: grid; gap: var(--space-7); }
+.pair h3 { margin: 0; }
+@media (min-width: 720px) { .pair { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-8); } }
+
+/* A short ledger of facts. */
+.facts { margin: 0; border-top: var(--stroke-rule) solid var(--ink); }
+.facts > div { display: grid; grid-template-columns: minmax(6.5rem, 1fr) minmax(0, 3fr); gap: var(--space-4); padding-block: var(--space-3); border-bottom: var(--stroke-hair) solid var(--ink); }
+.facts dt { font: 600 var(--size-small)/1.55 var(--font-sans); }
+.facts dd { margin: 0; }
+
+/* Rows that open, ruled top and bottom. */
+.rows { border-top: var(--stroke-rule) solid var(--ink); }
+
+/* Blocks rise into place as they scroll in. A fixed range keeps tall blocks from reading as faded. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal { animation: rise linear both; animation-timeline: view(); animation-range: entry 0% entry 200px; }
+  }
+}
+@keyframes rise { from { opacity: 0; translate: 0 28px; } }

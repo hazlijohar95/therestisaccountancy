@@ -1,0 +1,32 @@
+---
+import { paragraphs, pieces } from '../lib/text.ts';
+
+/** A post's plain text: paragraphs, line breaks and http(s) links. Never HTML. */
+interface Props {
+  text: string;
+}
+---
+
+<div class="post-text">
+  {
+    paragraphs(Astro.props.text).map((paragraph) => (
+      <p>
+        {pieces(paragraph).map((piece) =>
+          piece.kind === 'link' ? (
+            <a href={piece.href} rel="nofollow ugc noopener noreferrer" target="_blank">
+              {piece.text}
+            </a>
+          ) : (
+            piece.text
+          ),
+        )}
+      </p>
+    ))
+  }
+</div>
+
+<style>
+  .post-text { max-width: 68ch; }
+  .post-text p { margin: 0 0 var(--space-4); white-space: pre-line; overflow-wrap: anywhere; }
+  .post-text p:last-child { margin-bottom: 0; }
+</style>

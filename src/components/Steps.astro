@@ -1,0 +1,21 @@
+---
+import type { Term } from '../data/club.ts';
+
+interface Props {
+  items: readonly Term[];
+}
+---
+
+<ol style={`--n: ${Astro.props.items.length}`}>
+  {Astro.props.items.map(({ term, detail }) => <li><h3 class="head">{term}</h3><p>{detail}</p></li>)}
+</ol>
+
+<style>
+  ol { display: grid; gap: var(--space-6); margin: 0; padding: 0; list-style: none; counter-reset: step; }
+  li { counter-increment: step; padding-top: var(--space-4); border-top: var(--stroke-rule) solid var(--ink); }
+  li::before { content: counter(step, decimal-leading-zero); display: block; margin-bottom: var(--space-6); font: 400 1.25rem/1 var(--display-font); font-synthesis: none; letter-spacing: var(--display-tracking); }
+  .head { margin-bottom: var(--space-3); font-size: clamp(1.35rem, 1.15rem + .8vw, 1.75rem); }
+  p { margin: 0; }
+  @media (min-width: 720px) { ol { grid-template-columns: repeat(min(var(--n), 3), minmax(0, 1fr)); } }
+  @media (min-width: 1200px) { ol { grid-template-columns: repeat(var(--n), minmax(0, 1fr)); } }
+</style>

@@ -1,0 +1,63 @@
+---
+import type { GetStaticPaths } from 'astro';
+import Closing from '../../components/Closing.astro';
+import PageHead from '../../components/PageHead.astro';
+import Section from '../../components/Section.astro';
+import { obstacleFor, teaching } from '../../data/club.ts';
+import { programmePath, programmes, type Programme } from '../../data/programmes.ts';
+import Page from '../../layouts/Page.astro';
+
+export const getStaticPaths = (() => programmes.map((programme) => ({ params: { slug: programme.slug }, props: { programme } }))) satisfies GetStaticPaths;
+
+interface Props {
+  programme: Programme;
+}
+
+const { programme } = Astro.props;
+const index = programmes.indexOf(programme);
+const obstacle = obstacleFor(programme);
+const previous = programmes[index - 1];
+const next = programmes[index + 1];
+const count = (n: number) => String(n).padStart(2, '0');
+---
+
+<Page title={programme.name} description={`${programme.name}. ${programme.promise} ${obstacle?.answer ?? ''}`.trim()}>
+  <PageHead label={`Programme ${count(index + 1)} of ${count(programmes.length)}`} title={programme.name} lead={programme.promise}>
+    <a class="btn" href="/join">Request membership</a>
+    <a class="btn ghost" href="/programmes">All programmes</a>
+  </PageHead>
+  {
+    obstacle && (
+      <Section id="you" no={1} title="Does this sound like you?">
+        <blockquote class="serif">{obstacle.question}</blockquote>
+        <p class="lead">{obstacle.answer}</p>
+      </Section>
+    )
+  }
+  <Section id="modules" no={obstacle ? 2 : 1} title="What does it cover?" intro={`${programme.topics.length} modules, taught in this order.`}>
+    <ol class="modules">
+      {programme.topics.map((topic, i) => <li><span class="serif n">{count(i + 1)}</span><span>{topic}</span></li>)}
+    </ol>
+  </Section>
+  <Section id="taught" no={obstacle ? 3 : 2} title="How is it taught?">
+    <p class="lead">{teaching}</p>
+  </Section>
+  <nav class="wrap pager" aria-label="Other programmes">
+    {previous ? <a href={programmePath(previous)}><span class="label">Previous</span><span class="serif">{previous.name}</span></a> : <span></span>}
+    {next && <a class="next" href={programmePath(next)}><span class="label">Next</span><span class="serif">{next.name}</span></a>}
+  </nav>
+  <Closing title={`${programme.name} comes with membership.`} lead="One membership opens all six programmes, with the live sessions and the members' room." />
+</Page>
+
+<style>
+  blockquote { margin: 0 0 var(--space-5); font-size: clamp(1.75rem, 1.2rem + 2vw, 2.75rem); line-height: 1.1; letter-spacing: -.02em; text-wrap: balance; }
+  .lead { margin: 0; }
+  .modules { list-style: none; margin: 0; padding: 0; border-top: var(--stroke-rule) solid var(--ink); }
+  .modules li { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); align-items: baseline; gap: var(--space-4); padding-block: var(--space-4); border-bottom: var(--stroke-hair) solid var(--ink); font-size: var(--size-lead); }
+  .n { font-size: 1.25rem; }
+  .pager { display: flex; justify-content: space-between; gap: var(--space-5); padding-block: 0 clamp(56px, 7vw, 96px); }
+  .pager a { display: grid; gap: var(--space-1); text-decoration: none; }
+  .pager .serif { font-size: var(--size-head); line-height: 1.1; }
+  .pager a:hover .serif { text-decoration: underline; text-decoration-thickness: var(--stroke-hair); }
+  .next { text-align: end; }
+</style>

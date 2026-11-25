@@ -1,0 +1,23 @@
+---
+import { week } from '../data/club.ts';
+import Section from './Section.astro';
+import Steps from './Steps.astro';
+
+interface Props {
+  no: number;
+}
+---
+
+<Section id="week" no={Astro.props.no} title={week.title} intro={week.intro}>
+  <div class="week">
+    <Steps items={week.sessions} />
+    <dl class="facts between">
+      {week.between.map(({ term, detail }) => <div><dt>{term}</dt><dd>{detail}</dd></div>)}
+    </dl>
+  </div>
+</Section>
+
+<style>
+  .week { display: grid; gap: var(--space-8); }
+  .between > div { grid-template-columns: minmax(9rem, 1fr) minmax(0, 3fr); }
+</style>

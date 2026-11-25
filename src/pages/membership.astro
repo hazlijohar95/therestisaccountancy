@@ -1,0 +1,31 @@
+---
+import Closing from '../components/Closing.astro';
+import Fit from '../components/Fit.astro';
+import Inside from '../components/Inside.astro';
+import PageHead from '../components/PageHead.astro';
+import Questions from '../components/Questions.astro';
+import Section from '../components/Section.astro';
+import Steps from '../components/Steps.astro';
+import Week from '../components/Week.astro';
+import { join, joining } from '../data/club.ts';
+import Page from '../layouts/Page.astro';
+---
+
+<Page title="Membership" description="One membership: six programmes, live sessions every week, a members' room and help when you are stuck. Joining is by request.">
+  <PageHead
+    label="Membership"
+    title="One membership. The whole club."
+    lead="Six programmes, live sessions every week, a members' room and help when you are stuck. Joining is by request."
+  >
+    <a class="btn" href={join.href}>{join.label}</a>
+    <a class="btn ghost" href="#how">How joining works</a>
+  </PageHead>
+  <Inside no={1} />
+  <Week no={2} />
+  <Section id="how" no={3} title={joining.title} intro="Four steps, and nothing to pay until you have seen the rate.">
+    <Steps items={joining.steps} />
+  </Section>
+  <Fit no={4} />
+  <Questions no={5} />
+  <Closing title="Bring the rest of your practice." lead="Tell us where your practice stands. We reply to every request by email." />
+</Page>

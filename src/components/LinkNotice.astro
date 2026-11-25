@@ -1,0 +1,40 @@
+---
+import { formatDay } from '../lib/format.ts';
+import type { LinkPurpose } from '../server/club.ts';
+
+interface Props {
+  issued: { name: string; purpose: LinkPurpose; link: string; expiresAt: string };
+}
+const { name, purpose, link, expiresAt } = Astro.props.issued;
+const what = { welcome: 'Invitation', reset: 'Reset link' } as const satisfies Record<LinkPurpose, string>;
+---
+
+<section class="wrap notice" aria-live="polite">
+  <p>
+    <b>{what[purpose]} ready for {name}.</b>
+    {purpose === 'reset' && ' Setting a new password with it signs them out everywhere else.'}
+    {' '}It expires on {formatDay(expiresAt)}. This is the only time the link is shown, so send it now.
+  </p>
+  <div class="copy">
+    <input class="input" id="issued-link" readonly value={link} aria-label={what[purpose]} />
+    <button class="btn" type="button" data-copy="issued-link">Copy link</button>
+  </div>
+</section>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+    button.addEventListener('click', async () => {
+      const input = document.getElementById(button.dataset['copy'] ?? '');
+      if (!(input instanceof HTMLInputElement)) return;
+      await navigator.clipboard.writeText(input.value);
+      button.textContent = 'Copied';
+    });
+  }
+</script>
+
+<style>
+  .notice { display: grid; gap: var(--space-3); margin-block: var(--space-7) 0; padding-block: var(--space-5); border-block: var(--stroke-rule) solid var(--ink); }
+  .notice p { margin: 0; }
+  .copy { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+  .copy .input { flex: 1 1 16rem; font-family: var(--font-mono); font-size: var(--size-small); }
+</style>

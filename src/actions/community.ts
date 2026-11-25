@@ -1,0 +1,64 @@
+import { defineAction } from 'astro:actions';
+import { z } from 'astro/zod';
+import { isChannelSlug, LIMITS, PAGE_SIZE, type ChannelSlug } from '../data/community.ts';
+import { MODERATIONS, type PostPlace, type PostRefusal } from '../server/community.ts';
+import { getCommunity } from '../server/instance.ts';
+import { id, settle, signedIn, type Refusal } from './guards.ts';
+
+const postRefusals: Record<PostRefusal, Refusal> = {
+  'not-found': { code: 'NOT_FOUND', message: 'That post or thread is no longer here.' },
+  locked: { code: 'CONFLICT', message: 'This thread is locked. Only admins can add to it.' },
+  forbidden: { code: 'FORBIDDEN', message: 'Only the person who wrote that can change it.' },
+};
+
+const body = z
+  .string()
+  .trim()
+  .min(1, 'Write something first.')
+  .max(LIMITS.body.max, `Keep it under ${LIMITS.body.max.toLocaleString('en-MY')} characters, or split it into two posts.`);
+const title = z
+  .string()
+  .trim()
+  .min(LIMITS.title.min, `Give the thread a title of at least ${LIMITS.title.min} characters.`)
+  .max(LIMITS.title.max, `Keep the title under ${LIMITS.title.max} characters.`);
+const channel = z.custom<ChannelSlug>((v) => typeof v === 'string' && isChannelSlug(v), 'Pick a channel.');
+
+const moderationRefusals: Record<PostRefusal, Refusal> = {
+  ...postRefusals,
+  forbidden: { code: 'FORBIDDEN', message: 'Only a club admin can moderate threads.' },
+};
+
+/** Where to send the browser after a post: the page it sits on. */
+const landing = <P extends PostPlace>(place: P) => ({ ...place, page: Math.ceil(place.position / PAGE_SIZE.posts) });
+
+export const community = {
+  startThread: defineAction({
+    accept: 'form',
+    input: z.object({ channel, title, body }),
+    handler: (input, context) => landing(getCommunity().startThread(signedIn(context.locals), input)),
+  }),
+
+  reply: defineAction({
+    accept: 'form',
+    input: z.object({ thread: id, body }),
+    handler: (input, context) => landing(settle(getCommunity().reply(signedIn(context.locals), input.thread, input), postRefusals)),
+  }),
+
+  editPost: defineAction({
+    accept: 'form',
+    input: z.object({ post: id, body }),
+    handler: (input, context) => landing(settle(getCommunity().editPost(signedIn(context.locals), input.post, input), postRefusals)),
+  }),
+
+  deletePost: defineAction({
+    accept: 'form',
+    input: z.object({ post: id }),
+    handler: (input, context) => landing(settle(getCommunity().deletePost(signedIn(context.locals), input.post), postRefusals)),
+  }),
+
+  moderateThread: defineAction({
+    accept: 'form',
+    input: z.object({ thread: id, action: z.enum(MODERATIONS) }),
+    handler: (input, context) => ({ ...settle(getCommunity().moderate(signedIn(context.locals), input.thread, input.action), moderationRefusals), action: input.action }),
+  }),
+};

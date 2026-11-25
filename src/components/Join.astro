@@ -1,0 +1,144 @@
+---
+import { join, joinSection } from '../data/club.ts';
+import MemberCard from './MemberCard.astro';
+
+interface Props {
+  /** The section number on the home page. Leave out on the join page itself. */
+  no?: number;
+  /** 1 on the join page, where this is the page's main heading. */
+  level?: 1 | 2;
+}
+
+const { no, level = 2 } = Astro.props;
+const { messages, card } = joinSection;
+const Heading = level === 1 ? 'h1' : 'h2';
+---
+
+<section class="night" id="join" aria-labelledby="join-title">
+  <div class="wrap in">
+    <div class="copy">
+      <span class="label">{no ? `N°${no} · ${joinSection.label}` : joinSection.label}</span>
+      <Heading class="headline serif" id="join-title">{joinSection.title}</Heading>
+      <p class="lead">{joinSection.lead}</p>
+    </div>
+    <div class="card" aria-hidden="true">
+      <MemberCard name={card.namePlaceholder} number={card.number} />
+    </div>
+    <form
+      class="form"
+      id="join-form"
+      novalidate
+      data-placeholder={card.namePlaceholder}
+      data-sending={messages.sending}
+      data-failed={messages.failed}
+      data-sent={messages.sent('{email}')}
+    >
+      <div class="field">
+        <label for="join-name">Your name</label>
+        <input class="input" id="join-name" name="name" autocomplete="name" maxlength="60" required aria-describedby="join-name-error" />
+        <span class="error" id="join-name-error" hidden>{messages.name}</span>
+      </div>
+      <div class="field">
+        <label for="join-email">Work email</label>
+        <input class="input" id="join-email" name="email" type="email" autocomplete="email" required aria-describedby="join-email-error" />
+        <span class="error" id="join-email-error" hidden>{messages.email}</span>
+      </div>
+      <div class="field">
+        <label for="join-stage">Where you are</label>
+        <select class="input" id="join-stage" name="stage">
+          {joinSection.stages.map((stage) => <option>{stage}</option>)}
+        </select>
+      </div>
+      <button class="btn" type="submit">{join.label}</button>
+      <p class="status" id="join-status" role="status" hidden></p>
+    </form>
+  </div>
+</section>
+
+<script>
+  import { actions, isInputError } from 'astro:actions';
+  import { find } from '../lib/dom.ts';
+
+  const form = find('#join-form', HTMLFormElement);
+  const status = find('#join-status', HTMLElement, form);
+  const cardName = find('#join [data-card-name]', HTMLElement);
+  const text = (key: string) => form.dataset[key] ?? '';
+  const fields = [
+    { key: 'name', input: find('#join-name', HTMLInputElement, form), error: find('#join-name-error', HTMLElement, form) },
+    { key: 'email', input: find('#join-email', HTMLInputElement, form), error: find('#join-email-error', HTMLElement, form) },
+  ] as const;
+  const [nameField, emailField] = fields;
+  const fallback = new Map(fields.map((f) => [f.key, f.error.textContent ?? '']));
+
+  const show = (field: (typeof fields)[number], message: string | null) => {
+    field.error.hidden = message === null;
+    field.error.textContent = message ?? fallback.get(field.key) ?? '';
+    if (message === null) field.input.removeAttribute('aria-invalid');
+    else field.input.setAttribute('aria-invalid', 'true');
+  };
+  const check = (field: (typeof fields)[number]): boolean => {
+    const ok = field.input.value.trim() !== '' && field.input.checkValidity();
+    show(field, ok ? null : fallback.get(field.key) ?? '');
+    return ok;
+  };
+  const say = (message: string) => {
+    status.textContent = message;
+    status.hidden = false;
+  };
+
+  nameField.input.addEventListener('input', () => {
+    cardName.textContent = nameField.input.value.trim() || text('placeholder');
+  });
+  for (const field of fields) {
+    field.input.addEventListener('input', () => {
+      if (field.input.hasAttribute('aria-invalid')) check(field);
+    });
+  }
+
+  let sending = false;
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (sending) return;
+    const invalid = fields.filter((field) => !check(field));
+    if (invalid[0]) {
+      invalid[0].input.focus();
+      return;
+    }
+    sending = true;
+    say(text('sending'));
+    const { data, error } = await actions.join(new FormData(form));
+    sending = false;
+    if (data) {
+      const sent = document.createElement('p');
+      sent.className = 'sent';
+      sent.textContent = text('sent').replace('{email}', data.email);
+      form.replaceChildren(sent);
+      return;
+    }
+    if (isInputError(error)) {
+      status.hidden = true;
+      for (const field of fields) show(field, error.fields[field.key]?.[0] ?? null);
+      emailField.input.focus();
+      return;
+    }
+    say(text('failed'));
+  });
+</script>
+
+<style>
+  .in { display: grid; gap: var(--space-8); padding-block: clamp(80px, 11vw, 168px); }
+  .headline { margin: var(--space-5) 0; max-width: 12ch; font-size: clamp(2.75rem, 1.3rem + 5vw, 6.25rem); line-height: .98; letter-spacing: -.035em; text-wrap: balance; }
+  .lead { margin: 0; }
+  .card { order: 1; }
+  .form { display: grid; gap: var(--space-5); max-width: 520px; }
+  .form .btn { justify-self: start; }
+  select.input { appearance: none; padding-inline-end: 48px; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: right 24px center, right 18px center; background-size: 6px 6px; background-repeat: no-repeat; cursor: pointer; }
+  .status { margin: 0; font-weight: 600; }
+  .form :global(.sent) { margin: 0; font-size: var(--size-head); line-height: 1.15; }
+  @media (min-width: 1000px) {
+    .in { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "copy card" "form card"; column-gap: var(--space-9); }
+    .copy { grid-area: copy; }
+    .form { grid-area: form; }
+    .card { grid-area: card; }
+  }
+</style>

@@ -1,0 +1,40 @@
+---
+import '@therestisaccountancy/brand/css';
+import '../styles/global.css';
+import sansFont from '@therestisaccountancy/brand/fonts/instrument-sans-normal-latin.woff2?url';
+import serifFont from '@therestisaccountancy/brand/fonts/geist-serif-normal.woff2?url';
+import { site } from '../data/club.ts';
+
+interface Props {
+  /** The page's own name. The site name follows it in the tab. */
+  title?: string;
+  description?: string;
+  /** Keep private pages out of search engines. */
+  noindex?: boolean;
+}
+
+const { title, description = site.description, noindex = false } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en-GB" data-brand="club" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title ? `${title} · ${site.name}` : site.title}</title>
+    <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <meta name="theme-color" content="#000000" />
+    <link rel="preload" href={serifFont} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={sansFont} as="font" type="font/woff2" crossorigin />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <slot />
+  </body>
+</html>
+
+<style>
+  .skip { position: absolute; z-index: 100; inset: var(--space-3) auto auto var(--space-3); padding: var(--space-3) var(--space-4); background: var(--ink); color: var(--bg); font-weight: 600; translate: 0 -200%; }
+  .skip:focus { translate: none; }
+</style>
