@@ -21,6 +21,8 @@ export const states = [
 ] as const;
 export type State = (typeof states)[number];
 
+export const isState = (value: string): value is State => states.some((state) => state === value);
+
 export const services = [
   { slug: 'bookkeeping', label: 'Bookkeeping' },
   { slug: 'management-accounts', label: 'Management accounts' },
@@ -37,11 +39,19 @@ export const services = [
 export type Service = (typeof services)[number];
 export type ServiceSlug = Service['slug'];
 
+export const serviceBySlug = (slug: string): Service | undefined => services.find((service) => service.slug === slug);
+export const isServiceSlug = (value: string): value is ServiceSlug => serviceBySlug(value) !== undefined;
+
 export const LISTING_LIMITS = {
   practice: 80,
   town: 60,
   niche: 80,
   bio: 500,
   qualifications: 160,
+  website: 200,
   note: 500,
 } as const;
+
+/** Where a listing sits in the public directory: its state's page, scrolled to the entry. */
+export const listingPath = (listing: { readonly memberId: number; readonly state: State }) =>
+  `/directory?${new URLSearchParams({ state: listing.state })}#listing-${listing.memberId}`;
