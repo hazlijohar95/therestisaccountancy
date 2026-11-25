@@ -1,11 +1,15 @@
 import { DurableObject } from 'cloudflare:workers';
 import { createBilling } from './billing.ts';
+import { createCalls } from './calls.ts';
 import { createClub } from './club.ts';
 import { createCommunity } from './community.ts';
+import { createFees } from './fees.ts';
 import { migrate, type Db } from './db.ts';
 import { createIncidents } from './incidents.ts';
 import { createLimits } from './limits.ts';
+import { createListings } from './listings.ts';
 import { createMailings } from './mailings.ts';
+import { createPlans } from './plans.ts';
 import { createSchedule } from './schedule.ts';
 
 /** The Durable Object's SQLite behind the club's Db interface. */
@@ -40,6 +44,10 @@ export class ClubStore extends DurableObject<Env> {
   readonly #schedule;
   readonly #billing;
   readonly #incidents;
+  readonly #plans;
+  readonly #calls;
+  readonly #listings;
+  readonly #fees;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -52,11 +60,15 @@ export class ClubStore extends DurableObject<Env> {
     this.#schedule = createSchedule(db);
     this.#billing = createBilling(db);
     this.#incidents = createIncidents(db);
+    this.#plans = createPlans(db);
+    this.#calls = createCalls(db);
+    this.#listings = createListings(db);
+    this.#fees = createFees(db);
     const email = (env.ADMIN_EMAIL ?? '').trim().toLowerCase();
     if (email) this.#club.appointAdmin({ email, name: 'Admin' });
   }
 
   open() {
-    return { club: this.#club, community: this.#community, limits: this.#limits, mailings: this.#mailings, schedule: this.#schedule, billing: this.#billing, incidents: this.#incidents };
+    return { club: this.#club, community: this.#community, limits: this.#limits, mailings: this.#mailings, schedule: this.#schedule, billing: this.#billing, incidents: this.#incidents, plans: this.#plans, calls: this.#calls, listings: this.#listings, fees: this.#fees };
   }
 }

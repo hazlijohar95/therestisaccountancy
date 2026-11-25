@@ -3,6 +3,7 @@ import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
 import { SESSION_KINDS } from './data/sessions.ts';
 import { programmeSlugs } from './data/programmes.ts';
+import { RESOURCE_KINDS } from './data/resources.ts';
 
 /* Lessons are Markdown files in src/lessons/<programme>/. A lesson appears in the members' area once its file exists. */
 const lessons = defineCollection({
@@ -46,4 +47,21 @@ const episodes = defineCollection({
   }),
 });
 
-export const collections = { lessons, recordings, episodes };
+/*
+ * Templates members use with their own clients: Markdown files in src/resources/. The body is the template itself;
+ * text in square brackets, like [Client name], is a placeholder the member fills in.
+ */
+const resources = defineCollection({
+  loader: glob({ pattern: '*.md', base: './src/resources' }),
+  schema: z.object({
+    title: z.string(),
+    programme: z.enum(programmeSlugs),
+    /** Which of the programme's topics it belongs to, counting from 1. */
+    module: z.number().int().min(1),
+    kind: z.enum(RESOURCE_KINDS),
+    /** One sentence on what it is for. */
+    summary: z.string().max(160),
+  }),
+});
+
+export const collections = { lessons, recordings, episodes, resources };

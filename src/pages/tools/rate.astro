@@ -4,6 +4,7 @@ import PageHead from '../../components/PageHead.astro';
 import RateCalculator from '../../components/RateCalculator.astro';
 import Section from '../../components/Section.astro';
 import Page from '../../layouts/Page.astro';
+import { programmeCount } from '../../data/club.ts';
 
 const method = [
   { term: 'Revenue to cover', detail: 'The income you want, plus what the practice costs to run.' },
@@ -19,7 +20,7 @@ const method = [
     <dl class="facts">
       {method.map(({ term, detail }) => <div><dt>{term}</dt><dd>{detail}</dd></div>)}
     </dl>
-    <p class="note">The result is a floor, not a price. Pricing, one of the six programmes, works on what to charge above it.</p>
+    <p class="note">The result is a floor, not a price. Pricing, one of the club's {programmeCount}, works on what to charge above it. The <a href="/tools/planner">planner</a> takes the same numbers and works out how many clients they take.</p>
   </Section>
   <Closing title="Know your floor. Now set your price." lead="The Pricing programme takes it from here: packages, repricing, and saying the number out loud.">
     <a class="btn ghost" href="/programmes/pricing">See Pricing</a>

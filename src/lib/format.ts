@@ -8,6 +8,13 @@ export const formatMoment = (value: string) => moment.format(new Date(value));
 /** 24 Nov 2026, in Malaysian time. */
 export const formatDay = (value: string | Date) => day.format(typeof value === 'string' ? new Date(value) : value);
 
+const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+
+/** "seven" for 7: copy spells out small counts. Past twelve it uses digits. */
+export const numberWord = (n: number) => WORDS[n] ?? String(n);
+
+export const capitalised = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+
 export const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
 /** "Hazli Johar, Abu Musa and Shukri Yusof" */

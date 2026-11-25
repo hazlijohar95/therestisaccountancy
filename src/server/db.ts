@@ -172,6 +172,83 @@ const MIGRATIONS: readonly string[] = [
   `
   ALTER TABLE payments ADD COLUMN reversed_at TEXT;
   `,
+  `
+  CREATE TABLE plans (
+    id INTEGER PRIMARY KEY,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    answers TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    submitted_at TEXT,
+    reply TEXT,
+    replied_by INTEGER REFERENCES members (id) ON DELETE SET NULL,
+    replied_at TEXT
+  );
+  CREATE UNIQUE INDEX one_open_plan_per_member ON plans (member_id) WHERE replied_at IS NULL;
+  CREATE INDEX plans_by_member ON plans (member_id, created_at);
+
+  CREATE TABLE call_slots (
+    id INTEGER PRIMARY KEY,
+    host_id INTEGER REFERENCES members (id) ON DELETE SET NULL,
+    starts_at TEXT NOT NULL,
+    minutes INTEGER NOT NULL CHECK (minutes > 0),
+    link TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    cancelled_at TEXT,
+    booked_by INTEGER REFERENCES members (id) ON DELETE SET NULL,
+    booked_at TEXT,
+    topic TEXT,
+    reminded_at TEXT
+  );
+  CREATE INDEX call_slots_by_start ON call_slots (starts_at);
+  CREATE INDEX call_slots_by_booker ON call_slots (booked_by) WHERE booked_by IS NOT NULL;
+
+  CREATE TABLE listings (
+    member_id INTEGER PRIMARY KEY REFERENCES members (id) ON DELETE CASCADE,
+    practice TEXT NOT NULL,
+    state TEXT NOT NULL,
+    town TEXT NOT NULL,
+    remote INTEGER NOT NULL DEFAULT 0 CHECK (remote IN (0, 1)),
+    services TEXT NOT NULL DEFAULT '[]',
+    niche TEXT NOT NULL DEFAULT '',
+    bio TEXT NOT NULL,
+    qualifications TEXT NOT NULL,
+    website TEXT,
+    contact_email TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    approved_at TEXT,
+    approved_by INTEGER REFERENCES members (id) ON DELETE SET NULL,
+    returned_note TEXT,
+    paused INTEGER NOT NULL DEFAULT 0 CHECK (paused IN (0, 1))
+  );
+
+  CREATE TABLE fee_responses (
+    id INTEGER PRIMARY KEY,
+    edition INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    stage TEXT NOT NULL,
+    years TEXT NOT NULL,
+    state TEXT NOT NULL,
+    team TEXT NOT NULL,
+    niche INTEGER NOT NULL CHECK (niche IN (0, 1)),
+    pricing TEXT NOT NULL,
+    hourly INTEGER,
+    bookkeeping INTEGER,
+    tax_return INTEGER,
+    confidence INTEGER NOT NULL CHECK (confidence BETWEEN 1 AND 5),
+    CHECK (hourly IS NOT NULL OR bookkeeping IS NOT NULL OR tax_return IS NOT NULL)
+  );
+  CREATE INDEX fee_responses_by_edition ON fee_responses (edition);
+
+  CREATE TABLE fee_editions (
+    edition INTEGER PRIMARY KEY,
+    published_at TEXT,
+    published_by INTEGER REFERENCES members (id) ON DELETE SET NULL
+  );
+
+  ALTER TABLE subscriptions ADD COLUMN term TEXT NOT NULL DEFAULT 'month' CHECK (term IN ('month', 'year'));
+  ALTER TABLE payments ADD COLUMN term TEXT NOT NULL DEFAULT 'month' CHECK (term IN ('month', 'year'));
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

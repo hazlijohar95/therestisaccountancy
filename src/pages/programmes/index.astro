@@ -2,13 +2,16 @@
 import Closing from '../../components/Closing.astro';
 import PageHead from '../../components/PageHead.astro';
 import Section from '../../components/Section.astro';
-import { teaching } from '../../data/club.ts';
+import { programmeCount, teaching } from '../../data/club.ts';
 import { programmePath, programmes } from '../../data/programmes.ts';
 import Page from '../../layouts/Page.astro';
+import { capitalised, listOf, numberWord } from '../../lib/format.ts';
+
+const Count = capitalised(programmeCount);
 ---
 
-<Page title="Programmes" description="Six programmes for accountants who run a practice: Foundations, Pricing, Clients, Visibility, Advisory and AI.">
-  <PageHead label="Programmes" title="Six programmes. Start with the one that hurts." lead="Each takes one part of running a practice and works it through, a module at a time." />
+<Page title="Programmes" description={`${Count} for accountants who run a practice: ${listOf(programmes.map((p) => p.name))}.`}>
+  <PageHead label="Programmes" title={`${Count}. Start with the one that hurts.`} lead="Each takes one part of running a practice and works it through, a module at a time." />
   <Section id="all" no={1} title="Which one first?" intro="Pick by the problem in front of you this month. Every programme is included in membership.">
     <div class="ep-list">
       {
@@ -29,7 +32,7 @@ import Page from '../../layouts/Page.astro';
   <Section id="taught" no={2} title="How is it taught?">
     <p class="lead">{teaching}</p>
   </Section>
-  <Closing title="Every programme comes with membership." lead="One membership opens all six, with the live sessions and the members' room." />
+  <Closing title="Every programme comes with membership." lead={`One membership opens all ${programmes.length === 1 ? 'of it' : numberWord(programmes.length)}, with the live sessions and the members' room.`} />
 </Page>
 
 <style>

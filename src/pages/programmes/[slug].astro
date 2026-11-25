@@ -5,7 +5,7 @@ import Episodes from '../../components/Episodes.astro';
 import Closing from '../../components/Closing.astro';
 import PageHead from '../../components/PageHead.astro';
 import Section from '../../components/Section.astro';
-import { obstacleFor, teaching } from '../../data/club.ts';
+import { obstacleFor, programmeCount, teaching } from '../../data/club.ts';
 import { programmePath, programmes, type Programme } from '../../data/programmes.ts';
 import Page from '../../layouts/Page.astro';
 
@@ -56,7 +56,7 @@ const episodes = (await getCollection('episodes', (e) => e.data.programme === pr
     {previous ? <a href={programmePath(previous)}><span class="label">Previous</span><span class="serif">{previous.name}</span></a> : <span></span>}
     {next && <a class="next" href={programmePath(next)}><span class="label">Next</span><span class="serif">{next.name}</span></a>}
   </nav>
-  <Closing title={`${programme.name} comes with membership.`} lead="One membership opens all six programmes, with the live sessions and the members' room." />
+  <Closing title={`${programme.name} comes with membership.`} lead={`One membership opens all ${programmeCount}, with the live sessions and the members' room.`} />
 </Page>
 
 <style>

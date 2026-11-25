@@ -11,8 +11,10 @@ interface Props {
 const member = Astro.locals.member;
 const links = [
   { href: '/members', label: 'Overview' },
-  { href: '/members/community', label: 'Community' },
+  { href: '/members/resources', label: 'Templates' },
   { href: '/members/sessions', label: 'Sessions' },
+  { href: '/members/calls', label: 'One-to-one' },
+  { href: '/members/community', label: 'Community' },
   { href: '/members/account', label: 'Account' },
   ...(member?.role === 'admin' ? [{ href: '/admin', label: 'Admin' }] : []),
 ];

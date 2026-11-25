@@ -52,7 +52,14 @@ const waiting = pending.length === 1 ? 'One request waiting.' : pending.length =
       Invite someone and the club makes them a member with a private link to set a password, emailed to
       them. It works once and lasts {LINK_DAYS.welcome} days. Open a member to edit them, send a reset link, suspend or remove them.
     </p>
-    <p class="tools"><a href="/admin/sessions">Sessions</a> <a href="/admin/members.csv" download>Download members (CSV)</a></p>
+    <p class="tools">
+      <a href="/admin/sessions">Sessions</a>
+      <a href="/admin/calls">One-to-one</a>
+      <a href="/admin/plans">Plans</a>
+      <a href="/admin/listings">Directory</a>
+      <a href="/admin/fees">Fee survey</a>
+      <a href="/admin/members.csv" download>Download members (CSV)</a>
+    </p>
   </Masthead>
 
   {invited?.data && <LinkNotice issued={invited.data} />}

@@ -7,15 +7,16 @@ import Questions from '../components/Questions.astro';
 import Section from '../components/Section.astro';
 import Steps from '../components/Steps.astro';
 import Week from '../components/Week.astro';
-import { join, joining } from '../data/club.ts';
+import { join, joining, programmeCount } from '../data/club.ts';
 import Page from '../layouts/Page.astro';
+import { capitalised } from '../lib/format.ts';
 ---
 
-<Page title="Membership" description="One membership: six programmes, live sessions every week, a members' room and help when you are stuck. Joining is by request.">
+<Page title="Membership" description={`One membership: ${programmeCount}, live sessions every week, a members' room and help when you are stuck. Joining is by request.`}>
   <PageHead
     label="Membership"
     title="One membership. The whole club."
-    lead="Six programmes, live sessions every week, a members' room and help when you are stuck. Joining is by request."
+    lead={`${capitalised(programmeCount)}, live sessions every week, a members' room and help when you are stuck. Joining is by request.`}
   >
     <a class="btn" href={join.href}>{join.label}</a>
     <a class="btn ghost" href="#how">How joining works</a>
