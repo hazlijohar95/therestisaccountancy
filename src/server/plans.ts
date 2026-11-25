@@ -55,7 +55,7 @@ export interface AnsweredPlan extends PlanBase {
 export type OpenPlan = DraftPlan | SentPlan;
 export type Plan = OpenPlan | AnsweredPlan;
 export type PlanStatus = Plan['status'];
-export type ReplyRefusal = 'not-found' | 'not-sent' | 'answered';
+export type ReplyRefusal = 'not-found' | 'not-sent' | 'changed' | 'answered';
 
 const statusOf = (row: Row): PlanStatus =>
   optionalText(row, 'replied_at') !== null ? 'answered' : optionalText(row, 'submitted_at') !== null ? 'sent' : 'draft';
@@ -212,15 +212,20 @@ export function createPlans(db: Db, now: () => Date = () => new Date()) {
       return plans(`${STATUS_SQL.answered} ORDER BY p.replied_at DESC, p.id DESC LIMIT ?`, limit).filter(isAnswered);
     },
 
-    /** A host's written answer. It closes the plan: from then on the member reads it and cannot change it. */
-    reply(hostId: number, planId: number, reply: string): Result<AnsweredPlan, ReplyRefusal> {
+    /**
+     * A host's written answer to the plan as they read it. It closes the plan: from then on the member reads it and
+     * cannot change it. If the member has taken the plan back and sent it again since, the answer is refused, so a
+     * plan never closes on text the host did not read.
+     */
+    reply(hostId: number, read: { readonly id: number; readonly sentAt: string }, reply: string): Result<AnsweredPlan, ReplyRefusal> {
       return attempt<AnsweredPlan, ReplyRefusal>(db, (refuse) => {
-        const plan = plans('p.id = ?', planId)[0];
+        const plan = plans('p.id = ?', read.id)[0];
         if (!plan) return refuse('not-found');
         if (plan.status !== 'sent') return refuse(plan.status === 'draft' ? 'not-sent' : 'answered');
-        db.prepare('UPDATE plans SET reply = ?, replied_by = ?, replied_at = ? WHERE id = ?').run(reply, hostId, iso(now()), planId);
-        const answered = plans('p.id = ?', planId)[0];
-        if (answered?.status !== 'answered') throw new Error(`Plan ${planId} was not answered`);
+        if (plan.sentAt !== read.sentAt) return refuse('changed');
+        db.prepare('UPDATE plans SET reply = ?, replied_by = ?, replied_at = ? WHERE id = ?').run(reply, hostId, iso(now()), plan.id);
+        const answered = plans('p.id = ?', plan.id)[0];
+        if (answered?.status !== 'answered') throw new Error(`Plan ${plan.id} was not answered`);
         return answered;
       });
     },

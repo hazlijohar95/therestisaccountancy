@@ -29,6 +29,7 @@ const withTheHosts: Refusal = { code: 'CONFLICT', message: 'Your plan is with th
 const replyRefusals: Record<ReplyRefusal, Refusal> = {
   'not-found': { code: 'NOT_FOUND', message: 'That plan is no longer here, so your answer was not sent. The member may have been removed.' },
   'not-sent': { code: 'CONFLICT', message: 'The member took that plan back to change it, so your answer was not sent. It comes back here when they send it again.' },
+  changed: { code: 'CONFLICT', message: 'The member changed this plan after you opened it, so your answer was not sent. Read it again. Your answer is still in the box.' },
   answered: { code: 'CONFLICT', message: 'That plan has been answered already, so your answer was not sent.' },
 };
 
@@ -80,6 +81,8 @@ export const plans = {
     accept: 'form',
     input: z.object({
       plan: id,
+      /** When the plan the host read was sent. A plan sent again since is not the one they answered. */
+      sentAt: z.string(),
       reply: z
         .string()
         .transform(tidy)
@@ -87,7 +90,7 @@ export const plans = {
     }),
     handler: async (input, context) => {
       const host = admin(context.locals);
-      const plan = settle(await context.locals.plans.reply(host.id, input.plan, input.reply), replyRefusals);
+      const plan = settle(await context.locals.plans.reply(host.id, { id: input.plan, sentAt: input.sentAt }, input.reply), replyRefusals);
       sendLater(context, [planAnsweredLetter(plan, host, absolute(context, `/members/plan/${plan.id}`))]);
       return { member: plan.member.name };
     },

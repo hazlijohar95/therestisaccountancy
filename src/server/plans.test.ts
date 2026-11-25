@@ -4,7 +4,7 @@ import { PLAN_ANSWER_MAX, planSections } from '../data/plan.ts';
 import { renderLetter } from '../emails/render.tsx';
 import { createClub } from './club.ts';
 import { openDatabase } from './node-db.ts';
-import { createPlans, missingSections, planAnsweredLetter, planSentLetter, waited } from './plans.ts';
+import { createPlans, missingSections, planAnsweredLetter, planSentLetter, waited, type SentPlan } from './plans.ts';
 import type { Result } from './result.ts';
 
 const PASSWORD = 'correct horse battery';
@@ -35,7 +35,12 @@ const setup = async () => {
   const later = (hours: number) => {
     clock.now = new Date(clock.now.getTime() + hours * HOUR);
   };
-  return { db, club, plans, host, aina, abu, later };
+  /** Sends the member's plan and returns it as the hosts read it. */
+  const sendAll = (memberId: number, answers: Record<string, string> = complete): SentPlan => {
+    value(plans.send(memberId, answers));
+    return plans.waiting().find((p) => p.member.id === memberId) ?? assert.fail(`member ${memberId}'s plan was not sent`);
+  };
+  return { db, club, plans, host, aina, abu, later, sendAll };
 };
 
 test('a draft keeps what is written so far: the plan’s own sections, tidied and capped', async () => {
@@ -91,15 +96,15 @@ test('a plan with the hosts changes only once it is taken back', async () => {
 });
 
 test('hosts see the longest-waiting plan first, and an answer closes it', async () => {
-  const { plans, host, aina, abu, later } = await setup();
+  const { plans, host, aina, abu, later, sendAll } = await setup();
   value(plans.save(abu.id, { destination: 'Still writing.' }));
-  const ainas = value(plans.send(aina.id, complete)).plan;
+  const ainas = sendAll(aina.id);
   later(5);
-  value(plans.send(abu.id, complete));
+  sendAll(abu.id);
   assert.deepEqual(plans.waiting().map((p) => p.member.name), ['Aina Rahman', 'Abu Musa']);
 
   later(1);
-  const answered = value(plans.reply(host.id, ainas.id, 'Start with pricing.'));
+  const answered = value(plans.reply(host.id, ainas, 'Start with pricing.'));
   assert.equal(answered.status, 'answered');
   assert.deepEqual(answered.reply, { text: 'Start with pricing.', by: 'Hazli Johar', at: '2026-11-25T07:00:00Z' });
   assert.equal(answered.sentAt, '2026-11-25T01:00:00Z');
@@ -108,18 +113,30 @@ test('hosts see the longest-waiting plan first, and an answer closes it', async 
   assert.deepEqual(plans.ofMember(aina.id), { open: null, answered: [answered] });
 
   assert.equal(reason(plans.takeBack(aina.id)), 'answered', 'too late to take it back');
-  assert.equal(reason(plans.reply(host.id, answered.id, 'A second answer.')), 'answered', 'one answer per plan');
+  assert.equal(reason(plans.reply(host.id, answered, 'A second answer.')), 'answered', 'one answer per plan');
   assert.deepEqual(plans.ofMember(aina.id).answered, [answered], 'the answer stands as first written');
 });
 
 test('a host can answer only a plan that is with the hosts', async () => {
   const { plans, host, aina } = await setup();
   const draft = value(plans.save(aina.id, complete));
-  assert.equal(reason(plans.reply(host.id, draft.id, 'Too soon.')), 'not-sent');
+  assert.equal(reason(plans.reply(host.id, { id: draft.id, sentAt: '' }, 'Too soon.')), 'not-sent');
   value(plans.send(aina.id, complete));
   value(plans.takeBack(aina.id));
-  assert.equal(reason(plans.reply(host.id, draft.id, 'Taken back.')), 'not-sent');
-  assert.equal(reason(plans.reply(host.id, 9999, 'Nobody.')), 'not-found');
+  assert.equal(reason(plans.reply(host.id, { id: draft.id, sentAt: '' }, 'Taken back.')), 'not-sent');
+  assert.equal(reason(plans.reply(host.id, { id: 9999, sentAt: '' }, 'Nobody.')), 'not-found');
+});
+
+test('an answer to a plan sent again since the host read it is refused', async () => {
+  const { plans, host, aina, later, sendAll } = await setup();
+  const read = sendAll(aina.id);
+  later(1);
+  value(plans.takeBack(aina.id));
+  const resent = sendAll(aina.id, { ...complete, destination: 'A different firm.' });
+  assert.equal(resent.id, read.id, 'the same plan, sent again');
+  assert.equal(reason(plans.reply(host.id, read, 'An answer to the old text.')), 'changed');
+  assert.deepEqual(plans.waiting(), [resent], 'it still waits, with the new text');
+  assert.equal(value(plans.reply(host.id, resent, 'An answer to the new text.')).reply.text, 'An answer to the new text.');
 });
 
 test('a member sees only their own plans', async () => {
@@ -130,9 +147,9 @@ test('a member sees only their own plans', async () => {
 });
 
 test('the next plan starts from the answered one, with the question blank', async () => {
-  const { plans, host, aina, abu } = await setup();
-  const first = value(plans.send(aina.id, complete)).plan;
-  value(plans.reply(host.id, first.id, 'Good plan.'));
+  const { plans, host, aina, abu, sendAll } = await setup();
+  const first = sendAll(aina.id);
+  value(plans.reply(host.id, first, 'Good plan.'));
 
   const next = plans.startNext(aina.id);
   assert.equal(next.status, 'draft');
@@ -152,11 +169,10 @@ test('the database holds each member to one open plan', async () => {
 });
 
 test('an answer outlives its host, and a removed member takes their plans with them', async () => {
-  const { club, plans, host, aina, abu } = await setup();
+  const { club, plans, host, aina, abu, sendAll } = await setup();
   const other = await club.ensureAdmin({ email: 'abu.host@club.test', name: 'Second Host', password: PASSWORD });
-  const sent = value(plans.send(aina.id, complete)).plan;
-  value(plans.reply(host.id, sent.id, 'Hire later.'));
-  value(plans.send(abu.id, complete));
+  value(plans.reply(host.id, sendAll(aina.id), 'Hire later.'));
+  sendAll(abu.id);
 
   value(club.removeMember(other.id, host.id));
   assert.equal(plans.ofMember(aina.id).answered[0]?.reply.by, null);
@@ -178,10 +194,8 @@ test('the wait is told in words', () => {
 });
 
 test('the admins hear a plan has come in, with its question and a link to answer it', async () => {
-  const { plans, aina } = await setup();
-  const { plan } = value(plans.send(aina.id, { ...complete, question: 'Should I hire first?\n\nOr raise fees?' }));
-  assert.equal(plan.status, 'sent');
-  if (plan.status !== 'sent') return;
+  const { aina, sendAll } = await setup();
+  const plan = sendAll(aina.id, { ...complete, question: 'Should I hire first?\n\nOr raise fees?' });
   const letter = planSentLetter(['hazli@club.test'], plan, 'https://better-accountant.com/admin/plans#plan-1');
   assert.deepEqual(letter.to, ['hazli@club.test'], 'never the member');
   assert.equal(letter.subject, 'Aina Rahman sent their plan');
@@ -192,9 +206,8 @@ test('the admins hear a plan has come in, with its question and a link to answer
 });
 
 test('the member hears from the host who answered, with a link to read it', async () => {
-  const { plans, host, aina } = await setup();
-  const sent = value(plans.send(aina.id, complete)).plan;
-  const answered = value(plans.reply(host.id, sent.id, 'Start with pricing.'));
+  const { plans, host, aina, sendAll } = await setup();
+  const answered = value(plans.reply(host.id, sendAll(aina.id), 'Start with pricing.'));
   const letter = planAnsweredLetter(answered, host, 'https://better-accountant.com/members/plan/1');
   assert.equal(letter.to, 'aina@firm.com.my');
   assert.equal(letter.from, 'Hazli from The Rest Is Accountancy');

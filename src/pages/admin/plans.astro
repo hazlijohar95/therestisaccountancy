@@ -20,11 +20,11 @@ const fieldErrors = answer?.error && isInputError(answer.error) ? answer.error.f
 const failure = answer?.error && !isInputError(answer.error) ? answer.error.message : null;
 const posted = answer?.error ? await postedFields(Astro.request) : () => '';
 const postedPlan = Number(posted('plan'));
-/* A refused answer's plan has left the list, so its text is shown back here rather than lost with the form. */
-const unsent = failure ? posted('reply') : '';
 
 const { plans } = Astro.locals;
 const [waiting, answered] = await Promise.all([plans.waiting(), plans.answered(ANSWERED_SHOWN)]);
+/* A plan still waiting keeps a refused answer in its own box. One that has left the list has it shown back up here. */
+const unsent = failure && !waiting.some((p) => p.id === postedPlan) ? posted('reply') : '';
 const now = new Date();
 const title = waiting.length === 0 ? 'No plans waiting.' : waiting.length === 1 ? 'One plan waiting.' : `${capitalised(numberWord(waiting.length))} plans waiting.`;
 ---
@@ -83,8 +83,10 @@ const title = waiting.length === 0 ? 'No plans waiting.' : waiting.length === 1 
                   <p class="small">Sent {formatMoment(p.sentAt)}. Waiting {waited(p.sentAt, now)}.</p>
                 </header>
                 <PlanLetter plan={p} level={4} />
+                {postedPlan === p.id && failure && <p class="error" role="alert">{failure}</p>}
                 <form method="POST" action={`${formAction(Astro.url, actions.answerPlan)}#plan-${p.id}`} class="reply">
                   <input type="hidden" name="plan" value={p.id} />
+                  <input type="hidden" name="sentAt" value={p.sentAt} />
                   <div class="field">
                     <label for={`reply-${p.id}`}>Your answer to {firstName(p.member.name)}</label>
                     <textarea
