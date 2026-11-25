@@ -21,6 +21,7 @@ test('the payment-due letter names the term the member paid for, and its rate', 
   assert.ok(yearly.text.includes('Your paid year ends on 31 Jan 2027.'));
   assert.ok(yearly.text.includes('(RM 990 a year)'));
   assert.ok(yearly.html.includes('>Pay for next year<'));
+  assert.ok(yearly.text.includes('You can change between paying by the month and by the year on the same page.'));
   assert.ok(!yearly.text.includes('RM 99 a month'));
 
   const month = paymentDueLetter(aina, { term: 'month', paidUntil: '2026-02-28T10:00:00Z', payUrl });

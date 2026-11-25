@@ -1,4 +1,4 @@
-import { terms, type Term } from '../data/membership.ts';
+import { TERMS, terms, type Term } from '../data/membership.ts';
 import { site } from '../data/site.ts';
 import { firstName, formatDay, formatMoment } from '../lib/format.ts';
 import type { JoinRequest, LinkPurpose } from './club.ts';
@@ -189,7 +189,7 @@ export function paymentDueLetter(to: Recipient, due: { term: Term; paidUntil: st
       hi(to.name),
       `Your paid ${due.term} ends on ${date}. To keep going, pay for the next one (${terms[due.term].label}) any time before then.`,
       { href: due.payUrl, label: `Pay for next ${due.term}` },
-      'You can change between paying by the month and by the year on the same page.',
+      `You can change between paying by the ${TERMS.join(' and by the ')} on the same page.`,
       'Not staying? No need to reply. Your access ends a few days after that date.',
     ],
   };
