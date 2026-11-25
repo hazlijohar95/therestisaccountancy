@@ -1,7 +1,9 @@
 ---
+import TemplateList from '../../../components/TemplateList.astro';
 import { programmeBySlug } from '../../../data/programmes.ts';
 import Members from '../../../layouts/Members.astro';
 import { lessonPath, lessonsOf } from '../../../server/lessons.ts';
+import { resourcesOf } from '../../../server/resources.ts';
 
 export const prerender = false;
 
@@ -12,7 +14,8 @@ if (!programme) return new Response(null, { status: 404, statusText: 'Not found'
 
 const done = await Astro.locals.club.completedLessons(member.id);
 const lessons = await lessonsOf(programme.slug);
-const modules = programme.topics.map((topic, i) => ({ topic, lessons: lessons.filter((l) => l.data.module === i + 1) }));
+const templates = await resourcesOf(programme.slug);
+const modules = programme.topics.map((topic, i) => ({ topic, lessons: lessons.filter((l) => l.data.module === i + 1), templates: templates.filter((t) => t.data.module === i + 1) }));
 const count = (n: number) => String(n).padStart(2, '0');
 ---
 
@@ -26,7 +29,7 @@ const count = (n: number) => String(n).padStart(2, '0');
   </section>
   <section class="wrap modules" aria-label="Modules">
     {
-      modules.map(({ topic, lessons }, i) => (
+      modules.map(({ topic, lessons, templates }, i) => (
         <article>
           <span class="serif n">{count(i + 1)}</span>
           <div>
@@ -42,6 +45,12 @@ const count = (n: number) => String(n).padStart(2, '0');
                   </li>
                 ))}
               </ol>
+            )}
+            {templates.length > 0 && (
+              <div class="templates">
+                <h3 class="label">Templates for this module</h3>
+                <TemplateList items={templates} />
+              </div>
             )}
           </div>
         </article>
@@ -65,4 +74,6 @@ const count = (n: number) => String(n).padStart(2, '0');
   ol { list-style: none; margin: 0; padding: 0; }
   li { display: flex; justify-content: space-between; gap: var(--space-4); padding-block: var(--space-3); border-top: var(--stroke-hair) solid var(--ink); }
   li a { font-weight: 600; }
+  .templates { margin-top: var(--space-6); }
+  .templates h3 { margin: 0 0 var(--space-3); }
 </style>
