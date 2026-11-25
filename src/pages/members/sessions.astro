@@ -58,7 +58,7 @@ const recordings = (await getCollection('recordings')).sort((a, b) => b.data.dat
     <h2 class="head" id="kinds-title">Three kinds of session</h2>
     <Steps items={week.sessions} />
     <dl class="facts">
-      {week.between.map(({ term, detail }) => <div><dt>{term}</dt><dd>{detail}</dd></div>)}
+      {week.between.map(({ term, detail }) => <div><dt>{term}</dt><dd>{detail}{term === "When you're stuck" && <> <a href="/members/calls">Book a call</a></>}</dd></div>)}
     </dl>
   </section>
   <section class="wrap block" aria-labelledby="recordings-title">
