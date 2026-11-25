@@ -1,4 +1,4 @@
-import { ActionError, defineAction } from 'astro:actions';
+import { ActionError, defineAction, type ActionAPIContext } from 'astro:actions';
 import { z } from 'astro/zod';
 import { ROLES, type EditRefusal, type InviteRefusal, type LinkRefusal } from '../server/club.ts';
 import { callLetters } from '../server/calls.ts';
@@ -20,6 +20,19 @@ const linkRefusals: Record<LinkRefusal, Refusal> = {
   'not-found': memberRefusals['not-found'],
   suspended: { code: 'CONFLICT', message: 'A suspended member cannot get a link. Reinstate them first.' },
 };
+
+/**
+ * Calls booked with a host, gathered before a change that stops them hosting: removal, suspension or losing the admin
+ * role. Their slots then read as cancelled, and these members are told as if the host had cancelled.
+ */
+const bookedWith = async (context: ActionAPIContext, memberId: number) => {
+  const host = await context.locals.club.member(memberId);
+  if (!host || host.role !== 'admin') return [];
+  return (await context.locals.calls.upcoming()).flatMap((slot) => (slot.state === 'booked' && slot.host.email === host.email ? [slot] : []));
+};
+
+const tellCalledOff = (context: ActionAPIContext, calls: Awaited<ReturnType<typeof bookedWith>>) =>
+  sendLater(context, calls.flatMap((call) => callLetters('cancelled-by-host', call, absolute(context, '/'))));
 
 export const adminActions = {
   invite: defineAction({
@@ -55,7 +68,9 @@ export const adminActions = {
     input: z.object({ member: id, name: memberName, email, role: z.enum(ROLES).optional() }),
     handler: async (input, context) => {
       const actor = admin(context.locals);
-      settle(await context.locals.club.updateMember(actor.id, input.member, input), memberRefusals);
+      const booked = await bookedWith(context, input.member);
+      const updated = settle(await context.locals.club.updateMember(actor.id, input.member, input), memberRefusals);
+      if (updated.role !== 'admin') tellCalledOff(context, booked);
       return { saved: true };
     },
   }),
@@ -65,7 +80,9 @@ export const adminActions = {
     input: z.object({ member: id }),
     handler: async (input, context) => {
       const actor = admin(context.locals);
+      const booked = await bookedWith(context, input.member);
       settle(await context.locals.club.suspendMember(actor.id, input.member), memberRefusals);
+      tellCalledOff(context, booked);
       return { status: 'suspended' as const };
     },
   }),
@@ -85,11 +102,9 @@ export const adminActions = {
     input: z.object({ member: id, confirm: z.literal('yes', { error: 'Tick the box to confirm.' }) }),
     handler: async (input, context) => {
       const actor = admin(context.locals);
-      /* Removing a host takes their slots with them. Members who booked one are told, as when a host cancels. */
-      const leaving = await context.locals.club.member(input.member);
-      const booked = (await context.locals.calls.upcoming()).filter((slot) => slot.state === 'booked' && slot.host.email === leaving?.email);
+      const booked = await bookedWith(context, input.member);
       settle(await context.locals.club.removeMember(actor.id, input.member), memberRefusals);
-      sendLater(context, booked.flatMap((call) => (call.state === 'booked' ? callLetters('cancelled-by-host', call, absolute(context, '/')) : [])));
+      tellCalledOff(context, booked);
       return { removed: true };
     },
   }),

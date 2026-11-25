@@ -64,7 +64,8 @@ const iso = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
 const later = (at: Date, ms: number) => new Date(at.getTime() + ms);
 
 /**
- * Every slot with its state, the one place the state is worked out. A slot without a host is off. A booked slot
+ * Every slot with its state, the one place the state is worked out. A slot whose host is gone, suspended or no
+ * longer an admin is off. A booked slot
  * stays booked until the call ends. An unbooked one is open until booking closes, then over. Binds two instants
  * first, in this order: now, then the moment booking closes for a call starting now.
  */
@@ -72,7 +73,7 @@ const SLOT = `WITH slot AS (
   SELECT s.id, s.starts_at, s.minutes, s.link, s.host_id, s.booked_by, s.booked_at, s.topic, s.reminded_at,
     h.name AS host_name, h.email AS host_email, b.name AS member_name, b.email AS member_email,
     CASE
-      WHEN s.cancelled_at IS NOT NULL OR s.host_id IS NULL THEN 'cancelled'
+      WHEN s.cancelled_at IS NOT NULL OR s.host_id IS NULL OR h.role != 'admin' OR h.suspended_at IS NOT NULL THEN 'cancelled'
       WHEN s.booked_by IS NOT NULL THEN
         CASE WHEN strftime('%Y-%m-%dT%H:%M:%SZ', s.starts_at, '+' || s.minutes || ' minutes') > ? THEN 'booked' ELSE 'over' END
       WHEN s.starts_at > ? THEN 'open'

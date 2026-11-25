@@ -305,3 +305,20 @@ test('a host cancelling tells only the member, from the host, and points them at
   assert.ok(!html.includes(`href="${LINK}"`), 'no link to a call that is off');
   assert.match(calendarOf(letter), /METHOD:CANCEL[\s\S]*STATUS:CANCELLED/);
 });
+
+test('a host who is suspended or loses the admin role takes their slots off the list, booked ones included', async () => {
+  const w = await world();
+  const booked = w.slot(THURSDAY);
+  const open = w.slot(shift(THURSDAY, 2 * HOUR));
+  value(w.calls.book(w.aina.id, booked, 'Pricing a messy client.'));
+  assert.deepEqual(w.openIds(w.abu.id), [open]);
+
+  value(w.club.suspendMember(w.shukri.id, w.hazli.id));
+  assert.deepEqual(w.openIds(w.abu.id), [], 'nothing left to book with a suspended host');
+  assert.equal(w.calls.booking(w.aina.id), null, 'the booked call is off');
+  assert.equal(reason(w.calls.book(w.abu.id, open, 'Anything.')), 'closed');
+
+  value(w.club.reinstateMember(w.hazli.id));
+  value(w.club.updateMember(w.shukri.id, w.hazli.id, { name: 'Hazli Johar', email: 'hazli@club.test', role: 'member' }));
+  assert.deepEqual(w.openIds(w.abu.id), [], 'nor with a host who is no longer an admin');
+});
