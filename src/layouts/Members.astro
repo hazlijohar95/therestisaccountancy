@@ -51,5 +51,7 @@ const current = (href: string) => (here === href || (href !== '/members' && here
   form { margin: 0; }
   .out { min-height: 40px; padding: .55em 1em; font-size: var(--size-small); }
   .foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-3); padding-block: var(--space-6); border-top: var(--stroke-hair) solid var(--ink); margin-top: var(--space-9); }
-  @media (max-width: 720px) { .in { flex-wrap: wrap; padding-block: var(--space-3); } .home { width: 124px; } nav { order: 3; width: 100%; margin: 0; flex-wrap: wrap; row-gap: 0; column-gap: var(--space-4); overflow: visible; } form { margin-inline-start: auto; } }
+  /* Seven links with Admin need about 600px beside the logo; below that they take a row of their own. */
+  @media (max-width: 1060px) { .in { flex-wrap: wrap; padding-block: var(--space-3); } nav { order: 3; width: 100%; margin: 0; flex-wrap: wrap; row-gap: 0; column-gap: var(--space-4); overflow: visible; } form { margin-inline-start: auto; } }
+  @media (max-width: 720px) { .home { width: 124px; } }
 </style>
