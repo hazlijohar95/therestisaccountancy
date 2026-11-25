@@ -16,6 +16,9 @@ export default defineConfig({
       MAIL_FROM: bindings.text(sender),
       /** The admin appointed on start. They set a password with a link from the forgot-password page. */
       ADMIN_EMAIL: bindings.secret(),
+      /** CHIP Collect: the secret key and brand from portal.chip-in.asia. Test keys take only test cards. */
+      CHIP_SECRET_KEY: bindings.secret(),
+      CHIP_BRAND_ID: bindings.secret(),
     },
     exports: {
       ClubStore: exports.durableObject({ storage: 'sqlite' }),

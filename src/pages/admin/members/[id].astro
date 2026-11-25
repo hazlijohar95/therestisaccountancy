@@ -33,11 +33,15 @@ const failure = [updated, suspended, reinstated, issued, removed]
   .find((message) => message !== null);
 const done = updated?.data ? 'Saved.' : suspended?.data ? 'Suspended. They are signed out everywhere.' : reinstated?.data ? 'Reinstated. They can sign in with their password.' : null;
 
-const [completed, postCount] = await Promise.all([Astro.locals.club.completedLessons(member.id), Astro.locals.community.postCount(member.id)]);
+const [completed, postCount, standing] = await Promise.all([Astro.locals.club.completedLessons(member.id), Astro.locals.community.postCount(member.id), Astro.locals.billing.standing(member.id)]);
 const lessonsDone = completed.size;
 const facts = [
   { term: 'Member number', detail: memberNumber(member) },
   { term: 'Status', detail: statusLabel[member.status] },
+  {
+    term: 'Paid',
+    detail: member.role === 'admin' ? 'Admins do not pay' : standing.paidUntil ? `Until ${formatDay(standing.paidUntil)}${standing.access === 'grace' ? ', renewal failing' : ''}${standing.cardOnFile && standing.renews ? ', renews by card' : ', not renewing'}` : 'Not yet',
+  },
   { term: 'Role', detail: roleLabel[member.role] },
   { term: 'Since', detail: formatDay(member.joinedAt) },
   { term: 'Lessons done', detail: String(lessonsDone) },

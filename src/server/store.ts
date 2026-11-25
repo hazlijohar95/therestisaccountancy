@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
+import { createBilling } from './billing.ts';
 import { createClub } from './club.ts';
 import { createCommunity } from './community.ts';
 import { migrate, type Db } from './db.ts';
@@ -36,6 +37,7 @@ export class ClubStore extends DurableObject<Env> {
   readonly #limits;
   readonly #mailings;
   readonly #schedule;
+  readonly #billing;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -46,11 +48,12 @@ export class ClubStore extends DurableObject<Env> {
     this.#limits = createLimits(db);
     this.#mailings = createMailings(db);
     this.#schedule = createSchedule(db);
+    this.#billing = createBilling(db);
     const email = (env.ADMIN_EMAIL ?? '').trim().toLowerCase();
     if (email) this.#club.appointAdmin({ email, name: 'Admin' });
   }
 
   open() {
-    return { club: this.#club, community: this.#community, limits: this.#limits, mailings: this.#mailings, schedule: this.#schedule };
+    return { club: this.#club, community: this.#community, limits: this.#limits, mailings: this.#mailings, schedule: this.#schedule, billing: this.#billing };
   }
 }

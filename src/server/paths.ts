@@ -12,3 +12,5 @@ export function safeNext(value: string | null, fallback = '/members'): string {
   return value;
 }
 
+/** Member pages open to a member who has not paid: where they pay, and their account. Admins never pay. */
+export const needsPayment = (pathname: string) => !['/members/pay', '/members/account'].includes(pathname.replace(/\/$/, ''));

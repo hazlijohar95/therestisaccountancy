@@ -1,6 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
 import { openStore } from './server/instance.ts';
-import { requiredRole } from './server/paths.ts';
+import { needsPayment, requiredRole } from './server/paths.ts';
 
 export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.member = null;
@@ -13,6 +13,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     context.locals.limits = store.limits;
     context.locals.mailings = store.mailings;
     context.locals.schedule = store.schedule;
+    context.locals.billing = store.billing;
     const key = await context.session?.get('signedIn');
     context.locals.member = key ? await store.club.sessionMember(key) : null;
 
@@ -21,6 +22,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
       return context.redirect(`/sign-in?next=${encodeURIComponent(context.url.pathname)}`);
     }
     if (role === 'admin' && context.locals.member?.role !== 'admin') return context.redirect('/members');
+    const member = context.locals.member;
+    if (role === 'member' && member?.role === 'member' && needsPayment(context.url.pathname) && (await store.billing.access(member.id)) === 'unpaid') {
+      return context.redirect('/members/pay');
+    }
     return await next();
   } finally {
     store[Symbol.dispose]();

@@ -135,6 +135,26 @@ const MIGRATIONS: readonly string[] = [
     PRIMARY KEY (session_id, member_id)
   );
   `,
+  `
+  CREATE TABLE subscriptions (
+    member_id INTEGER PRIMARY KEY REFERENCES members (id) ON DELETE CASCADE,
+    paid_until TEXT NOT NULL,
+    card_token TEXT,
+    renews INTEGER NOT NULL DEFAULT 1 CHECK (renews IN (0, 1)),
+    last_attempt_at TEXT
+  );
+
+  CREATE TABLE payments (
+    purchase_id TEXT PRIMARY KEY,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('checkout', 'renewal')),
+    amount INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'created' CHECK (status IN ('created', 'paid', 'failed')),
+    created_at TEXT NOT NULL,
+    paid_at TEXT
+  );
+  CREATE INDEX payments_by_member ON payments (member_id, created_at);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

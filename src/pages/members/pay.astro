@@ -1,0 +1,58 @@
+---
+import { actions } from 'astro:actions';
+import Masthead from '../../components/Masthead.astro';
+import Notice from '../../components/Notice.astro';
+import { monthlyRate } from '../../data/membership.ts';
+import Members from '../../layouts/Members.astro';
+import { formAction, formatDay } from '../../lib/format.ts';
+import { settle } from '../../server/payments.ts';
+
+export const prerender = false;
+
+const me = Astro.locals.member;
+if (!me) return Astro.redirect('/sign-in');
+if (me.role === 'admin') return Astro.redirect('/members');
+
+const started = Astro.getActionResult(actions.checkout);
+if (started?.data) return Astro.redirect(started.data.url);
+
+/* Back from CHIP: its callback may not have landed yet, so ask CHIP directly. */
+const back = Astro.url.searchParams.get('back');
+if (back === 'paid') {
+  const open = await Astro.locals.billing.openCheckout(me.id);
+  if (open) await settle(Astro.locals.billing, open).catch((error: unknown) => console.error('Could not check the payment with CHIP', error));
+}
+const standing = await Astro.locals.billing.standing(me.id);
+if (back === 'paid' && standing.access === 'paid') return Astro.redirect('/members?paid');
+
+const lapsed = standing.paidUntil !== null;
+---
+
+<Members title="Membership">
+  <Masthead label="Membership" title={lapsed ? 'Your membership needs a payment.' : `Welcome, ${me.name}. One step left.`}>
+    <p>
+      {
+        lapsed
+          ? `Your last paid month ended on ${formatDay(standing.paidUntil ?? '')}. Pay with a card to carry on; it renews each month on that card.`
+          : `Membership is ${monthlyRate}. Pay the first month by card and you are in. It renews each month on the same card until you turn renewal off in your account.`
+      }
+    </p>
+  </Masthead>
+
+  {back === 'failed' && <Notice tone="error">The payment did not go through, and nothing was charged. Try again, or use another card.</Notice>}
+  {back === 'paid' && standing.access !== 'paid' && <Notice>CHIP is still confirming your payment. Refresh this page in a minute.</Notice>}
+  {started?.error && <Notice tone="error">{started.error.message}</Notice>}
+
+  <section class="wrap block" aria-labelledby="pay-title">
+    <h2 class="head" id="pay-title">{monthlyRate}</h2>
+    <form method="POST" action={formAction(Astro.url, actions.checkout)}>
+      <button class="btn" type="submit">Pay by card with CHIP</button>
+    </form>
+    <p class="small">You pay on CHIP's secure page, then come straight back here. CHIP emails you a receipt. Cancel any time: you keep access to the end of the month you paid for.</p>
+  </section>
+</Members>
+
+<style>
+  .block { display: grid; gap: var(--space-5); padding-block: clamp(48px, 6vw, 80px) 0; }
+  .block > * { max-width: 640px; margin: 0; }
+</style>

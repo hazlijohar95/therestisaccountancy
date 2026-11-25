@@ -21,7 +21,7 @@ export const asText = (line: Line) => (typeof line === 'string' ? line : line.hr
 export const asHtml = (line: Line) => (typeof line === 'string' ? `<p>${escape(line)}</p>` : `<p><a href="${escape(line.href)}">${escape(line.href)}</a></p>`);
 
 /** A password link: an invitation for someone without a password, a reset for a member who has one. */
-export function passwordLetter(link: { email: string; name: string; purpose: LinkPurpose; link: string; expiresAt: string }): Letter {
+export function passwordLetter(link: { email: string; name: string; purpose: LinkPurpose; link: string; expiresAt: string; rate: string | null }): Letter {
   const until = formatDay(link.expiresAt);
   const body = {
     welcome: {
@@ -29,7 +29,9 @@ export function passwordLetter(link: { email: string; name: string; purpose: Lin
       lines: [
         `Your membership of ${site.name} is ready. Set your password with this link. It works once, until ${until}.`,
         { href: link.link },
-        'Then sign in and open the programme that matters most to you this month.',
+        link.rate
+          ? `Membership is ${link.rate}. Once your password is set, you pay the first month by card, and you are in.`
+          : 'Then sign in and open the programme that matters most to you this month.',
       ],
     },
     reset: {
@@ -110,4 +112,21 @@ export function sessionLetters(news: SessionNews, session: LiveSession, members:
     const letter = { to: to.email, subject: flat(subject), lines: [`Hello ${to.name},`, ...lines, 'Every session:', { href: sessionsUrl }, site.name] };
     return attachments ? { ...letter, attachments } : letter;
   });
+}
+
+/** A monthly renewal did not go through. The member keeps access through the grace period while it is retried. */
+export function renewalLetter(to: Recipient, failure: { cardRefused: boolean; accessUntil: string; payUrl: string }): Letter {
+  return {
+    to: to.email,
+    subject: `Your ${site.name} renewal did not go through`,
+    lines: [
+      `Hello ${to.name},`,
+      failure.cardRefused
+        ? 'Your card on file can no longer be charged, so your membership did not renew.'
+        : 'The charge for this month was declined. We will try the same card again tomorrow.',
+      `You keep access until ${formatDay(failure.accessUntil)}. To pay now, or with another card:`,
+      { href: failure.payUrl },
+      site.name,
+    ],
+  };
 }
