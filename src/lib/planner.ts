@@ -72,7 +72,6 @@ export interface Row {
   readonly month: number;
   /** Whole clients at the end of the month. */
   readonly clients: number;
-  /** Fees that month. */
   readonly fees: number;
   /** Clients as a share of the target, 0 to 1. */
   readonly fill: number;
@@ -107,7 +106,7 @@ export type Plan =
       readonly milestones: readonly Milestone[];
     };
 
-/* Float noise must not push an exact answer across a whole number: 13 / 18 * 18 is 12.999999999999998. */
+/* Float noise must not push an exact answer across a whole number: 1 / 49 * 49 is 0.9999999999999999. */
 const EPSILON = 1e-9;
 const up = (value: number) => Math.ceil(value - EPSILON);
 const down = (value: number) => Math.floor(value + EPSILON);
@@ -198,7 +197,7 @@ export const markLabels: Record<MilestoneKind, string> = {
   target: 'Target met',
 };
 
-export type LedgerLine = 'fees' | 'costs' | 'left' | 'gap' | 'newPerMonth' | 'calls' | 'hours';
+export type LedgerLine = 'revenue' | 'fees' | 'costs' | 'left' | 'gap' | 'newPerMonth' | 'calls' | 'hours';
 
 export interface TableRow {
   readonly month: string;
@@ -221,7 +220,7 @@ export interface Explanation {
 }
 
 const NONE = '—';
-const emptyLedger: Record<LedgerLine, string> = { fees: NONE, costs: NONE, left: NONE, gap: NONE, newPerMonth: NONE, calls: NONE, hours: NONE };
+const emptyLedger: Record<LedgerLine, string> = { revenue: NONE, fees: NONE, costs: NONE, left: NONE, gap: NONE, newPerMonth: NONE, calls: NONE, hours: NONE };
 
 /** The plan in words and figures, ready to write into the page. */
 export function explain(inputs: PlannerInputs): Explanation {
@@ -250,19 +249,7 @@ export function explain(inputs: PlannerInputs): Explanation {
       const replacing = newClients - gap;
       const notes = [
         ...(replacing <= 0 ? [] : [replacing === 1 ? 'Of those, 1 replaces a client who leaves.' : `Of those, ${whole.format(replacing)} replace clients who leave.`]),
-        ...milestones.flatMap((milestone): string[] => {
-          switch (milestone.kind) {
-            case 'costs':
-              return [milestone.month === 0 ? 'Your fees already cover your running costs.' : `Your fees cover your running costs from month ${milestone.month}.`];
-            case 'hours': {
-              if (milestone.month === 0) return ['Your clients today already need more hours than you have. Hire help or raise your fees first.'];
-              const clients = rows[milestone.month]?.clients ?? target.clients;
-              return [`Your hours run out in month ${milestone.month}, at ${tally(clients, 'client')}. Hire help or raise your fees before then.`];
-            }
-            case 'target':
-              return [];
-          }
-        }),
+        ...rows.flatMap((row) => row.marks.flatMap((kind) => milestoneNote(kind, row))),
         ...(milestones.some((milestone) => milestone.kind === 'hours') ? [] : hoursNote(`At ${tally(target.clients, 'client')} you`, hours)),
       ];
       return {
@@ -283,6 +270,21 @@ export function explain(inputs: PlannerInputs): Explanation {
   }
 }
 
+function milestoneNote(kind: MilestoneKind, row: Row): string[] {
+  switch (kind) {
+    case 'costs':
+      return [row.month === 0 ? 'Your fees already cover your running costs.' : `Your fees cover your running costs from month ${row.month}.`];
+    case 'hours':
+      return [
+        row.month === 0
+          ? 'Your clients today already need more hours than you have. Hire help or raise your fees first.'
+          : `Your hours run out in month ${row.month}, at ${tally(row.clients, 'client')}. Hire help or raise your fees before then.`,
+      ];
+    case 'target':
+      return [];
+  }
+}
+
 function hoursNote(who: string, hours: Hours): string[] {
   if (hours.needed === 0) return [];
   const needed = whole.format(hours.needed);
@@ -298,5 +300,5 @@ function opening(inputs: PlannerInputs, target: Target): string {
 }
 
 function ledgerFor(inputs: PlannerInputs, target: Target, hours: Hours): Record<LedgerLine, string> {
-  return { ...emptyLedger, fees: ringgit(target.fees), costs: ringgit(inputs.costs), left: ringgit(target.left), hours: hoursOf(hours) };
+  return { ...emptyLedger, revenue: ringgit(target.revenue), fees: ringgit(target.fees), costs: ringgit(inputs.costs), left: ringgit(target.left), hours: hoursOf(hours) };
 }

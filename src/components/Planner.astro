@@ -121,9 +121,10 @@ const groups: readonly { legend: string; fields: readonly Field[] }[] = [
           <div class="notes" data-out="notes">{view.notes.map((note) => <p>{note}</p>)}</div>
         </div>
         <table class="ledger">
-          <caption>A year at the target</caption>
+          <caption>A year</caption>
           <tbody>
-            <tr><th scope="row">Fees</th><td data-out="fees">{view.ledger.fees}</td></tr>
+            <tr><th scope="row">Revenue to cover</th><td data-out="revenue">{view.ledger.revenue}</td></tr>
+            <tr><th scope="row">Fees at the target</th><td data-out="fees">{view.ledger.fees}</td></tr>
             <tr><th scope="row">Running costs</th><td data-out="costs">{view.ledger.costs}</td></tr>
             <tr><th scope="row">Left for you</th><td><span class="total" data-out="left">{view.ledger.left}</span></td></tr>
           </tbody>
@@ -250,15 +251,12 @@ const groups: readonly { legend: string; fields: readonly Field[] }[] = [
   .months { font-size: var(--size-small); border-top: 0; }
   .months th, .months td { padding-block: var(--space-2); }
   .months thead th { font-weight: 600; }
-  .months thead th:last-child, .track { width: 45%; text-align: start; white-space: normal; }
+  .months thead th:last-child, .months .track { width: 45%; text-align: start; white-space: normal; }
   .bar { display: block; inline-size: calc(var(--fill, 0) * 100%); block-size: var(--stroke-heavy); background: var(--ink); }
   tr[data-over] .bar { background: repeating-linear-gradient(90deg, var(--ink) 0 3px, transparent 3px 6px); }
   .mark { display: block; margin-top: var(--space-1); font-weight: 600; }
   .mark:empty { display: none; }
   tr[data-mark] th { font-weight: 600; }
 
-  @media (min-width: 760px) {
-    .calc { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
-    .out { position: sticky; top: calc(var(--bar) + 24px); }
-  }
+  @media (min-width: 760px) { .calc { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; } }
 </style>

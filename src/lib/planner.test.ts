@@ -71,7 +71,7 @@ test('says the plan in one sentence', () => {
 test('writes the figures and the month-by-month table', () => {
   const view = explain(leaving);
   assert.equal(view.figure, '21');
-  assert.deepEqual(view.ledger, { fees: 'RM 151,200', costs: 'RM 30,000', left: 'RM 121,200', gap: '18', newPerMonth: '1.1', calls: '4', hours: '84 of 91' });
+  assert.deepEqual(view.ledger, { revenue: 'RM 150,000', fees: 'RM 151,200', costs: 'RM 30,000', left: 'RM 121,200', gap: '18', newPerMonth: '1.1', calls: '4', hours: '84 of 91' });
   assert.equal(view.rows.length, 19);
   assert.deepEqual(view.rows[0], { month: 'Today', clients: '3', fees: 'RM 1,800', fill: 3 / 21, over: false, marks: '' });
   assert.deepEqual(view.rows.at(-1), { month: '18', clients: '21', fees: 'RM 12,600', fill: 1, over: false, marks: 'Target met' });
