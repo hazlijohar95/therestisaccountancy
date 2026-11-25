@@ -95,7 +95,7 @@ const programmePage = `/members/programmes/${programme.slug}`;
 
   /** The template as plain text, for anywhere that takes a paste without formatting. */
   const asText = (): string => {
-    const flat = (node: Element) => (node.textContent ?? '').replace(/\s+/g, ' ').trim();
+    const flat = (node: Element) => (node instanceof HTMLElement ? node.innerText : (node.textContent ?? '')).replace(/[ \t]+/g, ' ').trim();
     const marker = (list: Element, item: Element, i: number) =>
       item.classList.contains('task-list-item') ? '☐' : list instanceof HTMLOListElement ? `${list.start + i}.` : '-';
     return Array.from(sheet.children, (block) => {
