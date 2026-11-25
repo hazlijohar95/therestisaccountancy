@@ -1,0 +1,212 @@
+---
+import { actions, isInputError } from 'astro:actions';
+import Masthead from '../../components/Masthead.astro';
+import Notice from '../../components/Notice.astro';
+import PlanLetter from '../../components/PlanLetter.astro';
+import { PLAN_ANSWER_MAX, planSections, type PlanSectionSlug } from '../../data/plan.ts';
+import Members from '../../layouts/Members.astro';
+import { postedFields } from '../../lib/form.ts';
+import { capitalised, formAction, formatDay, formatMoment, numberWord } from '../../lib/format.ts';
+import { missingSections } from '../../server/plans.ts';
+
+export const prerender = false;
+
+const me = Astro.locals.member;
+if (!me) return Astro.redirect('/sign-in');
+
+/* Each action lands on a plain address, so a refresh never posts twice. */
+const saved = Astro.getActionResult(actions.savePlan);
+const sent = Astro.getActionResult(actions.sendPlan);
+const takenBack = Astro.getActionResult(actions.takeBackPlan);
+const started = Astro.getActionResult(actions.startPlan);
+if (saved?.data) return Astro.redirect('/members/plan?saved');
+if (sent?.data) return Astro.redirect(sent.data.sent ? '/members/plan?sent' : '/members/plan?unsent');
+if (takenBack?.data) return Astro.redirect('/members/plan?back');
+if (started?.data) return Astro.redirect('/members/plan?started');
+
+const writeError = saved?.error ?? sent?.error;
+const fieldErrors = writeError && isInputError(writeError) ? writeError.fields : {};
+const failure = [saved, sent, takenBack, started].map((r) => (r?.error && !isInputError(r.error) ? r.error.message : null)).find(Boolean) ?? null;
+/* Text posted but not saved, because an answer ran too long or the plan was already with the hosts. It is shown back. */
+const posted = writeError ? await postedFields(Astro.request) : null;
+
+const { open, answered } = await Astro.locals.plans.ofMember(me.id);
+const latest = answered[0] ?? null;
+const draft = open?.status === 'draft' ? open : null;
+const writing = draft !== null || (open === null && (latest === null || posted !== null));
+
+const asked = (key: string) => Astro.url.searchParams.has(key);
+const unsent = draft !== null && asked('unsent') && posted === null;
+/** What the last action did, said only while it is still true. */
+const outcomes = [
+  { key: 'saved', holds: draft !== null, text: 'Draft saved.' },
+  { key: 'sent', holds: open?.status === 'sent', text: 'Sent to the hosts. You will get the answer by email.' },
+  { key: 'back', holds: draft !== null, text: 'Taken back. It is a draft again, and off the hosts’ list until you send it.' },
+  { key: 'started', holds: draft !== null, text: 'Your next plan is open. It starts from your last one, with a blank question.' },
+];
+const notice = outcomes.find((o) => o.holds && asked(o.key))?.text ?? null;
+
+const missing = new Set<PlanSectionSlug>(unsent && draft ? missingSections(draft.answers) : []);
+const answerOf = (slug: PlanSectionSlug) => (posted ? posted(slug) : (draft?.answers[slug] ?? ''));
+const errorOf = (slug: PlanSectionSlug) => fieldErrors[slug]?.[0] ?? (missing.has(slug) ? 'Write this section before you send it.' : null);
+const unsaved = open?.status === 'sent' && posted ? planSections.filter((s) => posted(s.slug).trim() !== '') : [];
+const sections = numberWord(planSections.length);
+const done = planSections.length - missingSections(draft?.answers ?? {}).length;
+const number = (i: number) => String(i + 1).padStart(2, '0');
+---
+
+<Members title="Your plan">
+  <Masthead label="" title="The firm you want, written down." narrow>
+    <span slot="label"><a href="/members/programmes/growth">Growth</a> / Your plan</span>
+    <p>
+      {capitalised(sections)} sections, in your own words. Save as you go, and send it to the hosts once every section is written. One of us reads
+      it and answers in writing. It is the last module of <a href="/members/programmes/growth">Growth</a>, and the lessons before it lead up to it.
+    </p>
+  </Masthead>
+
+  {notice && <Notice>{notice}</Notice>}
+  {unsent && <Notice tone="error">Saved as a draft, not sent. Write the sections marked below, then send it.</Notice>}
+  {failure && <Notice tone="error">{failure}</Notice>}
+
+  {
+    writing && (
+      <section class="wrap block" aria-labelledby="draft-title">
+        <div class="state">
+          <h2 class="head" id="draft-title">{draft ? 'Your draft' : 'Start your plan'}</h2>
+          <p class="small">
+            {draft
+              ? `${capitalised(numberWord(done))} of ${sections} sections written. Last saved ${formatMoment(draft.updatedAt)}.`
+              : 'Nothing is kept until you save. Write as much or as little as you like to begin with.'}
+          </p>
+        </div>
+        <form method="POST" action={formAction(Astro.url, actions.savePlan)}>
+          <ol class="sections">
+            {planSections.map((section, i) => {
+              const error = errorOf(section.slug);
+              const hint = `${section.slug}-hint`;
+              return (
+                <li class="section">
+                  <label class="heading" for={section.slug}>
+                    <span class="n serif" aria-hidden="true">{number(i)}</span>
+                    {section.heading}
+                  </label>
+                  <div class="field">
+                    <span class="hint" id={hint}>{section.prompt}</span>
+                    <textarea
+                      class="input"
+                      id={section.slug}
+                      name={section.slug}
+                      rows="7"
+                      maxlength={PLAN_ANSWER_MAX}
+                      aria-describedby={error ? `${hint} ${section.slug}-error` : hint}
+                      aria-invalid={error ? 'true' : undefined}
+                    >{answerOf(section.slug)}</textarea>
+                    {error && <span class="error" id={`${section.slug}-error`}>{error}</span>}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+          <div class="send">
+            <div class="row">
+              <button class="btn" type="submit" formaction={formAction(Astro.url, actions.sendPlan)}>Send to the hosts</button>
+              <button class="btn ghost" type="submit">Save draft</button>
+            </div>
+            <p class="small">Sending needs all {sections} sections. Until a host answers, you can take it back to change it.</p>
+          </div>
+        </form>
+      </section>
+    )
+  }
+
+  {
+    open?.status === 'sent' && (
+      <section class="wrap block" aria-labelledby="sent-title">
+        <div class="state">
+          <h2 class="head" id="sent-title">With the hosts</h2>
+          <p>Sent on {formatDay(open.sentAt)}. A host reads it and answers in writing, and you get the answer by email. Until then, you can take it back to change it.</p>
+          <form method="POST" action={formAction(Astro.url, actions.takeBackPlan)}>
+            <button class="btn ghost" type="submit">Take it back to change it</button>
+          </form>
+        </div>
+        {unsaved.length > 0 && (
+          <div class="unsaved">
+            <p>What you just typed was not saved. Copy anything you want to keep.</p>
+            {unsaved.map((section) => (
+              <div class="field">
+                <label for={`unsaved-${section.slug}`}>{section.heading}</label>
+                <textarea class="input" id={`unsaved-${section.slug}`} rows="5" readonly>{posted?.(section.slug)}</textarea>
+              </div>
+            ))}
+          </div>
+        )}
+        <PlanLetter plan={open} level={3} />
+      </section>
+    )
+  }
+
+  {
+    !writing && open === null && latest && (
+      <section class="wrap block" aria-label="Your last plan">
+        <div class="state">
+          <h2 class="head">Answered</h2>
+          <p>{latest.reply.by ?? 'A host'} answered your plan on {formatDay(latest.reply.at)}.</p>
+          <p class="row"><a class="btn" href={`/members/plan/${latest.id}`}>Read the answer</a></p>
+        </div>
+        <div class="state">
+          <h2 class="head">The next plan</h2>
+          <p>When you are ready, write the next one. It starts from this plan, so you only change what has moved. The question for the hosts starts blank.</p>
+          <form method="POST" action={formAction(Astro.url, actions.startPlan)}>
+            <button class="btn ghost" type="submit">Start the next plan</button>
+          </form>
+        </div>
+      </section>
+    )
+  }
+
+  {
+    answered.length > 0 && (
+      <section class="wrap block" aria-labelledby="past-title">
+        <h2 class="head" id="past-title">Answered plans</h2>
+        <div class="scroll">
+          <table class="ledger">
+            <thead><tr><th>Sent</th><th>Answered</th><th>By</th><th><span class="sr">Plan</span></th></tr></thead>
+            <tbody>
+              {answered.map((p) => (
+                <tr>
+                  <td>{formatDay(p.sentAt)}</td>
+                  <td>{formatDay(p.reply.at)}</td>
+                  <td>{p.reply.by ?? 'A former host'}</td>
+                  <td><a href={`/members/plan/${p.id}`}>Read</a></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    )
+  }
+</Members>
+
+<style>
+  .block { display: grid; gap: var(--space-6); padding-block: clamp(48px, 6vw, 80px) 0; }
+  .state { display: grid; gap: var(--space-3); max-width: 60ch; }
+  .state p, .state form { margin: 0; }
+  .sections { margin: 0; padding: 0; list-style: none; border-top: var(--stroke-rule) solid var(--ink); }
+  .section { display: grid; gap: var(--space-4); padding-block: var(--space-5) var(--space-6); border-bottom: var(--stroke-hair) solid var(--ink); }
+  .heading { display: flex; gap: var(--space-3); align-items: baseline; font: 600 var(--size-body)/1.3 var(--font-sans); }
+  .n { flex: none; min-width: 1.6em; font-size: 1.25rem; line-height: 1; }
+  .field { max-width: 720px; }
+  textarea.input { min-height: 10rem; resize: vertical; line-height: 1.5; }
+  .error { color: var(--alert); font-weight: 600; }
+  .send { display: grid; gap: var(--space-3); padding-top: var(--space-6); }
+  .send p { margin: 0; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); margin: 0; }
+  .unsaved { display: grid; gap: var(--space-4); max-width: 720px; padding-block: var(--space-5); border-block: var(--stroke-rule) solid var(--alert); }
+  .unsaved p { margin: 0; color: var(--alert); font-weight: 600; }
+  .scroll { overflow-x: auto; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  @media (min-width: 900px) {
+    .section { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); column-gap: var(--space-7); }
+  }
+</style>

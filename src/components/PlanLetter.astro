@@ -1,0 +1,64 @@
+---
+import { planSections } from '../data/plan.ts';
+import { formatDay } from '../lib/format.ts';
+import type { Plan } from '../server/plans.ts';
+import PostText from './PostText.astro';
+
+/** A plan read as a letter: the member's sections in order, then the host's answer, set apart. Takes props only. */
+interface Props {
+  plan: Plan;
+  /** The level of each section's heading: one below the heading the letter sits under. */
+  level?: 2 | 3 | 4;
+}
+const { plan, level = 2 } = Astro.props;
+const Heading = `h${level}` as const;
+const number = (i: number) => String(i + 1).padStart(2, '0');
+---
+
+<div class="plan-letter">
+  <ol class="sections">
+    {
+      planSections.map((section, i) => {
+        const answer = plan.answers[section.slug];
+        return (
+          <li class="section">
+            <Heading class="heading">
+              <span class="n serif" aria-hidden="true">{number(i)}</span>
+              {section.heading}
+            </Heading>
+            {answer ? <PostText text={answer} /> : <p class="blank small">Not written yet.</p>}
+          </li>
+        );
+      })
+    }
+  </ol>
+  {
+    plan.status === 'answered' && (
+      <section class="answer night" aria-label="The answer">
+        <p class="label top">The answer</p>
+        <PostText text={plan.reply.text} />
+        <p class="sign">
+          <span class="serif">{plan.reply.by ?? 'A host'}</span>
+          <time class="small" datetime={plan.reply.at}>{formatDay(plan.reply.at)}</time>
+        </p>
+      </section>
+    )
+  }
+</div>
+
+<style>
+  .plan-letter { display: grid; gap: var(--space-7); }
+  .sections { margin: 0; padding: 0; list-style: none; border-top: var(--stroke-rule) solid var(--ink); }
+  .section { display: grid; gap: var(--space-3); padding-block: var(--space-5); border-bottom: var(--stroke-hair) solid var(--ink); }
+  .heading { display: flex; gap: var(--space-3); align-items: baseline; margin: 0; font: 600 var(--size-body)/1.3 var(--font-sans); }
+  .n { flex: none; min-width: 1.6em; font-size: 1.25rem; line-height: 1; }
+  .blank { margin: 0; }
+  .answer { display: grid; gap: var(--space-5); padding: var(--space-6) clamp(var(--space-5), 4vw, var(--space-7)); }
+  .answer .top { margin: 0; padding-bottom: var(--space-4); border-bottom: var(--stroke-hair) solid var(--ink); }
+  .answer :global(.post-text) { font-size: var(--size-lead); line-height: 1.5; }
+  .sign { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); align-items: baseline; margin: 0; padding-top: var(--space-4); border-top: var(--stroke-hair) solid var(--ink); }
+  .sign .serif { font-size: var(--size-head); line-height: 1.1; }
+  @media (min-width: 900px) {
+    .section { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); column-gap: var(--space-7); }
+  }
+</style>

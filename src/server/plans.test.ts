@@ -109,7 +109,7 @@ test('hosts see the longest-waiting plan first, and an answer closes it', async 
 
   assert.equal(reason(plans.takeBack(aina.id)), 'answered', 'too late to take it back');
   assert.equal(reason(plans.reply(host.id, answered.id, 'A second answer.')), 'answered', 'one answer per plan');
-  assert.equal(plans.planOf(aina.id, answered.id)?.status, 'answered');
+  assert.deepEqual(plans.ofMember(aina.id).answered, [answered], 'the answer stands as first written');
 });
 
 test('a host can answer only a plan that is with the hosts', async () => {
@@ -122,11 +122,11 @@ test('a host can answer only a plan that is with the hosts', async () => {
   assert.equal(reason(plans.reply(host.id, 9999, 'Nobody.')), 'not-found');
 });
 
-test('a member reads only their own plans', async () => {
+test('a member sees only their own plans', async () => {
   const { plans, aina, abu } = await setup();
   const sent = value(plans.send(aina.id, complete)).plan;
-  assert.equal(plans.planOf(aina.id, sent.id)?.id, sent.id);
-  assert.equal(plans.planOf(abu.id, sent.id), null);
+  assert.equal(plans.ofMember(aina.id).open?.id, sent.id);
+  assert.deepEqual(plans.ofMember(abu.id), { open: null, answered: [] });
 });
 
 test('the next plan starts from the answered one, with the question blank', async () => {
@@ -141,7 +141,7 @@ test('the next plan starts from the answered one, with the question blank', asyn
   assert.ok(question);
   assert.deepEqual(next.answers, carried);
   assert.equal(plans.startNext(aina.id).id, next.id, 'a second click opens nothing new');
-  assert.equal(plans.planOf(aina.id, first.id)?.status, 'answered', 'the answered plan stays as it was');
+  assert.deepEqual(plans.ofMember(aina.id).answered.map((p) => p.id), [first.id], 'the answered plan stays as it was');
   assert.deepEqual(plans.startNext(abu.id).answers, {}, 'a first plan starts blank');
 });
 
@@ -159,8 +159,7 @@ test('an answer outlives its host, and a removed member takes their plans with t
   value(plans.send(abu.id, complete));
 
   value(club.removeMember(other.id, host.id));
-  const kept = plans.planOf(aina.id, sent.id);
-  assert.equal(kept?.status === 'answered' ? kept.reply.by : 'missing', null);
+  assert.equal(plans.ofMember(aina.id).answered[0]?.reply.by, null);
 
   value(club.removeMember(other.id, aina.id));
   value(club.removeMember(other.id, abu.id));

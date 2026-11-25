@@ -146,11 +146,6 @@ export function createPlans(db: Db, now: () => Date = () => new Date()) {
       return { open: mine.find(isOpen) ?? null, answered: mine.filter(isAnswered) };
     },
 
-    /** One of the member's own plans. Null for anyone else's. */
-    planOf(memberId: number, planId: number): Plan | null {
-      return plans('p.id = ? AND p.member_id = ?', planId, memberId)[0] ?? null;
-    },
-
     /** Saves the member's draft, opening one if they have none. Refused while their plan is with the hosts. */
     save(memberId: number, answers: Readonly<Record<string, unknown>>): Result<DraftPlan, 'sent'> {
       return attempt<DraftPlan, 'sent'>(db, (refuse) => {
