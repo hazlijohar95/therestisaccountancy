@@ -1,19 +1,13 @@
-import node from '@astrojs/node';
-import { defineConfig, envField } from 'astro/config';
+import cloudflare from '@astrojs/cloudflare';
+import { defineConfig } from 'astro/config';
 
-/* The public address, e.g. https://therestisaccountancy.com. Read from the environment at build time.
-   Invitation links use it, and its host joins localhost as a host whose requests Astro trusts. */
-const site = process.env.SITE_URL;
+/* The public address. Emailed links are built on it, never on a request's Host header. */
+const site = process.env.SITE_URL ?? 'https://better-accountant.com';
 
 export default defineConfig({
   site,
-  adapter: node({ mode: 'standalone' }),
+  adapter: cloudflare({ imageService: 'compile' }),
   security: {
-    allowedDomains: [{ hostname: 'localhost' }, ...(site ? [{ hostname: new URL(site).hostname }] : [])],
-  },
-  env: {
-    schema: {
-      DATABASE_PATH: envField.string({ context: 'server', access: 'secret', default: 'data/club.sqlite' }),
-    },
+    allowedDomains: [{ hostname: 'localhost' }, { hostname: new URL(site).hostname }],
   },
 });

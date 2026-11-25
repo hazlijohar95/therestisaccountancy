@@ -9,7 +9,6 @@ import Members from '../../../../layouts/Members.astro';
 import { postedFields } from '../../../../lib/form.ts';
 import { formAction, formatMoment } from '../../../../lib/format.ts';
 import { pageCount, pageHref, pagingOf } from '../../../../lib/paging.ts';
-import { getCommunity } from '../../../../server/instance.ts';
 
 export const prerender = false;
 
@@ -36,16 +35,16 @@ const failure = [replied, edited, deleted, moderated]
   .map((r) => (r?.error && !isInputError(r.error) ? r.error.message : null))
   .find((message) => message !== null);
 
-const board = getCommunity();
+const board = Astro.locals.community;
 const id = Number(Astro.params.id);
-const thread = Number.isInteger(id) ? board.thread(id) : null;
+const thread = Number.isInteger(id) ? await board.thread(id) : null;
 if (!thread) return failure ? Astro.redirect('/members/community?gone') : new Response(null, { status: 404, statusText: 'Not found' });
 const posted = replied?.error || edited?.error ? await postedFields(Astro.request) : () => '';
 const replyDraft = replied?.error ? posted('body') : '';
 const editDraft = (postId: number, stored: string) => (edited?.error && Number(posted('post')) === postId ? posted('body') : stored);
 
 const paging = pagingOf(Astro.url, PAGE_SIZE.posts);
-const { items: posts, total } = board.posts(thread.id, { limit: paging.size, offset: paging.offset });
+const { items: posts, total } = await board.posts(thread.id, { limit: paging.size, offset: paging.offset });
 const pages = pageCount(total, paging.size);
 if (paging.page > pages) return Astro.redirect(pageHref(Astro.url, pages));
 

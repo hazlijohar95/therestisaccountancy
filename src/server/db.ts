@@ -1,11 +1,28 @@
-import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
-import { DatabaseSync, type SQLOutputValue } from 'node:sqlite';
 import { fail, ok, type Result } from './result.ts';
 
+export type Value = string | number | bigint | null | Uint8Array | ArrayBuffer;
+export type Param = string | number | null;
+export type Row = Record<string, Value>;
+
+export interface Statement {
+  get(...params: Param[]): Row | undefined;
+  all(...params: Param[]): Row[];
+  run(...params: Param[]): { changes: number; lastInsertRowid: number };
+}
+
 /**
- * The schema as an append-only list of migrations. `PRAGMA user_version` records how many have run, so each runs once,
- * in order, inside its own transaction. Never edit a migration that has shipped: add a new one.
+ * The SQLite the club runs on: a Durable Object's storage in production, node:sqlite in tests. Both are synchronous,
+ * which is what lets attempt() check an invariant after a write and still roll the write back.
+ */
+export interface Db {
+  prepare(sql: string): Statement;
+  exec(sql: string): void;
+  transaction<T>(fn: () => T): T;
+}
+
+/**
+ * The schema as an append-only list of migrations. The schema_version table records how many have run, so each runs
+ * once, in order, inside its own transaction. Never edit a migration that has shipped: add a new one.
  */
 const MIGRATIONS: readonly string[] = [
   `
@@ -76,32 +93,25 @@ const MIGRATIONS: readonly string[] = [
   CREATE INDEX posts_by_thread ON posts (thread_id, id);
   CREATE INDEX posts_by_author ON posts (author_id, created_at);
   `,
+  `
+  ALTER TABLE invites ADD COLUMN created_at TEXT;
+  `,
 ];
-
-/** Opens the club's database and brings its schema up to date. Pass ':memory:' for a throwaway one. */
-export function openDatabase(path: string): DatabaseSync {
-  if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
-  const db = new DatabaseSync(path);
-  db.exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;');
-  migrate(db);
-  return db;
-}
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
 
-function migrate(db: DatabaseSync): void {
-  const row = db.prepare('PRAGMA user_version').get();
-  const applied = row ? integer(row, 'user_version') : 0;
+/** Brings the schema up to date. Safe to run on every start. */
+export function migrate(db: Db): void {
+  db.exec('CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY)');
+  const applied = count(db.prepare('SELECT count(*) AS n FROM schema_version').get());
   if (applied > MIGRATIONS.length) throw new Error(`The database is at schema ${applied}, newer than this code (${MIGRATIONS.length}).`);
   MIGRATIONS.slice(applied).forEach((sql, i) => {
-    transaction(db, () => {
+    db.transaction(() => {
       db.exec(sql);
-      db.exec(`PRAGMA user_version = ${applied + i + 1}`);
+      db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(applied + i + 1);
     });
   });
 }
-
-export type Row = Record<string, SQLOutputValue>;
 
 /* Rows come back loosely typed. These read one column and fail loudly if the schema and the code disagree. */
 export function text(row: Row, column: string): string {
@@ -131,33 +141,20 @@ export function oneOf<const T extends string>(row: Row, column: string, allowed:
   return match;
 }
 
-/** Runs fn inside one transaction: all of it lands, or none of it does. */
-export function transaction<T>(db: DatabaseSync, fn: () => T): T {
-  db.exec('BEGIN IMMEDIATE');
-  try {
-    const result = fn();
-    db.exec('COMMIT');
-    return result;
-  } catch (error) {
-    db.exec('ROLLBACK');
-    throw error;
-  }
-}
-
 class Refused extends Error {}
 
 /**
  * Runs fn in one transaction. fn may call refuse(reason) at any point, before or after writing: the transaction
  * rolls back and the caller gets that reason. Checking an invariant after the write is what makes it race-proof.
  */
-export function attempt<T, R extends string>(db: DatabaseSync, fn: (refuse: (reason: R) => never) => T): Result<T, R> {
+export function attempt<T, R extends string>(db: Db, fn: (refuse: (reason: R) => never) => T): Result<T, R> {
   let refusal: R | undefined;
   const refuse = (reason: R): never => {
     refusal = reason;
     throw new Refused(reason);
   };
   try {
-    return ok(transaction(db, () => fn(refuse)));
+    return ok(db.transaction(() => fn(refuse)));
   } catch (error) {
     if (error instanceof Refused && refusal !== undefined) return fail(refusal);
     throw error;

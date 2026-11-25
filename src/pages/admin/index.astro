@@ -9,7 +9,6 @@ import Members from '../../layouts/Members.astro';
 import { formAction, formatDay } from '../../lib/format.ts';
 import { pageCount, pageHref, pagingOf } from '../../lib/paging.ts';
 import { LINK_DAYS, MEMBER_STATUSES, memberNumber, type MemberStatus } from '../../server/club.ts';
-import { getClub } from '../../server/instance.ts';
 
 export const prerender = false;
 
@@ -21,19 +20,18 @@ const declined = Astro.getActionResult(actions.decline);
 const failure = invited?.error?.message ?? declined?.error?.message ?? null;
 const removed = Astro.url.searchParams.has('removed');
 
-const club = getClub();
-const pending = club.joinRequests({ decided: false });
-const decided = club.joinRequests({ decided: true, limit: DECIDED_SHOWN });
+const { club } = Astro.locals;
+const [pending, decided] = await Promise.all([club.joinRequests({ decided: false }), club.joinRequests({ decided: true, limit: DECIDED_SHOWN })]);
 
 const query = (Astro.url.searchParams.get('q') ?? '').trim().slice(0, 100);
 const askedStatus = Astro.url.searchParams.get('status');
 const status = MEMBER_STATUSES.find((s) => s === askedStatus);
 const paging = pagingOf(Astro.url, PAGE_SIZE);
-const { items: members, total } = club.members({ query, status, limit: paging.size, offset: paging.offset });
+const { items: members, total } = await club.members({ query, status, limit: paging.size, offset: paging.offset });
 const pages = pageCount(total, paging.size);
 if (paging.page > pages) return Astro.redirect(pageHref(Astro.url, pages));
 
-const counts = club.memberCounts();
+const counts = await club.memberCounts();
 const everyone = counts.invited + counts.active + counts.suspended;
 const filterHref = (next: MemberStatus | undefined) => {
   const target = new URL('/admin', Astro.url);
@@ -51,8 +49,8 @@ const waiting = pending.length === 1 ? 'One request waiting.' : pending.length =
 <Members title="Admin">
   <Masthead label="Admin" title={waiting}>
     <p>
-      Invite someone and the club makes them a member with a private link to set a password. Send the link yourself.
-      It works once and lasts {LINK_DAYS.welcome} days. Open a member to edit them, send a reset link, suspend or remove them.
+      Invite someone and the club makes them a member with a private link to set a password, emailed to
+      them. It works once and lasts {LINK_DAYS.welcome} days. Open a member to edit them, send a reset link, suspend or remove them.
     </p>
   </Masthead>
 

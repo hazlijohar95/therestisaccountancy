@@ -1,7 +1,6 @@
-import type { DatabaseSync } from 'node:sqlite';
 import { channelSlugs, channels, type ChannelSlug } from '../data/community.ts';
 import { ROLES, type Member, type Role } from './club.ts';
-import { attempt, count, integer, oneOf, optionalText, text, transaction, type Row } from './db.ts';
+import { attempt, count, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import type { Result } from './result.ts';
 
 /** Who wrote something. Null once the member has been removed: their words stay, their name goes. */
@@ -100,7 +99,7 @@ export const tidy = (body: string) =>
     .trim();
 
 /** Every operation on the community board. Members and admins act through it; the database is passed in for tests. */
-export function createCommunity(db: DatabaseSync, now: () => Date = () => new Date()) {
+export function createCommunity(db: Db, now: () => Date = () => new Date()) {
   const threadRow = (id: number) => db.prepare(`${THREADS} WHERE t.id = ? AND t.removed_at IS NULL`).get(id);
   const since = () => iso(new Date(now().getTime() - DUPLICATE_WINDOW_MS));
 
@@ -182,7 +181,7 @@ export function createCommunity(db: DatabaseSync, now: () => Date = () => new Da
 
     /** Opens a thread with its first post. Submitting the same title twice within a minute returns the first thread. */
     startThread(actor: Actor, input: { channel: ChannelSlug; title: string; body: string }): PostPlace {
-      return transaction(db, () => {
+      return db.transaction(() => {
         const title = input.title.trim();
         const body = tidy(input.body);
         const repeat = db
@@ -196,9 +195,9 @@ export function createCommunity(db: DatabaseSync, now: () => Date = () => new Da
         const thread = db
           .prepare('INSERT INTO threads (channel, title, author_id, created_at, last_post_at) VALUES (?, ?, ?, ?, ?)')
           .run(input.channel, title, actor.id, at, at);
-        const threadId = Number(thread.lastInsertRowid);
+        const threadId = thread.lastInsertRowid;
         const post = db.prepare('INSERT INTO posts (thread_id, author_id, body, created_at) VALUES (?, ?, ?, ?)').run(threadId, actor.id, body, at);
-        return place(threadId, input.channel, Number(post.lastInsertRowid));
+        return place(threadId, input.channel, post.lastInsertRowid);
       });
     },
 
@@ -217,7 +216,7 @@ export function createCommunity(db: DatabaseSync, now: () => Date = () => new Da
         const at = iso(now());
         const post = db.prepare('INSERT INTO posts (thread_id, author_id, body, created_at) VALUES (?, ?, ?, ?)').run(threadId, actor.id, body, at);
         db.prepare('UPDATE threads SET last_post_at = ? WHERE id = ?').run(at, threadId);
-        return place(threadId, thread.channel, Number(post.lastInsertRowid));
+        return place(threadId, thread.channel, post.lastInsertRowid);
       });
     },
 

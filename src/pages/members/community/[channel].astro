@@ -9,7 +9,6 @@ import Members from '../../../layouts/Members.astro';
 import { postedFields } from '../../../lib/form.ts';
 import { formAction } from '../../../lib/format.ts';
 import { pageCount, pageHref, pagingOf } from '../../../lib/paging.ts';
-import { getCommunity } from '../../../server/instance.ts';
 
 export const prerender = false;
 
@@ -23,7 +22,7 @@ const fieldErrors = started?.error && isInputError(started.error) ? started.erro
 const failure = started?.error && !isInputError(started.error) ? started.error.message : (fieldErrors.channel?.[0] ?? null);
 const posted = started?.error ? await postedFields(Astro.request) : () => '';
 const paging = pagingOf(Astro.url, PAGE_SIZE.threads);
-const { items, total } = getCommunity().threads(channel.slug, { limit: paging.size, offset: paging.offset });
+const { items, total } = await Astro.locals.community.threads(channel.slug, { limit: paging.size, offset: paging.offset });
 const pages = pageCount(total, paging.size);
 if (paging.page > pages) return Astro.redirect(pageHref(Astro.url, pages));
 const notice = Astro.url.searchParams.has('removed') ? 'Thread removed.' : Astro.url.searchParams.has('deleted') ? 'Post deleted. It was the last one, so the thread is gone too.' : null;

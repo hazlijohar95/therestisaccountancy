@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createClub } from './club.ts';
 import { createCommunity, tidy } from './community.ts';
-import { openDatabase } from './db.ts';
+import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
 
 const PASSWORD = 'correct horse battery';

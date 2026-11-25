@@ -5,14 +5,12 @@ import ThreadList from '../../../components/ThreadList.astro';
 import { channelBySlug, channelPath } from '../../../data/community.ts';
 import Members from '../../../layouts/Members.astro';
 import { formatMoment } from '../../../lib/format.ts';
-import { getCommunity } from '../../../server/instance.ts';
 
 export const prerender = false;
 
 const RECENT = 10;
-const board = getCommunity();
-const summaries = board.channels();
-const recent = board.recent(RECENT);
+const board = Astro.locals.community;
+const [summaries, recent] = await Promise.all([board.channels(), board.recent(RECENT)]);
 const count = (n: number) => (n === 1 ? '1 thread' : `${n} threads`);
 ---
 

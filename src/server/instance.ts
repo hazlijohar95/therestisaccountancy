@@ -1,15 +1,6 @@
-import type { DatabaseSync } from 'node:sqlite';
-import { DATABASE_PATH } from 'astro:env/server';
-import { createClub, type Club } from './club.ts';
-import { createCommunity, type Community } from './community.ts';
-import { openDatabase } from './db.ts';
+import { exports } from 'cloudflare:workers';
 
-let db: DatabaseSync | undefined;
-let club: Club | undefined;
-let community: Community | undefined;
+/** The club and community, called across to the ClubStore. Every call is a round trip, so each returns a promise. */
+export const openStore = () => exports.ClubStore.getByName('club').open();
 
-/** One connection, opened on first use so prerendering never touches the database. */
-const database = () => (db ??= openDatabase(DATABASE_PATH));
-
-export const getClub = (): Club => (club ??= createClub(database()));
-export const getCommunity = (): Community => (community ??= createCommunity(database()));
+export type Store = Awaited<ReturnType<typeof openStore>>;

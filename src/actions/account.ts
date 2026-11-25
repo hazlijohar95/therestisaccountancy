@@ -3,8 +3,8 @@ import { getEntry } from 'astro:content';
 import { z } from 'astro/zod';
 import { joinSection } from '../data/club.ts';
 import type { SignInRefusal } from '../server/club.ts';
-import { getClub } from '../server/instance.ts';
-import { email, mismatch, newPassword, passwordsMatch, settle, signedIn, startSession, type Refusal } from './guards.ts';
+import { joinRequestLetter, passwordLetter, send } from '../server/mail.ts';
+import { email, mismatch, newPassword, passwordsMatch, settle, shareable, signedIn, startSession, type Refusal } from './guards.ts';
 
 const signInRefusals: Record<SignInRefusal, Refusal> = {
   'no-match': { code: 'UNAUTHORIZED', message: 'That email and password do not match.' },
@@ -19,8 +19,23 @@ export const account = {
       email,
       stage: z.enum(joinSection.stages),
     }),
-    handler: (input) => {
-      getClub().recordJoinRequest(input);
+    handler: async (input, context) => {
+      const { club } = context.locals;
+      await club.recordJoinRequest(input);
+      const admins = await club.adminEmails();
+      const adminUrl = new URL('/admin', context.site ?? context.url).href;
+      if (admins.length) context.locals.cfContext.waitUntil(send(joinRequestLetter(admins, input, adminUrl)));
+      return { email: input.email };
+    },
+  }),
+
+  /** Emails a password link to a member who asks. Answers the same whether or not the email belongs to anyone. */
+  requestLink: defineAction({
+    accept: 'form',
+    input: z.object({ email }),
+    handler: async (input, context) => {
+      const link = await context.locals.club.requestLink(input.email);
+      if (link) context.locals.cfContext.waitUntil(send(passwordLetter(shareable(link, context))));
       return { email: input.email };
     },
   }),
@@ -29,7 +44,7 @@ export const account = {
     accept: 'form',
     input: z.object({ email: z.string().trim(), password: z.string() }),
     handler: async (input, context) => {
-      const access = settle(await getClub().authenticate(input.email, input.password), signInRefusals);
+      const access = settle(await context.locals.club.authenticate(input.email, input.password), signInRefusals);
       await startSession(context, access.key);
       return { role: access.member.role };
     },
@@ -47,7 +62,7 @@ export const account = {
     accept: 'form',
     input: z.object({ token: z.string().min(1), ...newPassword }).refine(passwordsMatch, mismatch),
     handler: async (input, context) => {
-      const result = await getClub().setPasswordFromLink(input.token, input.password);
+      const result = await context.locals.club.setPasswordFromLink(input.token, input.password);
       if (!result) throw new ActionError({ code: 'NOT_FOUND', message: 'This link has been used or has expired. Ask the club for a new one.' });
       await startSession(context, result.key);
       return { purpose: result.purpose };
@@ -59,7 +74,7 @@ export const account = {
     input: z.object({ current: z.string(), ...newPassword }).refine(passwordsMatch, mismatch),
     handler: async (input, context) => {
       const member = signedIn(context.locals);
-      const access = await getClub().changePassword(member.id, input.current, input.password);
+      const access = await context.locals.club.changePassword(member.id, input.current, input.password);
       if (!access) throw new ActionError({ code: 'BAD_REQUEST', message: 'Your current password is wrong.' });
       await startSession(context, access.key);
       return { changed: true };
@@ -72,7 +87,7 @@ export const account = {
     handler: async (input, context) => {
       const member = signedIn(context.locals);
       if (!(await getEntry('lessons', input.lesson))) throw new ActionError({ code: 'NOT_FOUND', message: 'There is no such lesson.' });
-      getClub().setLessonDone(member.id, input.lesson, input.done === 'true');
+      await context.locals.club.setLessonDone(member.id, input.lesson, input.done === 'true');
       return { done: input.done === 'true' };
     },
   }),

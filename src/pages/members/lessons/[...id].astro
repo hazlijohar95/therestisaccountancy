@@ -4,7 +4,6 @@ import { getEntry, render } from 'astro:content';
 import { programmeBySlug } from '../../../data/programmes.ts';
 import Members from '../../../layouts/Members.astro';
 import { formAction } from '../../../lib/format.ts';
-import { getClub } from '../../../server/instance.ts';
 import { lessonPath, lessonsOf } from '../../../server/lessons.ts';
 
 export const prerender = false;
@@ -19,7 +18,7 @@ const siblings = await lessonsOf(lesson.data.programme);
 const at = siblings.findIndex((l) => l.id === lesson.id);
 const previous = siblings[at - 1];
 const next = siblings[at + 1];
-const done = getClub().completedLessons(member.id).has(lesson.id);
+const done = (await Astro.locals.club.completedLessons(member.id)).has(lesson.id);
 const { Content } = await render(lesson);
 ---
 

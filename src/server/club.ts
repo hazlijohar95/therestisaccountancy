@@ -1,7 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
-import type { DatabaseSync } from 'node:sqlite';
 import { LINK_DAYS, type LinkPurpose } from '../data/links.ts';
-import { attempt, count, integer, oneOf, optionalText, text, transaction, type Row } from './db.ts';
+import { attempt, count, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import { hashPassword, spendVerifyTime, verifyPassword } from './password.ts';
 import { fail, ok, type Result } from './result.ts';
 
@@ -106,9 +105,11 @@ const tokenHash = (token: string) => createHash('sha256').update(token).digest('
 const iso = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
 const likePattern = (query: string) => `%${query.replace(/[\\%_]/g, '\\$&')}%`;
 const DAY_MS = 86_400_000;
+/** A member asking for their own link gets at most one in this window, so the form cannot be used to flood an inbox. */
+const LINK_REQUEST_GAP_MS = 10 * 60_000;
 
 /** Every operation the club performs on its members. The database is passed in so tests can use a throwaway one. */
-export function createClub(db: DatabaseSync, now: () => Date = () => new Date()) {
+export function createClub(db: Db, now: () => Date = () => new Date()) {
   const memberRow = (id: number) => db.prepare('SELECT * FROM members WHERE id = ?').get(id);
   const memberByEmail = (email: string) => db.prepare('SELECT * FROM members WHERE email = ?').get(email);
   const activeAdmins = () => count(db.prepare(`SELECT count(*) AS n FROM members WHERE role = 'admin' AND ${STATUS_SQL.active}`).get());
@@ -131,7 +132,7 @@ export function createClub(db: DatabaseSync, now: () => Date = () => new Date())
     const token = randomBytes(32).toString('base64url');
     const expiresAt = iso(new Date(now().getTime() + LINK_DAYS[purpose] * DAY_MS));
     retireLinks(member.id);
-    db.prepare('INSERT INTO invites (token_hash, member_id, expires_at) VALUES (?, ?, ?)').run(tokenHash(token), member.id, expiresAt);
+    db.prepare('INSERT INTO invites (token_hash, member_id, expires_at, created_at) VALUES (?, ?, ?, ?)').run(tokenHash(token), member.id, expiresAt, iso(now()));
     return { member, purpose, token, expiresAt };
   };
 
@@ -155,6 +156,14 @@ export function createClub(db: DatabaseSync, now: () => Date = () => new Date())
   /** Checked after the write, inside the transaction, so two admins demoting each other cannot both succeed. */
   const keepAnAdmin = (refuse: (reason: AdminRefusal) => never) => {
     if (activeAdmins() === 0) refuse('last-admin');
+  };
+
+  const appoint = (input: { email: string; name: string }): Member => {
+    db.prepare(`INSERT INTO members (email, name, role) VALUES (?, ?, 'admin') ON CONFLICT (email) DO NOTHING`).run(input.email, input.name);
+    db.prepare(`UPDATE members SET role = 'admin', suspended_at = NULL WHERE email = ?`).run(input.email);
+    const row = memberByEmail(input.email);
+    if (!row) throw new Error('Admin was not saved');
+    return toMember(row);
   };
 
   const reread = (memberId: number): Member => {
@@ -214,6 +223,25 @@ export function createClub(db: DatabaseSync, now: () => Date = () => new Date())
         if (!row) return refuse('not-found');
         return issueLink(toMember(row)) ?? refuse('suspended');
       });
+    },
+
+    /**
+     * A link the member asked for themselves, by email. Null when the email belongs to nobody, to a suspended member,
+     * or to someone sent a link in the last few minutes. The caller answers every case the same way.
+     */
+    requestLink(email: string): PasswordLink | null {
+      return db.transaction(() => {
+        const row = memberByEmail(email);
+        if (!row) return null;
+        const since = iso(new Date(now().getTime() - LINK_REQUEST_GAP_MS));
+        if (db.prepare('SELECT 1 FROM invites WHERE member_id = ? AND created_at > ?').get(integer(row, 'id'), since)) return null;
+        return issueLink(toMember(row));
+      });
+    },
+
+    /** Where news for the admins goes: every active admin's email. */
+    adminEmails(): string[] {
+      return db.prepare(`SELECT email FROM members WHERE role = 'admin' AND ${STATUS_SQL.active} ORDER BY id`).all().map((row) => text(row, 'email'));
     },
 
     member(id: number): Member | null {
@@ -293,7 +321,7 @@ export function createClub(db: DatabaseSync, now: () => Date = () => new Date())
     async setPasswordFromLink(token: string, password: string): Promise<(Access & { purpose: LinkPurpose }) | null> {
       if (!liveLinkMember(token)) return null;
       const passwordHash = await hashPassword(password);
-      return transaction(db, () => {
+      return db.transaction(() => {
         const row = liveLinkMember(token);
         const purpose = row ? LINK_FOR[statusOf(row)] : null;
         if (!row || purpose === null) return null;
@@ -325,21 +353,26 @@ export function createClub(db: DatabaseSync, now: () => Date = () => new Date())
       const stored = row ? optionalText(row, 'password_hash') : null;
       if (stored === null || !(await verifyPassword(current, stored))) return null;
       const passwordHash = await hashPassword(next);
-      return transaction(db, () => {
+      return db.transaction(() => {
         const latest = memberRow(memberId);
         return latest && optionalText(latest, 'password_hash') === stored ? writePassword(memberId, passwordHash) : null;
       });
     },
 
-    /** Creates the admin, or restores their name, role and password and lifts any suspension. The way back in. */
+    /**
+     * Makes the email an admin, creating them as an invited member if new, and lifts any suspension. Their password is
+     * left alone: a new admin sets one with a link. The way back in when no admin can sign in.
+     */
+    appointAdmin(input: { email: string; name: string }): Member {
+      return db.transaction(() => appoint(input));
+    },
+
+    /** Appoints the admin and sets their password. For tests and local tools; the site appoints and sends a link. */
     async ensureAdmin(input: { email: string; name: string; password: string }): Promise<Member> {
       const passwordHash = await hashPassword(input.password);
-      return transaction(db, () => {
-        db.prepare(`INSERT INTO members (email, name, role) VALUES (?, ?, 'admin') ON CONFLICT (email) DO NOTHING`).run(input.email, input.name);
-        const row = memberByEmail(input.email);
-        if (!row) throw new Error('Admin was not saved');
-        const id = integer(row, 'id');
-        db.prepare(`UPDATE members SET name = ?, role = 'admin', suspended_at = NULL WHERE id = ?`).run(input.name, id);
+      return db.transaction(() => {
+        const { id } = appoint(input);
+        db.prepare('UPDATE members SET name = ? WHERE id = ?').run(input.name, id);
         return writePassword(id, passwordHash).member;
       });
     },

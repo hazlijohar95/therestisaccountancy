@@ -4,20 +4,21 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev --port 4174",
-    "build": "astro check && astro build",
+    "build": "pnpm check && astro build",
     "preview": "astro preview --port 4175",
-    "check": "astro check",
+    "check": "cf workers types && astro check",
     "test": "node --test \"src/**/*.test.ts\"",
-    "db:admin": "node --env-file=.env scripts/create-admin.ts"
+    "deploy": "cf deploy"
   },
   "dependencies": {
-    "@astrojs/node": "^11.1.14",
+    "@astrojs/cloudflare": "15.0.0-beta.6",
     "@therestisaccountancy/brand": "link:./brand",
     "astro": "^7.4.13"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@types/node": "^24.19.2",
+    "cf": "^1.0.0-rc.5",
     "typescript": "^6.0.3"
   },
   "engines": {

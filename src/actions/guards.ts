@@ -2,6 +2,7 @@ import { ActionError, type ActionAPIContext, type ActionErrorCode } from 'astro:
 import { z } from 'astro/zod';
 import { joinSection } from '../data/club.ts';
 import type { Member, PasswordLink, SessionKey } from '../server/club.ts';
+import { passwordLetter, send } from '../server/mail.ts';
 import { MIN_PASSWORD_LENGTH } from '../server/password.ts';
 import type { Result } from '../server/result.ts';
 
@@ -46,7 +47,14 @@ export const startSession = async (context: ActionAPIContext, key: SessionKey) =
 /** Built on the configured site address when there is one, so links never depend on the request's Host. */
 export const shareable = ({ member, purpose, token, expiresAt }: PasswordLink, context: ActionAPIContext) => ({
   name: member.name,
+  email: member.email,
   purpose,
   link: new URL(`/welcome?token=${encodeURIComponent(token)}`, context.site ?? context.url).href,
   expiresAt,
 });
+
+/** Emails a link an admin issued. The admin sees whether it went, and the link either way, to send by hand if not. */
+export const deliver = async (link: PasswordLink, context: ActionAPIContext) => {
+  const shared = shareable(link, context);
+  return { ...shared, emailed: await send(passwordLetter(shared)) };
+};

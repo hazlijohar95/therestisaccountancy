@@ -1,8 +1,7 @@
 import { ActionError, defineAction } from 'astro:actions';
 import { z } from 'astro/zod';
 import { ROLES, type EditRefusal, type InviteRefusal, type LinkRefusal } from '../server/club.ts';
-import { getClub } from '../server/instance.ts';
-import { admin, email, id, memberName, settle, shareable, type Refusal } from './guards.ts';
+import { admin, deliver, email, id, memberName, settle, type Refusal } from './guards.ts';
 
 const memberRefusals: Record<EditRefusal, Refusal> = {
   'not-found': { code: 'NOT_FOUND', message: 'There is no such member.' },
@@ -25,27 +24,27 @@ export const adminActions = {
   invite: defineAction({
     accept: 'form',
     input: z.object({ request: id }),
-    handler: (input, context) => {
+    handler: async (input, context) => {
       admin(context.locals);
-      return shareable(settle(getClub().inviteFromRequest(input.request), inviteRefusals), context);
+      return deliver(settle(await context.locals.club.inviteFromRequest(input.request), inviteRefusals), context);
     },
   }),
 
   newLink: defineAction({
     accept: 'form',
     input: z.object({ member: id }),
-    handler: (input, context) => {
+    handler: async (input, context) => {
       admin(context.locals);
-      return shareable(settle(getClub().newLink(input.member), linkRefusals), context);
+      return deliver(settle(await context.locals.club.newLink(input.member), linkRefusals), context);
     },
   }),
 
   decline: defineAction({
     accept: 'form',
     input: z.object({ request: id }),
-    handler: (input, context) => {
+    handler: async (input, context) => {
       admin(context.locals);
-      if (!getClub().declineRequest(input.request)) throw new ActionError(inviteRefusals.decided);
+      if (!await context.locals.club.declineRequest(input.request)) throw new ActionError(inviteRefusals.decided);
       return { declined: true };
     },
   }),
@@ -53,9 +52,9 @@ export const adminActions = {
   updateMember: defineAction({
     accept: 'form',
     input: z.object({ member: id, name: memberName, email, role: z.enum(ROLES).optional() }),
-    handler: (input, context) => {
+    handler: async (input, context) => {
       const actor = admin(context.locals);
-      settle(getClub().updateMember(actor.id, input.member, input), memberRefusals);
+      settle(await context.locals.club.updateMember(actor.id, input.member, input), memberRefusals);
       return { saved: true };
     },
   }),
@@ -63,9 +62,9 @@ export const adminActions = {
   suspendMember: defineAction({
     accept: 'form',
     input: z.object({ member: id }),
-    handler: (input, context) => {
+    handler: async (input, context) => {
       const actor = admin(context.locals);
-      settle(getClub().suspendMember(actor.id, input.member), memberRefusals);
+      settle(await context.locals.club.suspendMember(actor.id, input.member), memberRefusals);
       return { status: 'suspended' as const };
     },
   }),
@@ -73,9 +72,9 @@ export const adminActions = {
   reinstateMember: defineAction({
     accept: 'form',
     input: z.object({ member: id }),
-    handler: (input, context) => {
+    handler: async (input, context) => {
       admin(context.locals);
-      settle(getClub().reinstateMember(input.member), memberRefusals);
+      settle(await context.locals.club.reinstateMember(input.member), memberRefusals);
       return { status: 'reinstated' as const };
     },
   }),
@@ -83,9 +82,9 @@ export const adminActions = {
   removeMember: defineAction({
     accept: 'form',
     input: z.object({ member: id, confirm: z.literal('yes', { error: 'Tick the box to confirm.' }) }),
-    handler: (input, context) => {
+    handler: async (input, context) => {
       const actor = admin(context.locals);
-      settle(getClub().removeMember(actor.id, input.member), memberRefusals);
+      settle(await context.locals.club.removeMember(actor.id, input.member), memberRefusals);
       return { removed: true };
     },
   }),

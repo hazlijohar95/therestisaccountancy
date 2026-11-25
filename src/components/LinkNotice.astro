@@ -3,17 +3,23 @@ import { formatDay } from '../lib/format.ts';
 import type { LinkPurpose } from '../server/club.ts';
 
 interface Props {
-  issued: { name: string; purpose: LinkPurpose; link: string; expiresAt: string };
+  issued: { name: string; email: string; purpose: LinkPurpose; link: string; expiresAt: string; emailed: boolean };
 }
-const { name, purpose, link, expiresAt } = Astro.props.issued;
+const { name, email, purpose, link, expiresAt, emailed } = Astro.props.issued;
 const what = { welcome: 'Invitation', reset: 'Reset link' } as const satisfies Record<LinkPurpose, string>;
 ---
 
 <section class="wrap notice" aria-live="polite">
   <p>
-    <b>{what[purpose]} ready for {name}.</b>
+    {
+      emailed ? (
+        <b>{what[purpose]} emailed to {name} at {email}.</b>
+      ) : (
+        <b class="alert">{what[purpose]} ready for {name}, but the email did not send. Copy the link and send it yourself.</b>
+      )
+    }
     {purpose === 'reset' && ' Setting a new password with it signs them out everywhere else.'}
-    {' '}It expires on {formatDay(expiresAt)}. This is the only time the link is shown, so send it now.
+    {' '}It expires on {formatDay(expiresAt)}. The link is shown only this once{emailed ? ', in case the email does not arrive.' : '.'}
   </p>
   <div class="copy">
     <input class="input" id="issued-link" readonly value={link} aria-label={what[purpose]} />
@@ -35,6 +41,7 @@ const what = { welcome: 'Invitation', reset: 'Reset link' } as const satisfies R
 <style>
   .notice { display: grid; gap: var(--space-3); margin-block: var(--space-7) 0; padding-block: var(--space-5); border-block: var(--stroke-rule) solid var(--ink); }
   .notice p { margin: 0; }
+  .alert { color: var(--alert); }
   .copy { display: flex; flex-wrap: wrap; gap: var(--space-3); }
   .copy .input { flex: 1 1 16rem; font-family: var(--font-mono); font-size: var(--size-small); }
 </style>

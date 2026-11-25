@@ -2,7 +2,6 @@ import { defineAction } from 'astro:actions';
 import { z } from 'astro/zod';
 import { isChannelSlug, LIMITS, PAGE_SIZE, type ChannelSlug } from '../data/community.ts';
 import { MODERATIONS, type PostPlace, type PostRefusal } from '../server/community.ts';
-import { getCommunity } from '../server/instance.ts';
 import { id, settle, signedIn, type Refusal } from './guards.ts';
 
 const postRefusals: Record<PostRefusal, Refusal> = {
@@ -35,30 +34,30 @@ export const community = {
   startThread: defineAction({
     accept: 'form',
     input: z.object({ channel, title, body }),
-    handler: (input, context) => landing(getCommunity().startThread(signedIn(context.locals), input)),
+    handler: async (input, context) => landing(await context.locals.community.startThread(signedIn(context.locals), input)),
   }),
 
   reply: defineAction({
     accept: 'form',
     input: z.object({ thread: id, body }),
-    handler: (input, context) => landing(settle(getCommunity().reply(signedIn(context.locals), input.thread, input), postRefusals)),
+    handler: async (input, context) => landing(settle(await context.locals.community.reply(signedIn(context.locals), input.thread, input), postRefusals)),
   }),
 
   editPost: defineAction({
     accept: 'form',
     input: z.object({ post: id, body }),
-    handler: (input, context) => landing(settle(getCommunity().editPost(signedIn(context.locals), input.post, input), postRefusals)),
+    handler: async (input, context) => landing(settle(await context.locals.community.editPost(signedIn(context.locals), input.post, input), postRefusals)),
   }),
 
   deletePost: defineAction({
     accept: 'form',
     input: z.object({ post: id }),
-    handler: (input, context) => landing(settle(getCommunity().deletePost(signedIn(context.locals), input.post), postRefusals)),
+    handler: async (input, context) => landing(settle(await context.locals.community.deletePost(signedIn(context.locals), input.post), postRefusals)),
   }),
 
   moderateThread: defineAction({
     accept: 'form',
     input: z.object({ thread: id, action: z.enum(MODERATIONS) }),
-    handler: (input, context) => ({ ...settle(getCommunity().moderate(signedIn(context.locals), input.thread, input.action), moderationRefusals), action: input.action }),
+    handler: async (input, context) => ({ ...settle(await context.locals.community.moderate(signedIn(context.locals), input.thread, input.action), moderationRefusals), action: input.action }),
   }),
 };

@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
 import { createClub, type Club } from './club.ts';
-import { openDatabase, SCHEMA_VERSION } from './db.ts';
+import { SCHEMA_VERSION } from './db.ts';
+import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
 
 const fresh = (now = () => new Date('2026-11-24T10:00:00Z')) => createClub(openDatabase(':memory:'), now);
@@ -313,7 +314,7 @@ test('an existing database is upgraded in place and keeps its rows', () => {
     old.close();
 
     const upgraded = openDatabase(path);
-    assert.equal(upgraded.prepare('PRAGMA user_version').get()?.['user_version'], SCHEMA_VERSION);
+    assert.equal(upgraded.prepare('SELECT max(version) AS n FROM schema_version').get()?.['n'], SCHEMA_VERSION);
     const kept = createClub(upgraded).members({ limit: 10, offset: 0 }).items[0];
     assert.equal(kept?.name, 'Old Member');
     assert.equal(kept?.status, 'invited');
@@ -326,4 +327,56 @@ test('an existing database is upgraded in place and keeps its rows', () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('a member can ask for their own link, at most once every few minutes', async () => {
+  let clock = new Date('2026-11-24T10:00:00Z');
+  const club = createClub(openDatabase(':memory:'), () => clock);
+  const member = await activeMember(club);
+  assert.equal(club.requestLink('aina@firm.com.my'), null, 'the invitation just sent counts as a recent link');
+  clock = new Date(clock.getTime() + 11 * 60_000);
+  assert.equal(club.requestLink('nobody@firm.com.my'), null, 'an unknown email gets nothing');
+
+  const first = club.requestLink('AINA@firm.com.my');
+  assert.equal(first?.member.id, member.id);
+  assert.equal(first?.purpose, 'reset');
+  assert.equal(club.requestLink('aina@firm.com.my'), null, 'a second request straight away is ignored');
+  assert.equal(club.linkMember(first?.token ?? '')?.id, member.id, 'and the first link still works');
+
+  clock = new Date(clock.getTime() + 11 * 60_000);
+  const second = club.requestLink('aina@firm.com.my');
+  assert.ok(second);
+  assert.equal(club.linkMember(first?.token ?? ''), null, 'a newer link retires the older one');
+});
+
+test('an invited member who lost their invitation can ask for a fresh one', () => {
+  const club = fresh();
+  club.recordJoinRequest({ name: 'Abu', email: 'abu@firm.com.my', stage: 'I work in a firm' });
+  const request = club.joinRequests()[0];
+  assert.ok(request);
+  value(club.inviteFromRequest(request.id));
+  assert.equal(club.requestLink('abu@firm.com.my'), null, 'not while the invitation is minutes old');
+});
+
+test('a suspended member cannot ask for a link', async () => {
+  const club = fresh();
+  const boss = await admin(club);
+  const member = await activeMember(club);
+  value(club.suspendMember(boss.id, member.id));
+  assert.equal(club.requestLink(member.email), null);
+});
+
+test('an appointed admin starts invited and sets a password through a link', async () => {
+  const club = fresh();
+  const appointed = club.appointAdmin({ email: 'founder@club.test', name: 'Founder' });
+  assert.equal(appointed.role, 'admin');
+  assert.equal(appointed.status, 'invited');
+  assert.deepEqual(club.adminEmails(), [], 'an admin without a password receives no news yet');
+
+  const link = club.requestLink('founder@club.test');
+  assert.equal(link?.purpose, 'welcome');
+  assert.ok(await club.setPasswordFromLink(link?.token ?? '', PASSWORD));
+  assert.deepEqual(club.adminEmails(), ['founder@club.test']);
+
+  assert.equal(club.appointAdmin({ email: 'founder@club.test', name: 'Someone Else' }).status, 'active', 'appointing again keeps the password');
 });

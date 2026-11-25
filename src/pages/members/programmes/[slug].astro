@@ -1,7 +1,6 @@
 ---
 import { programmeBySlug } from '../../../data/programmes.ts';
 import Members from '../../../layouts/Members.astro';
-import { getClub } from '../../../server/instance.ts';
 import { lessonPath, lessonsOf } from '../../../server/lessons.ts';
 
 export const prerender = false;
@@ -11,7 +10,7 @@ const programme = programmeBySlug(Astro.params.slug ?? '');
 if (!member) return Astro.redirect('/sign-in');
 if (!programme) return new Response(null, { status: 404, statusText: 'Not found' });
 
-const done = getClub().completedLessons(member.id);
+const done = await Astro.locals.club.completedLessons(member.id);
 const lessons = await lessonsOf(programme.slug);
 const modules = programme.topics.map((topic, i) => ({ topic, lessons: lessons.filter((l) => l.data.module === i + 1) }));
 const count = (n: number) => String(n).padStart(2, '0');

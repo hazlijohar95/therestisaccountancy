@@ -4,7 +4,6 @@ import { programmes } from '../../data/programmes.ts';
 import Members from '../../layouts/Members.astro';
 import { firstName, formatDay } from '../../lib/format.ts';
 import { memberNumber } from '../../server/club.ts';
-import { getClub } from '../../server/instance.ts';
 import { lessonsOf } from '../../server/lessons.ts';
 
 export const prerender = false;
@@ -12,7 +11,7 @@ export const prerender = false;
 const member = Astro.locals.member;
 if (!member) return Astro.redirect('/sign-in');
 
-const done = getClub().completedLessons(member.id);
+const done = await Astro.locals.club.completedLessons(member.id);
 const progress = await Promise.all(
   programmes.map(async (programme) => {
     const lessons = await lessonsOf(programme.slug);
