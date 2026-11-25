@@ -1,3 +1,4 @@
+import { terms, type Term } from '../data/membership.ts';
 import { site } from '../data/site.ts';
 import { firstName, formatDay, formatMoment } from '../lib/format.ts';
 import type { JoinRequest, LinkPurpose } from './club.ts';
@@ -49,7 +50,7 @@ export function passwordLetter(link: { email: string; name: string; purpose: Lin
         { href: link.link, label: 'Set your password' },
         `The link works once and runs out on ${until}. If it does, ask for a new one on the sign-in page.`,
         link.rate
-          ? `Membership is ${link.rate}. You pay the first month straight after setting your password, and you can stop any time.`
+          ? `Membership is ${link.rate}. You choose which and pay straight after setting your password, and you can stop any time.`
           : "You're an admin, so there's nothing to pay.",
         "What we'll email you: replies in threads you post in, reminders for sessions you sign up for, and anything about your membership. Nothing else unless you ask for it.",
         'Questions? Reply to this email. It comes straight to me.',
@@ -160,16 +161,17 @@ export function sessionLetters(news: SessionNews, session: LiveSession, members:
   });
 }
 
-/** A monthly card renewal did not go through. The member keeps access through the grace period while it is retried. */
-export function renewalLetter(to: Recipient, failure: { cardRefused: boolean; accessUntil: string; payUrl: string }): Letter {
+/** A card renewal did not go through. The member keeps access through the grace period while it is retried. */
+export function renewalLetter(to: Recipient, failure: { term: Term; cardRefused: boolean; accessUntil: string; payUrl: string }): Letter {
+  const tried = `We tried to charge your card ${terms[failure.term].price} for your next ${failure.term}`;
   return {
     to: to.email,
     subject: "Your membership payment didn't go through",
     lines: [
       hi(to.name),
       failure.cardRefused
-        ? "We tried to renew your membership, but your card can't be charged any more. It may have expired or been replaced."
-        : "We tried to renew your membership, but the payment was declined. We'll try the same card again tomorrow.",
+        ? `${tried}, but the card can't be charged any more. It may have expired or been replaced.`
+        : `${tried}, but the payment was declined. We'll try the same card again tomorrow.`,
       `Nothing changes yet: you keep full access until ${formatDay(failure.accessUntil)}.`,
       { href: failure.payUrl, label: 'Pay now' },
       "If you meant to leave, you don't need to do anything.",
@@ -177,16 +179,17 @@ export function renewalLetter(to: Recipient, failure: { cardRefused: boolean; ac
   };
 }
 
-/** A member who pays by hand: their month ends soon. */
-export function paymentDueLetter(to: Recipient, due: { paidUntil: string; rate: string; payUrl: string }): Letter {
+/** A member who pays by hand: the term they paid for ends soon. */
+export function paymentDueLetter(to: Recipient, due: { term: Term; paidUntil: string; payUrl: string }): Letter {
   const date = formatDay(due.paidUntil);
   return {
     to: to.email,
-    subject: `Your month ends on ${date}`,
+    subject: `Your paid ${due.term} ends on ${date}`,
     lines: [
       hi(to.name),
-      `Your paid month ends on ${date}. To keep going, pay for the next one (${due.rate}) any time before then.`,
-      { href: due.payUrl, label: 'Pay for next month' },
+      `Your paid ${due.term} ends on ${date}. To keep going, pay for the next one (${terms[due.term].label}) any time before then.`,
+      { href: due.payUrl, label: `Pay for next ${due.term}` },
+      'You can change between paying by the month and by the year on the same page.',
       'Not staying? No need to reply. Your access ends a few days after that date.',
     ],
   };

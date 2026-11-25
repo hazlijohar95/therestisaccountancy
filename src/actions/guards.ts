@@ -1,6 +1,6 @@
 import { ActionError, type ActionAPIContext, type ActionErrorCode } from 'astro:actions';
 import { z } from 'astro/zod';
-import { monthlyRate } from '../data/membership.ts';
+import { everyRate } from '../data/membership.ts';
 import { joinSection } from '../data/club.ts';
 import type { Member, PasswordLink, SessionKey } from '../server/club.ts';
 import { passwordLetter, type Letter } from '../server/letters.ts';
@@ -77,8 +77,8 @@ export const shareable = ({ member, purpose, token, expiresAt }: PasswordLink, c
   purpose,
   link: new URL(`/welcome?token=${encodeURIComponent(token)}`, context.site ?? context.url).href,
   expiresAt,
-  /** What they will pay, told with the invitation. Admins do not pay. */
-  rate: member.role === 'admin' ? null : monthlyRate,
+  /** What they can pay, told with the invitation. Admins do not pay. */
+  rate: member.role === 'admin' ? null : everyRate,
 });
 
 /** Emails a link an admin issued. The admin sees whether it went, and the link either way, to send by hand if not. */

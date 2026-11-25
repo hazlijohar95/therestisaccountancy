@@ -61,7 +61,7 @@ export async function refundWebhook(request: Request): Promise<Response> {
     const purchase = await club().get(purchaseId);
     if (!isReversed(purchase)) return new Response('ok');
     const undone = await withBilling((billing) => billing.reversed(purchase.id));
-    if (undone) await report('payment', `Payment ${purchase.id} was ${purchase.status === 'chargeback' ? 'charged back' : 'refunded'}; a month came off member ${undone.memberId}'s paid time`);
+    if (undone) await report('payment', `Payment ${purchase.id} was ${purchase.status === 'chargeback' ? 'charged back' : 'refunded'}; a ${undone.term} came off member ${undone.memberId}'s paid time`);
   } catch (error) {
     await report('payment', `Refund or chargeback for ${purchaseId} could not be checked with CHIP; CHIP will call again`, error);
     return new Response('Try again', { status: 503 });

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createBilling, GRACE_MS, monthAfter, PAY_REMINDER_LEAD_MS } from './billing.ts';
+import { DEFAULT_TERM, monthsFree, terms } from '../data/membership.ts';
+import { createBilling, GRACE_MS, PAY_REMINDER_LEAD_MS } from './billing.ts';
 import { createClub } from './club.ts';
 import { migrate } from './db.ts';
 import { openDatabase } from './node-db.ts';
@@ -21,17 +22,41 @@ const world = async () => {
   return { billing: createBilling(db, now), member: accepted.member, later: (ms: number) => (clock = new Date(clock.getTime() + ms)), now };
 };
 
+const at = (value: string) => new Date(value);
+
 test('a month on keeps the day, or the last day of a shorter month', () => {
-  assert.equal(monthAfter(new Date('2026-01-31T10:00:00Z')).toISOString(), '2026-02-28T10:00:00.000Z');
-  assert.equal(monthAfter(new Date('2026-03-15T00:00:00Z')).toISOString(), '2026-04-15T00:00:00.000Z');
-  assert.equal(monthAfter(new Date('2026-12-31T00:00:00Z')).toISOString(), '2027-01-31T00:00:00.000Z');
+  assert.equal(terms.month.after(at('2026-01-31T10:00:00Z')).toISOString(), '2026-02-28T10:00:00.000Z');
+  assert.equal(terms.month.after(at('2026-03-15T00:00:00Z')).toISOString(), '2026-04-15T00:00:00.000Z');
+  assert.equal(terms.month.after(at('2026-12-31T00:00:00Z')).toISOString(), '2027-01-31T00:00:00.000Z');
+});
+
+test('a year on is twelve calendar months in one step, clamped only on a leap day', () => {
+  assert.equal(terms.year.after(at('2026-01-31T10:00:00Z')).toISOString(), '2027-01-31T10:00:00.000Z');
+  assert.equal(terms.year.after(at('2026-08-31T00:00:00Z')).toISOString(), '2027-08-31T00:00:00.000Z', 'not worn down to the 28th by twelve single months');
+  assert.equal(terms.year.after(at('2028-02-29T00:00:00Z')).toISOString(), '2029-02-28T00:00:00.000Z');
+});
+
+test('taking a term off goes back the same calendar months', () => {
+  assert.equal(terms.month.before(at('2026-03-31T10:00:00Z')).toISOString(), '2026-02-28T10:00:00.000Z');
+  assert.equal(terms.month.before(at('2026-04-15T00:00:00Z')).toISOString(), '2026-03-15T00:00:00.000Z');
+  assert.equal(terms.year.before(at('2027-01-31T10:00:00Z')).toISOString(), '2026-01-31T10:00:00.000Z');
+  assert.equal(terms.year.before(at('2028-02-29T00:00:00Z')).toISOString(), '2027-02-28T00:00:00.000Z');
+});
+
+test('a year costs ten months, so two are free', () => {
+  assert.equal(terms.month.label, 'RM 99 a month');
+  assert.equal(terms.year.label, 'RM 990 a year');
+  assert.equal(terms.year.sen, 10 * terms.month.sen);
+  assert.equal(monthsFree('year'), 2);
+  assert.equal(monthsFree('month'), 0);
 });
 
 test('a paid checkout opens a month, saves the card, and a repeated callback changes nothing', async () => {
   const w = await world();
   assert.equal(w.billing.access(w.member.id), 'unpaid');
-  w.billing.opened('p1', w.member.id, 'checkout', 9900);
-  w.billing.opened('p0', w.member.id, 'checkout', 9900);
+  assert.equal(w.billing.standing(w.member.id).term, DEFAULT_TERM, 'nothing chosen yet');
+  w.billing.opened('p1', w.member.id, 'checkout', 'month');
+  w.billing.opened('p0', w.member.id, 'checkout', 'month');
   assert.deepEqual(w.billing.unpaid(w.member.id, 'checkout'), ['p0', 'p1'], 'every open checkout, newest first');
 
   const first = w.billing.paid('p1', true);
@@ -45,7 +70,7 @@ test('a paid checkout opens a month, saves the card, and a repeated callback cha
 
 test('renewals come due half a day early, retry daily through the grace period, then stop', async () => {
   const w = await world();
-  w.billing.opened('p1', w.member.id, 'checkout', 9900);
+  w.billing.opened('p1', w.member.id, 'checkout', 'month');
   w.billing.paid('p1', true);
   assert.deepEqual(w.billing.dueRenewals(), [], 'not yet');
 
@@ -55,24 +80,24 @@ test('renewals come due half a day early, retry daily through the grace period, 
   assert.equal(due[0]?.token, 'p1');
   assert.deepEqual(w.billing.dueRenewals(), [], 'the next hourly run does not charge again');
 
-  w.billing.opened('r1', w.member.id, 'renewal', 9900);
+  w.billing.opened('r1', w.member.id, 'renewal', 'month');
   w.billing.failed('r1', false);
   w.later(DAY);
   assert.equal(w.billing.access(w.member.id), 'grace', 'the month ended; the member keeps access for a few days');
   assert.equal(w.billing.dueRenewals().length, 1, 'tried again a day later');
 
-  w.billing.opened('r2', w.member.id, 'renewal', 9900);
+  w.billing.opened('r2', w.member.id, 'renewal', 'month');
   assert.equal(w.billing.paid('r2', false)?.standing.paidUntil, '2026-04-01T04:00:00Z', 'a late renewal counts a month from when it was paid');
   assert.equal(w.billing.standing(w.member.id).cardOnFile, true, 'a renewal keeps the saved card');
 });
 
 test('a refused card stops renewals, and the member loses access after the grace period', async () => {
   const w = await world();
-  w.billing.opened('p1', w.member.id, 'checkout', 9900);
+  w.billing.opened('p1', w.member.id, 'checkout', 'month');
   w.billing.paid('p1', true);
   w.later(28 * DAY);
   assert.equal(w.billing.dueRenewals().length, 1);
-  w.billing.opened('r1', w.member.id, 'renewal', 9900);
+  w.billing.opened('r1', w.member.id, 'renewal', 'month');
   w.billing.failed('r1', true);
   assert.equal(w.billing.standing(w.member.id).cardOnFile, false);
   w.later(DAY);
@@ -83,7 +108,7 @@ test('a refused card stops renewals, and the member loses access after the grace
 
 test('turning renewal off means no charge, and access lasts to the end of the month', async () => {
   const w = await world();
-  w.billing.opened('p1', w.member.id, 'checkout', 9900);
+  w.billing.opened('p1', w.member.id, 'checkout', 'month');
   w.billing.paid('p1', true);
   assert.equal(w.billing.setRenews(w.member.id, false).renews, false);
   w.later(27 * DAY);
@@ -95,7 +120,7 @@ test('turning renewal off means no charge, and access lasts to the end of the mo
 
 test('a member paying by FPX is reminded once before each month ends, and keeps the grace period', async () => {
   const w = await world();
-  w.billing.opened('p1', w.member.id, 'checkout', 9900);
+  w.billing.opened('p1', w.member.id, 'checkout', 'month');
   assert.equal(w.billing.paid('p1', false)?.standing.cardOnFile, false);
   assert.deepEqual(w.billing.dueRenewals(), [], 'nothing to charge without a card');
   assert.deepEqual(w.billing.paymentReminders(), [], 'too early');
@@ -106,7 +131,7 @@ test('a member paying by FPX is reminded once before each month ends, and keeps 
 
   w.later(PAY_REMINDER_LEAD_MS);
   assert.equal(w.billing.access(w.member.id), 'grace');
-  w.billing.opened('p2', w.member.id, 'checkout', 9900);
+  w.billing.opened('p2', w.member.id, 'checkout', 'month');
   w.billing.paid('p2', false);
   assert.equal(w.billing.access(w.member.id), 'paid');
   w.later(26 * DAY);
@@ -115,9 +140,9 @@ test('a member paying by FPX is reminded once before each month ends, and keeps 
 
 test('a full refund or chargeback takes off the month it bought, once', async () => {
   const w = await world();
-  w.billing.opened('p1', w.member.id, 'checkout', 9900);
+  w.billing.opened('p1', w.member.id, 'checkout', 'month');
   w.billing.paid('p1', true);
-  w.billing.opened('p2', w.member.id, 'checkout', 9900);
+  w.billing.opened('p2', w.member.id, 'checkout', 'month');
   w.billing.paid('p2', false);
   assert.equal(w.billing.standing(w.member.id).paidUntil, '2026-03-28T10:00:00Z');
 
@@ -127,4 +152,122 @@ test('a full refund or chargeback takes off the month it bought, once', async ()
   assert.equal(w.billing.reversed('p1'), null, 'CHIP reporting it again changes nothing');
   assert.equal(w.billing.reversed('not-ours'), null);
   assert.equal(w.billing.reversed('p2')?.standing.access, 'unpaid', 'both months refunded: no access');
+});
+
+test('a yearly checkout adds twelve calendar months, and a repeated callback changes nothing', async () => {
+  const w = await world();
+  w.billing.opened('y1', w.member.id, 'checkout', 'year');
+  const first = w.billing.paid('y1', true);
+  assert.equal(first?.term, 'year');
+  assert.equal(first?.standing.paidUntil, '2027-01-31T10:00:00Z');
+  assert.equal(first?.standing.term, 'year');
+
+  w.later(DAY);
+  assert.equal(w.billing.paid('y1', true), null, 'CHIP calling back again is ignored');
+  assert.deepEqual(w.billing.standing(w.member.id), first?.standing, 'and nothing moved');
+});
+
+test('a payment adds the term it was opened with, after the time already paid for', async () => {
+  const w = await world();
+  w.billing.opened('m1', w.member.id, 'checkout', 'month');
+  w.billing.opened('y1', w.member.id, 'checkout', 'year');
+  assert.equal(w.billing.paid('m1', false)?.standing.paidUntil, '2026-02-28T10:00:00Z');
+  const year = w.billing.paid('y1', false);
+  assert.equal(year?.standing.paidUntil, '2027-02-28T10:00:00Z', 'a year on from the end of the paid month');
+  assert.equal(year?.standing.term, 'year', 'the last paid checkout sets the term');
+
+  w.billing.opened('m2', w.member.id, 'checkout', 'month');
+  const month = w.billing.paid('m2', false);
+  assert.equal(month?.standing.paidUntil, '2027-03-28T10:00:00Z');
+  assert.equal(month?.standing.term, 'month');
+});
+
+test('a refund takes off the term that payment added, whatever the member pays by now', async () => {
+  const w = await world();
+  w.billing.opened('m1', w.member.id, 'checkout', 'month');
+  w.billing.paid('m1', false);
+  w.billing.opened('y1', w.member.id, 'checkout', 'year');
+  w.billing.paid('y1', false);
+  assert.equal(w.billing.standing(w.member.id).paidUntil, '2027-02-28T10:00:00Z');
+
+  const month = w.billing.reversed('m1');
+  assert.equal(month?.term, 'month');
+  assert.equal(month?.standing.paidUntil, '2027-01-28T10:00:00Z', 'the month comes off, the year stays');
+  assert.equal(month?.standing.term, 'year');
+  assert.equal(w.billing.reversed('m1'), null, 'CHIP reporting it again changes nothing');
+  assert.equal(w.billing.standing(w.member.id).paidUntil, '2027-01-28T10:00:00Z');
+
+  const year = w.billing.reversed('y1');
+  assert.equal(year?.term, 'year');
+  assert.equal(year?.standing.paidUntil, '2026-01-28T10:00:00Z', 'twelve months off');
+  assert.equal(year?.standing.access, 'unpaid');
+});
+
+test('a refunded yearly payment takes twelve months off and leaves the months paid before it', async () => {
+  const w = await world();
+  w.billing.opened('m1', w.member.id, 'checkout', 'month');
+  w.billing.paid('m1', true);
+  w.billing.opened('y1', w.member.id, 'checkout', 'year');
+  w.billing.paid('y1', true);
+
+  const undone = w.billing.reversed('y1');
+  assert.equal(undone?.standing.paidUntil, '2026-02-28T10:00:00Z');
+  assert.equal(undone?.standing.access, 'paid');
+  assert.equal(undone?.standing.term, 'month', 'back to the term of the checkout still standing');
+  assert.equal(undone?.standing.cardOnFile, false, 'the card saved by the refunded payment is dropped');
+});
+
+test('a card renewal is for the term of the last paid checkout, and paying it keeps that term', async () => {
+  const w = await world();
+  w.billing.opened('y1', w.member.id, 'checkout', 'year');
+  w.billing.paid('y1', true);
+  w.later(360 * DAY);
+  assert.deepEqual(w.billing.dueRenewals(), [], 'not in the last days of the year, only the last half day');
+
+  w.later(5 * DAY - 6 * 3_600_000);
+  const due = w.billing.dueRenewals();
+  assert.deepEqual(due.map((r) => [r.term, r.token, r.paidUntil]), [['year', 'y1', '2027-01-31T10:00:00Z']]);
+  assert.deepEqual(w.billing.dueRenewals(), [], 'the next hourly run does not charge again');
+
+  w.billing.opened('r1', w.member.id, 'renewal', 'year');
+  const renewed = w.billing.paid('r1', false);
+  assert.equal(renewed?.standing.paidUntil, '2028-01-31T10:00:00Z');
+  assert.equal(renewed?.standing.term, 'year');
+  assert.equal(renewed?.standing.cardOnFile, true);
+  assert.deepEqual(w.billing.dueRenewals(), [], 'paid for: nothing is due');
+
+  w.billing.opened('m1', w.member.id, 'checkout', 'month');
+  assert.equal(w.billing.paid('m1', true)?.standing.term, 'month', 'paying a month at checkout switches the renewal to monthly');
+  w.later(366 * DAY + 28 * DAY);
+  assert.deepEqual(w.billing.dueRenewals().map((r) => [r.term, r.token]), [['month', 'm1']]);
+});
+
+test('a renewal opened at one term still adds that term if the member has since paid for the other', async () => {
+  const w = await world();
+  w.billing.opened('m1', w.member.id, 'checkout', 'month');
+  w.billing.paid('m1', true);
+  w.billing.opened('r1', w.member.id, 'renewal', 'month');
+  w.billing.opened('y1', w.member.id, 'checkout', 'year');
+  w.billing.paid('y1', true);
+
+  const late = w.billing.paid('r1', false);
+  assert.equal(late?.standing.paidUntil, '2027-03-28T10:00:00Z', 'a month, a year, and the renewal month');
+  assert.equal(late?.standing.term, 'year', 'a renewal never changes what the member chose');
+});
+
+test('a yearly member paying by FPX is reminded once before the year ends, and keeps the grace period', async () => {
+  const w = await world();
+  w.billing.opened('y1', w.member.id, 'checkout', 'year');
+  w.billing.paid('y1', false);
+  w.later(300 * DAY);
+  assert.deepEqual(w.billing.paymentReminders(), [], 'too early');
+
+  w.later(65 * DAY - PAY_REMINDER_LEAD_MS + 3_600_000);
+  assert.deepEqual(w.billing.paymentReminders(), [{ email: 'aina@firm.com.my', name: 'Aina', term: 'year', paidUntil: '2027-01-31T10:00:00Z' }]);
+  assert.deepEqual(w.billing.paymentReminders(), [], 'once per year paid for');
+
+  w.later(PAY_REMINDER_LEAD_MS);
+  assert.equal(w.billing.access(w.member.id), 'grace');
+  w.later(GRACE_MS);
+  assert.equal(w.billing.access(w.member.id), 'unpaid');
 });

@@ -2,7 +2,7 @@
 import { actions, isInputError } from 'astro:actions';
 import Masthead from '../../components/Masthead.astro';
 import Members from '../../layouts/Members.astro';
-import { monthlyRate } from '../../data/membership.ts';
+import { everyRate, TERMS, terms } from '../../data/membership.ts';
 import { formAction, formatDay } from '../../lib/format.ts';
 import { memberNumber } from '../../server/club.ts';
 import { MIN_PASSWORD_LENGTH } from '../../server/password.ts';
@@ -20,14 +20,17 @@ const until = standing?.paidUntil ? formatDay(standing.paidUntil) : null;
 const plan = !standing
   ? null
   : !until
-    ? `Not started. Membership is ${monthlyRate}.`
+    ? `Not started. Membership is ${everyRate}.`
     : standing.access === 'unpaid'
-      ? `Your last paid month ended on ${until}.`
+      ? `Your last paid ${standing.term} ended on ${until}.`
       : !standing.renews
         ? `Paid until ${until}. Renewal is off, so your membership ends then.`
         : standing.cardOnFile
-          ? `${monthlyRate}. Paid until ${until}, then it renews on your card.`
-          : `${monthlyRate}. Paid until ${until}. We email you a link to pay the next month a few days before.`;
+          ? `${terms[standing.term].label}. Paid until ${until}, then your card is charged ${terms[standing.term].price} for the next ${standing.term}.`
+          : `${terms[standing.term].label}. Paid until ${until}. We email you a link to pay for the next ${standing.term} a few days before.`;
+/* A card renews at the term of the last paid checkout, so paying for the other term is how a member changes it. */
+const renewsByCard = standing !== null && standing.cardOnFile && standing.renews && standing.access === 'paid';
+const anyTerm = TERMS.map((term) => `a ${term}`).join(' or ');
 const prefs = await Astro.locals.mailings.prefs(member.id);
 const choices = [
   { name: 'replies', label: 'Replies in threads I posted in', hint: 'At most one email per thread every six hours.', on: prefs.replies },
@@ -55,9 +58,9 @@ const details = [
       <section class="wrap block" id="membership" aria-labelledby="membership-title">
         <h2 class="head" id="membership-title">Membership</h2>
         <p>{plan}</p>
-        {standing.access === 'grace' && <p class="error" role="alert">Your paid month has ended. Pay within a few days to keep your access.</p>}
+        {standing.access === 'grace' && <p class="error" role="alert">Your paid {standing.term} has ended. Pay within a few days to keep your access.</p>}
         <div class="row">
-          {(!(standing.cardOnFile && standing.renews) || standing.access !== 'paid') && <a class="btn" href="/members/pay">Pay a month</a>}
+          {!renewsByCard && <a class="btn" href="/members/pay">Pay for {anyTerm}</a>}
           {standing.access !== 'unpaid' && (
             <form method="POST" action={formAction(Astro.url, actions.setRenews)}>
               <input type="hidden" name="renews" value={standing.renews ? 'false' : 'true'} />
@@ -66,6 +69,11 @@ const details = [
           )}
         </div>
         {renewal?.data && <p class="ok" role="status">{renewal.data.renews ? 'Renewal is on.' : `Renewal is off. You keep access until ${until}.`}</p>}
+        {renewsByCard && (
+          <p class="small">
+            To change between paying by the {TERMS.join(' and the ')}, <a href="/members/pay">pay for the other now</a>. It is added after {until}, and your card renews at that rate from then on.
+          </p>
+        )}
       </section>
     )
   }
