@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { requiredRole, safeNext } from './paths.ts';
+import { movedPath, requiredRole, safeNext } from './paths.ts';
 
 test('member and admin areas are guarded, and nothing else is', () => {
   assert.equal(requiredRole('/members'), 'member');
@@ -18,4 +18,12 @@ test('a return path never leaves the site', () => {
   assert.equal(safeNext('//evil.example'), '/members');
   assert.equal(safeNext('/\\evil.example'), '/members');
   assert.equal(safeNext(null), '/members');
+});
+
+test('old-site paths go home, and this site keeps its own', () => {
+  assert.equal(movedPath('/products/accountants'), '/');
+  assert.equal(movedPath('/enterprise'), '/');
+  assert.equal(movedPath('/legal/dpa/'), '/');
+  assert.equal(movedPath('/programmes/pricing'), null);
+  assert.equal(movedPath('/productsx'), null);
 });
