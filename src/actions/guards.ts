@@ -29,7 +29,7 @@ export const admin = (locals: App.Locals): Member => {
   return member;
 };
 
-type LimitedForm = 'join' | 'sign-in' | 'link' | 'checkout' | 'survey' | 'listing';
+type LimitedForm = 'join' | 'sign-in' | 'link' | 'checkout' | 'survey' | 'listing' | 'call';
 
 /** The key a form's posts are counted under: the form and the address they come from. */
 export const formKey = (context: ActionAPIContext, form: LimitedForm) => `${form} ${sourceOf(context.request.headers.get('cf-connecting-ip') ?? 'unknown')}`;

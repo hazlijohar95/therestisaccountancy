@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { TERMS, everyRate } from '../data/membership.ts';
 import { renderLetter } from '../emails/render.tsx';
-import { passwordLetter, paymentDueLetter, renewalLetter } from './letters.ts';
+import { passwordLetter, paymentDueLetter, renewalLetter, renewalNoticeLetter } from './letters.ts';
 
 const aina = { email: 'aina@firm.com.my', name: 'Aina Rahman' };
 const payUrl = 'https://club.test/members/pay';
@@ -46,4 +46,12 @@ test('every term has a letter of each kind that renders', async () => {
       assert.ok(html.includes(payUrl) && text.includes(payUrl));
     }
   }
+});
+
+test('the renewal notice names the date, the amount and how to stop it', async () => {
+  const letter = renewalNoticeLetter(aina, { term: 'year', paidUntil: '2027-01-31T10:00:00Z', accountUrl: 'https://club.test/members/account' });
+  assert.equal(letter.subject, 'Your membership renews on 31 Jan 2027');
+  const { text } = await renderLetter(letter);
+  assert.ok(text.includes('charge RM 990 to the card you saved'));
+  assert.ok(text.includes('https://club.test/members/account'));
 });

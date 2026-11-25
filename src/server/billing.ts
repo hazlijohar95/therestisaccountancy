@@ -42,7 +42,8 @@ export interface Settled {
   readonly standing: Standing;
 }
 
-export const GRACE_MS = 3 * 86_400_000;
+const DAY_MS = 86_400_000;
+export const GRACE_MS = 3 * DAY_MS;
 /** A renewal is charged this long before the paid term ends, and retried at most this often. */
 const RENEW_AHEAD_MS = 12 * 3_600_000;
 const RETRY_GAP_MS = 20 * 3_600_000;
@@ -186,6 +187,32 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
         return rows.map((row) => {
           mark.run(integer(row, 'member_id'));
           return { email: text(row, 'email'), name: text(row, 'name'), term: oneOf(row, 'term', TERMS), paidUntil: text(row, 'paid_until') };
+        });
+      });
+    },
+
+    /**
+     * Members renewing by card whose term gives notice before the charge, and whose paid term ends within that notice.
+     * Each is marked as told for that end date, so they hear once before each renewal.
+     */
+    renewalNotices(): PaymentReminder[] {
+      return db.transaction(() => {
+        const at = now().getTime();
+        const longest = Math.max(...TERMS.map((t) => terms[t].noticeDays)) * DAY_MS;
+        const rows = db
+          .prepare(
+            `SELECT s.member_id, s.paid_until, s.term, m.email, m.name FROM subscriptions s JOIN members m ON m.id = s.member_id
+             WHERE s.renews = 1 AND s.card_token IS NOT NULL AND s.paid_until > ? AND s.paid_until <= ?
+               AND (s.noticed_for IS NULL OR s.noticed_for != s.paid_until) AND ${STATUS_SQL.active}`,
+          )
+          .all(iso(new Date(at)), iso(new Date(at + longest)));
+        const mark = db.prepare('UPDATE subscriptions SET noticed_for = paid_until WHERE member_id = ?');
+        return rows.flatMap((row) => {
+          const term = oneOf(row, 'term', TERMS);
+          const paidUntil = text(row, 'paid_until');
+          if (new Date(paidUntil).getTime() > at + terms[term].noticeDays * DAY_MS) return [];
+          mark.run(integer(row, 'member_id'));
+          return [{ email: text(row, 'email'), name: text(row, 'name'), term, paidUntil }];
         });
       });
     },

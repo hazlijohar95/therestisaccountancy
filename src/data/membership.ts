@@ -27,9 +27,12 @@ export interface TermOffer {
   readonly after: (from: Date) => Date;
   /** The same term taken back off. A day clamped to a shorter month stays clamped, so this undoes after() only up to that. */
   readonly before: (from: Date) => Date;
+  /** Days of warning before a saved card is charged for this term. A year's charge is large enough to warrant it. */
+  readonly noticeDays: number;
 }
 
-const offer = (term: Term, months: number, sen: number): TermOffer => ({
+const offer = (term: Term, months: number, sen: number, noticeDays: number): TermOffer => ({
+  noticeDays,
   months,
   sen,
   price: formatRinggit(sen),
@@ -40,8 +43,8 @@ const offer = (term: Term, months: number, sen: number): TermOffer => ({
 
 /** The rates. Shown to invited members and charged through CHIP. Never shown on the public site. */
 export const terms: Record<Term, TermOffer> = {
-  month: offer('month', 1, 9900),
-  year: offer('year', 12, 99000),
+  month: offer('month', 1, 9900, 0),
+  year: offer('year', 12, 99000, 7),
 };
 
 /** A subscription's term before any checkout has been paid. */

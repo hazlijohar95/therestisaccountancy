@@ -166,7 +166,8 @@ export function createListings(db: Db, now: () => Date = () => new Date()) {
     /**
      * Saves what the member wrote. Changed content goes back to the hosts: any approval or note is cleared and it leaves
      * the directory until a host checks it. So does saving a returned listing, which is how a member answers the note.
-     * Saving the same content again changes nothing. Pausing is kept as it was.
+     * Saving the same content again changes nothing. Pausing is kept as it was. Every save carries the member's
+     * declaration, so each write records when they last made it.
      */
     save(memberId: number, content: ListingContent): { readonly listing: Listing; readonly outcome: SaveOutcome } {
       return db.transaction(() => {
@@ -181,12 +182,12 @@ export function createListings(db: Db, now: () => Date = () => new Date()) {
               : 'unchanged';
         if (outcome !== 'unchanged') {
           db.prepare(
-            `INSERT INTO listings (member_id, practice, state, town, remote, services, niche, bio, qualifications, website, contact_email, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `INSERT INTO listings (member_id, practice, state, town, remote, services, niche, bio, qualifications, website, contact_email, updated_at, declared_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT (member_id) DO UPDATE SET practice = excluded.practice, state = excluded.state, town = excluded.town,
                remote = excluded.remote, services = excluded.services, niche = excluded.niche, bio = excluded.bio,
                qualifications = excluded.qualifications, website = excluded.website, contact_email = excluded.contact_email,
-               updated_at = excluded.updated_at, approved_at = NULL, approved_by = NULL, returned_note = NULL`,
+               updated_at = excluded.updated_at, declared_at = excluded.declared_at, approved_at = NULL, approved_by = NULL, returned_note = NULL`,
           ).run(
             memberId,
             content.practice,
@@ -199,6 +200,7 @@ export function createListings(db: Db, now: () => Date = () => new Date()) {
             content.qualifications,
             content.website,
             content.contactEmail,
+            iso(now()),
             iso(now()),
           );
         }

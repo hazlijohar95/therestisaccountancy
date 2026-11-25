@@ -53,7 +53,8 @@ const offered = listing.services.flatMap((slug) => serviceBySlug(slug)?.label ??
   .meta dt { font-weight: 600; }
   .meta dd { margin: 0; overflow-wrap: anywhere; }
   .services { display: flex; flex-wrap: wrap; gap: 0 .5em; margin: 0; padding: 0; list-style: none; }
-  .services li + li::before { content: "\00B7"; margin-inline-end: .5em; }
+  /* The dot trails each service, so a wrapped line never starts with one. */
+  .services li:not(:last-child)::after { content: "\00B7"; margin-inline-start: .5em; }
   .contact { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); }
   @media (min-width: 860px) { .entry { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); } }
 </style>

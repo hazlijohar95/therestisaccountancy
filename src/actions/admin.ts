@@ -1,7 +1,8 @@
 import { ActionError, defineAction } from 'astro:actions';
 import { z } from 'astro/zod';
 import { ROLES, type EditRefusal, type InviteRefusal, type LinkRefusal } from '../server/club.ts';
-import { admin, deliver, email, id, memberName, settle, type Refusal } from './guards.ts';
+import { callLetters } from '../server/calls.ts';
+import { absolute, admin, deliver, email, id, memberName, sendLater, settle, type Refusal } from './guards.ts';
 
 const memberRefusals: Record<EditRefusal, Refusal> = {
   'not-found': { code: 'NOT_FOUND', message: 'There is no such member.' },
@@ -84,7 +85,11 @@ export const adminActions = {
     input: z.object({ member: id, confirm: z.literal('yes', { error: 'Tick the box to confirm.' }) }),
     handler: async (input, context) => {
       const actor = admin(context.locals);
+      /* Removing a host takes their slots with them. Members who booked one are told, as when a host cancels. */
+      const leaving = await context.locals.club.member(input.member);
+      const booked = (await context.locals.calls.upcoming()).filter((slot) => slot.state === 'booked' && slot.host.email === leaving?.email);
       settle(await context.locals.club.removeMember(actor.id, input.member), memberRefusals);
+      sendLater(context, booked.flatMap((call) => (call.state === 'booked' ? callLetters('cancelled-by-host', call, absolute(context, '/')) : [])));
       return { removed: true };
     },
   }),

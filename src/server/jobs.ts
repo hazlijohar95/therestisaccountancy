@@ -3,7 +3,7 @@ import { openStore } from './instance.ts';
 import { GRACE_MS } from './billing.ts';
 import { callLetters } from './calls.ts';
 import { summaryDue } from './incidents.ts';
-import { digestLetter, incidentsLetter, paymentDueLetter, renewalLetter, sessionLetters, type Letter } from './letters.ts';
+import { digestLetter, incidentsLetter, paymentDueLetter, renewalLetter, renewalNoticeLetter, sessionLetters, type Letter } from './letters.ts';
 import { send } from './mail.ts';
 import { digestWeek } from './mailings.ts';
 import { renew } from './payments.ts';
@@ -31,6 +31,7 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
         letters.push(renewalLetter(renewal, { term: renewal.term, cardRefused: outcome === 'card-refused', accessUntil, payUrl: url('/members/pay') }));
       }
     }
+    for (const notice of await store.billing.renewalNotices()) letters.push(renewalNoticeLetter(notice, { term: notice.term, paidUntil: notice.paidUntil, accountUrl: url('/members/account') }));
     for (const due of await store.billing.paymentReminders()) letters.push(paymentDueLetter(due, { term: due.term, paidUntil: due.paidUntil, payUrl: url('/members/pay') }));
     for (const { session, attendees } of await store.schedule.dueReminders()) letters.push(...sessionLetters('reminder', session, attendees, siteUrl));
     for (const call of await store.calls.dueReminders()) letters.push(...callLetters('reminder', call, siteUrl));

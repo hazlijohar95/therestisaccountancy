@@ -249,6 +249,12 @@ const MIGRATIONS: readonly string[] = [
   ALTER TABLE subscriptions ADD COLUMN term TEXT NOT NULL DEFAULT 'month' CHECK (term IN ('month', 'year'));
   ALTER TABLE payments ADD COLUMN term TEXT NOT NULL DEFAULT 'month' CHECK (term IN ('month', 'year'));
   `,
+  `
+  ALTER TABLE listings ADD COLUMN declared_at TEXT;
+  `,
+  `
+  ALTER TABLE subscriptions ADD COLUMN noticed_for TEXT;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

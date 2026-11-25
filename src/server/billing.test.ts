@@ -271,3 +271,30 @@ test('a yearly member paying by FPX is reminded once before the year ends, and k
   w.later(GRACE_MS);
   assert.equal(w.billing.access(w.member.id), 'unpaid');
 });
+
+test('a yearly card member hears once, a week before the charge; a monthly card member does not', async () => {
+  const w = await world();
+  w.billing.opened('y1', w.member.id, 'checkout', 'year');
+  w.billing.paid('y1', true);
+  w.later(357 * DAY);
+  assert.deepEqual(w.billing.renewalNotices(), [], 'more than a week out');
+
+  w.later(2 * DAY);
+  assert.deepEqual(w.billing.renewalNotices(), [{ email: 'aina@firm.com.my', name: 'Aina', term: 'year', paidUntil: '2027-01-31T10:00:00Z' }]);
+  assert.deepEqual(w.billing.renewalNotices(), [], 'once per renewal');
+
+  const m = await world();
+  m.billing.opened('m1', m.member.id, 'checkout', 'month');
+  m.billing.paid('m1', true);
+  m.later(30 * DAY);
+  assert.deepEqual(m.billing.renewalNotices(), [], 'a month needs no warning');
+});
+
+test('turning renewal off means no notice', async () => {
+  const w = await world();
+  w.billing.opened('y1', w.member.id, 'checkout', 'year');
+  w.billing.paid('y1', true);
+  w.billing.setRenews(w.member.id, false);
+  w.later(362 * DAY);
+  assert.deepEqual(w.billing.renewalNotices(), []);
+});

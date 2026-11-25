@@ -1,7 +1,7 @@
 import { ActionError, defineAction } from 'astro:actions';
 import { z } from 'astro/zod';
 import { CALL_MINUTES, TOPIC_MAX, callLetters, type AddRefusal, type BookRefusal } from '../server/calls.ts';
-import { absolute, admin, id, oneLine, paidMember, sendLater, settle, signedIn, type Refusal } from './guards.ts';
+import { absolute, admin, id, oneLine, paidMember, sendLater, settle, signedIn, throttle, type Refusal } from './guards.ts';
 import { malaysiaTime } from './sessions.ts';
 
 const bookRefusals: Record<BookRefusal, Refusal> = {
@@ -28,6 +28,7 @@ export const calls = {
     }),
     handler: async (input, context) => {
       const member = await paidMember(context.locals);
+      await throttle(context, 'call');
       const { call, changed } = settle(await context.locals.calls.book(member.id, input.slot, input.topic), bookRefusals);
       if (changed) sendLater(context, callLetters('booked', call, absolute(context, '/')));
       return { id: call.id };
@@ -39,6 +40,7 @@ export const calls = {
     input: z.object({ slot: id }),
     handler: async (input, context) => {
       const member = signedIn(context.locals);
+      await throttle(context, 'call');
       const call = settle(await context.locals.calls.cancelBooking(member.id, input.slot), {
         'not-booked': { code: 'NOT_FOUND', message: 'You have no call booked at that time.' },
       });
