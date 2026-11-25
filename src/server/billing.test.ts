@@ -4,6 +4,7 @@ import { DEFAULT_TERM, monthsFree, terms } from '../data/membership.ts';
 import { createBilling, GRACE_MS, PAY_REMINDER_LEAD_MS } from './billing.ts';
 import { createClub } from './club.ts';
 import { migrate } from './db.ts';
+import { renewalNoticeLetter } from './letters.ts';
 import { openDatabase } from './node-db.ts';
 
 const DAY = 86_400_000;
@@ -280,7 +281,7 @@ test('a yearly card member hears once, a week before the charge; a monthly card 
   assert.deepEqual(w.billing.renewalNotices(), [], 'more than a week out');
 
   w.later(2 * DAY);
-  assert.deepEqual(w.billing.renewalNotices(), [{ email: 'aina@firm.com.my', name: 'Aina', term: 'year', paidUntil: '2027-01-31T10:00:00Z' }]);
+  assert.deepEqual(w.billing.renewalNotices(), [{ email: 'aina@firm.com.my', name: 'Aina', term: 'year', paidUntil: '2027-01-31T10:00:00Z', chargesAt: '2027-01-30T22:00:00Z' }]);
   assert.deepEqual(w.billing.renewalNotices(), [], 'once per renewal');
 
   const m = await world();
@@ -297,4 +298,18 @@ test('turning renewal off means no notice', async () => {
   w.billing.setRenews(w.member.id, false);
   w.later(362 * DAY);
   assert.deepEqual(w.billing.renewalNotices(), []);
+});
+
+test('the notice names the day the card is charged, which can be the day before the paid year ends', async () => {
+  const w = await world();
+  w.later(-9 * 3_600_000);
+  w.billing.opened('y1', w.member.id, 'checkout', 'year');
+  w.billing.paid('y1', true);
+  w.later(360 * DAY);
+  const [notice] = w.billing.renewalNotices();
+  assert.ok(notice);
+  assert.equal(notice.paidUntil, '2027-01-31T01:00:00Z', 'the year ends at 9 am on 31 January, Malaysia time');
+  assert.equal(notice.chargesAt, '2027-01-30T13:00:00Z', 'charged at 9 pm on 30 January, Malaysia time');
+  const letter = renewalNoticeLetter(notice, { term: notice.term, chargesAt: notice.chargesAt, accountUrl: 'https://club.test/members/account' });
+  assert.equal(letter.subject, 'Your membership renews on 30 Jan 2027');
 });

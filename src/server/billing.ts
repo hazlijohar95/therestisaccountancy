@@ -192,10 +192,11 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
     },
 
     /**
-     * Members renewing by card whose term gives notice before the charge, and whose paid term ends within that notice.
-     * Each is marked as told for that end date, so they hear once before each renewal.
+     * Members renewing by card whose term gives notice before the charge, and whose charge falls within that notice.
+     * The charge comes half a day before the paid term ends, so that is the moment the notice counts back from and
+     * names. Each is marked as told for that end date, so they hear once before each renewal.
      */
-    renewalNotices(): PaymentReminder[] {
+    renewalNotices(): (PaymentReminder & { readonly chargesAt: string })[] {
       return db.transaction(() => {
         const at = now().getTime();
         const longest = Math.max(...TERMS.map((t) => terms[t].noticeDays)) * DAY_MS;
@@ -205,14 +206,15 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
              WHERE s.renews = 1 AND s.card_token IS NOT NULL AND s.paid_until > ? AND s.paid_until <= ?
                AND (s.noticed_for IS NULL OR s.noticed_for != s.paid_until) AND ${STATUS_SQL.active}`,
           )
-          .all(iso(new Date(at)), iso(new Date(at + longest)));
+          .all(iso(new Date(at + RENEW_AHEAD_MS)), iso(new Date(at + longest + RENEW_AHEAD_MS)));
         const mark = db.prepare('UPDATE subscriptions SET noticed_for = paid_until WHERE member_id = ?');
         return rows.flatMap((row) => {
           const term = oneOf(row, 'term', TERMS);
           const paidUntil = text(row, 'paid_until');
-          if (new Date(paidUntil).getTime() > at + terms[term].noticeDays * DAY_MS) return [];
+          const chargesAt = new Date(paidUntil).getTime() - RENEW_AHEAD_MS;
+          if (chargesAt > at + terms[term].noticeDays * DAY_MS) return [];
           mark.run(integer(row, 'member_id'));
-          return [{ email: text(row, 'email'), name: text(row, 'name'), term, paidUntil }];
+          return [{ email: text(row, 'email'), name: text(row, 'name'), term, paidUntil, chargesAt: iso(new Date(chargesAt)) }];
         });
       });
     },

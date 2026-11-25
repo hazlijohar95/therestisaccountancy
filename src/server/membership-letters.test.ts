@@ -49,7 +49,7 @@ test('every term has a letter of each kind that renders', async () => {
 });
 
 test('the renewal notice names the date, the amount and how to stop it', async () => {
-  const letter = renewalNoticeLetter(aina, { term: 'year', paidUntil: '2027-01-31T10:00:00Z', accountUrl: 'https://club.test/members/account' });
+  const letter = renewalNoticeLetter(aina, { term: 'year', chargesAt: '2027-01-30T22:00:00Z', accountUrl: 'https://club.test/members/account' });
   assert.equal(letter.subject, 'Your membership renews on 31 Jan 2027');
   const { text } = await renderLetter(letter);
   assert.ok(text.includes('charge RM 990 to the card you saved'));

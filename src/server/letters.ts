@@ -163,15 +163,15 @@ export function sessionLetters(news: SessionNews, session: LiveSession, members:
 
 /** A card renewal did not go through. The member keeps access through the grace period while it is retried. */
 /** A saved card is about to be charged for a long term: when, how much, and how to stop it first. */
-export function renewalNoticeLetter(to: Recipient, notice: { term: Term; paidUntil: string; accountUrl: string }): Letter {
-  const date = formatDay(notice.paidUntil);
+export function renewalNoticeLetter(to: Recipient, notice: { term: Term; chargesAt: string; accountUrl: string }): Letter {
+  const date = formatDay(notice.chargesAt);
   return {
     to: to.email,
     subject: `Your membership renews on ${date}`,
     lines: [
       hi(to.name),
-      `Your paid ${notice.term} ends on ${date}. That day we renew it for another ${notice.term} and charge ${terms[notice.term].price} to the card you saved.`,
-      'Nothing to do if that suits you. To stop it, turn renewal off on your account page before then. You keep access to the end of what you paid for, and can pay by the month after that.',
+      `On ${date} we renew your membership for another ${notice.term} and charge ${terms[notice.term].price} to the card you saved.`,
+      `Nothing to do if that suits you. To stop it, turn renewal off on your account page before ${date}. You keep access to the end of what you paid for, and can pay by the month after that.`,
       { href: notice.accountUrl, label: 'Open your account' },
       `You're getting this because a ${notice.term}'s charge is worth a warning.`,
     ],
