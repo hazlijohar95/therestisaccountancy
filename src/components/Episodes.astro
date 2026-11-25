@@ -1,0 +1,41 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { programmeBySlug, programmePath } from '../data/programmes.ts';
+import { formatDay } from '../lib/format.ts';
+
+interface Props {
+  episodes: readonly CollectionEntry<'episodes'>[];
+  /** On a programme's own page the programme link is redundant. */
+  showProgramme?: boolean;
+}
+
+const { episodes, showProgramme = true } = Astro.props;
+---
+
+<ol class="episodes">
+  {
+    episodes.map(({ data }) => {
+      const programme = programmeBySlug(data.programme);
+      return (
+        <li class="episode">
+          <div class="small">Episode {data.number} · {formatDay(data.date)}</div>
+          <h3 class="title"><a href={data.url} rel="noopener">{data.title}</a></h3>
+          <p>{data.summary}</p>
+          {showProgramme && programme && (
+            <p class="small">
+              Work through it in the club: <a href={programmePath(programme)}>{programme.name}</a>
+            </p>
+          )}
+        </li>
+      );
+    })
+  }
+</ol>
+
+<style>
+  .episodes { display: grid; margin: 0; padding: 0; list-style: none; border-top: var(--stroke-rule) solid var(--ink); }
+  .episode { display: grid; gap: var(--space-2); padding-block: var(--space-5); border-bottom: var(--stroke-hair) solid var(--ink); }
+  .episode p, .title { margin: 0; }
+  .title { font-size: var(--size-head); line-height: 1.2; }
+  .episode p:not(.small) { max-width: 60ch; }
+</style>

@@ -28,4 +28,22 @@ const recordings = defineCollection({
   }),
 });
 
-export const collections = { lessons, recordings };
+/*
+ * Podcast episodes are Markdown files in src/episodes/, one per episode. Each names the programme it leads to, so the
+ * podcast page and that programme's page link the two. The file's frontmatter is all there is; the body is unused.
+ */
+const episodes = defineCollection({
+  loader: glob({ pattern: '*.md', base: './src/episodes' }),
+  schema: z.object({
+    number: z.number().int().positive(),
+    title: z.string(),
+    date: z.coerce.date(),
+    /** Where to listen or watch: YouTube, Spotify or Apple Podcasts. */
+    url: z.url(),
+    /** One or two sentences on what the episode asks. */
+    summary: z.string().max(280),
+    programme: z.enum(programmeSlugs),
+  }),
+});
+
+export const collections = { lessons, recordings, episodes };

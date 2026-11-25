@@ -1,5 +1,7 @@
 ---
 import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+import Episodes from '../../components/Episodes.astro';
 import Closing from '../../components/Closing.astro';
 import PageHead from '../../components/PageHead.astro';
 import Section from '../../components/Section.astro';
@@ -19,6 +21,7 @@ const obstacle = obstacleFor(programme);
 const previous = programmes[index - 1];
 const next = programmes[index + 1];
 const count = (n: number) => String(n).padStart(2, '0');
+const episodes = (await getCollection('episodes', (e) => e.data.programme === programme.slug)).sort((a, b) => b.data.number - a.data.number);
 ---
 
 <Page title={programme.name} description={`${programme.name}. ${programme.promise} ${obstacle?.answer ?? ''}`.trim()}>
@@ -42,6 +45,13 @@ const count = (n: number) => String(n).padStart(2, '0');
   <Section id="taught" no={obstacle ? 3 : 2} title="How is it taught?">
     <p class="lead">{teaching}</p>
   </Section>
+  {
+    episodes.length > 0 && (
+      <Section id="podcast" no={obstacle ? 4 : 3} title="Heard it on the podcast?" intro="Episodes of Stick to Accounting that ask what this programme answers.">
+        <Episodes episodes={episodes} showProgramme={false} />
+      </Section>
+    )
+  }
   <nav class="wrap pager" aria-label="Other programmes">
     {previous ? <a href={programmePath(previous)}><span class="label">Previous</span><span class="serif">{previous.name}</span></a> : <span></span>}
     {next && <a class="next" href={programmePath(next)}><span class="label">Next</span><span class="serif">{next.name}</span></a>}

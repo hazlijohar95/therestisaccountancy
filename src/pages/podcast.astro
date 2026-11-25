@@ -1,4 +1,6 @@
 ---
+import { getCollection } from 'astro:content';
+import Episodes from '../components/Episodes.astro';
 import Hosts from '../components/Hosts.astro';
 import Closing from '../components/Closing.astro';
 import Logo from '../components/Logo.astro';
@@ -6,6 +8,9 @@ import Section from '../components/Section.astro';
 import { podcast } from '../data/club.ts';
 import Page from '../layouts/Page.astro';
 import { listOf } from '../lib/format.ts';
+
+const episodes = (await getCollection('episodes')).sort((a, b) => b.data.number - a.data.number);
+const n = (base: number) => base + (episodes.length ? 1 : 0);
 
 const platforms = [
   { verb: 'Watch on', name: 'YouTube' },
@@ -26,10 +31,17 @@ const platforms = [
     <p class="lead">{podcast.lead}</p>
     <p class="lead">{podcast.intro}</p>
   </Section>
-  <Section id="hosts" no={2} title="Who hosts it?" intro={`${listOf(podcast.hostNames)}.`}>
+  {
+    episodes.length > 0 && (
+      <Section id="episodes" no={2} title="What has it asked?" intro="Each episode, and the programme where members work it through.">
+        <Episodes episodes={episodes} />
+      </Section>
+    )
+  }
+  <Section id="hosts" no={n(2)} title="Who hosts it?" intro={`${listOf(podcast.hostNames)}.`}>
     <Hosts />
   </Section>
-  <Section id="listen" no={3} title="Where can I listen?" intro={podcast.find}>
+  <Section id="listen" no={n(3)} title="Where can I listen?" intro={podcast.find}>
     <div class="platforms">
       {platforms.map((p) => <span><small>{p.verb}</small><span>{p.name}</span></span>)}
     </div>
