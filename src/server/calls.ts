@@ -110,8 +110,8 @@ const isUpcoming = (slot: Slot): slot is UpcomingSlot => slot.state === 'open' |
 const malaysianDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur' });
 
 /** Slots grouped by their date in Malaysia, as YYYY-MM-DD, keeping their order. */
-export function byDay<T extends { readonly startsAt: string }>(slots: readonly T[]): { readonly date: string; readonly slots: readonly T[] }[] {
-  const days: { date: string; slots: T[] }[] = [];
+export function byDay<T extends { readonly startsAt: string }>(slots: readonly T[]): { readonly date: string; readonly slots: readonly [T, ...T[]] }[] {
+  const days: { date: string; slots: [T, ...T[]] }[] = [];
   for (const slot of slots) {
     const date = malaysianDate.format(new Date(slot.startsAt));
     const last = days.at(-1);
@@ -148,6 +148,7 @@ export function createCalls(db: Db, now: () => Date = () => new Date()) {
       return row ? toCall(row) : null;
     },
 
+    /** Slots still to come, open or booked, soonest first. */
     upcoming(): UpcomingSlot[] {
       return read(`state IN ('open', 'booked')`, now()).map(toSlot).filter(isUpcoming);
     },
@@ -280,6 +281,7 @@ export function callLetters(news: CallNews, call: Call, siteUrl: string): Letter
   const url = (path: string) => new URL(path, siteUrl).href;
   const { member, topic } = call.booking;
   const host = call.host;
+  const hostFirst = firstName(host.name);
   const at = formatMoment(call.startsAt);
   const when = `${at} Malaysia time, for ${call.minutes} minutes`;
   const join: Line = { href: call.link, label: 'Join the call' };
@@ -287,10 +289,10 @@ export function callLetters(news: CallNews, call: Call, siteUrl: string): Letter
   const drafts: Record<CallNews, Partial<Record<Side, Draft>>> = {
     booked: {
       member: {
-        subject: `Booked: your call with ${firstName(host.name)} on ${at}`,
+        subject: `Booked: your call with ${hostFirst} on ${at}`,
         lines: [
           `You're booked in with ${host.name} on ${when}.`,
-          `${firstName(host.name)} has what you wrote, so you can start straight in:`,
+          `${hostFirst} has what you wrote, so you can start straight in:`,
           quoted,
           'The calendar invite is attached. The call link is in it, and here:',
           join,
@@ -306,7 +308,7 @@ export function callLetters(news: CallNews, call: Call, siteUrl: string): Letter
     },
     reminder: {
       member: {
-        subject: `Coming up: your call with ${firstName(host.name)}`,
+        subject: `Coming up: your call with ${hostFirst}`,
         lines: [`Your call with ${host.name} is on ${when}.`, join, { href: url('/members/calls'), text: "Can't make it? Cancel on the one-to-one page, so the host knows." }, "You're getting this because you booked the call."],
       },
       host: {
@@ -323,7 +325,7 @@ export function callLetters(news: CallNews, call: Call, siteUrl: string): Letter
     },
     'cancelled-by-host': {
       member: {
-        subject: `Cancelled: your call with ${firstName(host.name)} on ${at}`,
+        subject: `Cancelled: your call with ${hostFirst} on ${at}`,
         lines: [`Sorry, your call with ${host.name} on ${when} is off.`, 'The attached file takes it out of your calendar. If another time works, you can book it now.', { href: url('/members/calls'), label: 'Pick another time' }],
         calendar: 'remove',
       },
@@ -335,7 +337,7 @@ export function callLetters(news: CallNews, call: Call, siteUrl: string): Letter
     const draft = drafts[news][side];
     if (!draft) return [];
     const letter: Letter = { to: to[side].email, subject: flat(draft.subject), lines: [hi(to[side].name), ...draft.lines] };
-    const from = side === 'member' ? { from: `${firstName(host.name)} from ${site.name}` } : {};
+    const from = side === 'member' ? { from: `${hostFirst} from ${site.name}` } : {};
     const attachments = draft.calendar
       ? { attachments: [{ filename: 'call.ics', type: 'text/calendar; charset=utf-8', content: calendarFile(callEvent(call, side, new URL(siteUrl).hostname), draft.calendar === 'remove') }] }
       : {};

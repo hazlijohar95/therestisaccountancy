@@ -1,0 +1,124 @@
+---
+import { actions, isInputError } from 'astro:actions';
+import Masthead from '../../components/Masthead.astro';
+import Notice from '../../components/Notice.astro';
+import Members from '../../layouts/Members.astro';
+import { postedFields } from '../../lib/form.ts';
+import { formAction, formatMoment } from '../../lib/format.ts';
+import { CALL_MINUTES } from '../../server/calls.ts';
+
+export const prerender = false;
+
+const me = Astro.locals.member;
+if (!me) return Astro.redirect('/sign-in');
+const opened = Astro.getActionResult(actions.openSlot);
+const cancelled = Astro.getActionResult(actions.cancelSlot);
+if (opened?.data) return Astro.redirect('/admin/calls?opened');
+
+const fieldErrors = opened?.error && isInputError(opened.error) ? opened.error.fields : {};
+const failure = [opened, cancelled].map((r) => (r?.error && !isInputError(r.error) ? r.error.message : null)).find(Boolean) ?? null;
+const posted = opened?.error ? await postedFields(Astro.request) : () => '';
+
+const { calls } = Astro.locals;
+const upcoming = await calls.upcoming();
+const lastLink = await calls.lastLink(me.id);
+const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).format(new Date());
+const told = cancelled?.data?.told ?? null;
+---
+
+<Members title="One-to-one · Admin">
+  <Masthead label="Admin" title="One-to-one calls">
+    <p>
+      Open a slot and members can book it until two hours before it starts. Whoever books says what they are stuck on, and
+      you get that by email with a calendar invite, then a reminder the day before. Times are Malaysia time.
+    </p>
+  </Masthead>
+
+  {Astro.url.searchParams.has('opened') && <Notice>Slot opened. Members can book it now.</Notice>}
+  {cancelled?.data && <Notice>Slot cancelled. {told ? `${told} has been emailed.` : 'Nobody had booked it.'}</Notice>}
+  {failure && <Notice tone="error">{failure}</Notice>}
+
+  <section class="wrap block" aria-labelledby="upcoming-title">
+    <h2 class="head" id="upcoming-title">Coming up</h2>
+    {
+      upcoming.length === 0 ? (
+        <p class="empty">No slots open. Open one below and members see it straight away.</p>
+      ) : (
+        <ol class="slots">
+          {upcoming.map((s) => (
+            <li class="slot">
+              <div class="small"><time datetime={s.startsAt}>{formatMoment(s.startsAt)}</time> · {s.minutes} min · with {s.host.name}</div>
+              {s.state === 'booked' ? (
+                <>
+                  <h3 class="title">{s.booking.member.name}</h3>
+                  <p class="topic">{s.booking.topic}</p>
+                  <p class="small"><a href={`mailto:${s.booking.member.email}`}>{s.booking.member.email}</a> · booked {formatMoment(s.booking.bookedAt)}</p>
+                </>
+              ) : (
+                <h3 class="title">Not booked yet</h3>
+              )}
+              <p class="small link"><a href={s.link} rel="noopener">{s.link}</a></p>
+              <details class="confirm">
+                <summary>Cancel the slot</summary>
+                <form method="POST" action={formAction(Astro.url, actions.cancelSlot)}>
+                  <input type="hidden" name="slot" value={s.id} />
+                  <span class="small">{s.state === 'booked' ? `${s.booking.member.name} gets an email saying it is off.` : 'Nobody has booked it, so nobody is told.'}</span>
+                  <button class="btn" type="submit">Cancel the slot</button>
+                </form>
+              </details>
+            </li>
+          ))}
+        </ol>
+      )
+    }
+  </section>
+
+  <section class="wrap block" aria-labelledby="open-title">
+    <h2 class="head" id="open-title">Open a slot</h2>
+    <form method="POST" action={formAction(Astro.url, actions.openSlot)} class="form">
+      <div class="pair">
+        <div class="field">
+          <label for="date">Date</label>
+          <input class="input" id="date" name="date" type="date" min={today} required value={posted('date')} aria-invalid={fieldErrors.date ? 'true' : undefined} />
+          {fieldErrors.date?.[0] && <span class="error">{fieldErrors.date[0]}</span>}
+        </div>
+        <div class="field">
+          <label for="time">Start, Malaysia time</label>
+          <input class="input" id="time" name="time" type="time" required value={posted('time')} aria-invalid={fieldErrors.time ? 'true' : undefined} />
+          {fieldErrors.time?.[0] && <span class="error">{fieldErrors.time[0]}</span>}
+        </div>
+      </div>
+      <div class="field">
+        <label for="minutes">Length in minutes</label>
+        <input class="input" id="minutes" name="minutes" type="number" min={CALL_MINUTES.min} max={CALL_MINUTES.max} step="5" required value={posted('minutes') || '30'} aria-invalid={fieldErrors.minutes ? 'true' : undefined} />
+        <span class="hint">Between {CALL_MINUTES.min} and {CALL_MINUTES.max}.</span>
+        {fieldErrors.minutes?.[0] && <span class="error">{fieldErrors.minutes[0]}</span>}
+      </div>
+      <div class="field">
+        <label for="link">Call link</label>
+        <input class="input" id="link" name="link" type="url" placeholder="https://" required value={posted('link') || lastLink || ''} aria-invalid={fieldErrors.link ? 'true' : undefined} />
+        <span class="hint">Only the member who books it sees it. Filled in with the link you used last.</span>
+        {fieldErrors.link?.[0] && <span class="error">{fieldErrors.link[0]}</span>}
+      </div>
+      <button class="btn" type="submit">Open the slot</button>
+    </form>
+  </section>
+</Members>
+
+<style>
+  .block { display: grid; gap: var(--space-5); padding-block: clamp(48px, 6vw, 80px) 0; }
+  .slots { display: grid; margin: 0; padding: 0; list-style: none; border-top: var(--stroke-rule) solid var(--ink); }
+  .slot { display: grid; gap: var(--space-2); padding-block: var(--space-5); border-bottom: var(--stroke-hair) solid var(--ink); }
+  .slot .small, .title, .topic { margin: 0; }
+  .title { font-size: var(--size-head); line-height: 1.2; }
+  .topic { max-width: 60ch; }
+  .link { overflow-wrap: anywhere; }
+  .confirm summary { cursor: pointer; text-decoration: underline; text-underline-offset: .2em; width: fit-content; }
+  .confirm form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin: var(--space-3) 0 0; }
+  .confirm .btn { min-height: 36px; padding: .4em .8em; font-size: var(--size-small); }
+  .form { display: grid; gap: var(--space-5); max-width: 560px; }
+  .form .btn { justify-self: start; }
+  .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-5); }
+  .error { color: var(--alert); font-weight: 600; }
+  .empty { margin: 0; padding-block: var(--space-5); border-block: var(--stroke-hair) solid var(--ink); }
+</style>
