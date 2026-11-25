@@ -9,6 +9,8 @@ export interface Programme {
   readonly promise: string;
   /** The programme's modules, in teaching order. */
   readonly topics: readonly string[];
+  /** Work the programme ends in, handed to the hosts from the members' area, and the module it closes. */
+  readonly deliverable?: { readonly module: number; readonly href: `/members/${string}`; readonly label: string; readonly detail: string };
 }
 
 export const programmes: readonly Programme[] = [
@@ -18,7 +20,7 @@ export const programmes: readonly Programme[] = [
   { slug: 'visibility', name: 'Visibility', promise: 'Known for one thing.', topics: ['Positioning and a niche', 'One idea, many formats', 'LinkedIn, talks and a letter', 'A website that answers questions'] },
   { slug: 'advisory', name: 'Advisory', promise: 'Beyond the annual return.', topics: ['Management accounts clients read', 'Budgets and cash forecasts', 'Tax planning through the year', 'Charging for advice'] },
   { slug: 'ai', name: 'AI', promise: 'Tools, with limits.', topics: ['Where AI helps a practice', 'Prompts and workflows', 'Client data and its boundaries', 'e-Invoicing and the new month-end'] },
-  { slug: 'growth', name: 'Growth', promise: 'A firm, not a job.', topics: ['The firm you want in three years', 'A week that repeats', 'Systems before staff', 'Your first hire', 'The plan, written down'] },
+  { slug: 'growth', name: 'Growth', promise: 'A firm, not a job.', topics: ['The firm you want in three years', 'A week that repeats', 'Systems before staff', 'Your first hire', 'The plan, written down'], deliverable: { module: 5, href: '/members/plan', label: 'Write your plan', detail: 'A host reads it and answers in writing.' } },
 ];
 
 export const programmePath = (p: Pick<Programme, 'slug'>) => `/programmes/${p.slug}` as const;
