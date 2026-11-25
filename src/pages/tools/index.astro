@@ -1,0 +1,42 @@
+---
+import Closing from '../../components/Closing.astro';
+import PageHead from '../../components/PageHead.astro';
+import Section from '../../components/Section.astro';
+import Page from '../../layouts/Page.astro';
+
+const tools = [
+  { href: '/tools/rate', name: 'Rate tool', question: 'What is my lowest fair rate?', detail: 'The hourly floor that pays your income and your running costs.' },
+  { href: '/tools/planner', name: 'Practice planner', question: 'How many clients does that take?', detail: 'The clients you need, the sales calls a month to get there, and the month your hours run out.' },
+  { href: '/fees', name: 'Fee survey', question: 'What do other practices charge?', detail: 'An anonymous yearly survey of fees in Malaysian practices, with the results public.' },
+];
+---
+
+<Page title="Tools" description="Free tools from the club: the rate tool, the practice planner and the fee survey.">
+  <PageHead label="Tools" title="Your numbers first." lead="Free tools from the club. The calculators work on the page and send nothing anywhere. The survey is anonymous." />
+  <Section id="tools" no={1} title="Which question are you asking?" intro="Each tool answers one. Start with the one in front of you.">
+    <div class="ep-list">
+      {
+        tools.map((tool, i) => (
+          <a class="ep-row" href={tool.href}>
+            <span class="no">{String(i + 1).padStart(2, '0')}</span>
+            <span class="what">
+              <span class="label">{tool.name}</span>
+              <h3>{tool.question}</h3>
+              <span class="small">{tool.detail}</span>
+            </span>
+            <span class="go" aria-hidden="true">→</span>
+          </a>
+        ))
+      }
+    </div>
+  </Section>
+  <Closing title="Numbers first. Then the work." lead="Members bring these figures to the programmes and the live sessions, and work out what to do next.">
+    <a class="btn ghost" href="/membership">See membership</a>
+  </Closing>
+</Page>
+
+<style>
+  .ep-row { grid-template-columns: 4.5rem minmax(0, 1fr) auto; }
+  .what { display: grid; gap: var(--space-1); }
+  @media (max-width: 600px) { .ep-row { grid-template-columns: 3rem minmax(0, 1fr) auto; } }
+</style>

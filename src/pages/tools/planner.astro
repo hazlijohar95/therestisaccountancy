@@ -1,0 +1,32 @@
+---
+import Closing from '../../components/Closing.astro';
+import PageHead from '../../components/PageHead.astro';
+import Planner from '../../components/Planner.astro';
+import Section from '../../components/Section.astro';
+import Page from '../../layouts/Page.astro';
+
+const method = [
+  { term: 'Clients you need', detail: "The income you want plus running costs, divided by a year of one client's fees, rounded up." },
+  { term: 'New clients a month', detail: 'The same number every month, enough to reach that many in the months you give it. Clients who leave are spread evenly across the year.' },
+  { term: 'Sales calls a month', detail: 'New clients a month, divided by the share of calls that become clients, rounded up.' },
+  { term: 'Hours', detail: 'The hours each client takes a month, against your billable hours a week, times 52, divided by 12.' },
+];
+---
+
+<Page title="Practice planner" description="Start from the income you want. See how many clients it takes, the sales calls a month to get there, and the month your hours run out. Free, and nothing leaves the page.">
+  <PageHead label="Practice planner" title="Work back from the income you want." lead="A free tool from the club. It turns the income you want into clients, sales calls and a path month by month. Nothing is sent anywhere." />
+  <Planner no={1} />
+  <Section id="method" no={2} title="How is it worked out?" intro="Four lines. Your own figures, nobody else's.">
+    <dl class="facts">
+      {method.map(({ term, detail }) => <div><dt>{term}</dt><dd>{detail}</dd></div>)}
+    </dl>
+    <p class="note">Start with the <a href="/tools/rate">rate tool</a>. Price a client below your floor for the hours they take, and your hours run out before the clients do.</p>
+  </Section>
+  <Closing title="Know the number. Now build the firm." lead="Growth takes it from here: a week that repeats, systems before staff, and your first hire.">
+    <a class="btn ghost" href="/programmes/growth">See Growth</a>
+  </Closing>
+</Page>
+
+<style>
+  .note { margin: var(--space-5) 0 0; max-width: 52ch; }
+</style>
