@@ -1,0 +1,59 @@
+---
+import { serviceBySlug } from '../data/directory.ts';
+import type { PublicListing } from '../server/listings.ts';
+
+/** One practice as the directory shows it. The directory, the member's preview and the hosts' check all draw it here, so each sees the same thing. */
+interface Props {
+  listing: PublicListing;
+}
+
+const { listing } = Astro.props;
+const anchor = `listing-${listing.memberId}`;
+const website = listing.website ? new URL(listing.website) : null;
+const offered = listing.services.flatMap((slug) => serviceBySlug(slug)?.label ?? []);
+---
+
+<article class="entry" id={anchor} aria-labelledby={`${anchor}-title`}>
+  <header class="lede">
+    <p class="place small">{listing.town}, {listing.state}{listing.remote && <span> · Takes clients anywhere in Malaysia</span>}</p>
+    <h3 class="practice serif" id={`${anchor}-title`}>{listing.practice}</h3>
+    <p class="person">{listing.name}</p>
+  </header>
+  <div class="about">
+    <p class="bio">{listing.bio}</p>
+    <dl class="meta small">
+      <div>
+        <dt>Services</dt>
+        <dd><ul class="services">{offered.map((label) => <li>{label}</li>)}</ul></dd>
+      </div>
+      {listing.niche && <div><dt>Works mostly with</dt><dd>{listing.niche}</dd></div>}
+      <div><dt>Qualifications</dt><dd>{listing.qualifications}</dd></div>
+      <div>
+        <dt>Contact</dt>
+        <dd class="contact">
+          <a href={`mailto:${listing.contactEmail}`}>{listing.contactEmail}</a>
+          {website && <a href={website.href} rel="nofollow ugc noopener">{website.hostname.replace(/^www\./, '')}</a>}
+        </dd>
+      </div>
+    </dl>
+  </div>
+</article>
+
+<style>
+  .entry { display: grid; gap: var(--space-4) var(--space-8); padding-block: var(--space-6); scroll-margin-top: calc(var(--bar) + var(--space-5)); }
+  .entry:target .practice { text-decoration: underline; text-decoration-thickness: var(--stroke-rule); text-underline-offset: .18em; }
+  .lede { display: grid; gap: var(--space-2); align-content: start; }
+  .lede p { margin: 0; }
+  .place { font-weight: 600; }
+  .practice { margin: 0; font-size: var(--size-head); line-height: 1.1; overflow-wrap: anywhere; }
+  .about { display: grid; gap: var(--space-4); }
+  .bio { margin: 0; max-width: 60ch; white-space: pre-line; overflow-wrap: anywhere; }
+  .meta { margin: 0; }
+  .meta > div { display: grid; grid-template-columns: minmax(7.5rem, 1fr) minmax(0, 3fr); gap: var(--space-4); padding-block: var(--space-2); border-top: var(--stroke-hair) solid var(--ink); }
+  .meta dt { font-weight: 600; }
+  .meta dd { margin: 0; overflow-wrap: anywhere; }
+  .services { display: flex; flex-wrap: wrap; gap: 0 .5em; margin: 0; padding: 0; list-style: none; }
+  .services li + li::before { content: "\00B7"; margin-inline-end: .5em; }
+  .contact { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); }
+  @media (min-width: 860px) { .entry { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); } }
+</style>
