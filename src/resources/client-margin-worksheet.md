@@ -12,12 +12,14 @@ summary: Every client's fee set against the hours they take and your floor, so y
 >
 > This sheet is for you. It never goes to a client.
 
-## My floor
+## Client margins, [Month and year]
+
+### My floor
 
 - Floor rate: RM [Floor] an hour
 - Worked out on: [Date]
 
-## My clients
+### My clients
 
 | Client | Fee a month (RM) | Hours a month | Fee an hour (RM) | Short a month (RM) |
 | --- | --- | --- | --- | --- |
@@ -36,13 +38,13 @@ summary: Every client's fee set against the hours they take and your floor, so y
 
 **Short a month** is your floor times the client's hours, less the fee. Leave it blank when the client pays at or above the floor.
 
-## What it tells me
+### What it tells me
 
 - Clients below my floor: [Number] of [Number]
 - Short across all of them, a month: RM [Amount]
 - The same over a year, times twelve: RM [Amount]
 
-## The three I act on first
+### The three I act on first
 
 Sort the table by fee an hour, lowest first. For each of the bottom three, choose one: reprice, reduce the work, or let the client go.
 
