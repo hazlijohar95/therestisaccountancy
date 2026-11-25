@@ -1,7 +1,6 @@
 import { channelBySlug, threadPath } from '../data/community.ts';
 import { openStore } from './instance.ts';
 import { GRACE_MS } from './billing.ts';
-import { monthlyRate } from '../data/membership.ts';
 import { summaryDue } from './incidents.ts';
 import { digestLetter, incidentsLetter, paymentDueLetter, renewalLetter, sessionLetters, type Letter } from './letters.ts';
 import { send } from './mail.ts';
@@ -28,10 +27,10 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
       if (outcome === 'declined' || outcome === 'card-refused') {
         await report('renewal', `Renewal for ${renewal.email} was ${outcome === 'declined' ? 'declined' : 'refused: the saved card no longer works'}`);
         const accessUntil = new Date(new Date(renewal.paidUntil).getTime() + GRACE_MS).toISOString();
-        letters.push(renewalLetter(renewal, { cardRefused: outcome === 'card-refused', accessUntil, payUrl: url('/members/pay') }));
+        letters.push(renewalLetter(renewal, { term: renewal.term, cardRefused: outcome === 'card-refused', accessUntil, payUrl: url('/members/pay') }));
       }
     }
-    for (const due of await store.billing.paymentReminders()) letters.push(paymentDueLetter(due, { paidUntil: due.paidUntil, rate: monthlyRate, payUrl: url('/members/pay') }));
+    for (const due of await store.billing.paymentReminders()) letters.push(paymentDueLetter(due, { term: due.term, paidUntil: due.paidUntil, payUrl: url('/members/pay') }));
     for (const { session, attendees } of await store.schedule.dueReminders()) letters.push(...sessionLetters('reminder', session, attendees, siteUrl));
 
     const week = digestWeek(at);
