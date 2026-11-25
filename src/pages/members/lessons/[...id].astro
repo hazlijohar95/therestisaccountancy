@@ -1,10 +1,12 @@
 ---
 import { actions } from 'astro:actions';
 import { getEntry, render } from 'astro:content';
+import TemplateList from '../../../components/TemplateList.astro';
 import { programmeBySlug } from '../../../data/programmes.ts';
 import Members from '../../../layouts/Members.astro';
 import { formAction } from '../../../lib/format.ts';
 import { lessonPath, lessonsOf } from '../../../server/lessons.ts';
+import { resourcesOf } from '../../../server/resources.ts';
 
 export const prerender = false;
 
@@ -19,6 +21,7 @@ const at = siblings.findIndex((l) => l.id === lesson.id);
 const previous = siblings[at - 1];
 const next = siblings[at + 1];
 const done = (await Astro.locals.club.completedLessons(member.id)).has(lesson.id);
+const templates = await resourcesOf(lesson.data.programme, lesson.data.module);
 const { Content } = await render(lesson);
 ---
 
@@ -32,6 +35,14 @@ const { Content } = await render(lesson);
   </section>
   <article class="wrap body">
     <div class="prose"><Content /></div>
+    {
+      templates.length > 0 && (
+        <section class="templates" aria-labelledby="templates-title">
+          <h2 class="label" id="templates-title">Templates for this module</h2>
+          <TemplateList items={templates} />
+        </section>
+      )
+    }
     <form method="POST" action={formAction(Astro.url, actions.lessonDone)} class="done">
       <input type="hidden" name="lesson" value={lesson.id} />
       <input type="hidden" name="done" value={done ? 'false' : 'true'} />
@@ -57,6 +68,7 @@ const { Content } = await render(lesson);
   .prose :global(h2) { margin: var(--space-7) 0 var(--space-3); font: 400 var(--size-head)/1.1 var(--display-font); letter-spacing: var(--display-tracking); font-synthesis: none; }
   .prose :global(p), .prose :global(ul), .prose :global(ol) { margin: 0 0 var(--space-4); }
   .prose :global(li) { margin-bottom: var(--space-2); }
+  .templates h2 { margin: 0 0 var(--space-3); }
   .done { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); padding-block: var(--space-5); border-block: var(--stroke-rule) solid var(--ink); }
   .done p { margin: 0; font-weight: 600; }
   .pager { display: flex; justify-content: space-between; gap: var(--space-5); }

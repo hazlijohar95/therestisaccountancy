@@ -1,0 +1,192 @@
+---
+import { getEntry } from 'astro:content';
+import { programmeBySlug } from '../../../data/programmes.ts';
+import Members from '../../../layouts/Members.astro';
+import { downloadPath, partsOf } from '../../../server/resources.ts';
+
+export const prerender = false;
+
+const member = Astro.locals.member;
+const resource = await getEntry('resources', Astro.params.id ?? '');
+if (!member) return Astro.redirect('/sign-in');
+const programme = resource && programmeBySlug(resource.data.programme);
+if (!resource || !programme) return new Response(null, { status: 404, statusText: 'Not found' });
+
+const { note, body } = partsOf(resource);
+const programmePage = `/members/programmes/${programme.slug}`;
+---
+
+<Members title={resource.data.title}>
+  <section class="night">
+    <div class="wrap masthead">
+      <p class="label top"><a href="/members/resources">Templates</a> / <a href={programmePage}>{programme.name}</a> · Module {resource.data.module} · {programme.topics[resource.data.module - 1]}</p>
+      <h1 class="headline serif" id="template-title">{resource.data.title}</h1>
+      <p class="lead">{resource.data.summary}</p>
+    </div>
+  </section>
+  <div class="wrap layout">
+    <aside class="rail" aria-label="Use this template">
+      <div class="tools">
+        <button class="btn" type="button" data-copy hidden>Copy</button>
+        <a class="btn ghost" href={downloadPath(resource)} download>Download (.md)</a>
+        <button class="btn ghost" type="button" data-print hidden>Print</button>
+      </div>
+      <p class="small status" role="status" aria-live="polite" data-status></p>
+      {
+        note && (
+          <section class="note" aria-labelledby="note-title">
+            <h2 class="label" id="note-title">Before you use it</h2>
+            <div set:html={note} />
+          </section>
+        )
+      }
+    </aside>
+    <article class="template" aria-labelledby="template-title" data-template set:html={body} />
+  </div>
+  <nav class="wrap back" aria-label="More templates">
+    <a href={programmePage}><span class="label">Back to the programme</span><span class="serif">{programme.name}</span></a>
+    <a class="end" href="/members/resources"><span class="label">Every template</span><span class="serif">Templates</span></a>
+  </nav>
+</Members>
+
+<script>
+  import { find } from '../../../lib/dom.ts';
+
+  const sheet = find('[data-template]', HTMLElement);
+  const copy = find('[data-copy]', HTMLButtonElement);
+  const print = find('[data-print]', HTMLButtonElement);
+  const status = find('[data-status]', HTMLElement);
+
+  /* Cleared first, so a second copy is announced again. */
+  const say = (message: string) => {
+    status.textContent = '';
+    window.setTimeout(() => (status.textContent = message), 80);
+  };
+
+  const token = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  /** The template as Word and Google Docs take a paste: they keep inline styles and drop the page's stylesheet. */
+  const forPaste = (): string => {
+    const doc = document.createElement('div');
+    doc.innerHTML = sheet.innerHTML;
+    const ink = token('--color-ink');
+    for (const mark of doc.querySelectorAll('mark')) mark.style.cssText = `background-color: ${token('--color-highlighter')}; color: ${ink};`;
+    for (const list of doc.querySelectorAll('ul.contains-task-list')) {
+      list.replaceWith(
+        ...Array.from(list.children, (item) => {
+          const line = document.createElement('p');
+          const words = Array.from(item.childNodes).filter((node) => !(node instanceof HTMLInputElement));
+          const first = words[0];
+          if (first instanceof Text) first.data = first.data.trimStart();
+          line.style.margin = '0 0 4pt';
+          line.replaceChildren('☐ ', ...words);
+          return line;
+        }),
+      );
+    }
+    for (const quote of doc.querySelectorAll('blockquote')) quote.style.cssText = `margin: 0 0 8pt 12pt; padding-left: 10pt; border-left: 2pt solid ${ink};`;
+    for (const table of doc.querySelectorAll('table')) table.style.cssText = 'border-collapse: collapse; width: 100%;';
+    for (const cell of doc.querySelectorAll<HTMLTableCellElement>('th, td')) cell.style.cssText = `border: 1px solid ${ink}; padding: 4pt 6pt; text-align: left; vertical-align: top;`;
+    for (const tagged of doc.querySelectorAll('[class], [id]')) {
+      tagged.removeAttribute('class');
+      tagged.removeAttribute('id');
+    }
+    return `<meta charset="utf-8">${doc.innerHTML}`;
+  };
+
+  /** The template as plain text, for anywhere that takes a paste without formatting. */
+  const asText = (): string => {
+    const flat = (node: Element) => (node instanceof HTMLElement ? node.innerText : (node.textContent ?? '')).replace(/[ \t]+/g, ' ').trim();
+    const marker = (list: Element, item: Element, i: number) =>
+      item.classList.contains('task-list-item') ? '☐' : list instanceof HTMLOListElement ? `${list.start + i}.` : '-';
+    return Array.from(sheet.children, (block) => {
+      if (block instanceof HTMLUListElement || block instanceof HTMLOListElement) {
+        return Array.from(block.children, (item, i) => `${marker(block, item, i)} ${flat(item)}`).join('\n');
+      }
+      if (block instanceof HTMLTableElement) {
+        return Array.from(block.rows, (row) => Array.from(row.cells, flat))
+          .filter((cells) => cells.some((cell) => cell.length > 0))
+          .map((cells) => cells.join(' | '))
+          .join('\n');
+      }
+      return flat(block);
+    })
+      .filter((text) => text.length > 0)
+      .join('\n\n');
+  };
+
+  /* Nothing is awaited before the first write: Safari only lets a page copy inside the click itself. */
+  const copyTemplate = async (): Promise<string> => {
+    const text = asText();
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([forPaste()], { type: 'text/html' }), 'text/plain': new Blob([text], { type: 'text/plain' }) })]);
+      return 'Copied. Paste it into Word or Google Docs.';
+    } catch {
+      try {
+        await navigator.clipboard.writeText(text);
+        return 'Copied as plain text. This browser would not copy the formatting.';
+      } catch {
+        return 'This browser would not let the page copy. Select the template and copy it yourself.';
+      }
+    }
+  };
+
+  copy.hidden = !(window.isSecureContext && 'clipboard' in navigator);
+  print.hidden = false;
+  copy.addEventListener('click', () => void copyTemplate().then(say));
+  print.addEventListener('click', () => window.print());
+</script>
+
+<style>
+  .masthead { display: grid; gap: var(--space-4); padding-block: clamp(32px, 4vw, 48px) clamp(48px, 6vw, 80px); }
+  .top { margin: 0 0 var(--space-4); padding-bottom: var(--space-4); border-bottom: var(--stroke-hair) solid var(--ink); }
+  .top a { text-decoration: none; }
+  .headline { margin: 0; max-width: 18ch; font-size: clamp(2.5rem, 1.2rem + 4.4vw, 5rem); line-height: 1; letter-spacing: -.035em; text-wrap: balance; }
+  .masthead .lead { margin: 0; }
+
+  .layout { display: grid; gap: var(--space-7); padding-block: clamp(48px, 6vw, 96px); }
+  .rail, .template { padding-top: var(--space-5); border-top: var(--stroke-rule) solid var(--ink); }
+  .tools { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+  .status { min-height: 1.55em; margin: var(--space-3) 0 0; font-weight: 600; }
+  .note { margin-top: var(--space-5); padding-top: var(--space-4); border-top: var(--stroke-hair) solid var(--ink); max-width: 44ch; }
+  .note h2 { margin: 0 0 var(--space-3); }
+  .note :global(p) { margin: 0 0 var(--space-3); }
+  @media (min-width: 1000px) {
+    .layout { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); column-gap: var(--space-8); align-items: start; }
+    .rail { position: sticky; top: calc(var(--bar) + var(--space-5)); }
+  }
+
+  .template { max-width: 68ch; line-height: 1.6; }
+  .template > :global(:first-child) { margin-top: 0; }
+  .template :global(h2) { margin: var(--space-7) 0 var(--space-3); font: 400 var(--size-head)/1.1 var(--display-font); letter-spacing: var(--display-tracking); font-synthesis: none; text-wrap: balance; }
+  .template :global(h3) { margin: var(--space-6) 0 var(--space-2); font: 600 var(--size-body)/1.3 var(--font-sans); }
+  .template :global(p), .template :global(ul), .template :global(ol), .template :global(blockquote), .template :global(table) { margin: 0 0 var(--space-4); }
+  .template :global(li) { margin-bottom: var(--space-2); }
+  .template :global(blockquote) { margin-inline: 0; padding-left: var(--space-4); border-left: var(--stroke-rule) solid var(--ink); }
+  .template :global(hr) { margin: var(--space-6) 0; border: 0; border-top: var(--stroke-hair) solid var(--ink); }
+  .template :global(.contains-task-list) { padding: 0; list-style: none; border-top: var(--stroke-hair) solid var(--ink); }
+  .template :global(.task-list-item) { position: relative; margin: 0; padding: var(--space-2) 0 var(--space-2) 1.9rem; border-bottom: var(--stroke-hair) solid var(--ink); }
+  .template :global(.task-list-item input) { appearance: none; position: absolute; left: 0; top: calc(var(--space-2) + .3em); width: 1.05rem; height: 1.05rem; margin: 0; border: var(--stroke-rule) solid var(--ink); border-radius: var(--radius-none); background: transparent; }
+  .template :global(table) { width: 100%; border-collapse: collapse; border-top: var(--stroke-rule) solid var(--ink); font-size: var(--size-small); line-height: 1.45; }
+  .template :global(th), .template :global(td) { padding: var(--space-3) var(--space-3) var(--space-3) 0; border-bottom: var(--stroke-hair) solid var(--ink); text-align: start; vertical-align: top; overflow-wrap: anywhere; hyphens: auto; }
+  .template :global(thead th) { font: 600 var(--size-label)/1.3 var(--font-sans); }
+  .template :global(td:empty) { height: 2.75em; }
+  .template :global(mark) { padding: 0 .1em; background: color-mix(in srgb, var(--mark) 10%, transparent); color: inherit; border-bottom: var(--stroke-hair) solid var(--ink); box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+
+  .back { display: flex; justify-content: space-between; gap: var(--space-5); padding-block: var(--space-5) 0; border-top: var(--stroke-hair) solid var(--ink); }
+  .back a { display: grid; gap: var(--space-1); text-decoration: none; }
+  .back .serif { font-size: var(--size-head); line-height: 1.1; }
+  .end { text-align: end; }
+
+  /* The template alone on clean paper: no masthead, rail, navigation or site chrome. */
+  @media print {
+    @page { margin: 18mm 16mm; }
+    :global(body:has([data-template]) > :not(main)) { display: none !important; }
+    .night, .rail, .back { display: none; }
+    .layout { display: block; padding: 0; }
+    .template { max-width: none; padding: 0; border: 0; font-size: 11pt; line-height: 1.45; }
+    .template :global(mark) { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    .template :global(h2), .template :global(h3) { break-after: avoid; }
+    .template :global(tr), .template :global(.task-list-item) { break-inside: avoid; }
+  }
+</style>

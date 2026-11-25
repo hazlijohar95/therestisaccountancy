@@ -1,0 +1,42 @@
+---
+/** Templates as ruled rows: kind, title and what each is for. The library index also names each one's module. */
+import { programmeBySlug } from '../data/programmes.ts';
+import { resourcePath, type Resource } from '../server/resources.ts';
+
+interface Props {
+  items: readonly Resource[];
+  withModule?: boolean;
+}
+
+const { items, withModule = false } = Astro.props;
+const moduleOf = (r: Resource) => `Module ${r.data.module} · ${programmeBySlug(r.data.programme)?.topics[r.data.module - 1] ?? ''}`;
+---
+
+<ul class="templates">
+  {
+    items.map((r) => (
+      <li>
+        <a href={resourcePath(r)}>
+          <span class="label kind">{r.data.kind}</span>
+          <span class="what">
+            <span class="title">{r.data.title}</span>
+            <span class="small">{r.data.summary}</span>
+            {withModule && <span class="small where">{moduleOf(r)}</span>}
+          </span>
+        </a>
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  .templates { list-style: none; margin: 0; padding: 0; border-top: var(--stroke-rule) solid var(--ink); }
+  li { border-bottom: var(--stroke-hair) solid var(--ink); }
+  a { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: var(--space-4); padding-block: var(--space-4); text-decoration: none; }
+  .kind { padding-top: .2em; }
+  .what { display: grid; gap: var(--space-1); max-width: 60ch; }
+  .title { font-weight: 600; font-size: 1.0625rem; line-height: 1.3; text-decoration: underline; text-decoration-thickness: var(--stroke-hair); text-decoration-color: transparent; text-underline-offset: 4px; transition: text-decoration-color var(--motion-quick) var(--motion-ease); }
+  a:hover .title, a:focus-visible .title { text-decoration-color: currentColor; }
+  .where { font-weight: 600; }
+  @media (max-width: 480px) { a { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); } }
+</style>
