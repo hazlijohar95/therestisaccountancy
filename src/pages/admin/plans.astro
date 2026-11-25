@@ -37,8 +37,9 @@ const title = waiting.length === 0 ? 'No plans waiting.' : waiting.length === 1 
     </p>
   </Masthead>
 
-  {Astro.url.searchParams.has('answered') && <Notice>Answer sent. The member has it by email, from you.</Notice>}
+  {!answer?.error && Astro.url.searchParams.has('answered') && <Notice>Answer sent. The member has it by email, from you.</Notice>}
   {failure && <Notice tone="error">{failure}</Notice>}
+  {answer?.error && !failure && <Notice tone="error">Your answer was not sent. The note under it says why.</Notice>}
   {
     unsent && (
       <section class="wrap block">
@@ -82,7 +83,7 @@ const title = waiting.length === 0 ? 'No plans waiting.' : waiting.length === 1 
                   <p class="small">Sent {formatMoment(p.sentAt)}. Waiting {waited(p.sentAt, now)}.</p>
                 </header>
                 <PlanLetter plan={p} level={4} />
-                <form method="POST" action={formAction(Astro.url, actions.answerPlan)} class="reply">
+                <form method="POST" action={`${formAction(Astro.url, actions.answerPlan)}#plan-${p.id}`} class="reply">
                   <input type="hidden" name="plan" value={p.id} />
                   <div class="field">
                     <label for={`reply-${p.id}`}>Your answer to {firstName(p.member.name)}</label>
@@ -121,7 +122,7 @@ const title = waiting.length === 0 ? 'No plans waiting.' : waiting.length === 1 
             <details class="done">
               <summary>
                 <b>{p.member.name}</b>
-                <span class="small">Answered {formatDay(p.reply.at)} by {p.reply.by ?? 'a former host'}</span>
+                <span class="small">Answered {formatDay(p.reply.at)} by {p.reply.by ?? 'a host'}</span>
               </summary>
               <div class="body">
                 <p class="small"><a href={`/admin/members/${p.member.id}`}>{p.member.name}, on record</a>. Sent {formatDay(p.sentAt)}.</p>

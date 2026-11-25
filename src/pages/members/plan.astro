@@ -25,8 +25,12 @@ if (takenBack?.data) return Astro.redirect('/members/plan?back');
 if (started?.data) return Astro.redirect('/members/plan?started');
 
 const writeError = saved?.error ?? sent?.error;
-const fieldErrors = writeError && isInputError(writeError) ? writeError.fields : {};
+const inputError = writeError && isInputError(writeError) ? writeError : null;
+const tooLong = inputError !== null;
+const fieldErrors = inputError?.fields ?? {};
 const failure = [saved, sent, takenBack, started].map((r) => (r?.error && !isInputError(r.error) ? r.error.message : null)).find(Boolean) ?? null;
+/* The form keeps the page's query string, so an earlier outcome is not repeated over a fresh error. */
+const settled = !tooLong && failure === null;
 /* Text posted but not saved, because an answer ran too long or the plan was already with the hosts. It is shown back. */
 const posted = writeError ? await postedFields(Astro.request) : null;
 
@@ -36,7 +40,7 @@ const draft = open?.status === 'draft' ? open : null;
 const writing = draft !== null || (open === null && (latest === null || posted !== null));
 
 const asked = (key: string) => Astro.url.searchParams.has(key);
-const unsent = draft !== null && asked('unsent') && posted === null;
+const unsent = settled && draft !== null && asked('unsent');
 /** What the last action did, said only while it is still true. */
 const outcomes = [
   { key: 'saved', holds: draft !== null, text: 'Draft saved.' },
@@ -44,7 +48,7 @@ const outcomes = [
   { key: 'back', holds: draft !== null, text: 'Taken back. It is a draft again, and off the hosts’ list until you send it.' },
   { key: 'started', holds: draft !== null, text: 'Your next plan is open. It starts from your last one, with a blank question.' },
 ];
-const notice = outcomes.find((o) => o.holds && asked(o.key))?.text ?? null;
+const notice = settled ? (outcomes.find((o) => o.holds && asked(o.key))?.text ?? null) : null;
 
 const missing = new Set<PlanSectionSlug>(unsent && draft ? missingSections(draft.answers) : []);
 const answerOf = (slug: PlanSectionSlug) => (posted ? posted(slug) : (draft?.answers[slug] ?? ''));
@@ -52,6 +56,7 @@ const errorOf = (slug: PlanSectionSlug) => fieldErrors[slug]?.[0] ?? (missing.ha
 const unsaved = open?.status === 'sent' && posted ? planSections.filter((s) => posted(s.slug).trim() !== '') : [];
 const sections = numberWord(planSections.length);
 const done = planSections.length - missingSections(draft?.answers ?? {}).length;
+const progress = done === 0 ? 'No sections written yet.' : `${capitalised(numberWord(done))} of ${sections} sections written.`;
 const number = (i: number) => String(i + 1).padStart(2, '0');
 ---
 
@@ -60,12 +65,13 @@ const number = (i: number) => String(i + 1).padStart(2, '0');
     <span slot="label"><a href="/members/programmes/growth">Growth</a> / Your plan</span>
     <p>
       {capitalised(sections)} sections, in your own words. Save as you go, and send it to the hosts once every section is written. One of us reads
-      it and answers in writing. It is the last module of <a href="/members/programmes/growth">Growth</a>, and the lessons before it lead up to it.
+      it and answers in writing. It is the last module of Growth, and the lessons before it lead up to it.
     </p>
   </Masthead>
 
   {notice && <Notice>{notice}</Notice>}
   {unsent && <Notice tone="error">Saved as a draft, not sent. Write the sections marked below, then send it.</Notice>}
+  {tooLong && <Notice tone="error">Nothing was saved. A section is over the limit, and it is marked below.</Notice>}
   {failure && <Notice tone="error">{failure}</Notice>}
 
   {
@@ -75,7 +81,7 @@ const number = (i: number) => String(i + 1).padStart(2, '0');
           <h2 class="head" id="draft-title">{draft ? 'Your draft' : 'Start your plan'}</h2>
           <p class="small">
             {draft
-              ? `${capitalised(numberWord(done))} of ${sections} sections written. Last saved ${formatMoment(draft.updatedAt)}.`
+              ? `${progress} Last saved ${formatMoment(draft.updatedAt)}.`
               : 'Nothing is kept until you save. Write as much or as little as you like to begin with.'}
           </p>
         </div>
@@ -176,7 +182,7 @@ const number = (i: number) => String(i + 1).padStart(2, '0');
                 <tr>
                   <td>{formatDay(p.sentAt)}</td>
                   <td>{formatDay(p.reply.at)}</td>
-                  <td>{p.reply.by ?? 'A former host'}</td>
+                  <td>{p.reply.by ?? 'A host'}</td>
                   <td><a href={`/members/plan/${p.id}`}>Read</a></td>
                 </tr>
               ))}
