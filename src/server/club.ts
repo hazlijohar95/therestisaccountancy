@@ -81,7 +81,7 @@ const statusOf = (row: Row): MemberStatus =>
   optionalText(row, 'suspended_at') !== null ? 'suspended' : optionalText(row, 'password_hash') === null ? 'invited' : 'active';
 
 /** The SQL condition for each status. Kept beside statusOf so the two cannot drift apart. */
-const STATUS_SQL = {
+export const STATUS_SQL = {
   invited: 'password_hash IS NULL AND suspended_at IS NULL',
   active: 'password_hash IS NOT NULL AND suspended_at IS NULL',
   suspended: 'suspended_at IS NOT NULL',

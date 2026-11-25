@@ -2,7 +2,7 @@ import { ActionError, type ActionAPIContext, type ActionErrorCode } from 'astro:
 import { z } from 'astro/zod';
 import { joinSection } from '../data/club.ts';
 import type { Member, PasswordLink, SessionKey } from '../server/club.ts';
-import { passwordLetter } from '../server/letters.ts';
+import { passwordLetter, type Letter } from '../server/letters.ts';
 import { sourceOf } from '../server/limits.ts';
 import { send } from '../server/mail.ts';
 import { MIN_PASSWORD_LENGTH } from '../server/password.ts';
@@ -67,4 +67,12 @@ export const shareable = ({ member, purpose, token, expiresAt }: PasswordLink, c
 export const deliver = async (link: PasswordLink, context: ActionAPIContext) => {
   const shared = shareable(link, context);
   return { ...shared, emailed: await send(passwordLetter(shared)) };
+};
+
+/** A full address on the configured site, for links that leave in an email. */
+export const absolute = (context: ActionAPIContext, path: string) => new URL(path, context.site ?? context.url).href;
+
+/** Sends after the response, so the person does not wait on the mail. Gather what the letters need before calling. */
+export const sendLater = (context: ActionAPIContext, letters: readonly Letter[]) => {
+  if (letters.length) context.locals.cfContext.waitUntil(Promise.all(letters.map(send)));
 };

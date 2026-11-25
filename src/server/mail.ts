@@ -11,6 +11,7 @@ export async function send(letter: Letter): Promise<boolean> {
       subject: letter.subject,
       text: letter.lines.map(asText).join('\n\n'),
       html: letter.lines.map(asHtml).join('\n'),
+      ...(letter.attachments && { attachments: letter.attachments.map((a) => ({ disposition: 'attachment' as const, ...a })) }),
     });
     return true;
   } catch (error) {

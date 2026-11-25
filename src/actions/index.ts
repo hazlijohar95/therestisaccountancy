@@ -1,5 +1,6 @@
 import { account } from './account.ts';
 import { adminActions } from './admin.ts';
 import { community } from './community.ts';
+import { sessions } from './sessions.ts';
 
-export const server = { ...account, ...adminActions, ...community };
+export const server = { ...account, ...adminActions, ...community, ...sessions };

@@ -1,4 +1,4 @@
-import { bindings, defineConfig, exports } from 'cf/config';
+import { bindings, defineConfig, exports, triggers } from 'cf/config';
 import * as entrypoint from './src/worker.ts' with { type: 'cf-worker' };
 
 const sender = 'club@better-accountant.com';
@@ -20,6 +20,8 @@ export default defineConfig({
     exports: {
       ClubStore: exports.durableObject({ storage: 'sqlite' }),
     },
+    /** Hourly: session reminders, and the digest on Monday mornings. */
+    triggers: [triggers.scheduled({ schedule: '0 * * * *' })],
     domains: ['better-accountant.com', 'www.better-accountant.com'],
     workersDev: false,
     observability: { enabled: true },

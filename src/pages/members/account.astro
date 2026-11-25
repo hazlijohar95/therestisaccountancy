@@ -12,6 +12,12 @@ const member = Astro.locals.member;
 if (!member) return Astro.redirect('/sign-in');
 
 const result = Astro.getActionResult(actions.changePassword);
+const saved = Astro.getActionResult(actions.setEmailPrefs);
+const prefs = await Astro.locals.mailings.prefs(member.id);
+const choices = [
+  { name: 'replies', label: 'Replies in threads I posted in', hint: 'At most one email per thread every six hours.', on: prefs.replies },
+  { name: 'digest', label: 'A weekly email on Mondays', hint: 'New threads and the sessions coming up. Only sent when there is news.', on: prefs.digest },
+] as const;
 const fieldErrors = result?.error && isInputError(result.error) ? result.error.fields : {};
 const error = result?.error && !isInputError(result.error) ? result.error.message : null;
 const details = [
@@ -28,6 +34,23 @@ const details = [
     <h2 class="head" id="details-title">Your details</h2>
     <dl class="facts">{details.map(({ term, detail }) => <div><dt>{term}</dt><dd>{detail}</dd></div>)}</dl>
     <p class="small">To change your name or email, ask the club.</p>
+  </section>
+  <section class="wrap block" id="email" aria-labelledby="email-title">
+    <h2 class="head" id="email-title">Emails from the club</h2>
+    <p class="small">Invitations, password links and emails about sessions you said you would come to always arrive.</p>
+    <form method="POST" action={formAction(Astro.url, actions.setEmailPrefs)} class="form">
+      {
+        choices.map((c) => (
+          <label class="check">
+            <input type="checkbox" name={c.name} checked={c.on} />
+            <span><b>{c.label}</b><span class="hint">{c.hint}</span></span>
+          </label>
+        ))
+      }
+      {saved?.data && <p class="ok" role="status">Saved.</p>}
+      {saved?.error && <p class="error" role="alert">{saved.error.message}</p>}
+      <button class="btn" type="submit">Save email choices</button>
+    </form>
   </section>
   <section class="wrap block" aria-labelledby="password-title">
     <h2 class="head" id="password-title">Change your password</h2>
@@ -64,4 +87,7 @@ const details = [
   .form .btn { justify-self: start; }
   .error, .ok { margin: 0; font-weight: 600; }
   .error { color: var(--alert); }
+  .check { display: grid; grid-template-columns: auto 1fr; gap: var(--space-3); align-items: start; cursor: pointer; }
+  .check input { width: 1.25rem; height: 1.25rem; margin: .15em 0 0; accent-color: var(--ink); }
+  .check span { display: grid; gap: var(--space-1); }
 </style>

@@ -101,6 +101,40 @@ const MIGRATIONS: readonly string[] = [
   CREATE INDEX form_posts_by_key ON form_posts (key);
   CREATE INDEX form_posts_by_time ON form_posts (at);
   `,
+  `
+  ALTER TABLE members ADD COLUMN email_replies INTEGER NOT NULL DEFAULT 1 CHECK (email_replies IN (0, 1));
+  ALTER TABLE members ADD COLUMN email_digest INTEGER NOT NULL DEFAULT 1 CHECK (email_digest IN (0, 1));
+
+  CREATE TABLE reply_notices (
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    thread_id INTEGER NOT NULL REFERENCES threads (id) ON DELETE CASCADE,
+    sent_at TEXT NOT NULL,
+    PRIMARY KEY (member_id, thread_id)
+  );
+
+  CREATE TABLE digests (week TEXT PRIMARY KEY, sent_at TEXT NOT NULL);
+
+  CREATE TABLE live_sessions (
+    id INTEGER PRIMARY KEY,
+    title TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    starts_at TEXT NOT NULL,
+    minutes INTEGER NOT NULL CHECK (minutes > 0),
+    link TEXT NOT NULL,
+    detail TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    reminded_at TEXT,
+    cancelled_at TEXT
+  );
+  CREATE INDEX live_sessions_by_start ON live_sessions (starts_at);
+
+  CREATE TABLE rsvps (
+    session_id INTEGER NOT NULL REFERENCES live_sessions (id) ON DELETE CASCADE,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (session_id, member_id)
+  );
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

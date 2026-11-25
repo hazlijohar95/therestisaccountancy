@@ -89,6 +89,17 @@ export const account = {
     },
   }),
 
+  setEmailPrefs: defineAction({
+    accept: 'form',
+    input: z.object({ replies: z.literal('on').optional(), digest: z.literal('on').optional() }),
+    handler: async (input, context) => {
+      const member = signedIn(context.locals);
+      const prefs = { replies: input.replies === 'on', digest: input.digest === 'on' };
+      await context.locals.mailings.setPrefs(member.id, prefs);
+      return prefs;
+    },
+  }),
+
   lessonDone: defineAction({
     accept: 'form',
     input: z.object({ lesson: z.string(), done: z.enum(['true', 'false']) }),

@@ -201,6 +201,22 @@ export function createCommunity(db: Db, now: () => Date = () => new Date()) {
       });
     },
 
+    /** What happened on the board since a moment: the threads started, and the replies posted anywhere. */
+    since(moment: Date): { readonly threads: Thread[]; readonly replies: number } {
+      const from = iso(moment);
+      return {
+        threads: db.prepare(`${THREADS} WHERE t.created_at >= ? AND t.removed_at IS NULL ORDER BY t.created_at`).all(from).map(toThread),
+        replies: count(
+          db
+            .prepare(
+              `SELECT count(*) AS n FROM posts p JOIN threads t ON t.id = p.thread_id
+               WHERE p.created_at >= ? AND p.deleted_at IS NULL AND t.removed_at IS NULL AND p.id > (SELECT min(id) FROM posts WHERE thread_id = t.id)`,
+            )
+            .get(from),
+        ),
+      };
+    },
+
     /** Adds a post. A locked thread takes replies only from admins. The same text twice within a minute posts once. */
     reply(actor: Actor, threadId: number, input: { body: string }): Result<PostPlace, PostRefusal> {
       return attempt<PostPlace, PostRefusal>(db, (refuse) => {
