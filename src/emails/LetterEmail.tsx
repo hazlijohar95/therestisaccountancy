@@ -36,9 +36,7 @@ const mobile = `@media (max-width: 600px) {
 }`;
 
 /**
- * Every email the club sends, in one layout. The subject is the headline. Lines are typed text, which React escapes
- * and never links, or links the club built: with a label they become a button, without one they show the address.
- */
+/** Every email the club sends, in one layout. The subject is the headline; the lines are the body (see Line). */
 export function LetterEmail({ subject, lines, unsubscribe }: { subject: string; lines: readonly Line[]; unsubscribe?: string | undefined }) {
   const preview = lines.find((line, i): line is string => typeof line === 'string' && i > 0) ?? subject;
   return (
@@ -65,6 +63,10 @@ export function LetterEmail({ subject, lines, unsubscribe }: { subject: string; 
                 <Text key={i} style={styles.text}>{line}</Text>
               ) : line.label ? (
                 <Button key={i} href={line.href} style={styles.button}>{line.label}</Button>
+              ) : line.text ? (
+                <Text key={i} style={styles.text}>
+                  <Link href={line.href} style={styles.link}>{line.text}</Link>
+                </Text>
               ) : (
                 <Text key={i} style={styles.text}>
                   <Link href={line.href} style={styles.link}>{line.href}</Link>
@@ -79,7 +81,7 @@ export function LetterEmail({ subject, lines, unsubscribe }: { subject: string; 
             </Text>
             {unsubscribe && (
               <Text style={styles.small}>
-                <Link href={unsubscribe} style={styles.quiet}>Stop these emails</Link>, or choose which you get in your account.
+                <Link href={unsubscribe} style={styles.quiet}>Stop these emails</Link>, or <Link href={`${HOME}/members/account#email`} style={styles.quiet}>choose which you get</Link>.
               </Text>
             )}
           </Section>

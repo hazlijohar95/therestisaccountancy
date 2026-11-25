@@ -9,7 +9,7 @@ export async function send(letter: Letter): Promise<boolean> {
   try {
     const { html, text } = await renderLetter(letter);
     await env.EMAIL.send({
-      from: { name: site.name, email: env.MAIL_FROM },
+      from: { name: letter.from ?? site.name, email: env.MAIL_FROM },
       to: typeof letter.to === 'string' ? letter.to : [...letter.to],
       subject: letter.subject,
       text,
