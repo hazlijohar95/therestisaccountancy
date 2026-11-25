@@ -8,6 +8,16 @@ export const formatMoment = (value: string) => moment.format(new Date(value));
 /** 24 Nov 2026, in Malaysian time. */
 export const formatDay = (value: string | Date) => day.format(typeof value === 'string' ? new Date(value) : value);
 
+const time = new Intl.DateTimeFormat('en-MY', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kuala_Lumpur' });
+
+/** 3:04 pm, in Malaysian time. */
+export const formatTime = (value: string) => time.format(new Date(value));
+
+const weekday = new Intl.DateTimeFormat('en-MY', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Kuala_Lumpur' });
+
+/** Tuesday, 24 November, in Malaysian time. */
+export const formatWeekday = (value: string) => weekday.format(new Date(value));
+
 const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 
 /** "seven" for 7: copy spells out small counts. Past twelve it uses digits. */

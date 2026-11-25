@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { renderLetter } from '../emails/render.tsx';
-import { calendarFile } from './calendar.ts';
+import { calendarFile, sessionEvent } from './calendar.ts';
 
 const letter = (lines: Parameters<typeof renderLetter>[0]['lines'], unsubscribe?: string) => ({ to: 'aina@firm.com.my', subject: 'Hello', lines, ...(unsubscribe && { unsubscribe }) });
 
@@ -26,6 +26,6 @@ test('an optional email carries its unsubscribe link in the footer', async () =>
 });
 
 test('a backslash in a session title is escaped in the calendar file', () => {
-  const ics = calendarFile({ id: 1, title: 'A\\B', kind: 'Clinics', startsAt: '2026-11-26T12:00:00Z', minutes: 60, link: 'https://meet.example/x', detail: '', going: 0, attending: false }, 'better-accountant.com');
+  const ics = calendarFile(sessionEvent({ id: 1, title: 'A\\B', kind: 'Clinics', startsAt: '2026-11-26T12:00:00Z', minutes: 60, link: 'https://meet.example/x', detail: '', going: 0, attending: false }, 'better-accountant.com'));
   assert.ok(ics.includes('SUMMARY:A\\\\B\r\n'));
 });
