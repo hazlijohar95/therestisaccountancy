@@ -417,7 +417,7 @@ const waiting = claims.filter((c) => c.review.state === 'pending').length + pend
                     <td class="when">
                       {a.review.state === 'proven' ? 'Proven' : a.review.state === 'rejected' ? `Not proven: ${a.review.reason}` : `Waiting for the team · ${a.code}`}
                     </td>
-                    <td class="act">
+                    <td class="row-action">
                       <details class="remove">
                         <summary class="linkish">
                           Remove<span class="sr-only"> {a.platform} @{a.handle}</span>
@@ -456,7 +456,7 @@ const waiting = claims.filter((c) => c.review.state === 'pending').length + pend
                           </>
                         )}
                       </td>
-                      <td class="act">
+                      <td class="row-action">
                         <details class="remove">
                           <summary class="linkish">
                             Remove<span class="sr-only"> {c.label}</span>

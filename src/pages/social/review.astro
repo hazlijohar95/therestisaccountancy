@@ -81,7 +81,7 @@ const guidance: Record<Tab, string> = {
 const people = (n: number) => `${n} ${n === 1 ? 'nominator' : 'nominators'}`;
 ---
 
-<Social title="Review queue" noindex>
+<Social title={team ? 'Review queue' : 'Not found'} noindex>
   {
     !team ? (
       <div class="page">

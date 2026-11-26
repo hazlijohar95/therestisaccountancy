@@ -286,7 +286,7 @@
   .claims td.what { font-weight: 600; font-size: .95rem; overflow-wrap: anywhere; }
   .claims td.src { white-space: nowrap; color: var(--muted); }
   .claims td.when { font: 400 var(--size-label)/1.3 var(--font-pixel); text-align: end; white-space: nowrap; padding-right: var(--space-4); }
-  .claims td.act { width: 1%; white-space: nowrap; text-align: end; padding-right: var(--space-4); }
+  .claims td.row-action { width: 1%; white-space: nowrap; text-align: end; padding-right: var(--space-4); }
   .claims tr[data-state="lapsed"] td.what { text-decoration: line-through; text-decoration-color: var(--alert); text-decoration-thickness: 2px; }
   .claims tr[data-state="lapsed"] td.when { color: var(--alert); }
   .claims tr[data-state="rejected"] td.when { color: var(--alert); white-space: normal; }
@@ -339,6 +339,8 @@
   .note.plain { background: color-mix(in srgb, var(--hover) 50%, var(--surface)); color: var(--ink); }
   .note.plain .tick { color: var(--ink); }
   .note > svg { width: 22px; height: 22px; }
+  .page > .note:first-child { margin-bottom: var(--space-5); }
+  .claims-wrap + .small, .replies + .small { margin-top: var(--space-4); }
   /* Shown once the status they describe is picked, without a script. Two classes, to outrank .note.tip above. */
   .note.when-picked { display: none; }
   form:has(input[name="status"][value="Chartered Accountant"]:checked) .note.when-picked.cam,

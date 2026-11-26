@@ -126,7 +126,7 @@ const streakNote = streak
                       <Tick source="register" state="ticked" />
                       <span>
                         You picked {view.mine.pick}.{' '}
-                        {view.most === view.mine.pick ? 'Most members picked it too.' : `Most members picked ${view.most}. Read why below.`}
+                        {view.spread.filter((s) => s.count === Math.max(...view.spread.map((x) => x.count))).length > 1 ? 'Members are split on this one. Read why below.' : view.most === view.mine.pick ? 'Most members picked it too.' : `Most members picked ${view.most}. Read why below.`}
                       </span>
                     </p>
                   ) : (

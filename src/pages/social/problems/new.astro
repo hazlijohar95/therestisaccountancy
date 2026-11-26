@@ -41,7 +41,7 @@ const closes = malaysian(start + 7 * 24 * HOUR);
 const stateLabel = { scheduled: 'Scheduled', open: 'Open now', closed: 'Closed' } as const;
 ---
 
-<Social title="Write a problem" noindex section="problems">
+<Social title={team ? 'Write a problem' : 'Not found'} noindex section="problems">
   {
     !team ? (
       <div class="page">
