@@ -113,7 +113,7 @@ export function Landing() {
           stroke={26}
         >
           <span className="lledger__n">24</span>
-          <span className="mono muted">of 40 h · example</span>
+          <span className="mono muted">of 40h · example</span>
         </Ring>
         <div>
           <h2 className="title">Every hour, on one page.</h2>

@@ -4,7 +4,7 @@ import { Input } from "@base-ui/react/input";
 import { Radio } from "@base-ui/react/radio";
 import { RadioGroup } from "@base-ui/react/radio-group";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { Arrow, Check } from "../components/Icons.tsx";
+import { Arrow, Check, Close } from "../components/Icons.tsx";
 import { courseById, formatHours, PASS_MARK } from "../domain/courses.ts";
 import { newCertificateId, phaseOf } from "../domain/progress.ts";
 import type { Course, Question } from "../domain/types.ts";
@@ -249,8 +249,8 @@ function AssessmentView({ course }: { course: Course }) {
           return (
             <li key={i} className={right ? "review--right" : "review--wrong"}>
               <p className="review__q">{it.q.prompt}</p>
-              <p>
-                <span className="mono">{right ? "✓" : "✗"}</span> You answered: {chosen === undefined ? "—" : it.q.options[chosen]}
+              <p className="review__pick">
+                {right ? <Check width={16} height={16} /> : <Close width={16} height={16} />} You answered: {chosen === undefined ? "—" : it.q.options[chosen]}
               </p>
               {!right && <p>Answer: {it.q.options[it.q.answer]}</p>}
               <p className="muted">{it.q.why}</p>

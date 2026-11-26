@@ -1,6 +1,7 @@
 import { Progress } from "@base-ui/react/progress";
 import { shows } from "../content/catalog.ts";
 import { Cover, ShowCover } from "../components/Cover.tsx";
+import { Check } from "../components/Icons.tsx";
 import { PlayButton } from "../components/PlayButton.tsx";
 import { Ring } from "../components/Ring.tsx";
 import { statusLabel } from "../components/Shell.tsx";
@@ -46,6 +47,7 @@ export function Home() {
               <span className="tile__text">
                 <span className="tile__title">{c.title}</span>
                 <span className={`tile__meta${phase.kind === "certified" ? " is-earned" : ""}`}>
+                  {phase.kind === "certified" && <Check width={14} height={14} />}
                   {phase.kind === "new" ? `${formatHours(c.credits)} CPE · ${formatTime(c.duration)}` : statusLabel(phase)}
                 </span>
               </span>

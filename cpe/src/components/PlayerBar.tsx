@@ -80,7 +80,7 @@ function SpeedSelect() {
         <Select.Value />
       </Select.Trigger>
       <Select.Portal>
-        <Select.Positioner side="top" sideOffset={8} alignItemWithTrigger={false}>
+        <Select.Positioner side="top" sideOffset={8} alignItemWithTrigger={false} className="menu-positioner">
           <Select.Popup className="menu">
             <Select.List>
               {RATE_ITEMS.map((r) => (

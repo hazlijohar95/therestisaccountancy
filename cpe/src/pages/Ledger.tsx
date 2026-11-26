@@ -20,7 +20,7 @@ import { toasts as toast } from "../toasts.ts";
 
 const FIELD_TONE: Record<FieldOfStudy, string> = {
   Ethics: "var(--color-redline)",
-  Accounting: "var(--cpe)",
+  Accounting: "var(--field-accounting)",
   Auditing: "var(--color-ink)",
   Taxation: "var(--color-redline-dark)",
   "Practice Management": "var(--color-tape)",
@@ -70,16 +70,20 @@ export function Ledger() {
             <p className="eyebrow">
               {fmtDate(req.start)} – {fmtDate(req.end)}
             </p>
-            <ul className="legend">
-              {fields
-                .filter((f) => s.byField.get(f))
-                .map((f) => (
-                  <li key={f}>
-                    <i style={{ background: FIELD_TONE[f] }} />
-                    {f} {formatHours(s.byField.get(f) ?? 0)}h
-                  </li>
-                ))}
-            </ul>
+            {s.total === 0 ? (
+              <p className="muted">No hours yet this cycle.</p>
+            ) : (
+              <ul className="legend">
+                {fields
+                  .filter((f) => s.byField.get(f))
+                  .map((f) => (
+                    <li key={f}>
+                      <i style={{ background: FIELD_TONE[f] }} />
+                      {f} {formatHours(s.byField.get(f) ?? 0)}h
+                    </li>
+                  ))}
+              </ul>
+            )}
           </div>
         </div>
         <div className="standing__side">

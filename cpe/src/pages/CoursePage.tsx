@@ -58,6 +58,9 @@ function CourseView({ course }: { course: Course }) {
   const p = progressOf(state, course.id);
   const time = active ? player.time : p.position;
   const heard = coverage(p, course);
+  // Audio behind the playhead that was never heard shows as skipped in the waveform.
+  const heardBehind = p.ranges.reduce((sum, [a, b]) => sum + Math.max(0, Math.min(b, time) - a), 0);
+  const skipped = heardBehind < time - 2;
   const phase = phaseOf(state, course);
   const current = course.segments.findIndex((s, i) => time >= s.start && time < (course.segments[i + 1]?.start ?? Infinity));
   const missed = course.checkpoints
@@ -94,7 +97,11 @@ function CourseView({ course }: { course: Course }) {
         )}
         {phase.kind !== "ready" && phase.kind !== "certified" && (
           <span className="actions__hint">
-            {phase.kind === "new" ? "Hear it all, answer as you go, then pass the assessment." : `Resume at ${formatTime(p.position)}`}
+            {active && player.playing
+              ? "Now playing"
+              : phase.kind === "new" || p.position < 1
+                ? "Hear it all, answer as you go, then pass the assessment."
+                : `Resume at ${formatTime(p.position)}`}
           </span>
         )}
       </div>
@@ -107,7 +114,7 @@ function CourseView({ course }: { course: Course }) {
           <span className="mono">{formatTime(time)}</span>
           <ul className="key">
             <li><i className="key__heard" />Heard</li>
-            <li><i className="key__skipped" />Skipped</li>
+            {skipped && <li><i className="key__skipped" />Skipped</li>}
             <li><i className="key__cp" />Review question</li>
           </ul>
           <span className="mono">{formatTime(course.duration)}</span>
@@ -165,19 +172,21 @@ function Transcript({ course, current, onPlay }: { course: Course; current: numb
   }, [current]);
 
   return (
-    <section className={`lyrics${current < 0 ? " lyrics--idle" : ""}`} aria-label="Transcript" ref={box}>
-      {course.segments.map((s, i) => (
-        <div key={i}>
-          {s.chapter && <h3 className="lyrics__chapter">{s.chapter}</h3>}
-          <Button
-            className={`lyric${i === current ? " lyric--now" : i < current ? " lyric--past" : ""}`}
-            onClick={() => onPlay(s.start)}
-            data-test={`line-${i}`}
-          >
-            {s.text}
-          </Button>
-        </div>
-      ))}
+    <section className={`lyrics${current < 0 ? " lyrics--idle" : ""}`} aria-label="Transcript">
+      <div className="lyrics__scroll" ref={box}>
+        {course.segments.map((s, i) => (
+          <div key={i}>
+            {s.chapter && <h3 className="lyrics__chapter">{s.chapter}</h3>}
+            <Button
+              className={`lyric${i === current ? " lyric--now" : i < current ? " lyric--past" : ""}`}
+              onClick={() => onPlay(s.start)}
+              data-test={`line-${i}`}
+            >
+              {s.text}
+            </Button>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

@@ -67,7 +67,7 @@ export function Search() {
           value={q}
           autoFocus
           onValueChange={(v) => update(v, field)}
-          placeholder="Courses, topics, words in any episode"
+          placeholder="Courses, topics, transcripts"
           data-test="search-input"
         />
       </label>
