@@ -194,7 +194,7 @@ test('joining from an invite or a nomination gives the new account a welcome lin
     [viaInvite, 'abu@firm.my'],
     [viaNomination, 'tan@tax.my'],
   ] as const) {
-    const link = value(w.club.newLink(joined.memberId));
+    const { link } = joined;
     assert.deepEqual([link.purpose, link.member.email, link.expiresAt], ['welcome', email, '2026-12-10T02:00:00Z']);
     const accepted = await w.club.setPasswordFromLink(link.token, PASSWORD);
     assert.equal(accepted?.member.id, joined.memberId);

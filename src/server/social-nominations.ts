@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { PLATFORM_PROFILES, PLATFORMS, TOPICS, type Platform, type Topic } from '../data/social.ts';
-import { STATUS_SQL } from './club.ts';
+import { STATUS_SQL, welcomeLink, type PasswordLink } from './club.ts';
 import { attempt, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import type { Result } from './result.ts';
 import { insertAccount, type AccountRefusal } from './social-claims.ts';
@@ -232,13 +232,18 @@ export function createSocialNominations(db: Db, now: () => Date = () => new Date
 
     /**
      * The nominee joins Social from the link: a new account, let in by the nomination, with the nominated account
-     * waiting for proof. One transaction, so a link lets in one person.
+     * waiting for proof. One transaction, so a link lets in one person. The caller sends the link it returns, to set a
+     * password.
      */
-    join(token: string, input: { name: string; email: string; handle: string }): Result<{ readonly memberId: number; readonly platform: Platform }, JoinRefusal> {
-      return attempt<{ readonly memberId: number; readonly platform: Platform }, JoinRefusal>(db, (refuse) => {
+    join(
+      token: string,
+      input: { name: string; email: string; handle: string },
+    ): Result<{ readonly memberId: number; readonly platform: Platform; readonly link: PasswordLink }, JoinRefusal> {
+      return attempt<{ readonly memberId: number; readonly platform: Platform; readonly link: PasswordLink }, JoinRefusal>(db, (refuse) => {
         const row = invited(token) ?? refuse('not-found');
         const memberId = openAccount(db, now(), input, { via: 'nomination' }, refuse);
-        return { memberId, platform: claimFor(memberId, row, refuse) };
+        const platform = claimFor(memberId, row, refuse);
+        return { memberId, platform, link: welcomeLink(db, now(), memberId) };
       });
     },
 

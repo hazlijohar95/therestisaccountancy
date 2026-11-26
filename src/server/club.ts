@@ -157,6 +157,14 @@ export function issueLink(db: Db, at: Date, member: Member): PasswordLink | null
   return { member, purpose, token, expiresAt };
 }
 
+/** Inside a transaction: the welcome link for an account just opened, which cannot be suspended yet. */
+export function welcomeLink(db: Db, at: Date, memberId: number): PasswordLink {
+  const row = db.prepare('SELECT * FROM members WHERE id = ?').get(memberId);
+  const link = row ? issueLink(db, at, toMember(row)) : null;
+  if (!link) throw new Error(`Member ${memberId} cannot get a link`);
+  return link;
+}
+
 /** Every operation the club performs on its members. The database is passed in so tests can use a throwaway one. */
 export function createClub(db: Db, now: () => Date = () => new Date()) {
   const memberRow = (id: number) => db.prepare('SELECT * FROM members WHERE id = ?').get(id);

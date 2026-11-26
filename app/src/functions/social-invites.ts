@@ -3,7 +3,7 @@ import { env } from 'cloudflare:workers';
 import { z } from 'zod';
 import { everyRate } from '../../../src/data/membership.ts';
 import { REQUEST_LIMITS } from '../../../src/data/social.ts';
-import type { LinkRefusal, PasswordLink } from '../../../src/server/club.ts';
+import type { PasswordLink } from '../../../src/server/club.ts';
 import { passwordLetter } from '../../../src/server/letters.ts';
 import { socialUrl } from '../../../src/server/paths.ts';
 import type { JoinRefusal, MemberInviteRefusal, RedeemRefusal, RevokeRefusal } from '../../../src/server/social-invites.ts';
@@ -41,11 +41,6 @@ const redeemRefusals: Record<RedeemRefusal, string> = {
 };
 const signUpRefusals: Record<SignUpRefusal, string> = { ...handleRefusals, 'email-taken': 'That email already has an account.' };
 const joinRefusals: Record<JoinRefusal, string> = { ...signUpRefusals, dead: 'This invite has been used, has run out, or was withdrawn.' };
-const linkRefusals: Record<LinkRefusal, string> = {
-  'not-found': 'Your account was not saved. Try again.',
-  suspended: 'That account is paused. Write to the team to ask about it.',
-};
-
 /** Where an invite link lands: the short sign-up, which also tells a dead link apart. */
 const inviteLink = (token: string) => socialUrl(env.SITE_URL, `/sign-up?invite=${encodeURIComponent(token)}`);
 
@@ -203,9 +198,7 @@ export const socialSignUp = createServerFn({ method: 'POST' })
         if (reason === 'handle-taken') return refused(message, { handle: message });
         return refused(message);
       }
-      const link = await store.club.newLink(joined.value.memberId);
-      if (!link.ok) return refused(linkRefusals[link.reason]);
-      sendLater([welcomeLetter(link.value)]);
+      sendLater([welcomeLetter(joined.value.link)]);
       return done({ email: person.email, claimed: !invite });
     });
   });
