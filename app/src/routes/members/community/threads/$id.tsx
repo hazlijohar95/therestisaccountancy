@@ -65,9 +65,10 @@ function ThreadPage() {
     setFailed({ form, outcome, draft });
     await router.invalidate();
   };
-  const land = (href: string) => {
+  const land = async (href: string) => {
     setFailed(null);
-    return navigate({ href });
+    await navigate({ href });
+    await router.invalidate();
   };
 
   const submitReply = async (event: FormEvent<HTMLFormElement>) => {
@@ -97,7 +98,6 @@ function ThreadPage() {
     const outcome = await send.moderate({ data: { thread: thread.id, action } });
     if (!outcome.ok) return refuse('other', outcome);
     await land(outcome.value.action === 'remove' ? `${channelPath(outcome.value.channel)}?removed` : threadPath(outcome.value.threadId));
-    await router.invalidate();
   };
   /* The pin and lock buttons share one form, as on the page before; the pressed button says which. */
   const moderateBy = async (event: FormEvent<HTMLFormElement>) => {

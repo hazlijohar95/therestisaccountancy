@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent } from 'react';
 import { firstName, formatTime, formatWeekday } from '../../../../../src/lib/format.ts';
@@ -22,6 +22,7 @@ function Calls() {
   const { email, mine, days } = Route.useLoaderData();
   const search = Route.useSearch();
   const navigate = useNavigate();
+  const router = useRouter();
   const book = useServerFn(bookCall);
   const cancel = useServerFn(cancelCall);
   const [outcome, setOutcome] = useState<Outcome<unknown> | null>(null);
@@ -35,13 +36,17 @@ function Calls() {
     const form = new FormData(event.currentTarget);
     const result = await book({ data: { slot: String(form.get('slot') ?? ''), topic: String(form.get('topic') ?? '') } });
     setOutcome(result);
-    if (result.ok) await navigate({ to: '/members/calls', search: { booked: true } });
+    if (!result.ok) return;
+    await navigate({ to: '/members/calls', search: { booked: true } });
+    await router.invalidate();
   };
   const submitCancel = (slot: number) => async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const result = await cancel({ data: { slot } });
     setOutcome(result);
-    if (result.ok) await navigate({ to: '/members/calls', search: { cancelled: true } });
+    if (!result.ok) return;
+    await navigate({ to: '/members/calls', search: { cancelled: true } });
+    await router.invalidate();
   };
 
   return (

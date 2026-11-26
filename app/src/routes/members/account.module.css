@@ -1,8 +1,9 @@
 .block { display: grid; gap: var(--space-5); padding-block: clamp(48px, 6vw, 80px) 0; }
-.block > * { max-width: 720px; }
 .block > :global(.small) { margin: 0; }
 .form { display: grid; gap: var(--space-5); max-width: 440px; }
 .form :global(.btn) { justify-self: start; }
+/* After .form, as the page had it: each block's parts, the forms included, take the block's width. */
+.block > * { max-width: 720px; }
 .error, .ok { margin: 0; font-weight: 600; }
 .error { color: var(--alert); }
 .row { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; }
