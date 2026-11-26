@@ -2,7 +2,7 @@
 import { actions, isInputError } from 'astro:actions';
 import Page from '../layouts/Page.astro';
 import { formAction } from '../lib/format.ts';
-import { safeNext, socialPath } from '../server/paths.ts';
+import { isSocialHost, safeNext, socialPath } from '../server/paths.ts';
 
 export const prerender = false;
 
@@ -16,7 +16,7 @@ if (result?.data) return Astro.redirect(next !== '/members' ? next : !result.dat
 if (Astro.locals.member && !signedOut) return Astro.redirect(next === '/members' && !Astro.locals.member.clubApproved ? socialHome : next);
 
 /* One account signs in to the club and to Social. Coming from Social, the page says so. */
-const forSocial = next.startsWith('/social') || next.startsWith('http');
+const forSocial = next.startsWith('/social') || (next.startsWith('http') && isSocialHost(new URL(next).hostname));
 
 const error = result?.error && !isInputError(result.error) ? result.error.message : null;
 ---
