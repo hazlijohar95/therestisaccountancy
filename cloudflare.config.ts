@@ -36,6 +36,8 @@ export default defineConfig({
     },
     exports: {
       ClubStore: exports.durableObject({ storage: 'sqlite' }),
+      /** Who is signed in, for the CPE Worker's service binding. Not reachable from the internet. */
+      CpeIdentity: exports.worker(),
     },
     /** Hourly: session reminders, and the digest on Monday mornings. */
     triggers: [triggers.scheduled({ schedule: '0 * * * *' })],

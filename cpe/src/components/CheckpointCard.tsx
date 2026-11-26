@@ -5,37 +5,44 @@ import { RadioGroup } from "@base-ui/react/radio-group";
 import { useEffect, useState } from "react";
 import type { Course } from "../domain/types.ts";
 import { usePlayer } from "../player.tsx";
-import { useDispatch } from "../state.tsx";
+import { useActions } from "../state.tsx";
 import { Check } from "./Icons.tsx";
 
 const LETTERS = ["A", "B", "C", "D"];
 
 /**
- * Review questions interrupt the episode where the idea lands. The dialog can't be dismissed:
- * the only way on is a correct answer. They teach; they don't grade.
+ * Review questions interrupt the episode where the idea lands, or in hands-free mode wait for its end. The dialog
+ * can't be dismissed: the only way on is a correct answer, which the server checks. They teach; they don't grade.
  */
 export function CheckpointCard() {
-  const { course, pending, clearPending } = usePlayer();
-  const dispatch = useDispatch();
+  const { course, pending, clearPending, queued } = usePlayer();
+  const actions = useActions();
   // Keep the last question so its content stays on screen through the exit animation.
   const [shown, setShown] = useState<{ course: Course; index: number } | null>(null);
   const [choice, setChoice] = useState<number | null>(null);
+  /** The server's verdict on the current choice: right with its explanation, wrong, or still checking. */
+  const [verdict, setVerdict] = useState<{ correct: true; why: string } | { correct: false } | "checking" | null>(null);
 
   useEffect(() => {
     if (course && pending !== null) {
       setShown({ course, index: pending });
       setChoice(null);
+      setVerdict(null);
     }
   }, [course, pending]);
 
   const open = pending !== null;
   const cp = shown ? shown.course.checkpoints[shown.index] : undefined;
-  const correct = cp !== undefined && choice === cp.answer;
+  const correct = typeof verdict === "object" && verdict?.correct === true;
 
   const pick = (i: number | null) => {
-    if (!shown || !cp || i === null || correct) return;
+    if (!shown || !cp || i === null || correct || verdict === "checking") return;
     setChoice(i);
-    if (i === cp.answer) dispatch({ type: "checkpoint", courseId: shown.course.id, index: shown.index });
+    setVerdict("checking");
+    actions.answerReview(shown.course, shown.index, i).then(
+      (answer) => setVerdict(answer.correct ? { correct: true, why: answer.why } : { correct: false }),
+      () => setVerdict(null),
+    );
   };
 
   return (
@@ -55,13 +62,15 @@ export function CheckpointCard() {
                 <span className="tape checkpoint__tape">
                   Question {shown.index + 1} of {shown.course.checkpoints.length}
                 </span>
-                <p className="eyebrow">Paused · {shown.course.title}</p>
+                <p className="eyebrow">
+                  {queued.includes(shown.index) ? "Waiting for you" : "Paused"} · {shown.course.title}
+                </p>
                 <Dialog.Title className="checkpoint__prompt" id="cp-prompt">
                   {cp.prompt}
                 </Dialog.Title>
                 <RadioGroup className="options" value={choice} onValueChange={pick} readOnly={correct} aria-labelledby="cp-prompt">
                   {cp.options.map((o, i) => {
-                    const state = choice === null ? "idle" : i === cp.answer && correct ? "right" : i === choice ? "wrong" : "idle";
+                    const state = choice !== i || verdict === null || verdict === "checking" ? "idle" : correct ? "right" : "wrong";
                     return (
                       <label key={o} className={`option option--${state}`} data-test={`cp-option-${i}`}>
                         <Radio.Root value={i} className="option__key">
@@ -73,20 +82,20 @@ export function CheckpointCard() {
                     );
                   })}
                 </RadioGroup>
-                <div role="status" className={choice === null ? undefined : `feedback feedback--${correct ? "right" : "wrong"}`}>
-                  {choice !== null && (
+                <div role="status" className={typeof verdict === "object" && verdict ? `feedback feedback--${verdict.correct ? "right" : "wrong"}` : undefined}>
+                  {typeof verdict === "object" && verdict && (
                     <>
-                      <strong>{correct ? "Correct." : "Not quite."}</strong> {correct ? cp.why : "Try again. It doesn’t count against you."}
+                      <strong>{verdict.correct ? "Correct." : "Not quite."}</strong> {verdict.correct ? verdict.why : "Try again. It doesn’t count against you."}
                     </>
                   )}
                 </div>
                 <div className="checkpoint__actions">
                   {correct ? (
                     <Button className="pill pill--cpe" onClick={clearPending} data-test="cp-continue">
-                      Continue listening
+                      {queued.includes(shown.index) && queued.some((q) => q !== shown.index) ? "Next question" : queued.includes(shown.index) ? "Done" : "Continue listening"}
                     </Button>
                   ) : (
-                    <span className="muted">Answer to keep listening.</span>
+                    <span className="muted">{queued.includes(shown.index) ? "Answer it to count towards your credit." : "Answer to keep listening."}</span>
                   )}
                 </div>
               </>

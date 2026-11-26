@@ -1,18 +1,18 @@
-import { shows } from "../content/catalog.ts";
 import { Cover, ShowCover } from "../components/Cover.tsx";
 import { Check } from "../components/Icons.tsx";
 import { PlayButton } from "../components/PlayButton.tsx";
 import { statusLabel } from "../components/Shell.tsx";
-import { courses, formatHours, formatTime } from "../domain/courses.ts";
+import { formatHours, formatTime } from "../domain/courses.ts";
 import { phaseOf } from "../domain/progress.ts";
 import { Stretch } from "../router.tsx";
-import { useAppState } from "../state.tsx";
+import { useAppState, useCatalogue } from "../state.tsx";
 import { NotFound } from "./NotFound.tsx";
 
 export function ShowPage({ id }: { id: string }) {
   const state = useAppState();
+  const { courses, shows, loaded } = useCatalogue();
   const show = shows.find((s) => s.id === id);
-  if (!show) return <NotFound />;
+  if (!show) return loaded ? <NotFound /> : null;
   const list = courses.filter((c) => c.show.id === show.id);
   const next = list.find((c) => phaseOf(state, c).kind !== "certified") ?? list[0]!;
 

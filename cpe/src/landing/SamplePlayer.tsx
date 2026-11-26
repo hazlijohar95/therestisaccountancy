@@ -2,7 +2,7 @@ import { Slider } from "@base-ui/react/slider";
 import { useState } from "react";
 import { Cover } from "../components/Cover.tsx";
 import { Back, Forward, Pause, Play } from "../components/Icons.tsx";
-import { courses, formatHours, formatTime } from "../domain/courses.ts";
+import { formatHours, formatTime } from "../domain/courses.ts";
 import type { Course } from "../domain/types.ts";
 import { usePlayer } from "../player.tsx";
 import { BarVisualizer } from "./elevenlabs/BarVisualizer.tsx";
@@ -11,7 +11,7 @@ import { BarVisualizer } from "./elevenlabs/BarVisualizer.tsx";
  * A playlist and player in the style of ElevenLabs UI's audio player, driven by the app's own player,
  * so what you hear here counts towards the course like it does in the app.
  */
-export function SamplePlayer() {
+export function SamplePlayer({ courses }: { courses: readonly Course[] }) {
   const player = usePlayer();
   const [picked, setPicked] = useState<Course>(courses[0]!);
   const course = player.course ?? picked;

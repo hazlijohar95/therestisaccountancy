@@ -1,4 +1,4 @@
-import type { CourseScript, Show } from "../domain/types.ts";
+import type { CourseScript, Show } from "../../src/domain/types.ts";
 
 export const shows: readonly Show[] = [
   {

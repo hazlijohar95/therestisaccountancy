@@ -1,0 +1,86 @@
+/* The Studio's own layout. Everything else reuses the app's field, input, pill, tag and notice styles. */
+.studio .row,
+.studio-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.studio-section {
+  margin: var(--space-6) 0;
+  padding-top: var(--space-5);
+  border-top: var(--stroke-rule) solid var(--line);
+}
+.studio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0 var(--space-4);
+}
+.studio-wide {
+  grid-column: 1 / -1;
+}
+.studio-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+.studio-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.studio-row > .input {
+  flex: 1;
+  min-width: 0;
+}
+.studio-segment,
+.studio-question,
+.studio-card {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: var(--stroke-rule) solid var(--line);
+  border-radius: var(--radius-md);
+}
+.studio-card__title {
+  font-weight: 600;
+}
+.studio-textarea {
+  min-height: 96px;
+  padding: var(--space-3) var(--space-4);
+  resize: vertical;
+}
+.studio-save {
+  position: sticky;
+  bottom: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  background: var(--bg);
+}
+.studio-audio {
+  width: 100%;
+  margin-bottom: var(--space-4);
+}
+.studio-timing__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.studio-timing__row.is-next {
+  outline: var(--stroke-rule) solid var(--cpe);
+  border-radius: var(--radius-md);
+}
+.studio-time {
+  width: 7rem;
+  flex: none;
+}
+.studio-timing__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

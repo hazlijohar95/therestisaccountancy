@@ -5,7 +5,7 @@ import { usePlayer } from "../player.tsx";
 import { Pause, Play } from "./Icons.tsx";
 
 /** The sub-brand's one job: start or stop listening. Safe inside links: it never follows them. */
-export function PlayButton({ course, size = "md", at }: { course: Course; size?: "sm" | "md" | "lg"; at?: number }) {
+export function PlayButton({ course, size = "md", at, preview = false }: { course: Course; size?: "sm" | "md" | "lg"; at?: number; preview?: boolean }) {
   const player = usePlayer();
   const playing = player.course?.id === course.id && player.playing;
   const px = size === "lg" ? 28 : size === "md" ? 22 : 16;
@@ -13,7 +13,7 @@ export function PlayButton({ course, size = "md", at }: { course: Course; size?:
     e.preventDefault();
     e.stopPropagation();
     if (player.course?.id === course.id && at === undefined) player.toggle();
-    else player.play(course, at);
+    else player.play(course, at, { preview });
   };
   return (
     <Button

@@ -5,12 +5,14 @@ import { Waveform } from "../components/Waveform.tsx";
 import { formatHours, formatTime } from "../domain/courses.ts";
 import { LISTEN_THRESHOLD } from "../domain/progress.ts";
 import type { Course } from "../domain/types.ts";
+import { demoQuestion } from "./demo.ts";
 import { Bar, Collapse, Roll, Stage, States, Window, type Act } from "../stageshow/index.ts";
 
 /**
  * The credit path on the real course page: the last review question comes up, the cursor answers it,
  * the episode finishes, the assessment passes and the hour lands in the ledger.
- * Everything shown comes from the course itself; only the ledger's opening balance is an example.
+ * The course and its timings are real. The question is a demo one that restates the episode (see demo.ts), and the
+ * ledger's opening balance is an example.
  */
 
 type S = {
@@ -31,7 +33,6 @@ const REST = { wide: { x: 330, y: 250 }, compact: { x: 220, y: 196 } };
 
 function story(course: Course) {
   const last = course.checkpoints.length - 1;
-  const cp = course.checkpoints[last]!;
   const cpAt = course.checkpointTimes[last]!;
   const startAt = Math.max(0, cpAt - course.duration * 0.06);
   const initial: S = { t: startAt, playing: false, question: false, picked: false, answered: last, passed: false, posted: false };
@@ -75,7 +76,7 @@ function story(course: Course) {
     await a.wait(2400);
   }
 
-  return { initial, poster, script, prompt: cp.prompt, options: cp.options, answer: cp.answer, total: course.checkpoints.length };
+  return { initial, poster, script, prompt: demoQuestion.prompt, options: demoQuestion.options, answer: demoQuestion.answer, total: course.checkpoints.length };
 }
 
 export function HeroDemo({ course }: { course: Course }) {

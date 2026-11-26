@@ -5,49 +5,40 @@ import { Radio } from "@base-ui/react/radio";
 import { RadioGroup } from "@base-ui/react/radio-group";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Arrow, Check, Close } from "../components/Icons.tsx";
-import { courseById, formatHours, PASS_MARK } from "../domain/courses.ts";
-import { newCertificateId, phaseOf } from "../domain/progress.ts";
-import type { Course, Question } from "../domain/types.ts";
+import type { Graded } from "../domain/api.ts";
+import { formatHours, PASS_MARK } from "../domain/courses.ts";
+import { phaseOf } from "../domain/progress.ts";
+import type { Course, PublicQuestion } from "../domain/types.ts";
 import { Link, navigate } from "../router.tsx";
-import { useAppState, useDispatch } from "../state.tsx";
+import { useActions, useAppState, useCatalogue } from "../state.tsx";
 import { NotFound } from "./NotFound.tsx";
 
 const LETTERS = ["A", "B", "C", "D"];
 
-/** One sitting: each question with its options in a fresh order, mapped back to the source answer. */
-interface Item {
-  q: Question;
-  order: number[];
-}
-
+/**
+ * One sitting, opened on the server: each question with its options in an order the server chose. The app sends
+ * back positions; the server maps them to answers and grades. Answers arrive only with the result.
+ */
 type Stage =
   | { kind: "intro" }
-  | { kind: "asking"; items: Item[]; index: number; picks: (number | null)[] }
-  | { kind: "done"; items: Item[]; picks: number[]; correct: number; certificateId: string | null };
-
-function shuffle<T>(xs: readonly T[]): T[] {
-  const a = [...xs];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j]!, a[i]!];
-  }
-  return a;
-}
-
-const sit = (course: Course): Item[] => course.quiz.map((q) => ({ q, order: shuffle(q.options.map((_, i) => i)) }));
+  | { kind: "asking"; sittingId: string; items: PublicQuestion[]; index: number; picks: (number | null)[] }
+  | { kind: "done"; graded: Graded };
 
 export function Assessment({ id }: { id: string }) {
+  const { courseById, loaded } = useCatalogue();
   const course = courseById(id);
-  if (!course) return <NotFound />;
+  if (!course) return loaded ? <NotFound /> : null;
   return <AssessmentView course={course} />;
 }
 
 function AssessmentView({ course }: { course: Course }) {
   const state = useAppState();
-  const dispatch = useDispatch();
+  const actions = useActions();
   const phase = phaseOf(state, course);
   const [stage, setStage] = useState<Stage>({ kind: "intro" });
   const [name, setName] = useState(state.learner);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
 
   const asking = stage.kind === "asking" ? stage : null;
   const alreadyCertified = phase.kind === "certified";
@@ -62,7 +53,7 @@ function AssessmentView({ course }: { course: Course }) {
   const onAnswerKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (!asking || e.metaKey || e.ctrlKey || e.altKey) return;
     const n = "1234".indexOf(e.key) >= 0 ? "1234".indexOf(e.key) : "abcd".indexOf(e.key.toLowerCase());
-    if (n >= 0 && n < asking.items[asking.index]!.order.length) choose(n);
+    if (n >= 0 && n < asking.items[asking.index]!.options.length) choose(n);
     const onControl = e.target instanceof HTMLElement && e.target.closest("a, button") !== null;
     if (e.key === "Enter" && !onControl && asking.picks[asking.index] !== null) {
       e.preventDefault();
@@ -70,7 +61,7 @@ function AssessmentView({ course }: { course: Course }) {
     }
   };
 
-  if (phase.kind === "new" || phase.kind === "listening") {
+  if ((phase.kind === "new" || phase.kind === "listening") && stage.kind !== "done") {
     return (
       <div className="page narrow">
         <p className="eyebrow">Assessment · {course.title}</p>
@@ -85,10 +76,25 @@ function AssessmentView({ course }: { course: Course }) {
     );
   }
 
+  /** Runs a server call, keeping the screen still while it is out and saying plainly if it fails. */
+  async function run(task: () => Promise<void>) {
+    setBusy(true);
+    setProblem(null);
+    try {
+      await task();
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : "That didn’t go through. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function start() {
-    if (!alreadyCertified && name.trim() && name.trim() !== state.learner) dispatch({ type: "learner", name: name.trim() });
-    const items = sit(course);
-    setStage({ kind: "asking", items, index: 0, picks: items.map(() => null) });
+    void run(async () => {
+      if (!alreadyCertified && name.trim() && name.trim() !== state.learner) await actions.setName(name.trim());
+      const sitting = await actions.sit(course);
+      setStage({ kind: "asking", sittingId: sitting.id, items: sitting.questions, index: 0, picks: sitting.questions.map(() => null) });
+    });
   }
 
   function choose(displayIndex: number) {
@@ -104,25 +110,15 @@ function AssessmentView({ course }: { course: Course }) {
       setStage({ ...asking, index: asking.index + 1 });
       return;
     }
-    const picks = asking.picks.map((p) => p ?? -1);
-    const correct = asking.items.filter((it, i) => it.order[picks[i]!] === it.q.answer).length;
-    const at = new Date();
-    const passed = correct / asking.items.length >= PASS_MARK;
-    const certificateId = passed && phase.kind !== "certified" ? newCertificateId(course, at) : null;
-    dispatch({
-      type: "attempt",
-      courseId: course.id,
-      correct,
-      total: asking.items.length,
-      at: at.toISOString(),
-      certificateId: certificateId ?? "",
+    void run(async () => {
+      const graded = await actions.submit(course, asking.sittingId, asking.picks);
+      setStage({ kind: "done", graded });
+      window.scrollTo(0, 0);
     });
-    setStage({ kind: "done", items: asking.items, picks, correct, certificateId });
-    window.scrollTo(0, 0);
   }
 
   if (stage.kind === "intro") {
-    const needed = Math.ceil(course.quiz.length * PASS_MARK);
+    const needed = Math.ceil(course.quizLength * PASS_MARK);
     return (
       <div className="page narrow assess">
         <p className="eyebrow">Assessment · {course.title}</p>
@@ -130,12 +126,12 @@ function AssessmentView({ course }: { course: Course }) {
           Prove it.
         </h1>
         <ul className="ledgerlist">
-          <li><span>Questions</span><span className="tnum">{course.quiz.length}</span></li>
-          <li><span>To pass</span><span className="tnum">{needed} of {course.quiz.length} · 70%</span></li>
+          <li><span>Questions</span><span className="tnum">{course.quizLength}</span></li>
+          <li><span>To pass</span><span className="tnum">{needed} of {course.quizLength} · 70%</span></li>
           <li><span>Time limit</span><span className="tnum">None</span></li>
           <li><span>Retakes</span><span className="tnum">Unlimited</span></li>
         </ul>
-        {course.quiz.length === 3 && (
+        {course.quizLength === 3 && (
           <p className="notice">Three questions, so 70% means all three.</p>
         )}
         {alreadyCertified ? (
@@ -146,7 +142,8 @@ function AssessmentView({ course }: { course: Course }) {
             <Input value={name} onValueChange={setName} autoComplete="name" data-test="name" />
           </Field.Root>
         )}
-        <Button className="pill pill--cpe" onClick={start} disabled={!alreadyCertified && !name.trim()} data-test="begin">
+        {problem && <p className="notice" role="alert">{problem}</p>}
+        <Button className="pill pill--cpe" onClick={start} disabled={busy || (!alreadyCertified && !name.trim())} data-test="begin">
           Begin <Arrow />
         </Button>
       </div>
@@ -167,7 +164,7 @@ function AssessmentView({ course }: { course: Course }) {
           Question {stage.index + 1} of {stage.items.length}
         </p>
         <h1 className="assess__q" id="assess-q" ref={heading} tabIndex={-1}>
-          {it.q.prompt}
+          {it.prompt}
         </h1>
         <RadioGroup
           className="options"
@@ -178,21 +175,22 @@ function AssessmentView({ course }: { course: Course }) {
           }}
           aria-labelledby="assess-q"
         >
-          {it.order.map((src, i) => (
-            <label key={src} className={`option${pick === i ? " option--picked" : " option--idle"}`} data-test={`answer-${i}`}>
+          {it.options.map((option, i) => (
+            <label key={option} className={`option${pick === i ? " option--picked" : " option--idle"}`} data-test={`answer-${i}`}>
               <Radio.Root value={i} className="option__key">
                 {LETTERS[i]}
               </Radio.Root>
-              <span>{it.q.options[src]}</span>
+              <span>{option}</span>
             </label>
           ))}
         </RadioGroup>
+        {problem && <p className="notice" role="alert">{problem}</p>}
         <div className="assess__nav">
           <Button className="pill pill--ghost" disabled={stage.index === 0} onClick={() => setStage({ ...stage, index: stage.index - 1 })}>
             Back
           </Button>
           <span className="muted tnum kbd-hint">A–D to answer · Enter to continue</span>
-          <Button className="pill pill--cpe" disabled={pick === null} onClick={next} data-test="next">
+          <Button className="pill pill--cpe" disabled={pick === null || busy} onClick={next} data-test="next">
             {stage.index === stage.items.length - 1 ? "Submit" : "Next"} <Arrow />
           </Button>
         </div>
@@ -200,26 +198,27 @@ function AssessmentView({ course }: { course: Course }) {
     );
   }
 
-  const total = stage.items.length;
-  const passed = stage.correct / total >= PASS_MARK;
-  const certificateId = stage.certificateId ?? (phase.kind === "certified" ? phase.certificate.id : null);
+  const { graded } = stage;
+  const total = graded.total;
+  const passed = graded.passed;
+  const certificateId = graded.certificate?.id ?? (phase.kind === "certified" ? phase.certificate.id : null);
   return (
     <div className="page narrow assess">
       <div className="result">
         <div>
           <p className="eyebrow">{course.title}</p>
-          <h1 className="result__score" ref={heading} tabIndex={-1} aria-label={`${stage.correct} of ${total} correct`}>
-            {stage.correct}
+          <h1 className="result__score" ref={heading} tabIndex={-1} aria-label={`${graded.correct} of ${total} correct`}>
+            {graded.correct}
             <span>/{total}</span>
           </h1>
-          <p className="lead">{Math.round((stage.correct / total) * 100)}% · 70% needed</p>
+          <p className="lead">{Math.round((graded.correct / total) * 100)}% · 70% needed</p>
         </div>
         <div className={`stamp ${passed ? "stamp--pass" : "stamp--fail"}`}>{passed ? "Passed" : "Not yet"}</div>
       </div>
       {passed ? (
         <div className="posted" role="status">
           <Check />{" "}
-          {stage.certificateId ? `${formatHours(course.credits)} CPE posted to your ledger` : "Already on your ledger. Retakes don’t post again."}
+          {graded.certificate ? `${formatHours(course.credits)} CPE posted to your ledger` : "Already on your ledger. Retakes don’t post again."}
         </div>
       ) : (
         <p className="lead">Check the explanations, then retake. Options reshuffle.</p>
@@ -243,17 +242,16 @@ function AssessmentView({ course }: { course: Course }) {
       </div>
       <h2 className="label">Your answers</h2>
       <ol className="review">
-        {stage.items.map((it, i) => {
-          const chosen = it.order[stage.picks[i]!];
-          const right = chosen === it.q.answer;
+        {graded.review.map((it, i) => {
+          const right = it.picked === it.answer;
           return (
             <li key={i} className={right ? "review--right" : "review--wrong"}>
-              <p className="review__q">{it.q.prompt}</p>
+              <p className="review__q">{it.prompt}</p>
               <p className="review__pick">
-                {right ? <Check width={16} height={16} /> : <Close width={16} height={16} />} You answered: {chosen === undefined ? "—" : it.q.options[chosen]}
+                {right ? <Check width={16} height={16} /> : <Close width={16} height={16} />} You answered: {it.picked === null ? "—" : it.options[it.picked]}
               </p>
-              {!right && <p>Answer: {it.q.options[it.q.answer]}</p>}
-              <p className="muted">{it.q.why}</p>
+              {!right && <p>Answer: {it.options[it.answer]}</p>}
+              <p className="muted">{it.why}</p>
             </li>
           );
         })}
