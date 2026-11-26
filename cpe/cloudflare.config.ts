@@ -17,7 +17,8 @@ export default defineConfig({
       CLUB: bindings.worker({ worker: process.env.CLUB_WORKER ?? "better-accountant", exportName: "CpeIdentity" }),
       AUDIO: bindings.r2({ name: "therestisaccountancy-cpe-audio" }),
       CLUB_URL: bindings.text(process.env.CLUB_URL ?? "https://therestisaccountancy.com"),
-      ELEVENLABS_API_KEY: bindings.secret(),
+      // ELEVENLABS_API_KEY is an optional secret: set it with `cf workers secrets update` to turn on automatic timing.
+      // Declared here it would be required at every deploy, so CpeEnv types it as optional instead.
     },
     exports: {
       CatalogueStore: exports.durableObject({ storage: "sqlite" }),

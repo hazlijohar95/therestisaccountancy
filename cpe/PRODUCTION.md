@@ -27,7 +27,7 @@ Create these before the first deploy. The club does the same for its evidence bu
 
 2. **Durable Objects.** `CatalogueStore` and `LearnerStore` are declared as SQLite exports in `cloudflare.config.ts`. The first deploy creates them. There is nothing to create by hand.
 
-3. **Secret, optional:** `ELEVENLABS_API_KEY`. With it set, the Studio offers automatic timing through ElevenLabs forced alignment. Without it, the Studio offers only the manual timing editor. Set it after the Worker exists. Pass the key from an environment variable so it stays out of shell history:
+3. **Secret, optional:** `ELEVENLABS_API_KEY`. With it set, the Studio offers automatic timing through ElevenLabs forced alignment. Without it, the Studio offers only the manual timing editor. It is deliberately not declared in `cloudflare.config.ts`, which would make every deploy require it. Set it after the Worker exists, and it stays across deploys. Pass the key from an environment variable so it stays out of shell history:
 
    ```bash
    pnpm exec cf workers secrets update ELEVENLABS_API_KEY --worker therestisaccountancy-cpe --type secret_text --text "$ELEVENLABS_API_KEY"
