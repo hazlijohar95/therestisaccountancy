@@ -1,4 +1,4 @@
-import { z } from 'astro/zod';
+import { z } from 'zod';
 import { env } from 'cloudflare:workers';
 import { isReversed, signedByChip } from './chip.ts';
 import { openStore, type Store } from './instance.ts';

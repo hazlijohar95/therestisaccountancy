@@ -1,0 +1,2 @@
+.skip { position: absolute; z-index: 100; inset: var(--space-3) auto auto var(--space-3); padding: var(--space-3) var(--space-4); background: var(--ink); color: var(--bg); font-weight: 600; translate: 0 -200%; }
+.skip:focus { translate: none; }

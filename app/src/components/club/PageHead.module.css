@@ -1,0 +1,5 @@
+.in { display: grid; gap: var(--space-6); padding-block: clamp(32px, 4vw, 48px) clamp(56px, 8vw, 112px); }
+.top { margin: 0 0 var(--space-6); padding-bottom: var(--space-4); border-bottom: var(--stroke-hair) solid var(--ink); }
+.headline { margin: 0; max-width: 16ch; font-size: var(--size-page); line-height: .98; text-wrap: balance; }
+.lead { margin: 0; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }

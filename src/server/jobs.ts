@@ -71,6 +71,10 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
       const removed = await store.socialProfiles.pruneAbandoned();
       if (removed) console.log(`Hourly job removed ${removed} abandoned social sign-ups`);
     });
+    await step('sign-ins', async () => {
+      const removed = await store.signIns.prune();
+      if (removed) console.log(`Hourly job removed ${removed} expired sign-ins`);
+    });
     /* Invite links dead for a month, and requests declined three months ago. Pending requests and live links stay. */
     await step('invites and requests', async () => {
       const links = await store.socialInvites.prune();

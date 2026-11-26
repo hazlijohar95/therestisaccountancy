@@ -1,6 +1,4 @@
 ---
-import { actions } from 'astro:actions';
-
 /** The free newsletter's sign-up. It posts to /newsletter/subscribe, which works from any page, prerendered or not. */
 interface Props {
   /** Where on the site it was signed up from. */
@@ -13,7 +11,7 @@ const { source, title = 'The newsletter, free.', lead = 'Essays, the podcast and
 const id = `signup-${source}`;
 ---
 
-<form class="signup" method="POST" action={`/newsletter/subscribe${actions.newsletter.subscribe}`} aria-labelledby={id}>
+<form class="signup" method="POST" action="/newsletter/subscribe" aria-labelledby={id}>
   <div class="copy">
     <h2 class="serif" id={id}>{title}</h2>
     <p>{lead}</p>

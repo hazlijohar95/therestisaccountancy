@@ -1,4 +1,4 @@
-import { z } from 'astro/zod';
+import { z } from 'zod';
 
 /** CHIP Collect, the payment gateway. Amounts are in sen. Docs: https://docs.chip-in.asia/chip-collect */
 const BASE = 'https://gate.chip-in.asia/api/v1';

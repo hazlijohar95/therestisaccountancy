@@ -5,7 +5,7 @@ import { site } from './site.ts';
 import { socialHost } from './social.ts';
 
 test('the deploy config serves and sends mail from the domain the site uses', () => {
-  const config = readFileSync(new URL('../../cloudflare.config.ts', import.meta.url), 'utf8');
+  const config = readFileSync(new URL('../../app/cloudflare.config.ts', import.meta.url), 'utf8');
   assert.equal(config.match(/^const domain = '([^']+)';$/m)?.[1], site.domain);
   assert.match(config, /^const sender = `club@\$\{domain\}`;$/m);
   assert.equal(site.inbox, `club@${site.domain}`);

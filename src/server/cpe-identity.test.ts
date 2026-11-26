@@ -2,10 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createBilling } from './billing.ts';
 import { createClub } from './club.ts';
-import { identify, identityRequest, isIdentityRequest, parseIdentity } from './cpe-identity.ts';
+import { identify, sessionToken } from './cpe-identity.ts';
 import { openDatabase } from './node-db.ts';
-
-const SITE = 'https://therestisaccountancy.com';
 
 /** A club with one admin and one member who has set a password, both able to sign in. */
 const world = async () => {
@@ -56,23 +54,10 @@ test('a session ended by suspension or a password change identifies nobody', asy
   assert.equal(await identify(w.club.sessionMember(w.member.key), (id) => w.billing.access(id)), null);
 });
 
-test('the identity route answers only requests made inside this isolate', () => {
-  const inside = identityRequest(SITE, 'session=abc');
-  assert.equal(isIdentityRequest(inside), true);
-  assert.equal(inside.headers.get('cookie'), 'session=abc', 'the browser cookie is forwarded as it came');
-  assert.equal(new URL(inside.url).origin, SITE);
-
-  assert.equal(isIdentityRequest(new Request(inside.url)), false, 'no token');
-  assert.equal(isIdentityRequest(new Request(inside.url, { headers: { 'x-cpe-identity': 'guess' } })), false, 'a guessed token');
-  assert.equal(isIdentityRequest(new Request(inside.url, { headers: { 'x-cpe-identity': '' } })), false, 'an empty token');
-  assert.equal(identityRequest(SITE, null).headers.has('cookie'), false, 'no cookie is sent when there is none');
-});
-
-test('identity read back from the route fails loudly on the wrong shape', () => {
-  const good = { id: 7, name: 'Aina', email: 'aina@firm.com.my', role: 'member', paid: true };
-  assert.deepEqual(parseIdentity(good), good);
-  assert.equal(parseIdentity(null), null);
-  assert.throws(() => parseIdentity({ ...good, role: 'owner' }));
-  assert.throws(() => parseIdentity({ ...good, paid: 'yes' }));
-  assert.throws(() => parseIdentity('Aina'));
+test('the session token is read from the forwarded Cookie header, and nothing else counts', () => {
+  assert.equal(sessionToken('session=abc'), 'abc');
+  assert.equal(sessionToken('theme=dark; session=abc=def; other=1'), 'abc=def', 'a token may hold = signs');
+  assert.equal(sessionToken('mysession=abc'), null, 'only the exact name');
+  assert.equal(sessionToken('session='), null);
+  assert.equal(sessionToken(null), null);
 });

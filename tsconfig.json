@@ -3,12 +3,17 @@
   "include": [
     ".astro/types.d.ts",
     "**/*",
-    "./.cloudflare/types/index.d.ts"
+    "./app/.cloudflare/types/index.d.ts"
   ],
   "exclude": [
     "dist",
+    ".site",
     "brand",
-    "cpe"
+    "cpe",
+    "app/src",
+    "app/node_modules",
+    "app/vite.config.ts",
+    "app/cloudflare.config.ts"
   ],
   "compilerOptions": {
     "jsx": "react-jsx",

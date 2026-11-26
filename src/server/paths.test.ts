@@ -17,6 +17,9 @@ test('a return path never leaves the site', () => {
   assert.equal(safeNext('https://evil.example'), '/members');
   assert.equal(safeNext('//evil.example'), '/members');
   assert.equal(safeNext('/\\evil.example'), '/members');
+  for (const sneaky of ['/\t/evil.example', '/\n/evil.example', '/\r/evil.example', '/\t\\evil.example']) {
+    assert.equal(safeNext(sneaky), '/members', `${JSON.stringify(sneaky)} would become //evil.example in a browser`);
+  }
   assert.equal(safeNext(null), '/members');
 });
 

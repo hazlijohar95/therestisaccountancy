@@ -1,4 +1,4 @@
-import { z } from 'astro/zod';
+import { z } from 'zod';
 import { PLAN_ANSWER_MAX, planSections, type PlanSectionSlug } from '../data/plan.ts';
 import { hostFirstName } from '../data/authors.ts';
 import { site } from '../data/site.ts';

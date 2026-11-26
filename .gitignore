@@ -13,3 +13,4 @@ dist/
 
 # cf local state, captured dev email and generated types (pnpm check regenerates them)
 .cloudflare/
+.site/

@@ -24,6 +24,8 @@ const Heading = level === 1 ? 'h1' : 'h2';
     <form
       class="form"
       id="join-form"
+      method="POST"
+      action="/join"
       novalidate
       data-placeholder={card.namePlaceholder}
       data-sending={messages.sending}
@@ -60,8 +62,28 @@ const Heading = level === 1 ? 'h1' : 'h2';
 </section>
 
 <script>
-  import { actions, isInputError } from 'astro:actions';
   import { find } from '../lib/dom.ts';
+
+  /* What POST /join answers when asked for JSON. Anything else counts as a failure to send. */
+  type Answer = { ok: true; email: string } | { ok: false; message: string; fields: Record<string, string | undefined> };
+  const answerOf = (value: unknown): Answer | null => {
+    if (typeof value !== 'object' || value === null || !('ok' in value)) return null;
+    if (value.ok === true && 'email' in value && typeof value.email === 'string') return { ok: true, email: value.email };
+    if (value.ok !== false || !('message' in value) || typeof value.message !== 'string') return null;
+    const fields: Record<string, string | undefined> = {};
+    if ('fields' in value && typeof value.fields === 'object' && value.fields !== null) {
+      for (const [key, message] of Object.entries(value.fields)) if (typeof message === 'string') fields[key] = message;
+    }
+    return { ok: false, message: value.message, fields };
+  };
+  const post = async (form: HTMLFormElement): Promise<{ status: number; answer: Answer | null }> => {
+    try {
+      const response = await fetch(form.action, { method: 'POST', body: new FormData(form), headers: { accept: 'application/json' } });
+      return { status: response.status, answer: answerOf(await response.json()) };
+    } catch {
+      return { status: 0, answer: null };
+    }
+  };
 
   const form = find('#join-form', HTMLFormElement);
   const status = find('#join-status', HTMLElement, form);
@@ -117,24 +139,24 @@ const Heading = level === 1 ? 'h1' : 'h2';
     }
     sending = true;
     say(text('sending'));
-    const { data, error } = await actions.join(new FormData(form));
+    const { status: code, answer } = await post(form);
     sending = false;
-    if (data) {
+    if (answer?.ok) {
       const sent = document.createElement('p');
       sent.className = 'sent';
-      sent.textContent = text('sent').replace('{email}', data.email);
+      sent.textContent = text('sent').replace('{email}', answer.email);
       sent.tabIndex = -1;
       form.replaceChildren(sent);
       sent.focus();
       return;
     }
-    if (isInputError(error)) {
+    if (answer && code === 400 && Object.keys(answer.fields).length > 0) {
       status.hidden = true;
-      for (const field of fields) show(field, error.fields[field.key]?.[0] ?? null);
+      for (const field of fields) show(field, answer.fields[field.key] ?? null);
       emailField.input.focus();
       return;
     }
-    say(error.code === 'TOO_MANY_REQUESTS' ? error.message : text('failed'));
+    say(answer && code === 429 ? answer.message : text('failed'));
   });
 </script>
 
