@@ -1,0 +1,105 @@
+/* Brand layer: mirrors therestisaccountancy.com token names and values. */
+:root {
+  --color-ink: #231f20;
+  --color-night: #000;
+  --color-night-raised: #16130e;
+  --color-paper: #fff;
+  --color-stock: #f2efe8;
+  --color-pencil: #e2d9be;
+  --color-pencil-dark: #3b3422;
+  --color-redline: #a8180f;
+  --color-redline-dark: #ff6a5c;
+  --color-highlighter: #f4dd6c;
+  --color-tape: #f7d52a;
+
+  --font-serif: "Geist Serif", "Iowan Old Style", Georgia, serif;
+  --font-sans: "Instrument Sans Variable", "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-hand: "Gochi Hand", "Comic Sans MS", cursive;
+
+  --stroke-hair: 1px;
+  --stroke-rule: 2px;
+  --stroke-heavy: 4px;
+  --radius-none: 0;
+  --radius-round: 999px;
+
+  --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-slap: cubic-bezier(0.3, 1.6, 0.5, 1);
+  --motion-quick: 0.16s;
+  --motion-settle: 0.42s;
+  --rotate-stamp: -8deg;
+  --rotate-tape: -3deg;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  --size-caption: 0.75rem;
+  --size-label: 0.8125rem;
+  --size-small: 0.875rem;
+  --size-body: 1.0625rem;
+  --size-lead: 1.25rem;
+  --size-head: clamp(1.5rem, 1.25rem + 1vw, 2.125rem);
+  --size-title: clamp(2.25rem, 1.6rem + 2.6vw, 4rem);
+  --size-poster: clamp(3rem, 1.8rem + 6vw, 7.5rem);
+  --display-tracking: -0.02em;
+
+  /* CPE sub-brand: ledger green, the colour of columnar accounting pads.
+     Deep emerald, well clear of streaming-app green. One job only: play, progress and earned credit. */
+  --cpe: #00805a;
+  --cpe-deep: #005c40;
+  --cpe-tint: #dcf2e7;
+  --cpe-wash: #f1faf5;
+  /* Categorical tone for the Accounting field, so green keeps its single job. 5.3:1 with white. */
+  --field-accounting: #2f6db5;
+
+  /* CPE softens the club's square system: rounded art, cards and panels. */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* Semantic layer */
+  --ink: var(--color-ink);
+  --bg: var(--color-paper);
+  --surface: var(--color-stock);
+  --muted: color-mix(in srgb, var(--color-ink) 68%, var(--color-paper));
+  /* Decorative rules only, never text: 2.3:1 on paper. */
+  --faint: color-mix(in srgb, var(--color-ink) 38%, var(--color-paper));
+  --line: color-mix(in srgb, var(--color-ink) 12%, var(--color-paper));
+  --line-strong: color-mix(in srgb, var(--color-ink) 22%, var(--color-paper));
+  --alert: var(--color-redline);
+  --gutter: max(16px, 3vw);
+  --rail: 264px;
+  --bar: 84px;
+  --tabbar: 64px;
+  color-scheme: light;
+}
+
+/* Field-of-study tones, drawn only from the palette above. */
+[data-field="Ethics"] {
+  --field: var(--color-redline);
+  --on-field: var(--color-paper);
+}
+[data-field="Accounting"] {
+  --field: var(--field-accounting);
+  --on-field: var(--color-paper);
+}
+[data-field="Auditing"] {
+  --field: var(--color-ink);
+  --on-field: var(--color-paper);
+}
+[data-field="Taxation"] {
+  --field: var(--color-redline-dark);
+  --on-field: var(--color-ink);
+}
+[data-field="Practice Management"] {
+  --field: var(--color-tape);
+  --on-field: var(--color-ink);
+}
