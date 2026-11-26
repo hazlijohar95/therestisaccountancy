@@ -10,13 +10,42 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DevSeedRouteImport } from './routes/dev-seed'
+import { Route as DirectoryRouteImport } from './routes/directory'
+import { Route as FeesRouteImport } from './routes/fees'
+import { Route as ForgotRouteImport } from './routes/forgot'
+import { Route as JoinRouteImport } from './routes/join'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SocialRouteRouteImport } from './routes/social/route'
+import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
+import { Route as WelcomeRouteImport } from './routes/welcome'
+import { Route as JoinRequestRouteImport } from './routes/join.request'
+import { Route as NewsletterConfirmRouteImport } from './routes/newsletter/confirm'
+import { Route as NewsletterSubscribeRouteImport } from './routes/newsletter/subscribe'
 import { Route as SocialTicksRouteImport } from './routes/social/ticks'
 
 const DevSeedRoute = DevSeedRouteImport.update({
   id: '/dev-seed',
   path: '/dev-seed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DirectoryRoute = DirectoryRouteImport.update({
+  id: '/directory',
+  path: '/directory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeesRoute = FeesRouteImport.update({
+  id: '/fees',
+  path: '/fees',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotRoute = ForgotRouteImport.update({
+  id: '/forgot',
+  path: '/forgot',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JoinRoute = JoinRouteImport.update({
+  id: '/join',
+  path: '/join',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInRoute = SignInRouteImport.update({
@@ -29,6 +58,31 @@ const SocialRouteRoute = SocialRouteRouteImport.update({
   path: '/social',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UnsubscribeRoute = UnsubscribeRouteImport.update({
+  id: '/unsubscribe',
+  path: '/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JoinRequestRoute = JoinRequestRouteImport.update({
+  id: '/request',
+  path: '/request',
+  getParentRoute: () => JoinRoute,
+} as any)
+const NewsletterConfirmRoute = NewsletterConfirmRouteImport.update({
+  id: '/newsletter/confirm',
+  path: '/newsletter/confirm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsletterSubscribeRoute = NewsletterSubscribeRouteImport.update({
+  id: '/newsletter/subscribe',
+  path: '/newsletter/subscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SocialTicksRoute = SocialTicksRouteImport.update({
   id: '/ticks',
   path: '/ticks',
@@ -38,34 +92,109 @@ const SocialTicksRoute = SocialTicksRouteImport.update({
 export interface FileRoutesByFullPath {
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
+  '/directory': typeof DirectoryRoute
+  '/fees': typeof FeesRoute
+  '/forgot': typeof ForgotRoute
+  '/join': typeof JoinRouteWithChildren
   '/sign-in': typeof SignInRoute
+  '/unsubscribe': typeof UnsubscribeRoute
+  '/welcome': typeof WelcomeRoute
+  '/join/request': typeof JoinRequestRoute
+  '/newsletter/confirm': typeof NewsletterConfirmRoute
+  '/newsletter/subscribe': typeof NewsletterSubscribeRoute
   '/social/ticks': typeof SocialTicksRoute
 }
 export interface FileRoutesByTo {
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
+  '/directory': typeof DirectoryRoute
+  '/fees': typeof FeesRoute
+  '/forgot': typeof ForgotRoute
+  '/join': typeof JoinRouteWithChildren
   '/sign-in': typeof SignInRoute
+  '/unsubscribe': typeof UnsubscribeRoute
+  '/welcome': typeof WelcomeRoute
+  '/join/request': typeof JoinRequestRoute
+  '/newsletter/confirm': typeof NewsletterConfirmRoute
+  '/newsletter/subscribe': typeof NewsletterSubscribeRoute
   '/social/ticks': typeof SocialTicksRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
+  '/directory': typeof DirectoryRoute
+  '/fees': typeof FeesRoute
+  '/forgot': typeof ForgotRoute
+  '/join': typeof JoinRouteWithChildren
   '/sign-in': typeof SignInRoute
+  '/unsubscribe': typeof UnsubscribeRoute
+  '/welcome': typeof WelcomeRoute
+  '/join/request': typeof JoinRequestRoute
+  '/newsletter/confirm': typeof NewsletterConfirmRoute
+  '/newsletter/subscribe': typeof NewsletterSubscribeRoute
   '/social/ticks': typeof SocialTicksRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/social' | '/dev-seed' | '/sign-in' | '/social/ticks'
+  fullPaths:
+    | '/social'
+    | '/dev-seed'
+    | '/directory'
+    | '/fees'
+    | '/forgot'
+    | '/join'
+    | '/sign-in'
+    | '/unsubscribe'
+    | '/welcome'
+    | '/join/request'
+    | '/newsletter/confirm'
+    | '/newsletter/subscribe'
+    | '/social/ticks'
   fileRoutesByTo: FileRoutesByTo
-  to: '/social' | '/dev-seed' | '/sign-in' | '/social/ticks'
-  id: '__root__' | '/social' | '/dev-seed' | '/sign-in' | '/social/ticks'
+  to:
+    | '/social'
+    | '/dev-seed'
+    | '/directory'
+    | '/fees'
+    | '/forgot'
+    | '/join'
+    | '/sign-in'
+    | '/unsubscribe'
+    | '/welcome'
+    | '/join/request'
+    | '/newsletter/confirm'
+    | '/newsletter/subscribe'
+    | '/social/ticks'
+  id:
+    | '__root__'
+    | '/social'
+    | '/dev-seed'
+    | '/directory'
+    | '/fees'
+    | '/forgot'
+    | '/join'
+    | '/sign-in'
+    | '/unsubscribe'
+    | '/welcome'
+    | '/join/request'
+    | '/newsletter/confirm'
+    | '/newsletter/subscribe'
+    | '/social/ticks'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   SocialRouteRoute: typeof SocialRouteRouteWithChildren
   DevSeedRoute: typeof DevSeedRoute
+  DirectoryRoute: typeof DirectoryRoute
+  FeesRoute: typeof FeesRoute
+  ForgotRoute: typeof ForgotRoute
+  JoinRoute: typeof JoinRouteWithChildren
   SignInRoute: typeof SignInRoute
+  UnsubscribeRoute: typeof UnsubscribeRoute
+  WelcomeRoute: typeof WelcomeRoute
+  NewsletterConfirmRoute: typeof NewsletterConfirmRoute
+  NewsletterSubscribeRoute: typeof NewsletterSubscribeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -75,6 +204,34 @@ declare module '@tanstack/react-router' {
       path: '/dev-seed'
       fullPath: '/dev-seed'
       preLoaderRoute: typeof DevSeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/directory': {
+      id: '/directory'
+      path: '/directory'
+      fullPath: '/directory'
+      preLoaderRoute: typeof DirectoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fees': {
+      id: '/fees'
+      path: '/fees'
+      fullPath: '/fees'
+      preLoaderRoute: typeof FeesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot': {
+      id: '/forgot'
+      path: '/forgot'
+      fullPath: '/forgot'
+      preLoaderRoute: typeof ForgotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/join': {
+      id: '/join'
+      path: '/join'
+      fullPath: '/join'
+      preLoaderRoute: typeof JoinRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sign-in': {
@@ -89,6 +246,41 @@ declare module '@tanstack/react-router' {
       path: '/social'
       fullPath: '/social'
       preLoaderRoute: typeof SocialRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/unsubscribe': {
+      id: '/unsubscribe'
+      path: '/unsubscribe'
+      fullPath: '/unsubscribe'
+      preLoaderRoute: typeof UnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/join/request': {
+      id: '/join/request'
+      path: '/request'
+      fullPath: '/join/request'
+      preLoaderRoute: typeof JoinRequestRouteImport
+      parentRoute: typeof JoinRoute
+    }
+    '/newsletter/confirm': {
+      id: '/newsletter/confirm'
+      path: '/newsletter/confirm'
+      fullPath: '/newsletter/confirm'
+      preLoaderRoute: typeof NewsletterConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsletter/subscribe': {
+      id: '/newsletter/subscribe'
+      path: '/newsletter/subscribe'
+      fullPath: '/newsletter/subscribe'
+      preLoaderRoute: typeof NewsletterSubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/social/ticks': {
@@ -113,10 +305,28 @@ const SocialRouteRouteWithChildren = SocialRouteRoute._addFileChildren(
   SocialRouteRouteChildren,
 )
 
+interface JoinRouteChildren {
+  JoinRequestRoute: typeof JoinRequestRoute
+}
+
+const JoinRouteChildren: JoinRouteChildren = {
+  JoinRequestRoute: JoinRequestRoute,
+}
+
+const JoinRouteWithChildren = JoinRoute._addFileChildren(JoinRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   SocialRouteRoute: SocialRouteRouteWithChildren,
   DevSeedRoute: DevSeedRoute,
+  DirectoryRoute: DirectoryRoute,
+  FeesRoute: FeesRoute,
+  ForgotRoute: ForgotRoute,
+  JoinRoute: JoinRouteWithChildren,
   SignInRoute: SignInRoute,
+  UnsubscribeRoute: UnsubscribeRoute,
+  WelcomeRoute: WelcomeRoute,
+  NewsletterConfirmRoute: NewsletterConfirmRoute,
+  NewsletterSubscribeRoute: NewsletterSubscribeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
