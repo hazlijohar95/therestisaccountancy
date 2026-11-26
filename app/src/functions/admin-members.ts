@@ -130,10 +130,7 @@ export const inviteRequest = createServerFn({ method: 'POST' })
     if (!admin.ok) return admin;
     const input = parsed(requestInput, data);
     if (!input.ok) return input;
-    const invitation = await withStore(async (store) => {
-      const result = await store.club.inviteFromRequest(input.value.request);
-      return result;
-    });
+    const invitation = await withStore(async (store) => await store.club.inviteFromRequest(input.value.request));
     if (!invitation.ok) return refused(inviteRefusals[invitation.reason]);
     if (invitation.value.kind === 'link') return done({ kind: 'link', issued: await deliver(invitation.value.link) });
     const { name, email: address } = invitation.value.member;
@@ -160,10 +157,7 @@ export const issueLink = createServerFn({ method: 'POST' })
     if (!admin.ok) return admin;
     const input = parsed(memberInput, data);
     if (!input.ok) return input;
-    const link = await withStore(async (store) => {
-      const result = await store.club.newLink(input.value.member);
-      return result;
-    });
+    const link = await withStore(async (store) => await store.club.newLink(input.value.member));
     if (!link.ok) return refused(linkRefusals[link.reason]);
     return done(await deliver(link.value));
   });
@@ -211,10 +205,7 @@ export const reinstateMember = createServerFn({ method: 'POST' })
     if (!admin.ok) return admin;
     const input = parsed(memberInput, data);
     if (!input.ok) return input;
-    const result = await withStore(async (store) => {
-      const reinstated = await store.club.reinstateMember(input.value.member);
-      return reinstated;
-    });
+    const result = await withStore(async (store) => await store.club.reinstateMember(input.value.member));
     return result.ok ? done(null) : refused(memberRefusals[result.reason]);
   });
 
