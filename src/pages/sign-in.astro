@@ -2,7 +2,7 @@
 import { actions, isInputError } from 'astro:actions';
 import Page from '../layouts/Page.astro';
 import { formAction } from '../lib/format.ts';
-import { safeNext } from '../server/paths.ts';
+import { safeNext, socialPath } from '../server/paths.ts';
 
 export const prerender = false;
 
@@ -10,8 +10,13 @@ const next = safeNext(Astro.url.searchParams.get('next'));
 const signedOut = Astro.getActionResult(actions.signOut);
 const result = Astro.getActionResult(actions.signIn);
 
-if (result?.data) return Astro.redirect(result.data.role === 'admin' && next === '/members' ? '/admin' : next);
-if (Astro.locals.member && !signedOut) return Astro.redirect(next);
+/* With nowhere asked for, a member goes home: admins to the admin page, social sign-ups to their profile. */
+const socialHome = socialPath(Astro.url, '/me');
+if (result?.data) return Astro.redirect(next !== '/members' ? next : result.data.joinedVia === 'social' ? socialHome : result.data.role === 'admin' ? '/admin' : next);
+if (Astro.locals.member && !signedOut) return Astro.redirect(next === '/members' && Astro.locals.member.joinedVia === 'social' ? socialHome : next);
+
+/* One account signs in to the club and to Social. Coming from Social, the page says so. */
+const forSocial = next.startsWith('/social') || next.startsWith('http');
 
 const error = result?.error && !isInputError(result.error) ? result.error.message : null;
 ---
@@ -20,9 +25,9 @@ const error = result?.error && !isInputError(result.error) ? result.error.messag
   <section class="night" aria-labelledby="page-title">
     <div class="wrap in">
       <div>
-        <p class="label top">Members</p>
-        <h1 class="headline serif" id="page-title">Sign in to the club.</h1>
-        <p class="lead">New member? Use the link in your invitation to set a password first.</p>
+        <p class="label top">{forSocial ? 'Social' : 'Members'}</p>
+        <h1 class="headline serif" id="page-title">{forSocial ? 'Sign in to Social.' : 'Sign in to the club.'}</h1>
+        <p class="lead">{forSocial ? 'One account for Social and the club. Just signed up? Use the link we emailed to set a password first.' : 'New member? Use the link in your invitation to set a password first.'}</p>
       </div>
       <form method="POST" action={formAction(Astro.url, actions.signIn)} class="form">
         {signedOut?.data && <p class="note" role="status">You have signed out.</p>}
@@ -37,7 +42,7 @@ const error = result?.error && !isInputError(result.error) ? result.error.messag
         {error && <p class="error" id="form-error" role="alert">{error}</p>}
         <button class="btn" type="submit">Sign in</button>
         <p class="small">Forgot your password, or lost your invitation? <a href="/forgot">Get a new link by email</a>.</p>
-        <p class="small">Not a member yet? <a href="/join">Request membership</a>.</p>
+        {forSocial ? <p class="small">New here? <a href={socialPath(Astro.url, '/sign-up')}>Sign up for Social</a>. It is free.</p> : <p class="small">Not a member yet? <a href="/join">Request membership</a>.</p>}
       </form>
     </div>
   </section>

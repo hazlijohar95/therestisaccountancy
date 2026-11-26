@@ -1,0 +1,24 @@
+---
+import type { Track } from '../../data/social.ts';
+
+interface Props {
+  name: string;
+  track?: Track | undefined;
+  sealed?: boolean;
+  size?: 'sm' | 'lg';
+}
+
+const { name, track, sealed = false, size } = Astro.props;
+const initials = name
+  .split(/\s+/)
+  .filter(Boolean)
+  .map((word) => [...word][0] ?? '')
+  .slice(0, 2)
+  .join('')
+  .toUpperCase();
+---
+
+<span class:list={['avatar', size]} data-track={track} aria-hidden="true">
+  {initials}
+  {sealed && <svg class="seal"><use href="#seal" /></svg>}
+</span>

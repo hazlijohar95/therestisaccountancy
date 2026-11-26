@@ -1,0 +1,62 @@
+---
+import { ROOMS } from '../../data/social.ts';
+import Social from '../../layouts/Social.astro';
+import { socialPath } from '../../server/paths.ts';
+
+export const prerender = false;
+
+const member = Astro.locals.member;
+const profile = member ? await Astro.locals.socialProfiles.ownProfile(member.id) : null;
+const to = (path: string) => socialPath(Astro.url, path);
+---
+
+<Social section="floor">
+  <div class="page floor">
+    <section class="rooms card" aria-labelledby="rooms-title">
+      <p class="kicker" id="rooms-title">Rooms</p>
+      <ul>
+        {
+          ROOMS.map((room) => (
+            <li class="room">
+              <span>{room.name}</span>
+              {room.locked && (
+                <svg role="img" aria-label="Needs a practising tick">
+                  <use href="#i-lock" />
+                </svg>
+              )}
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+    <section aria-labelledby="floor-title">
+      <h1 class="sr-only" id="floor-title">Floor</h1>
+      <div class="feed">
+        <div class="empty">
+          <p class="head">Nothing on the Floor yet.</p>
+          <p>Posts and answers open here soon. Claim your handle now, and you can post from day one.</p>
+          {
+            member ? (
+              <a class="btn sm" href={to('/edit')}>{profile ? 'Fill in your profile' : 'Claim your handle'}</a>
+            ) : (
+              <a class="btn sm" href={to('/sign-up')}>Sign up free</a>
+            )
+          }
+        </div>
+      </div>
+    </section>
+    <aside class="rail" aria-label="Next steps">
+      <div class="rail-card card">
+        <p class="hand-note">get your seal</p>
+        <h2 class="head">Get ticked</h2>
+        <p class="small">Prove your account. Add your body. The seal shows once one account and one credential are ticked.</p>
+        <a class="btn sm" href={to('/ticks')}>What a tick means</a>
+      </div>
+      <div class="rail-card card">
+        <p class="kicker">The List</p>
+        <p class="small">People worth following, ranked by peers. Never by followers.</p>
+        <a class="small" href={to('/list')}>See The List</a>
+      </div>
+    </aside>
+  </div>
+</Social>

@@ -276,6 +276,32 @@ const MIGRATIONS: readonly string[] = [
   ALTER TABLE members ADD COLUMN onboarding_last_at TEXT;
   UPDATE members SET onboarding_sent = 3 WHERE EXISTS (SELECT 1 FROM payments p WHERE p.member_id = members.id AND p.status = 'paid');
   `,
+  `
+  ALTER TABLE members ADD COLUMN joined_via TEXT NOT NULL DEFAULT 'club' CHECK (joined_via IN ('club', 'social'));
+
+  CREATE TABLE profiles (
+    member_id INTEGER PRIMARY KEY REFERENCES members (id) ON DELETE CASCADE,
+    handle TEXT NOT NULL UNIQUE CHECK (length(handle) BETWEEN 3 AND 30 AND handle NOT GLOB '*[^a-z0-9_]*'),
+    headline TEXT NOT NULL DEFAULT '',
+    sector TEXT,
+    city TEXT NOT NULL DEFAULT '',
+    jurisdictions TEXT NOT NULL DEFAULT '[]',
+    topics TEXT NOT NULL DEFAULT '[]',
+    creator INTEGER NOT NULL DEFAULT 0 CHECK (creator IN (0, 1)),
+    listed INTEGER NOT NULL DEFAULT 1 CHECK (listed IN (0, 1)),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE follows (
+    follower_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    followee_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (follower_id, followee_id),
+    CHECK (follower_id != followee_id)
+  );
+  CREATE INDEX follows_by_followee ON follows (followee_id);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

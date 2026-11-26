@@ -1,0 +1,96 @@
+---
+import Avatar from '../../components/social/Avatar.astro';
+import Flair from '../../components/social/Flair.astro';
+import { TOPICS, TRACKS, trackNames, type Topic, type Track } from '../../data/social.ts';
+import Social from '../../layouts/Social.astro';
+import { socialPath } from '../../server/paths.ts';
+
+export const prerender = false;
+
+const params = Astro.url.searchParams;
+const pick = <const T extends string>(value: string | null, allowed: readonly T[]): T | undefined => allowed.find((entry) => entry === value);
+const topic = pick(params.get('topic'), TOPICS);
+const track = pick(params.get('track'), TRACKS);
+const entries = await Astro.locals.socialProfiles.list({ topic, track });
+const filtered = topic !== undefined || track !== undefined;
+
+const to = (path: string) => socialPath(Astro.url, path);
+/** The List with one filter changed and the other kept. */
+const filter = (change: { topic?: Topic | undefined; track?: Track | undefined }) => {
+  const next = { topic, track, ...change };
+  const query = new URLSearchParams();
+  if (next.topic) query.set('topic', next.topic);
+  if (next.track) query.set('track', next.track);
+  return `${to('/list')}${query.size ? `?${query}` : ''}`;
+};
+const topicChips = [{ label: 'All', topic: undefined }, ...TOPICS.map((t) => ({ label: t, topic: t }))];
+const trackChips = [{ label: 'Everyone', track: undefined }, ...TRACKS.map((t) => ({ label: trackNames[t], track: t }))];
+---
+
+<Social title="The List" section="list">
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <p class="kicker">The List</p>
+        <h1 class="title">People worth following.</h1>
+        <p class="lead">Ranked by peers who rated their answers. Never by followers.</p>
+      </div>
+    </div>
+    <div class="list-tools">
+      <nav class="chips" aria-label="Topic">
+        {topicChips.map((chip) => <a class="chip" href={filter({ topic: chip.topic })} aria-current={chip.topic === topic ? 'page' : undefined}>{chip.label}</a>)}
+      </nav>
+      <nav class="chips" aria-label="Track">
+        {trackChips.map((chip) => <a class="chip" href={filter({ track: chip.track })} aria-current={chip.track === track ? 'page' : undefined}>{chip.label}</a>)}
+      </nav>
+    </div>
+    {
+      entries.length ? (
+        <ol class="list card">
+          {entries.map(({ profile, points }, i) => (
+            <li>
+              <a class="row" href={to(`/@${profile.handle}`)}>
+                <span class="no" aria-hidden="true">{i + 1}</span>
+                <Avatar name={profile.name} track={profile.track} sealed={profile.sealed} />
+                <span class="who">
+                  <b class="name-line">
+                    {profile.name}
+                    {profile.sealed && (
+                      <svg class="seal" role="img" aria-label="Ticked">
+                        <use href="#seal" />
+                      </svg>
+                    )}
+                  </b>
+                  <span class="meta">
+                    <Flair track={profile.track} />
+                    {profile.jurisdictions.map((j) => <span class="jur">{j}</span>)}
+                  </span>
+                  {profile.headline && <span class="meta headline">{profile.headline}</span>}
+                </span>
+                <span class="score">
+                  <b>{points}</b>
+                  <small>Peer points</small>
+                </span>
+                <span class="go" aria-hidden="true">
+                  <svg>
+                    <use href="#i-arrow" />
+                  </svg>
+                </span>
+              </a>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <div class="card empty">
+          <p class="head">{filtered ? 'No one matches yet.' : 'No one is on The List yet.'}</p>
+          <p>{filtered ? 'Try another topic or track.' : 'It fills with real people as they sign up. Nominations open soon.'}</p>
+          {filtered ? <a class="btn sm ghost" href={to('/list')}>Show everyone</a> : <a class="btn sm" href={to('/sign-up')}>Sign up and claim your handle</a>}
+        </div>
+      )
+    }
+    <p class="rank-note">
+      <svg aria-hidden="true"><use href="#i-up" /></svg>
+      Peer points: answers rated sound by ticked members, plus saves on shared work, this quarter. Points start when Problems opens.
+    </p>
+  </div>
+</Social>

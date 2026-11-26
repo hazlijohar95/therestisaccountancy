@@ -11,6 +11,9 @@ export type Role = (typeof ROLES)[number];
 /** Invited: has no password yet. Active: can sign in. Suspended: kept on record, but cannot sign in or get a link. */
 export const MEMBER_STATUSES = ['invited', 'active', 'suspended'] as const;
 export type MemberStatus = (typeof MEMBER_STATUSES)[number];
+/** Where someone first joined: the paid club, or the free social site. It decides where they land and what they are told. */
+export const JOINED_VIA = ['club', 'social'] as const;
+export type JoinedVia = (typeof JOINED_VIA)[number];
 
 export interface JoinRequest {
   readonly id: number;
@@ -28,6 +31,7 @@ export interface Member {
   readonly role: Role;
   readonly status: MemberStatus;
   readonly joinedAt: string;
+  readonly joinedVia: JoinedVia;
 }
 
 export { LINK_DAYS, type LinkPurpose };
@@ -94,6 +98,7 @@ const toMember = (row: Row): Member => ({
   role: oneOf(row, 'role', ROLES),
   status: statusOf(row),
   joinedAt: text(row, 'joined_at'),
+  joinedVia: oneOf(row, 'joined_via', JOINED_VIA),
 });
 
 const toAccess = (row: Row): Access => {

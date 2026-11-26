@@ -1,0 +1,117 @@
+---
+import { actions } from 'astro:actions';
+import Avatar from '../../components/social/Avatar.astro';
+import Flair from '../../components/social/Flair.astro';
+import Social from '../../layouts/Social.astro';
+import { formAction } from '../../lib/format.ts';
+import { addressed, signInPath, socialPath, socialPathOf } from '../../server/paths.ts';
+
+export const prerender = false;
+
+const handle = Astro.params.handle ?? '';
+const { member, socialProfiles } = Astro.locals;
+const profile = await socialProfiles.profile(handle);
+const followed = Astro.getActionResult(actions.follow) ?? Astro.getActionResult(actions.unfollow);
+const to = (path: string) => socialPath(Astro.url, path);
+
+if (profile && profile.handle !== handle) return Astro.redirect(to(`/@${profile.handle}`));
+if (!profile) Astro.response.status = 404;
+
+const own = member !== null && profile?.memberId === member.id;
+const following = member && profile && !own ? await socialProfiles.isFollowing(member.id, profile.memberId) : false;
+const counts = profile ? await socialProfiles.followCounts(profile.memberId) : null;
+const action = (which: typeof actions.follow) => formAction(addressed(Astro.url), which);
+const followError = followed?.error?.message ?? null;
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+---
+
+<Social title={profile ? `${profile.name} (@${profile.handle})` : 'Not found'} description={profile?.headline || undefined} section="list">
+  {
+    profile && counts ? (
+      <div class="page profile">
+        <div>
+          <section class="hero card" aria-labelledby="name">
+            <div class="cover" />
+            <div class="inner">
+              <Avatar name={profile.name} track={profile.track} sealed={profile.sealed} size="lg" />
+              <h1 class="display" id="name">
+                {profile.name}
+                {profile.sealed && (
+                  <svg class="seal" role="img" aria-label="Ticked">
+                    <use href="#seal" />
+                  </svg>
+                )}
+              </h1>
+              <span class="handle">@{profile.handle}</span>
+              {profile.headline ? <p class="headline">{profile.headline}</p> : own && <p class="headline small">Add a headline. One line on what you post about.</p>}
+              <div class="traits">
+                <Flair track={profile.track} />
+                {profile.sector && <span class="tag">{profile.sector}</span>}
+                {profile.jurisdictions.map((j) => <span class="jur">{j}</span>)}
+                {profile.city && <span class="tag">{profile.city}</span>}
+                {profile.topics.map((t) => <span class="tag">{t}</span>)}
+              </div>
+              <p class="counts">
+                <span><b>{plural(counts.followers, 'follower', 'followers')}</b></span>
+                <span>Following <b>{counts.following}</b></span>
+              </p>
+              <div class="actions">
+                {own ? (
+                  <a class="btn sm" href={to('/edit')}>
+                    <svg aria-hidden="true"><use href="#i-edit" /></svg>
+                    Edit profile
+                  </a>
+                ) : member ? (
+                  <form method="POST" action={action(following ? actions.unfollow : actions.follow)}>
+                    <input type="hidden" name="handle" value={profile.handle} />
+                    <button class:list={['btn sm', { ghost: following }]} type="submit">
+                      {following ? (
+                        <>
+                          Following<span class="sr-only">. Select to unfollow.</span>
+                        </>
+                      ) : (
+                        'Follow'
+                      )}
+                    </button>
+                  </form>
+                ) : (
+                  <a class="btn sm" href={signInPath(Astro.url, socialPathOf(Astro.url))}>Sign in to follow</a>
+                )}
+              </div>
+              {followError && <p class="error" role="alert">{followError}</p>}
+              {followed?.data && <p class="sr-only" role="status">{followed.data.following ? `Following ${profile.name}.` : 'Unfollowed.'}</p>}
+            </div>
+          </section>
+
+          <section class="section card" aria-labelledby="claims-title">
+            <header>
+              <h2 class="head" id="claims-title">Ticked claims</h2>
+              <span class="small"><a href={to('/ticks')}>What a tick means</a></span>
+            </header>
+            <div class="claims-wrap">
+              <div class="empty">
+                <p>{own ? 'No claims yet. Ticks for accounts and credentials open soon.' : 'No claims yet.'}</p>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <aside class="side" aria-label="About ticks">
+          <div class="card disclaim">
+            <p class="kicker">Read this</p>
+            <p>Ticks confirm credentials. They never vouch for advice.</p>
+            <p>Every tick is re-checked each year. A lapsed one is struck in red.</p>
+          </div>
+        </aside>
+      </div>
+    ) : (
+      <div class="page">
+        <div class="card empty">
+          <h1 class="head">Not on the List.</h1>
+          <p>No one here goes by @{handle}.</p>
+          <a class="btn sm" href={to('/list')}>See The List</a>
+        </div>
+      </div>
+    )
+  }
+</Social>

@@ -1,0 +1,23 @@
+---
+import Social from '../../layouts/Social.astro';
+import { socialPath } from '../../server/paths.ts';
+
+export const prerender = false;
+---
+
+<Social title="Problems" section="problems">
+  <div class="page narrow">
+    <div class="page-head">
+      <div>
+        <p class="kicker">Problems</p>
+        <h1 class="title">One problem a week.</h1>
+        <p class="lead">A short case with a judgment call. Answers stay hidden until you answer, and ticked peers rate the reasoning.</p>
+      </div>
+    </div>
+    <div class="card empty">
+      <p class="head">The first problem opens soon.</p>
+      <p>Claim your handle now and you can answer it the week it opens.</p>
+      <a class="btn sm" href={socialPath(Astro.url, '/me')}>Go to your profile</a>
+    </div>
+  </div>
+</Social>

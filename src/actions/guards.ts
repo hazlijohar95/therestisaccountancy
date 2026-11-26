@@ -29,7 +29,7 @@ export const admin = (locals: App.Locals): Member => {
   return member;
 };
 
-type LimitedForm = 'join' | 'sign-in' | 'link' | 'checkout' | 'survey' | 'listing' | 'call' | 'newsletter';
+type LimitedForm = 'join' | 'sign-in' | 'link' | 'checkout' | 'survey' | 'listing' | 'call' | 'newsletter' | 'social-sign-up';
 
 /** The key a form's posts are counted under: the form and the address they come from. */
 export const formKey = (context: ActionAPIContext, form: LimitedForm) => `${form} ${sourceOf(context.request.headers.get('cf-connecting-ip') ?? 'unknown')}`;
@@ -77,8 +77,9 @@ export const shareable = ({ member, purpose, token, expiresAt }: PasswordLink, c
   purpose,
   link: new URL(`/welcome?token=${encodeURIComponent(token)}`, context.site ?? context.url).href,
   expiresAt,
-  /** What they can pay, told with the invitation. Admins do not pay. */
-  rate: member.role === 'admin' ? null : everyRate,
+  /** What they can pay, told with the invitation. Admins do not pay, and the social site is free. */
+  rate: member.role === 'admin' || member.joinedVia === 'social' ? null : everyRate,
+  joinedVia: member.joinedVia,
 });
 
 /** Emails a link an admin issued. The admin sees whether it went, and the link either way, to send by hand if not. */

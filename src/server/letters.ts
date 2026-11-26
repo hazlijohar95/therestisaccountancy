@@ -2,7 +2,7 @@ import { week } from '../data/club.ts';
 import { TERMS, terms, type Term } from '../data/membership.ts';
 import { site } from '../data/site.ts';
 import { firstName, formatDay, formatMoment, numberWord } from '../lib/format.ts';
-import type { JoinRequest, LinkPurpose } from './club.ts';
+import type { JoinedVia, JoinRequest, LinkPurpose } from './club.ts';
 import { calendarFile, sessionEvent } from './calendar.ts';
 import type { List, OnboardingStep, Recipient, Subscriber } from './mailings.ts';
 import type { LiveSession } from './schedule.ts';
@@ -37,9 +37,26 @@ const plural = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` :
 /** Typed titles go into subjects on one line. */
 const flat = (value: string) => value.replace(/\s+/g, ' ').trim();
 
-/** An invitation for someone without a password, or a reset for a member who has one. */
-export function passwordLetter(link: { email: string; name: string; purpose: LinkPurpose; link: string; expiresAt: string; rate: string | null }): Letter {
+/**
+ * An invitation for someone without a password, or a reset for a member who has one. Someone who signed up on the
+ * social site is finishing their own sign-up, so their first link says that and nothing about paying.
+ */
+export function passwordLetter(link: { email: string; name: string; purpose: LinkPurpose; link: string; expiresAt: string; rate: string | null; joinedVia: JoinedVia }): Letter {
   const until = formatDay(link.expiresAt);
+  if (link.purpose === 'welcome' && link.joinedVia === 'social') {
+    return {
+      to: link.email,
+      subject: 'Set a password to finish signing up',
+      lines: [
+        hi(link.name),
+        `You signed up for ${site.name} Social. Set a password and your profile goes live.`,
+        { href: link.link, label: 'Set your password' },
+        `The link works once and runs out on ${until}. If it does, ask for a new one on the sign-in page.`,
+        'Social is free. There is nothing to pay.',
+        "Didn't sign up? Ignore this email. Without a password, the account never goes live.",
+      ],
+    };
+  }
   if (link.purpose === 'welcome') {
     return {
       to: link.email,

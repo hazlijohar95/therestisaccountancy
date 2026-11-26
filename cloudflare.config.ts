@@ -1,6 +1,7 @@
 import { bindings, defineConfig, exports, triggers } from 'cf/config';
 import * as entrypoint from './src/worker.ts' with { type: 'cf-worker' };
 import { site } from './src/data/site.ts';
+import { socialHost } from './src/data/social.ts';
 
 const sender = site.inbox;
 
@@ -28,7 +29,12 @@ export default defineConfig({
     },
     /** Hourly: session reminders, and the digest on Monday mornings. */
     triggers: [triggers.scheduled({ schedule: '0 * * * *' })],
-    domains: [site.domain, `www.${site.domain}`],
+    domains: [site.domain, `www.${site.domain}`, socialHost],
+    /*
+     * Pages go through the Worker first, so the social host can serve its own page at a path the club has prerendered,
+     * like /. Built files under /_astro never differ by host and skip the Worker.
+     */
+    assets: { runWorkerFirst: ['/*', '!/_astro/*'] },
     workersDev: false,
     observability: { enabled: true },
   },

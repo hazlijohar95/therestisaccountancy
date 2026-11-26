@@ -1,0 +1,78 @@
+---
+import '../styles/social.css';
+import Logo from '../components/Logo.astro';
+import Avatar from '../components/social/Avatar.astro';
+import Symbols from '../components/social/Symbols.astro';
+import { clubPath, signInPath, socialPath, socialPathOf } from '../server/paths.ts';
+import Base from './Base.astro';
+
+export type Section = 'floor' | 'list' | 'problems' | 'verify';
+
+interface Props {
+  title?: string | undefined;
+  description?: string | undefined;
+  noindex?: boolean;
+  /** The nav item this page belongs to. */
+  section?: Section;
+}
+
+const { title, description = 'The people in accountancy worth following. Every credential ticked, every claim sourced.', noindex = false, section } = Astro.props;
+const url = Astro.url;
+const member = Astro.locals.member;
+const to = (path: string) => socialPath(url, path);
+const nav: readonly { section: Section; href: string; label: string; icon: string }[] = [
+  { section: 'floor', href: to('/'), label: 'Floor', icon: 'i-floor' },
+  { section: 'list', href: to('/list'), label: 'The List', icon: 'i-list' },
+  { section: 'problems', href: to('/problems'), label: 'Problems', icon: 'i-problem' },
+  { section: 'verify', href: to('/verify'), label: 'Get ticked', icon: 'tk' },
+];
+/* Signing in happens on the club's host, and comes back to this page. */
+const signIn = signInPath(url, socialPathOf(url));
+---
+
+<Base title={title} description={description} noindex={noindex} brand="social">
+  <Symbols />
+  <header class="top">
+    <div class="top-in">
+      <a class="brand" href={to('/')} aria-label="The Rest Is Accountancy Social, home">
+        <Logo brand="club" class="wordmark" />
+        <span class="tape">social</span>
+      </a>
+      <nav class="nav" aria-label="Main">
+        {
+          nav.map((item) => (
+            <a href={item.href} aria-current={item.section === section ? 'page' : undefined}>
+              <svg aria-hidden="true">
+                <use href={`#${item.icon}`} />
+              </svg>
+              <span>{item.label}</span>
+            </a>
+          ))
+        }
+      </nav>
+      <div class="top-end">
+        {
+          member ? (
+            <a class="me" href={to('/me')} aria-label="Your profile">
+              <Avatar name={member.name} size="sm" />
+            </a>
+          ) : (
+            <>
+              <a class="btn sm ghost" href={signIn}>Sign in</a>
+              <a class="btn sm" href={to('/sign-up')}>Sign up</a>
+            </>
+          )
+        }
+      </div>
+    </div>
+  </header>
+  <main id="main" tabindex="-1"><slot /></main>
+  <footer class="foot">
+    <p>Ticks confirm credentials. They never vouch for advice.</p>
+    <nav aria-label="Footer">
+      <a href={to('/ticks')}>What a tick means</a>
+      <a href={clubPath(url, '/')}>The club</a>
+      <a href={clubPath(url, '/privacy')}>Privacy</a>
+    </nav>
+  </footer>
+</Base>

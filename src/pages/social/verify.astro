@@ -1,0 +1,23 @@
+---
+import Social from '../../layouts/Social.astro';
+import { socialPath } from '../../server/paths.ts';
+
+export const prerender = false;
+---
+
+<Social title="Get ticked" section="verify">
+  <div class="page narrow">
+    <div class="page-head">
+      <div>
+        <p class="kicker">Get ticked</p>
+        <h1 class="title">Prove it once. Show it everywhere.</h1>
+        <p class="lead">Prove a social account, add your body and status, and the team checks each claim by hand.</p>
+      </div>
+    </div>
+    <div class="card empty">
+      <p class="head">Ticks open soon.</p>
+      <p>Until then, read how each tick is checked and what it does not mean.</p>
+      <a class="btn sm" href={socialPath(Astro.url, '/ticks')}>What a tick means</a>
+    </div>
+  </div>
+</Social>
