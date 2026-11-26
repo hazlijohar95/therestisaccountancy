@@ -11,6 +11,7 @@ import { programmeBySlug, programmePath, type Programme } from '../../data/progr
 import Page from '../../layouts/Page.astro';
 import { formatDay } from '../../lib/format.ts';
 import { plain } from '../../lib/marked.ts';
+import { embedAddress, youtubeId } from '../../lib/youtube.ts';
 import { paidAccess } from '../../server/paths.ts';
 import { postAt } from '../../server/posts.ts';
 
@@ -26,6 +27,8 @@ const open = post.data.access === 'free' || (member !== null && paidAccess(membe
 const { Content } = await render(post);
 const topics = post.data.topics.flatMap((slug) => programmeBySlug(slug) ?? []) satisfies Programme[];
 const listen = post.data.listen;
+/* A members' episode plays here only for members; the video itself stays wherever it is published. */
+const video = open && listen?.youtube ? youtubeId(listen.youtube) : undefined;
 const platforms = listen
   ? [
       { name: 'YouTube', verb: 'Watch on', href: listen.youtube },
@@ -51,7 +54,16 @@ const platforms = listen
       }
     </header>
     <figure class="cover">
-      <Image src={coverOf(post)} alt="" widths={[640, 960, 1280, 1536]} sizes="(min-width: 800px) 720px, 100vw" loading="eager" fetchpriority="high" />
+      {
+        video && listen?.youtube ? (
+          <a class="play" href={listen.youtube} data-embed={embedAddress(video)} data-title={plain(post.data.title)}>
+            <Image src={coverOf(post)} alt="" widths={[640, 960, 1280, 1536]} sizes="(min-width: 800px) 720px, 100vw" loading="eager" fetchpriority="high" />
+            <span class="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" /></svg><span>Play the episode</span></span>
+          </a>
+        ) : (
+          <Image src={coverOf(post)} alt="" widths={[640, 960, 1280, 1536]} sizes="(min-width: 800px) 720px, 100vw" loading="eager" fetchpriority="high" />
+        )
+      }
       {post.data.access === 'members' && <span class="stamp">Members</span>}
     </figure>
     {
@@ -93,6 +105,24 @@ const platforms = listen
   <Closing title="Read it here. Work it through in the club." lead="Each post’s topic is a programme. Members take it from reading to doing, with the hosts and each other." />
 </Page>
 
+<script>
+  /* The cover is the player. Nothing loads from YouTube until it is pressed; without this script the link opens YouTube. */
+  for (const play of document.querySelectorAll<HTMLAnchorElement>('a.play[data-embed]')) {
+    play.addEventListener('click', (event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+      event.preventDefault();
+      const frame = document.createElement('iframe');
+      frame.src = play.dataset.embed ?? '';
+      frame.title = play.dataset.title ?? 'Episode';
+      frame.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+      frame.allowFullscreen = true;
+      frame.referrerPolicy = 'strict-origin-when-cross-origin';
+      play.replaceWith(frame);
+      frame.focus();
+    });
+  }
+</script>
+
 <style>
   .post { display: grid; gap: var(--space-7); max-width: calc(35em + var(--gutter) * 2); padding-block: clamp(48px, 6vw, 96px); }
   header { display: grid; gap: var(--space-4); }
@@ -101,6 +131,13 @@ const platforms = listen
   .meta a { text-decoration: none; }
   .cover { position: relative; margin: 0; }
   .cover img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
+  .cover :global(iframe) { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border: 0; background: var(--color-night); }
+  .play { position: relative; display: block; color: var(--color-paper); text-decoration: none; }
+  .button { position: absolute; left: var(--space-5); bottom: var(--space-5); display: inline-flex; align-items: center; gap: var(--space-3); padding: .6em 1.1em .6em .7em; border: var(--stroke-hair) solid var(--color-paper); background: var(--color-night); font: 600 var(--size-small)/1 var(--font-sans); transition: background-color var(--motion-quick), color var(--motion-quick); }
+  .button svg { width: 1.6em; height: 1.6em; fill: var(--color-tape); }
+  @media (hover: hover) { .play:hover .button { background: var(--color-paper); color: var(--color-night); } .play:hover .button svg { fill: var(--color-night); } }
+  .play:focus-visible { outline: none; }
+  .play:focus-visible .button { outline: 2px solid var(--color-paper); outline-offset: 3px; }
   .stamp { position: absolute; top: var(--space-4); right: var(--space-4); }
   .headline { font-size: clamp(2.25rem, 1.2rem + 3.6vw, 4.25rem); line-height: 1; text-wrap: balance; }
   .listen { display: flex; flex-wrap: wrap; gap: var(--space-3); }
