@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { OPTION_KEYS, POST_JURISDICTIONS, PROBLEM_LIMITS, TOPICS } from '../../../../../src/data/social.ts';
 import { formatMoment, tally } from '../../../../../src/lib/format.ts';
 import { SocialLink, useGo } from '../../../components/social/SocialLink.tsx';
+import { FieldError } from '../../../components/FieldError.tsx';
 import { useAction } from '../../../components/useAction.ts';
 import { newProblemPage, removeProblem, writeProblem } from '../../../functions/social-problems.ts';
 import { socialSignInHref } from '../../../lib/links.ts';
@@ -40,14 +41,6 @@ function WriteProblem() {
   const [removeFailure, setRemoveFailure] = useState<string | null>(null);
   const writeFailure = write.failure;
   const failure = writeFailure ?? removeFailure;
-  const invalid = (name: string) => (write.error(name) ? { 'aria-invalid': true, 'aria-describedby': `${name}-error` } : {});
-  const described = (name: string) => (write.error(name) ? `${name}-error` : undefined);
-  const error = (name: string) =>
-    write.error(name) && (
-      <span className="error" id={`${name}-error`}>
-        {write.error(name)}
-      </span>
-    );
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -104,8 +97,8 @@ function WriteProblem() {
         <div className="row2">
           <div className="field">
             <label htmlFor="p-number">Number</label>
-            <input className="input" id="p-number" name="number" inputMode="numeric" required defaultValue={String(data.nextNumber)} {...invalid('number')} />
-            {error('number')}
+            <input className="input" id="p-number" name="number" inputMode="numeric" required defaultValue={String(data.nextNumber)} {...write.field('number').input} />
+            <FieldError field={write.field('number')} />
           </div>
           <div className="field">
             <label htmlFor="p-tag">Topic</label>
@@ -126,10 +119,10 @@ function WriteProblem() {
         </div>
         <div className="field">
           <label htmlFor="p-title">Title</label>
-          <input className="input" id="p-title" name="title" required maxLength={PROBLEM_LIMITS.title} placeholder="The stock count nobody attended" {...invalid('title')} />
-          {error('title')}
+          <input className="input" id="p-title" name="title" required maxLength={PROBLEM_LIMITS.title} placeholder="The stock count nobody attended" {...write.field('title').input} />
+          <FieldError field={write.field('title')} />
         </div>
-        <fieldset className="field plain-fieldset" aria-describedby={described('scenario')}>
+        <fieldset className="field plain-fieldset" aria-describedby={write.field('scenario').input['aria-describedby']}>
           <legend className="label-text">
             Scenario · {PROBLEM_LIMITS.scenario.min} to {PROBLEM_LIMITS.scenario.max} lines
           </legend>
@@ -140,17 +133,17 @@ function WriteProblem() {
               name="scenario"
               maxLength={PROBLEM_LIMITS.line}
               aria-label={`Scenario line ${i + 1}${i < PROBLEM_LIMITS.scenario.min ? '' : ', optional'}`}
-              aria-invalid={i === 0 && write.error('scenario') ? true : undefined}
+              aria-invalid={i === 0 ? write.field('scenario').input['aria-invalid'] : undefined}
             />
           ))}
-          {error('scenario')}
+          <FieldError field={write.field('scenario')} />
         </fieldset>
         <div className="field">
           <label htmlFor="p-ask">The question</label>
-          <input className="input" id="p-ask" name="ask" required maxLength={PROBLEM_LIMITS.ask} placeholder="What do you do before signing?" {...invalid('ask')} />
-          {error('ask')}
+          <input className="input" id="p-ask" name="ask" required maxLength={PROBLEM_LIMITS.ask} placeholder="What do you do before signing?" {...write.field('ask').input} />
+          <FieldError field={write.field('ask')} />
         </div>
-        <fieldset className="field plain-fieldset" aria-describedby={described('options')}>
+        <fieldset className="field plain-fieldset" aria-describedby={write.field('options').input['aria-describedby']}>
           <legend className="label-text">
             Options · {PROBLEM_LIMITS.options.min} to {PROBLEM_LIMITS.options.max}, lettered in order
           </legend>
@@ -161,32 +154,32 @@ function WriteProblem() {
                 name="options"
                 maxLength={PROBLEM_LIMITS.option}
                 aria-label={`Option ${key}${i < PROBLEM_LIMITS.options.min ? '' : ', optional'}`}
-                aria-invalid={i === 0 && write.error('options') ? true : undefined}
+                aria-invalid={i === 0 ? write.field('options').input['aria-invalid'] : undefined}
               />
             </div>
           ))}
-          {error('options')}
+          <FieldError field={write.field('options')} />
         </fieldset>
         <div className="row2">
           <div className="field">
             <label htmlFor="p-opens-date">Opens · date</label>
-            <input className="input" id="p-opens-date" name="opensDate" type="date" required defaultValue={data.opens.slice(0, 10)} {...invalid('opensDate')} />
-            {error('opensDate')}
+            <input className="input" id="p-opens-date" name="opensDate" type="date" required defaultValue={data.opens.slice(0, 10)} {...write.field('opensDate').input} />
+            <FieldError field={write.field('opensDate')} />
           </div>
           <div className="field">
             <label htmlFor="p-opens-time">Opens · time</label>
-            <input className="input" id="p-opens-time" name="opensTime" type="time" required defaultValue={data.opens.slice(11, 16)} {...invalid('opensTime')} />
-            {error('opensTime')}
+            <input className="input" id="p-opens-time" name="opensTime" type="time" required defaultValue={data.opens.slice(11, 16)} {...write.field('opensTime').input} />
+            <FieldError field={write.field('opensTime')} />
           </div>
           <div className="field">
             <label htmlFor="p-closes-date">Closes · date</label>
-            <input className="input" id="p-closes-date" name="closesDate" type="date" required defaultValue={data.closes.slice(0, 10)} {...invalid('closesDate')} />
-            {error('closesDate')}
+            <input className="input" id="p-closes-date" name="closesDate" type="date" required defaultValue={data.closes.slice(0, 10)} {...write.field('closesDate').input} />
+            <FieldError field={write.field('closesDate')} />
           </div>
           <div className="field">
             <label htmlFor="p-closes-time">Closes · time</label>
-            <input className="input" id="p-closes-time" name="closesTime" type="time" required defaultValue={data.closes.slice(11, 16)} {...invalid('closesTime')} />
-            {error('closesTime')}
+            <input className="input" id="p-closes-time" name="closesTime" type="time" required defaultValue={data.closes.slice(11, 16)} {...write.field('closesTime').input} />
+            <FieldError field={write.field('closesTime')} />
           </div>
         </div>
         <div className="panel-foot">

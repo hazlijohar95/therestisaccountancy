@@ -9,7 +9,8 @@ import { NoticeLine, NoticeProvider, useSay } from '../../components/social/Noti
 import { PostCard } from '../../components/social/PostCard.tsx';
 import { ReportDialog } from '../../components/social/ReportDialog.tsx';
 import { Tick } from '../../components/social/Tick.tsx';
-import { fieldError, useAction } from '../../components/useAction.ts';
+import { FieldError } from '../../components/FieldError.tsx';
+import { useAction } from '../../components/useAction.ts';
 import { follow, profilePage, unfollow, vouch } from '../../functions/social-profiles.ts';
 import { addShelfItem, removeShelfItem, saveItem, unsaveItem } from '../../functions/social-shelf.ts';
 import { socialHref } from '../../lib/links.ts';
@@ -625,8 +626,8 @@ function AddToShelf() {
     if (details.current) details.current.open = false;
     say({ tone: 'note', text: 'Added to your shelf.' });
   };
-  const title = fieldError(add.refusal, 'title', { id: 's-title-error' });
-  const url = fieldError(add.refusal, 'url', { id: 's-url-error', hint: 's-url-hint' });
+  const title = add.field('title', { id: 's-title-error' });
+  const url = add.field('url', { id: 's-url-error' });
   const failure = add.failure;
   return (
     <details className="add-shelf" ref={details}>
@@ -645,12 +646,8 @@ function AddToShelf() {
         <div className="row2">
           <div className="field">
             <label htmlFor="s-title">Title</label>
-            <input className="input" id="s-title" name="title" maxLength={SHELF_LIMITS.title} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} aria-invalid={title.invalid} aria-describedby={title.describedBy} />
-            {title.error && (
-              <span className="error" id={title.errorId}>
-                {title.error}
-              </span>
-            )}
+            <input className="input" id="s-title" name="title" maxLength={SHELF_LIMITS.title} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} {...title.input} />
+            <FieldError field={title} />
           </div>
           <div className="field">
             <label htmlFor="s-kind">What it is</label>
@@ -663,11 +660,9 @@ function AddToShelf() {
         </div>
         <div className="field">
           <label htmlFor="s-url">Link</label>
-          <input className="input" id="s-url" name="url" type="url" inputMode="url" maxLength={SHELF_LIMITS.url} placeholder="https://" value={draft.url} onChange={(e) => setDraft({ ...draft, url: e.target.value })} aria-invalid={url.invalid} aria-describedby={url.error ? url.errorId : 's-url-hint'} />
+          <input className="input" id="s-url" name="url" type="url" inputMode="url" maxLength={SHELF_LIMITS.url} placeholder="https://" value={draft.url} onChange={(e) => setDraft({ ...draft, url: e.target.value })} aria-invalid={url.input['aria-invalid']} aria-describedby={url.input['aria-describedby'] ?? 's-url-hint'} />
           {url.error ? (
-            <span className="error" id={url.errorId}>
-              {url.error}
-            </span>
+            <FieldError field={url} />
           ) : (
             <span className="hint" id="s-url-hint">
               An https link to where it is public: a drive folder, a post, a video.

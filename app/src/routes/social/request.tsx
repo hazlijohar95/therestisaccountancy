@@ -2,7 +2,8 @@ import { createFileRoute, redirect } from '@tanstack/react-router';
 import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { useState, type FormEvent } from 'react';
 import { REQUEST_LIMITS } from '../../../../src/data/social.ts';
-import { fieldError, useAction } from '../../components/useAction.ts';
+import { FieldError } from '../../components/FieldError.tsx';
+import { useAction } from '../../components/useAction.ts';
 import { requestPage, requestToJoin } from '../../functions/social-invites.ts';
 import { socialSignInHref } from '../../lib/links.ts';
 import { socialTitle } from '../../lib/title.ts';
@@ -39,11 +40,10 @@ function Request() {
     if (outcome.value.waiting) setWaiting(outcome.value.waiting);
     else setSent(outcome.value.email);
   };
-  const refusal = send.refusal;
-  const name = fieldError(refusal, 'name');
-  const email = fieldError(refusal, 'email', { hint: 'email-hint' });
-  const about = fieldError(refusal, 'about', { hint: 'about-hint' });
-  const link = fieldError(refusal, 'link');
+  const name = send.field('name');
+  const email = send.field('email', { hint: 'email-hint' });
+  const about = send.field('about', { hint: 'about-hint' });
+  const link = send.field('link');
   const failure = send.failure;
 
   if (sent)
@@ -82,45 +82,29 @@ function Request() {
       <form className="panel card" method="POST" onSubmit={submit} noValidate>
         <div className="field">
           <label htmlFor="name">Your name</label>
-          <input className="input" id="name" name="name" required maxLength={60} autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} aria-invalid={name.invalid} aria-describedby={name.describedBy} />
-          {name.error && (
-            <span className="error" id={name.errorId}>
-              {name.error}
-            </span>
-          )}
+          <input className="input" id="name" name="name" required maxLength={60} autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} {...name.input} />
+          <FieldError field={name} />
         </div>
         <div className="field">
           <label htmlFor="email">Email</label>
-          <input className="input" id="email" name="email" type="email" required autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} aria-invalid={email.invalid} aria-describedby={email.describedBy} />
+          <input className="input" id="email" name="email" type="email" required autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} {...email.input} />
           <span className="hint" id="email-hint">
             We reply here. Nobody else sees it.
           </span>
-          {email.error && (
-            <span className="error" id={email.errorId}>
-              {email.error}
-            </span>
-          )}
+          <FieldError field={email} />
         </div>
         <div className="field">
           <label htmlFor="about">Who you are, and where you post</label>
-          <input className="input" id="about" name="about" required maxLength={REQUEST_LIMITS.about} value={form.about} onChange={(e) => setForm({ ...form, about: e.target.value })} placeholder="Audit senior in KL. I post on LinkedIn about MFRS." aria-invalid={about.invalid} aria-describedby={about.describedBy} />
+          <input className="input" id="about" name="about" required maxLength={REQUEST_LIMITS.about} value={form.about} onChange={(e) => setForm({ ...form, about: e.target.value })} placeholder="Audit senior in KL. I post on LinkedIn about MFRS." {...about.input} />
           <span className="hint" id="about-hint">
             One line is plenty.
           </span>
-          {about.error && (
-            <span className="error" id={about.errorId}>
-              {about.error}
-            </span>
-          )}
+          <FieldError field={about} />
         </div>
         <div className="field">
           <label htmlFor="link">A profile of yours · optional</label>
-          <input className="input" id="link" name="link" type="url" inputMode="url" maxLength={REQUEST_LIMITS.link} value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} placeholder="https://www.linkedin.com/in/…" aria-invalid={link.invalid} aria-describedby={link.describedBy} />
-          {link.error && (
-            <span className="error" id={link.errorId}>
-              {link.error}
-            </span>
-          )}
+          <input className="input" id="link" name="link" type="url" inputMode="url" maxLength={REQUEST_LIMITS.link} value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} placeholder="https://www.linkedin.com/in/…" {...link.input} />
+          <FieldError field={link} />
         </div>
         <div className="trap" aria-hidden="true">
           <label htmlFor="request-trap">Leave this empty</label>

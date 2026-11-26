@@ -2,7 +2,7 @@ import { useRouter } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { useEffect, useRef, useState } from 'react';
 import { describedBy, wireField } from '../lib/form.ts';
-import { failure, type Outcome } from '../lib/outcome.ts';
+import { failureOf, type Outcome } from '../lib/outcome.ts';
 
 type Refused<R> = Extract<R, { readonly ok: false }>;
 
@@ -51,7 +51,7 @@ export function useAction<I, R extends Outcome<unknown>>(fn: (options: { data: I
   /** One field wired to the refusal. Its error shows in the element with id, `${name}-error` unless given. */
   const field = (name: string, { id = `${name}-error`, hint }: { id?: string; hint?: string } = {}) => wireField(refusal?.fields[name], { id, hint });
 
-  return { form, run, busy, refusal, failure: failure(refusal), error, field, clear: () => setRefusal(null) };
+  return { form, run, busy, refusal, failure: failureOf(refusal), error, field, clear: () => setRefusal(null) };
 }
 
 /** A field's error from a refusal, with the attributes its input needs: the error's element id, and any hint's. */

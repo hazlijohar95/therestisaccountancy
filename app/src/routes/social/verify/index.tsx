@@ -5,8 +5,9 @@ import type { ClaimKind } from '../../../../../src/server/social-claims.ts';
 import { Avatar } from '../../../components/social/Avatar.tsx';
 import { SocialLink } from '../../../components/social/SocialLink.tsx';
 import { Tick } from '../../../components/social/Tick.tsx';
+import { FieldError } from '../../../components/FieldError.tsx';
 import { useAction } from '../../../components/useAction.ts';
-import { describedBy } from '../../../lib/form.ts';
+import { describedBy, wireField } from '../../../lib/form.ts';
 import { addAcademic, addAccount, addBody, addExperience, addLicence, removeAccount, removeClaim, sendWorkEmail, verifyPage } from '../../../functions/social-ticks.ts';
 import { socialSignInHref } from '../../../lib/links.ts';
 import { noindex, socialTitle } from '../../../lib/title.ts';
@@ -261,6 +262,9 @@ function AccountStep({ data, onDone }: StepProps) {
     onDone('addAccount');
   };
 
+  const platform = add.field('platform');
+  const handle = add.field('handle', { id: 'addAccount-handle-error', hint: 'account-handle-hint' });
+
   return (
     <>
       <h2 className="head" id="step-title">
@@ -290,7 +294,7 @@ function AccountStep({ data, onDone }: StepProps) {
           <div className="chips">
             {PLATFORMS.map((p) => (
               <label key={p} className="chip">
-                <input className="sr-only" type="radio" name="platform" value={p} defaultChecked={p === 'LinkedIn'} aria-invalid={add.error('platform') ? true : undefined} />
+                <input className="sr-only" type="radio" name="platform" value={p} defaultChecked={p === 'LinkedIn'} aria-invalid={platform.input['aria-invalid']} />
                 {p}
               </label>
             ))}
@@ -307,17 +311,12 @@ function AccountStep({ data, onDone }: StepProps) {
             autoCapitalize="none"
             spellCheck={false}
             placeholder="aisyahaudits"
-            aria-invalid={add.error('handle') ? true : undefined}
-            aria-describedby={describedBy('account-handle-hint', add.error('handle') && 'addAccount-handle-error')}
+            {...handle.input}
           />
           <span className="hint" id="account-handle-hint">
             The handle, or paste your profile’s address.
           </span>
-          {add.error('handle') && (
-            <span className="error" id="addAccount-handle-error">
-              {add.error('handle')}
-            </span>
-          )}
+          <FieldError field={handle} />
         </div>
         {add.failure && (
           <p className="error" role="alert">
@@ -344,7 +343,10 @@ const tooBig = (form: HTMLFormElement) => {
 function BodyStep({ data, body, onDone }: StepProps & { body: Body | undefined }) {
   const add = useAction(addBody);
   const [large, setLarge] = useState(false);
-  const fileError = large ? 'Upload a file under 5 MB.' : add.error('evidence');
+  const status = add.field('status', { id: 'addBody-status-error' });
+  const otherName = add.field('otherName', { id: 'addBody-otherName-error' });
+  const reference = add.field('reference', { id: 'addBody-reference-error', hint: 'body-number-hint' });
+  const evidence = wireField(large ? 'Upload a file under 5 MB.' : add.field('evidence').error, { id: 'addBody-evidence-error' });
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -374,21 +376,17 @@ function BodyStep({ data, body, onDone }: StepProps & { body: Body | undefined }
       {body ? (
         <form method="POST" ref={add.form} onSubmit={submit} encType={body.id === 'other' ? 'multipart/form-data' : undefined} noValidate>
           <input type="hidden" name="body" value={body.id} />
-          <fieldset className="plain-fieldset" aria-describedby={add.error('status') ? 'addBody-status-error' : undefined}>
+          <fieldset className="plain-fieldset" aria-describedby={status.input['aria-describedby']}>
             <legend className="label-text">Your exact status</legend>
             <div className="status-pills">
               {body.statuses.map((s) => (
                 <label key={s.name} className="chip">
-                  <input className="sr-only" type="radio" name="status" value={s.name} data-training={s.track === 'training' ? '' : undefined} aria-invalid={add.error('status') ? true : undefined} />
+                  <input className="sr-only" type="radio" name="status" value={s.name} data-training={s.track === 'training' ? '' : undefined} aria-invalid={status.input['aria-invalid']} />
                   {s.name}
                 </label>
               ))}
             </div>
-            {add.error('status') && (
-              <span className="error" id="addBody-status-error">
-                {add.error('status')}
-              </span>
-            )}
+            <FieldError field={status} />
           </fieldset>
           <div className="note tip plain when-picked exact">
             <Tick source="register" state="ticked" />
@@ -409,14 +407,9 @@ function BodyStep({ data, body, onDone }: StepProps & { body: Body | undefined }
                 name="otherName"
                 maxLength={CLAIM_LIMITS.otherBody}
                 placeholder="AICPA"
-                aria-invalid={add.error('otherName') ? true : undefined}
-                aria-describedby={add.error('otherName') ? 'addBody-otherName-error' : undefined}
+                {...otherName.input}
               />
-              {add.error('otherName') && (
-                <span className="error" id="addBody-otherName-error">
-                  {add.error('otherName')}
-                </span>
-              )}
+              <FieldError field={otherName} />
             </div>
           )}
           <div className="row2">
@@ -428,17 +421,12 @@ function BodyStep({ data, body, onDone }: StepProps & { body: Body | undefined }
                 name="reference"
                 maxLength={CLAIM_LIMITS.reference}
                 autoComplete="off"
-                aria-invalid={add.error('reference') ? true : undefined}
-                aria-describedby={describedBy('body-number-hint', add.error('reference') && 'addBody-reference-error')}
+                {...reference.input}
               />
               <span className="hint" id="body-number-hint">
                 Only the team sees it.
               </span>
-              {add.error('reference') && (
-                <span className="error" id="addBody-reference-error">
-                  {add.error('reference')}
-                </span>
-              )}
+              <FieldError field={reference} />
             </div>
             <div className="field">
               <label htmlFor="body-name">Name on the register</label>
@@ -465,16 +453,11 @@ function BodyStep({ data, body, onDone }: StepProps & { body: Body | undefined }
                   type="file"
                   name="evidence"
                   accept={UPLOAD_TYPES}
-                  aria-invalid={fileError ? true : undefined}
-                  aria-describedby={fileError ? 'addBody-evidence-error' : undefined}
+                  {...evidence.input}
                   onChange={() => setLarge(false)}
                 />
               </label>
-              {fileError && (
-                <span className="error" id="addBody-evidence-error">
-                  {fileError}
-                </span>
-              )}
+              <FieldError field={evidence} />
             </>
           )}
           {add.failure && (
@@ -504,7 +487,10 @@ function BodyStep({ data, body, onDone }: StepProps & { body: Body | undefined }
 function LicenceStep({ data, onDone }: StepProps) {
   const add = useAction(addLicence);
   const [large, setLarge] = useState(false);
-  const fileError = large ? 'Upload a file under 5 MB.' : add.error('evidence');
+  const licence = add.field('licence', { id: 'addLicence-licence-error' });
+  const reference = add.field('reference', { id: 'addLicence-reference-error' });
+  const until = add.field('until', { id: 'addLicence-until-error', hint: 'licence-until-hint' });
+  const evidence = wireField(large ? 'Upload a file under 5 MB.' : add.field('evidence').error, { id: 'addLicence-evidence-error' });
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -524,21 +510,17 @@ function LicenceStep({ data, onDone }: StepProps) {
         Do you hold a licence?
       </h2>
       <form method="POST" ref={add.form} onSubmit={submit} encType="multipart/form-data" noValidate>
-        <fieldset className="plain-fieldset" aria-describedby={add.error('licence') ? 'addLicence-licence-error' : undefined}>
+        <fieldset className="plain-fieldset" aria-describedby={licence.input['aria-describedby']}>
           <legend className="label-text">Licence</legend>
           <div className="bodies">
             {LICENCES.map((l) => (
               <label key={l} className="body-btn">
-                <input className="sr-only" type="radio" name="licence" value={l} aria-invalid={add.error('licence') ? true : undefined} />
+                <input className="sr-only" type="radio" name="licence" value={l} aria-invalid={licence.input['aria-invalid']} />
                 {l}
               </label>
             ))}
           </div>
-          {add.error('licence') && (
-            <span className="error" id="addLicence-licence-error">
-              {add.error('licence')}
-            </span>
-          )}
+          <FieldError field={licence} />
         </fieldset>
         <div className="row2">
           <div className="field">
@@ -549,14 +531,9 @@ function LicenceStep({ data, onDone }: StepProps) {
               name="reference"
               maxLength={CLAIM_LIMITS.reference}
               autoComplete="off"
-              aria-invalid={add.error('reference') ? true : undefined}
-              aria-describedby={add.error('reference') ? 'addLicence-reference-error' : undefined}
+              {...reference.input}
             />
-            {add.error('reference') && (
-              <span className="error" id="addLicence-reference-error">
-                {add.error('reference')}
-              </span>
-            )}
+            <FieldError field={reference} />
           </div>
           <div className="field">
             <label htmlFor="licence-until">Valid until</label>
@@ -567,17 +544,12 @@ function LicenceStep({ data, onDone }: StepProps) {
               name="until"
               min={data.thisMonth}
               placeholder="2027-12"
-              aria-invalid={add.error('until') ? true : undefined}
-              aria-describedby={describedBy('licence-until-hint', add.error('until') && 'addLicence-until-error')}
+              {...until.input}
             />
             <span className="hint" id="licence-until-hint">
               The month on the licence. The tick lapses when it ends.
             </span>
-            {add.error('until') && (
-              <span className="error" id="addLicence-until-error">
-                {add.error('until')}
-              </span>
-            )}
+            <FieldError field={until} />
           </div>
         </div>
         <label className="code-box upload" htmlFor="licence-evidence">
@@ -594,16 +566,11 @@ function LicenceStep({ data, onDone }: StepProps) {
             type="file"
             name="evidence"
             accept={UPLOAD_TYPES}
-            aria-invalid={fileError ? true : undefined}
-            aria-describedby={fileError ? 'addLicence-evidence-error' : undefined}
+            {...evidence.input}
             onChange={() => setLarge(false)}
           />
         </label>
-        {fileError && (
-          <span className="error" id="addLicence-evidence-error">
-            {fileError}
-          </span>
-        )}
+        <FieldError field={evidence} />
         {add.failure && (
           <p className="error" role="alert">
             {add.failure}
@@ -628,6 +595,10 @@ function WorkStep({ data, onDone }: StepProps) {
   const experience = useAction(addExperience);
   /* A refusal that is not about the address's shape still is about the address, so it shows beside it. */
   const workFailure = work.failure;
+  const workEmail = work.field('email', { id: 'sendWorkEmail-email-error', hint: 'work-email-hint' });
+  const role = academic.field('role', { id: 'addAcademic-role-error' });
+  const url = academic.field('url', { id: 'addAcademic-url-error' });
+  const text = experience.field('text', { id: 'addExperience-text-error', hint: 'experience-hint' });
 
   const submitWork = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -675,17 +646,13 @@ function WorkStep({ data, onDone }: StepProps) {
             autoComplete="email"
             spellCheck={false}
             placeholder="you@yourfirm.com"
-            aria-invalid={work.error('email') || workFailure ? true : undefined}
-            aria-describedby={describedBy('work-email-hint', work.error('email') && 'sendWorkEmail-email-error', workFailure && 'work-email-failure')}
+            aria-invalid={workEmail.error || workFailure ? true : undefined}
+            aria-describedby={describedBy(workEmail.input['aria-describedby'], workFailure && 'work-email-failure')}
           />
           <span className="hint" id="work-email-hint">
             We send one link. Only the domain shows on your profile.
           </span>
-          {work.error('email') && (
-            <span className="error" id="sendWorkEmail-email-error">
-              {work.error('email')}
-            </span>
-          )}
+          <FieldError field={workEmail} />
           {workFailure && (
             <span className="error" id="work-email-failure">
               {workFailure}
@@ -711,14 +678,9 @@ function WorkStep({ data, onDone }: StepProps) {
               name="role"
               maxLength={CLAIM_LIMITS.label}
               placeholder="Senior lecturer, Universiti Malaya"
-              aria-invalid={academic.error('role') ? true : undefined}
-              aria-describedby={academic.error('role') ? 'addAcademic-role-error' : undefined}
+              {...role.input}
             />
-            {academic.error('role') && (
-              <span className="error" id="addAcademic-role-error">
-                {academic.error('role')}
-              </span>
-            )}
+            <FieldError field={role} />
           </div>
           <div className="field">
             <label htmlFor="academic-url">Staff page or ORCID</label>
@@ -730,14 +692,9 @@ function WorkStep({ data, onDone }: StepProps) {
               inputMode="url"
               spellCheck={false}
               placeholder="https://orcid.org/…"
-              aria-invalid={academic.error('url') ? true : undefined}
-              aria-describedby={academic.error('url') ? 'addAcademic-url-error' : undefined}
+              {...url.input}
             />
-            {academic.error('url') && (
-              <span className="error" id="addAcademic-url-error">
-                {academic.error('url')}
-              </span>
-            )}
+            <FieldError field={url} />
           </div>
         </div>
         {academic.failure && (
@@ -763,17 +720,12 @@ function WorkStep({ data, onDone }: StepProps) {
             name="text"
             maxLength={CLAIM_LIMITS.label}
             placeholder="Six years in audit"
-            aria-invalid={experience.error('text') ? true : undefined}
-            aria-describedby={describedBy('experience-hint', experience.error('text') && 'addExperience-text-error')}
+            {...text.input}
           />
           <span className="hint" id="experience-hint">
             It shows as self-declared. Three members with the seal can vouch for it, and then it is ticked.
           </span>
-          {experience.error('text') && (
-            <span className="error" id="addExperience-text-error">
-              {experience.error('text')}
-            </span>
-          )}
+          <FieldError field={text} />
         </div>
         {experience.failure && (
           <p className="error" role="alert">

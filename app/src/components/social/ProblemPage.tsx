@@ -9,6 +9,7 @@ import { Flair } from './Flair.tsx';
 import { PostText } from '../PostText.tsx';
 import { SocialLink } from './SocialLink.tsx';
 import { Tick } from './Tick.tsx';
+import { FieldError } from '../FieldError.tsx';
 import { useAction } from '../useAction.ts';
 
 export type Board = Awaited<ReturnType<typeof problemBoard>>;
@@ -161,6 +162,8 @@ function Problem({ view, board, here, written }: { view: View; board: Board; her
   const answersRef = useRef<HTMLElement>(null);
   const optionText = (key: string) => problem.options.find((option) => option.key === key)?.text ?? key;
   const failure = answer.failure ?? rate.failure;
+  const pick = answer.field('pick');
+  const reasoning = answer.field('reasoning', { id: 'why-error' });
 
   /* Answering lands on the answers, now open to read, as the page did after its redirect. */
   useEffect(() => {
@@ -249,21 +252,17 @@ function Problem({ view, board, here, written }: { view: View; board: Board; her
           </>
         ) : open && view.viewer.hasHandle ? (
           <form method="POST" ref={answer.form} onSubmit={submitAnswer} noValidate>
-            <fieldset className="options" aria-describedby={answer.error('pick') ? 'pick-error' : undefined}>
+            <fieldset className="options" aria-describedby={pick.input['aria-describedby']}>
               <legend className="sr-only">Your answer</legend>
               {problem.options.map((option) => (
                 <label key={option.key} className="opt">
-                  <input className="sr-only" type="radio" name="pick" value={option.key} required aria-invalid={answer.error('pick') ? true : undefined} />
+                  <input className="sr-only" type="radio" name="pick" value={option.key} required aria-invalid={pick.input['aria-invalid']} />
                   <span className="k">{option.key}</span>
                   <span>{option.text}</span>
                 </label>
               ))}
             </fieldset>
-            {answer.error('pick') && (
-              <span className="error" id="pick-error">
-                {answer.error('pick')}
-              </span>
-            )}
+            <FieldError field={pick} />
             <div className="reason field">
               <label htmlFor="why">Your reasoning · optional</label>
               <textarea
@@ -273,14 +272,9 @@ function Problem({ view, board, here, written }: { view: View; board: Board; her
                 rows={4}
                 maxLength={PROBLEM_LIMITS.reasoning}
                 placeholder="Two or three sentences. Your peers rate the reasoning, not the letter."
-                aria-invalid={answer.error('reasoning') ? true : undefined}
-                aria-describedby={answer.error('reasoning') ? 'why-error' : undefined}
+                {...reasoning.input}
               />
-              {answer.error('reasoning') && (
-                <span className="error" id="why-error">
-                  {answer.error('reasoning')}
-                </span>
-              )}
+              <FieldError field={reasoning} />
             </div>
             <div className="lockline">
               <svg aria-hidden="true">

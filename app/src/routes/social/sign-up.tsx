@@ -5,7 +5,8 @@ import { z } from 'zod';
 import { LINK_DAYS } from '../../../../src/data/links.ts';
 import { HANDLE, socialHost } from '../../../../src/data/social.ts';
 import { pageStatus } from '../../components/social/status.ts';
-import { fieldError, useAction } from '../../components/useAction.ts';
+import { FieldError } from '../../components/FieldError.tsx';
+import { useAction } from '../../components/useAction.ts';
 import { signUpPage, socialSignUp, useInvite } from '../../functions/social-invites.ts';
 import { clubHref, socialSignInHref } from '../../lib/links.ts';
 import { noindex, socialTitle } from '../../lib/title.ts';
@@ -150,10 +151,9 @@ function JoinForm({ invite, nomination, from, name, email, invitation }: { invit
     }
     setJoined(outcome.value);
   };
-  const refusal = join.refusal;
-  const nameError = fieldError(refusal, 'name');
-  const emailError = fieldError(refusal, 'email', { hint: 'email-hint' });
-  const handleError = fieldError(refusal, 'handle', { hint: 'handle-hint' });
+  const nameError = join.field('name');
+  const emailError = join.field('email', { hint: 'email-hint' });
+  const handleError = join.field('handle', { hint: 'handle-hint' });
   const failure = join.failure;
 
   if (joined)
@@ -192,16 +192,12 @@ function JoinForm({ invite, nomination, from, name, email, invitation }: { invit
       <form className="panel card" method="POST" onSubmit={submit} noValidate>
         <div className="field">
           <label htmlFor="name">Your name</label>
-          <input className="input" id="name" name="name" required maxLength={60} autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} aria-invalid={nameError.invalid} aria-describedby={nameError.describedBy} />
-          {nameError.error && (
-            <span className="error" id={nameError.errorId}>
-              {nameError.error}
-            </span>
-          )}
+          <input className="input" id="name" name="name" required maxLength={60} autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} {...nameError.input} />
+          <FieldError field={nameError} />
         </div>
         <div className="field">
           <label htmlFor="email">Email</label>
-          <input className="input" id="email" name="email" type="email" required autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} aria-invalid={emailError.invalid} aria-describedby={emailError.describedBy} />
+          <input className="input" id="email" name="email" type="email" required autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} {...emailError.input} />
           <span className="hint" id="email-hint">
             We send a link here to set your password. Nobody else sees it.
           </span>
@@ -214,16 +210,12 @@ function JoinForm({ invite, nomination, from, name, email, invitation }: { invit
         <div className="field">
           <label htmlFor="handle">Handle</label>
           <div className="prefix">
-            <input className="input" id="handle" name="handle" required minLength={HANDLE.min} maxLength={HANDLE.max} autoCapitalize="none" autoComplete="nickname" spellCheck={false} value={form.handle} onChange={(e) => setForm({ ...form, handle: e.target.value })} aria-invalid={handleError.invalid} aria-describedby={handleError.describedBy} />
+            <input className="input" id="handle" name="handle" required minLength={HANDLE.min} maxLength={HANDLE.max} autoCapitalize="none" autoComplete="nickname" spellCheck={false} value={form.handle} onChange={(e) => setForm({ ...form, handle: e.target.value })} {...handleError.input} />
           </div>
           <span className="hint" id="handle-hint">
             {HANDLE.min} to {HANDLE.max} lowercase letters, digits or underscores. Your page is {socialHost}/@handle.
           </span>
-          {handleError.error && (
-            <span className="error" id={handleError.errorId}>
-              {handleError.error}
-            </span>
-          )}
+          <FieldError field={handleError} />
         </div>
         <div className="trap" aria-hidden="true">
           <label htmlFor="signup-trap">Leave this empty</label>

@@ -10,7 +10,8 @@ import { useSignInHref } from '../../components/social/here.ts';
 import { NoticeLine, NoticeProvider } from '../../components/social/Notice.tsx';
 import { PostCard } from '../../components/social/PostCard.tsx';
 import { ReportDialog } from '../../components/social/ReportDialog.tsx';
-import { fieldError, useAction } from '../../components/useAction.ts';
+import { FieldError } from '../../components/FieldError.tsx';
+import { useAction } from '../../components/useAction.ts';
 import { floorPage, floorPost } from '../../functions/social-floor.ts';
 import { socialHref } from '../../lib/links.ts';
 import { socialTitle } from '../../lib/title.ts';
@@ -328,11 +329,10 @@ function Compose({ dialog, rooms, room }: { dialog: RefObject<HTMLDialogElement 
     await navigate({ to: '/social/post/$id', params: { id: String(outcome.value.id) }, search: { posted: 1 } });
   };
 
-  const refusal = post.refusal;
-  const title = fieldError(refusal, 'title', { id: 'compose-title-error' });
-  const body = fieldError(refusal, 'body', { id: 'compose-body-error' });
-  const roomError = fieldError(refusal, 'room', { id: 'compose-room-error' });
-  const jurisdiction = fieldError(refusal, 'jurisdiction', { id: 'compose-jurisdiction-error', hint: 'compose-jurisdiction-hint' });
+  const title = post.field('title', { id: 'compose-title-error' });
+  const body = post.field('body', { id: 'compose-body-error' });
+  const roomError = post.field('room', { id: 'compose-room-error' });
+  const jurisdiction = post.field('jurisdiction', { id: 'compose-jurisdiction-error', hint: 'compose-jurisdiction-hint' });
   const failure = post.failure;
 
   return (
@@ -354,14 +354,9 @@ function Compose({ dialog, rooms, room }: { dialog: RefObject<HTMLDialogElement 
             value={draft.title}
             onChange={(e) => change({ ...draft, title: e.target.value })}
             placeholder="Does a dormant Sdn Bhd still need an audit?"
-            aria-invalid={title.invalid}
-            aria-describedby={title.describedBy}
+            {...title.input}
           />
-          {title.error && (
-            <span className="error" id={title.errorId}>
-              {title.error}
-            </span>
-          )}
+          <FieldError field={title} />
         </div>
         <div className="field">
           <label htmlFor="compose-body">Details · optional</label>
@@ -374,45 +369,32 @@ function Compose({ dialog, rooms, room }: { dialog: RefObject<HTMLDialogElement 
             placeholder="What you know so far, and what you’ve tried."
             value={draft.body}
             onChange={(e) => change({ ...draft, body: e.target.value })}
-            aria-invalid={body.invalid}
-            aria-describedby={body.describedBy}
+            {...body.input}
           />
-          {body.error && (
-            <span className="error" id={body.errorId}>
-              {body.error}
-            </span>
-          )}
+          <FieldError field={body} />
         </div>
         <div className="row2">
           <div className="field">
             <label htmlFor="compose-room">Room</label>
-            <select className="input" id="compose-room" name="room" value={draft.room} onChange={(e) => change({ ...draft, room: rooms.find((r) => r.id === e.target.value)?.id ?? draft.room })} aria-invalid={roomError.invalid} aria-describedby={roomError.describedBy}>
+            <select className="input" id="compose-room" name="room" value={draft.room} onChange={(e) => change({ ...draft, room: rooms.find((r) => r.id === e.target.value)?.id ?? draft.room })} {...roomError.input}>
               {rooms.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
                 </option>
               ))}
             </select>
-            {roomError.error && (
-              <span className="error" id={roomError.errorId}>
-                {roomError.error}
-              </span>
-            )}
+            <FieldError field={roomError} />
           </div>
           <div className="field">
             <label htmlFor="compose-jurisdiction">Jurisdiction</label>
-            <select className="input" id="compose-jurisdiction" name="jurisdiction" value={draft.jurisdiction} onChange={(e) => change({ ...draft, jurisdiction: POST_JURISDICTIONS.find((j) => j === e.target.value) ?? draft.jurisdiction })} aria-invalid={jurisdiction.invalid} aria-describedby={jurisdiction.describedBy}>
+            <select className="input" id="compose-jurisdiction" name="jurisdiction" value={draft.jurisdiction} onChange={(e) => change({ ...draft, jurisdiction: POST_JURISDICTIONS.find((j) => j === e.target.value) ?? draft.jurisdiction })} {...jurisdiction.input}>
               {POST_JURISDICTIONS.map((j) => (
                 <option key={j} value={j}>
                   {j}
                 </option>
               ))}
             </select>
-            {jurisdiction.error && (
-              <span className="error" id={jurisdiction.errorId}>
-                {jurisdiction.error}
-              </span>
-            )}
+            <FieldError field={jurisdiction} />
           </div>
         </div>
         <p className="small" id="compose-jurisdiction-hint">
