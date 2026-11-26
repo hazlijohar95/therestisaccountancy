@@ -3,7 +3,7 @@ import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent } from 'react';
 import { HANDLE, JURISDICTIONS, PROFILE_LIMITS, SECTORS, socialHost, TOPICS } from '../../../../src/data/social.ts';
-import { fieldError, useAction } from '../../components/social/useAction.ts';
+import { fieldError, useAction } from '../../components/useAction.ts';
 import { signOut } from '../../functions/auth.ts';
 import { editPage, saveProfile } from '../../functions/social-profiles.ts';
 import { socialHref, socialSignInHref } from '../../lib/links.ts';
@@ -81,7 +81,7 @@ function ProfileForm({ profile }: { profile: Loaded['profile'] }) {
     creator: profile?.creator ?? false,
     listed: profile?.listed ?? true,
   });
-  const save = useAction(saveProfile, { refresh: false });
+  const save = useAction(saveProfile, { refresh: 'never' });
   const navigate = useNavigate();
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

@@ -2,12 +2,12 @@ import { useRef, type FormEvent } from 'react';
 import { reasonsFor, REPORT_NOTE_MAX, type ReportTarget } from '../../../../src/data/social.ts';
 import { report } from '../../functions/social-floor.ts';
 import { useSay } from './Notice.tsx';
-import { useAction } from './useAction.ts';
+import { useAction } from '../useAction.ts';
 
 /** A Report button and its dialog, for a post or reply (by id) or a profile (by handle). */
 export function ReportDialog({ target, id, handle, about, className = 'act' }: { target: ReportTarget; id?: number; handle?: string; about: string; className?: string }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const send = useAction(report, { refresh: false });
+  const send = useAction(report, { refresh: 'never' });
   const say = useSay();
   const name = `report-${target}-${id ?? handle ?? ''}`;
   const reasons = reasonsFor(target);

@@ -9,7 +9,7 @@ import { NoticeLine, NoticeProvider, useSay } from '../../components/social/Noti
 import { PostCard } from '../../components/social/PostCard.tsx';
 import { ReportDialog } from '../../components/social/ReportDialog.tsx';
 import { Tick } from '../../components/social/Tick.tsx';
-import { fieldError, useAction } from '../../components/social/useAction.ts';
+import { fieldError, useAction } from '../../components/useAction.ts';
 import { follow, profilePage, unfollow, vouch } from '../../functions/social-profiles.ts';
 import { addShelfItem, removeShelfItem, saveItem, unsaveItem } from '../../functions/social-shelf.ts';
 import { socialHref } from '../../lib/links.ts';

@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { OPTION_KEYS, POST_JURISDICTIONS, PROBLEM_LIMITS, TOPICS } from '../../../../../src/data/social.ts';
 import { formatMoment, tally } from '../../../../../src/lib/format.ts';
 import { SocialLink, useGo } from '../../../components/social/SocialLink.tsx';
-import { useAction } from '../../../components/social/useAction.ts';
+import { useAction } from '../../../components/useAction.ts';
 import { newProblemPage, removeProblem, writeProblem } from '../../../functions/social-problems.ts';
 import { socialSignInHref } from '../../../lib/links.ts';
 import { noindex, socialTitle } from '../../../lib/title.ts';
@@ -34,7 +34,7 @@ type Data = Awaited<ReturnType<typeof newProblemPage>>;
 
 function WriteProblem() {
   const data = Route.useLoaderData();
-  const write = useAction(writeProblem, { refresh: false });
+  const write = useAction(writeProblem, { refresh: 'never' });
   const go = useGo();
   const [removed, setRemoved] = useState(false);
   const [removeFailure, setRemoveFailure] = useState<string | null>(null);

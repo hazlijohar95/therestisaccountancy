@@ -4,7 +4,7 @@ import { AREAS, BANDS, CASEBOOK_LIMITS, EMPLOYER_KINDS, ENGAGEMENT_ROLES, FRAMEW
 import { identifying } from '../../../../../src/lib/guard.ts';
 import { SocialLink } from '../../../components/social/SocialLink.tsx';
 import { Tick } from '../../../components/social/Tick.tsx';
-import { useAction } from '../../../components/social/useAction.ts';
+import { useAction } from '../../../components/useAction.ts';
 import { addEntry, addRole, casebookPage, removeEntry, removeRole } from '../../../functions/social-casebook.ts';
 import { socialSignInHref } from '../../../lib/links.ts';
 import { noindex, socialTitle } from '../../../lib/title.ts';

@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router';
 import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { useState, type FormEvent } from 'react';
 import { REQUEST_LIMITS } from '../../../../src/data/social.ts';
-import { fieldError, useAction } from '../../components/social/useAction.ts';
+import { fieldError, useAction } from '../../components/useAction.ts';
 import { requestPage, requestToJoin } from '../../functions/social-invites.ts';
 import { socialSignInHref } from '../../lib/links.ts';
 import { socialTitle } from '../../lib/title.ts';
@@ -25,7 +25,7 @@ function Request() {
   const [form, setForm] = useState({ name: '', email: '', about: '', link: '', trap: '' });
   const [sent, setSent] = useState<string | null>(null);
   const [waiting, setWaiting] = useState<string | null>(null);
-  const send = useAction(requestToJoin, { refresh: false });
+  const send = useAction(requestToJoin, { refresh: 'never' });
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const outcome = await send.run(form);

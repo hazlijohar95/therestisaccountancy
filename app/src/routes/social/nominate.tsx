@@ -3,7 +3,7 @@ import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { useState, type FormEvent } from 'react';
 import { accountHandle, CLAIM_LIMITS, PLATFORMS, TOPICS, type Platform, type Topic } from '../../../../src/data/social.ts';
 import { Tick } from '../../components/social/Tick.tsx';
-import { fieldError, useAction } from '../../components/social/useAction.ts';
+import { fieldError, useAction } from '../../components/useAction.ts';
 import { nominate, nominatePage } from '../../functions/social-nominations.ts';
 import { socialHref, socialSignInHref } from '../../lib/links.ts';
 import { socialTitle } from '../../lib/title.ts';
@@ -19,7 +19,7 @@ function Nominate() {
   const { signedIn } = Route.useLoaderData();
   const [form, setForm] = useState<{ platform: Platform; handle: string; topics: readonly Topic[]; whyUrl: string }>({ platform: 'LinkedIn', handle: '', topics: [], whyUrl: '' });
   const [listed, setListed] = useState<string | null>(null);
-  const send = useAction(nominate, { refresh: false });
+  const send = useAction(nominate, { refresh: 'never' });
   const navigate = useNavigate();
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

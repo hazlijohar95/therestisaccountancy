@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { LINK_DAYS } from '../../../../src/data/links.ts';
 import { HANDLE, socialHost } from '../../../../src/data/social.ts';
 import { pageStatus } from '../../components/social/status.ts';
-import { fieldError, useAction } from '../../components/social/useAction.ts';
+import { fieldError, useAction } from '../../components/useAction.ts';
 import { signUpPage, socialSignUp, useInvite } from '../../functions/social-invites.ts';
 import { clubHref, socialSignInHref } from '../../lib/links.ts';
 import { noindex, socialTitle } from '../../lib/title.ts';
@@ -105,7 +105,7 @@ function SignUp() {
 }
 
 function UseInvite({ name, invite }: { name: string; invite: string }) {
-  const use = useAction(useInvite, { refresh: false });
+  const use = useAction(useInvite, { refresh: 'never' });
   const navigate = useNavigate();
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -135,7 +135,7 @@ function UseInvite({ name, invite }: { name: string; invite: string }) {
 function JoinForm({ invite, nomination, from, name, email, invitation }: { invite: string; nomination: string; from: string | null; name: string; email: string; invitation: { platform: string; handle: string } | null }) {
   const [form, setForm] = useState({ name, email, handle: invitation && HANDLE.pattern.test(invitation.handle) ? invitation.handle : '', trap: '' });
   const [joined, setJoined] = useState<{ email: string; claimed: boolean } | null>(null);
-  const join = useAction(socialSignUp, { refresh: false });
+  const join = useAction(socialSignUp, { refresh: 'never' });
   /* Someone who already has an account signs in and comes back to this link, not to a blank profile. */
   const afterSignIn = nomination ? `/claim/${encodeURIComponent(nomination)}` : `/sign-up?invite=${encodeURIComponent(invite)}`;
   const signIn = socialSignInHref(afterSignIn);

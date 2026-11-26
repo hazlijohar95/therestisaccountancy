@@ -22,3 +22,6 @@ export async function parsed<S extends z.ZodType>(schema: S, input: unknown): Pr
   }
   return refused('Check the fields marked below.', fields);
 }
+
+/** A refusal's message when it names no field, to show above the form's button. Field errors show beside their fields instead. */
+export const failure = (outcome: Outcome<unknown> | null | undefined): string | null => (outcome && !outcome.ok && Object.keys(outcome.fields).length === 0 ? outcome.message : null);

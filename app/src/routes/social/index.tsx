@@ -10,7 +10,7 @@ import { useSignInHref } from '../../components/social/here.ts';
 import { NoticeLine, NoticeProvider } from '../../components/social/Notice.tsx';
 import { PostCard } from '../../components/social/PostCard.tsx';
 import { ReportDialog } from '../../components/social/ReportDialog.tsx';
-import { fieldError, useAction } from '../../components/social/useAction.ts';
+import { fieldError, useAction } from '../../components/useAction.ts';
 import { floorPage, floorPost } from '../../functions/social-floor.ts';
 import { socialHref } from '../../lib/links.ts';
 import { socialTitle } from '../../lib/title.ts';
@@ -293,7 +293,7 @@ function storedDraft(rooms: readonly { id: RoomId }[]): Partial<Draft> {
 function Compose({ dialog, rooms, room }: { dialog: RefObject<HTMLDialogElement | null>; rooms: readonly { id: RoomId; name: string }[]; room: RoomId }) {
   const [draft, setDraft] = useState<Draft>({ title: '', body: '', room, jurisdiction: 'MY' });
   const [status, setStatus] = useState('');
-  const post = useAction(floorPost, { refresh: false });
+  const post = useAction(floorPost, { refresh: 'never' });
   const navigate = useNavigate();
 
   const restored = useRef(false);

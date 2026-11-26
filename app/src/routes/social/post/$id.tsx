@@ -15,7 +15,7 @@ import { PostText } from '../../../components/PostText.tsx';
 import { ReportDialog } from '../../../components/social/ReportDialog.tsx';
 import { pageStatus } from '../../../components/social/status.ts';
 import { UsefulButton } from '../../../components/social/UsefulButton.tsx';
-import { fieldError, useAction } from '../../../components/social/useAction.ts';
+import { fieldError, useAction } from '../../../components/useAction.ts';
 import { acceptReply, editFloorPost, editFloorReply, floorReply, removeFloorPost, removeFloorReply, threadPage, unacceptReply } from '../../../functions/social-floor.ts';
 import { socialHref } from '../../../lib/links.ts';
 import { socialTitle } from '../../../lib/title.ts';
@@ -272,7 +272,7 @@ function EditPost({ post, viewer }: { post: Post; viewer: Viewer }) {
 }
 
 function RemovePost({ post }: { post: Post }) {
-  const remove = useAction(removeFloorPost, { refresh: false });
+  const remove = useAction(removeFloorPost, { refresh: 'never' });
   const navigate = useNavigate();
   const say = useSay();
   const submit = async (event: FormEvent<HTMLFormElement>) => {

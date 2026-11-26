@@ -6,7 +6,7 @@ import { formatMoment, formatMonth, tally } from '../../../../src/lib/format.ts'
 import type { Notice } from '../../../../src/server/social-notifications.ts';
 import { Avatar } from '../../components/social/Avatar.tsx';
 import { Tick } from '../../components/social/Tick.tsx';
-import { useAction } from '../../components/social/useAction.ts';
+import { useAction } from '../../components/useAction.ts';
 import { decideCosign, openNotifications } from '../../functions/social-notifications.ts';
 import { socialHref, socialSignInHref } from '../../lib/links.ts';
 import { noindex, socialTitle } from '../../lib/title.ts';

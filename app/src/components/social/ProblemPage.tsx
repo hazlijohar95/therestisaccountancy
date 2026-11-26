@@ -9,7 +9,7 @@ import { Flair } from './Flair.tsx';
 import { PostText } from '../PostText.tsx';
 import { SocialLink } from './SocialLink.tsx';
 import { Tick } from './Tick.tsx';
-import { useAction } from './useAction.ts';
+import { useAction } from '../useAction.ts';
 
 export type Board = Awaited<ReturnType<typeof problemBoard>>;
 export type View = NonNullable<Awaited<ReturnType<typeof problemView>>>;

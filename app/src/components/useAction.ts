@@ -1,18 +1,26 @@
 import { useRouter } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { useEffect, useRef, useState } from 'react';
-import type { Outcome } from '../../lib/outcome.ts';
+import { describedBy, wireField } from '../lib/form.ts';
+import { failure, type Outcome } from '../lib/outcome.ts';
 
 type Refused<R> = Extract<R, { readonly ok: false }>;
 
 const isRefused = <R extends Outcome<unknown>>(outcome: R): outcome is Refused<R> => !outcome.ok;
 
 /**
- * Runs a Social server function from a button or form, in place: busy while it runs, the refusal if there is one, and
- * every loader on the page refreshed after a success, so counts and states redraw without a page load. A form that
- * takes the form ref has its first invalid field focused when a refusal comes back.
+ * When the page's loaders run again after an answer. 'success' redraws what a success changed. 'always' also redraws
+ * after a refusal, for pages where a refusal can mean the data moved on (someone else decided it first). 'never' is
+ * for a form that shows its own answer, or that leaves the page.
  */
-export function useAction<I, R extends Outcome<unknown>>(fn: (options: { data: I }) => Promise<R>, { refresh = true }: { refresh?: boolean } = {}) {
+export type Refresh = 'success' | 'always' | 'never';
+
+/**
+ * Runs a form's server function from a button or form, in place: busy while it runs, the refusal if there is one, and
+ * the page's loaders run again as refresh says. A form that takes the form ref has its first invalid field focused
+ * when a refusal comes back.
+ */
+export function useAction<I, R extends Outcome<unknown>>(fn: (options: { data: I }) => Promise<R>, { refresh = 'success' }: { refresh?: Refresh } = {}) {
   const call = useServerFn(fn);
   const router = useRouter();
   const form = useRef<HTMLFormElement>(null);
@@ -30,7 +38,7 @@ export function useAction<I, R extends Outcome<unknown>>(fn: (options: { data: I
     try {
       const outcome = await call({ data });
       setRefusal(isRefused(outcome) ? outcome : null);
-      if (outcome.ok && refresh) await router.invalidate();
+      if (refresh === 'always' || (refresh === 'success' && outcome.ok)) await router.invalidate();
       return outcome;
     } finally {
       setBusy(false);
@@ -38,16 +46,13 @@ export function useAction<I, R extends Outcome<unknown>>(fn: (options: { data: I
   };
 
   /** The refusal's message for one field, if it named that field. */
-  const error = (field: string): string | undefined => refusal?.fields[field];
+  const error = (name: string): string | undefined => refusal?.fields[name];
 
-  /** A refusal not about any one field, to show above the form's button. Field refusals show beside their fields. */
-  const failure = refusal && Object.keys(refusal.fields).length === 0 ? refusal.message : null;
+  /** One field wired to the refusal. Its error shows in the element with id, `${name}-error` unless given. */
+  const field = (name: string, { id = `${name}-error`, hint }: { id?: string; hint?: string } = {}) => wireField(refusal?.fields[name], { id, hint });
 
-  return { form, run, busy, refusal, failure, error, clear: () => setRefusal(null) };
+  return { form, run, busy, refusal, failure: failure(refusal), error, field, clear: () => setRefusal(null) };
 }
-
-/** The ids a field's description is made of, joined, or nothing when there are none. */
-export const describedBy = (...ids: readonly (string | false | null | undefined)[]) => ids.filter(Boolean).join(' ') || undefined;
 
 /** A field's error from a refusal, with the attributes its input needs: the error's element id, and any hint's. */
 export function fieldError(refusal: { readonly fields: Readonly<Record<string, string>> } | null, field: string, { id = `${field}-error`, hint }: { id?: string; hint?: string } = {}) {
