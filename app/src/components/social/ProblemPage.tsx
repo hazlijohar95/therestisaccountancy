@@ -7,9 +7,9 @@ import { socialSignInHref } from '../../lib/links.ts';
 import { Avatar } from './Avatar.tsx';
 import { Flair } from './Flair.tsx';
 import { PostText } from './PostText.tsx';
-import { SocialLink } from './SocialLink.tsx';
+import { SocialLink } from './PathLink.tsx';
 import { Tick } from './Tick.tsx';
-import { useAction } from './useAction.ts';
+import { useAction } from './useFormAction.ts';
 
 export type Board = Awaited<ReturnType<typeof problemBoard>>;
 export type View = NonNullable<Awaited<ReturnType<typeof problemView>>>;

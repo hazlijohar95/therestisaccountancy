@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
 import type { FormEvent } from 'react';
-import { SocialLink, useGo } from '../../../components/social/SocialLink.tsx';
+import { SocialLink, useGo } from '../../../components/social/PathLink.tsx';
 import { Tick } from '../../../components/social/Tick.tsx';
-import { useAction } from '../../../components/social/useAction.ts';
+import { useAction } from '../../../components/social/useFormAction.ts';
 import { confirmWorkEmail, workEmailPage } from '../../../functions/social-ticks.ts';
 import { socialSignInHref } from '../../../lib/links.ts';
 import { noindex, socialTitle } from '../../../lib/title.ts';

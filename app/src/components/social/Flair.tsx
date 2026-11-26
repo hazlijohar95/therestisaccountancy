@@ -1,6 +1,6 @@
 import { trackNames, type Track } from '../../../../src/data/social.ts';
 
-/** Where a member is in the profession. */
+/** Where someone stands in the profession, beside their name. */
 export function Flair({ track }: { track: Track }) {
   return (
     <span className="flair" data-track={track}>

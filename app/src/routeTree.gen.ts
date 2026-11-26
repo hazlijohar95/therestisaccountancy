@@ -40,7 +40,19 @@ import { Route as MembersListingRouteImport } from './routes/members/listing'
 import { Route as MembersPayRouteImport } from './routes/members/pay'
 import { Route as NewsletterConfirmRouteImport } from './routes/newsletter/confirm'
 import { Route as NewsletterSubscribeRouteImport } from './routes/newsletter/subscribe'
+import { Route as SocialIndexRouteImport } from './routes/social/index'
 import { Route as SocialSplatRouteImport } from './routes/social/$'
+import { Route as SocialAtChar123handleChar125RouteImport } from './routes/social/@{$handle}'
+import { Route as SocialBadgeRouteImport } from './routes/social/badge'
+import { Route as SocialEditRouteImport } from './routes/social/edit'
+import { Route as SocialInvitesRouteImport } from './routes/social/invites'
+import { Route as SocialListRouteImport } from './routes/social/list'
+import { Route as SocialMeRouteImport } from './routes/social/me'
+import { Route as SocialNominateRouteImport } from './routes/social/nominate'
+import { Route as SocialNotificationsRouteImport } from './routes/social/notifications'
+import { Route as SocialRequestRouteImport } from './routes/social/request'
+import { Route as SocialSearchRouteImport } from './routes/social/search'
+import { Route as SocialSignUpRouteImport } from './routes/social/sign-up'
 import { Route as SocialTicksRouteImport } from './routes/social/ticks'
 import { Route as AdminMembersIdRouteImport } from './routes/admin/members/$id'
 import { Route as MembersCallsIndexRouteImport } from './routes/members/calls/index'
@@ -57,6 +69,8 @@ import { Route as MembersResourcesChar123idChar125DotmdRouteImport } from './rou
 import { Route as MembersSessionsIndexRouteImport } from './routes/members/sessions/index'
 import { Route as MembersSessionsChar123idChar125DoticsRouteImport } from './routes/members/sessions/{$id}[.]ics'
 import { Route as SocialCasebookNewRouteImport } from './routes/social/casebook/new'
+import { Route as SocialClaimTokenRouteImport } from './routes/social/claim/$token'
+import { Route as SocialPostIdRouteImport } from './routes/social/post/$id'
 import { Route as SocialProblemsIndexRouteImport } from './routes/social/problems/index'
 import { Route as SocialProblemsSplatRouteImport } from './routes/social/problems/$'
 import { Route as SocialProblemsNewRouteImport } from './routes/social/problems/new'
@@ -221,9 +235,70 @@ const NewsletterSubscribeRoute = NewsletterSubscribeRouteImport.update({
   path: '/newsletter/subscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SocialIndexRoute = SocialIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
 const SocialSplatRoute = SocialSplatRouteImport.update({
   id: '/$',
   path: '/$',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialAtChar123handleChar125Route =
+  SocialAtChar123handleChar125RouteImport.update({
+    id: '/@{$handle}',
+    path: '/@{$handle}',
+    getParentRoute: () => SocialRouteRoute,
+  } as any)
+const SocialBadgeRoute = SocialBadgeRouteImport.update({
+  id: '/badge',
+  path: '/badge',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialEditRoute = SocialEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialInvitesRoute = SocialInvitesRouteImport.update({
+  id: '/invites',
+  path: '/invites',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialListRoute = SocialListRouteImport.update({
+  id: '/list',
+  path: '/list',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialMeRoute = SocialMeRouteImport.update({
+  id: '/me',
+  path: '/me',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialNominateRoute = SocialNominateRouteImport.update({
+  id: '/nominate',
+  path: '/nominate',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialNotificationsRoute = SocialNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialRequestRoute = SocialRequestRouteImport.update({
+  id: '/request',
+  path: '/request',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialSearchRoute = SocialSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialSignUpRoute = SocialSignUpRouteImport.update({
+  id: '/sign-up',
+  path: '/sign-up',
   getParentRoute: () => SocialRouteRoute,
 } as any)
 const SocialTicksRoute = SocialTicksRouteImport.update({
@@ -309,6 +384,16 @@ const SocialCasebookNewRoute = SocialCasebookNewRouteImport.update({
   path: '/casebook/new',
   getParentRoute: () => SocialRouteRoute,
 } as any)
+const SocialClaimTokenRoute = SocialClaimTokenRouteImport.update({
+  id: '/claim/$token',
+  path: '/claim/$token',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialPostIdRoute = SocialPostIdRouteImport.update({
+  id: '/post/$id',
+  path: '/post/$id',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
 const SocialProblemsIndexRoute = SocialProblemsIndexRouteImport.update({
   id: '/problems/',
   path: '/problems/',
@@ -383,9 +468,21 @@ export interface FileRoutesByFullPath {
   '/newsletter/confirm': typeof NewsletterConfirmRoute
   '/newsletter/subscribe': typeof NewsletterSubscribeRoute
   '/social/$': typeof SocialSplatRoute
+  '/social/@{$handle}': typeof SocialAtChar123handleChar125Route
+  '/social/badge': typeof SocialBadgeRoute
+  '/social/edit': typeof SocialEditRoute
+  '/social/invites': typeof SocialInvitesRoute
+  '/social/list': typeof SocialListRoute
+  '/social/me': typeof SocialMeRoute
+  '/social/nominate': typeof SocialNominateRoute
+  '/social/notifications': typeof SocialNotificationsRoute
+  '/social/request': typeof SocialRequestRoute
+  '/social/search': typeof SocialSearchRoute
+  '/social/sign-up': typeof SocialSignUpRoute
   '/social/ticks': typeof SocialTicksRoute
   '/admin/': typeof AdminIndexRoute
   '/members/': typeof MembersIndexRoute
+  '/social/': typeof SocialIndexRoute
   '/admin/members/$id': typeof AdminMembersIdRoute
   '/members/calls/{$id}.ics': typeof MembersCallsChar123idChar125DoticsRoute
   '/members/community/$channel': typeof MembersCommunityChannelRoute
@@ -396,6 +493,8 @@ export interface FileRoutesByFullPath {
   '/members/resources/{$id}.md': typeof MembersResourcesChar123idChar125DotmdRoute
   '/members/sessions/{$id}.ics': typeof MembersSessionsChar123idChar125DoticsRoute
   '/social/casebook/new': typeof SocialCasebookNewRoute
+  '/social/claim/$token': typeof SocialClaimTokenRoute
+  '/social/post/$id': typeof SocialPostIdRoute
   '/social/problems/$': typeof SocialProblemsSplatRoute
   '/social/problems/new': typeof SocialProblemsNewRoute
   '/social/verify/email': typeof SocialVerifyEmailRoute
@@ -411,7 +510,6 @@ export interface FileRoutesByFullPath {
   '/social/review/evidence/$claim': typeof SocialReviewEvidenceClaimRoute
 }
 export interface FileRoutesByTo {
-  '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
   '/dev-seed-admin': typeof DevSeedAdminRoute
   '/dev-seed-review': typeof DevSeedReviewRoute
@@ -439,9 +537,21 @@ export interface FileRoutesByTo {
   '/newsletter/confirm': typeof NewsletterConfirmRoute
   '/newsletter/subscribe': typeof NewsletterSubscribeRoute
   '/social/$': typeof SocialSplatRoute
+  '/social/@{$handle}': typeof SocialAtChar123handleChar125Route
+  '/social/badge': typeof SocialBadgeRoute
+  '/social/edit': typeof SocialEditRoute
+  '/social/invites': typeof SocialInvitesRoute
+  '/social/list': typeof SocialListRoute
+  '/social/me': typeof SocialMeRoute
+  '/social/nominate': typeof SocialNominateRoute
+  '/social/notifications': typeof SocialNotificationsRoute
+  '/social/request': typeof SocialRequestRoute
+  '/social/search': typeof SocialSearchRoute
+  '/social/sign-up': typeof SocialSignUpRoute
   '/social/ticks': typeof SocialTicksRoute
   '/admin': typeof AdminIndexRoute
   '/members': typeof MembersIndexRoute
+  '/social': typeof SocialIndexRoute
   '/admin/members/$id': typeof AdminMembersIdRoute
   '/members/calls/{$id}.ics': typeof MembersCallsChar123idChar125DoticsRoute
   '/members/community/$channel': typeof MembersCommunityChannelRoute
@@ -452,6 +562,8 @@ export interface FileRoutesByTo {
   '/members/resources/{$id}.md': typeof MembersResourcesChar123idChar125DotmdRoute
   '/members/sessions/{$id}.ics': typeof MembersSessionsChar123idChar125DoticsRoute
   '/social/casebook/new': typeof SocialCasebookNewRoute
+  '/social/claim/$token': typeof SocialClaimTokenRoute
+  '/social/post/$id': typeof SocialPostIdRoute
   '/social/problems/$': typeof SocialProblemsSplatRoute
   '/social/problems/new': typeof SocialProblemsNewRoute
   '/social/verify/email': typeof SocialVerifyEmailRoute
@@ -498,9 +610,21 @@ export interface FileRoutesById {
   '/newsletter/confirm': typeof NewsletterConfirmRoute
   '/newsletter/subscribe': typeof NewsletterSubscribeRoute
   '/social/$': typeof SocialSplatRoute
+  '/social/@{$handle}': typeof SocialAtChar123handleChar125Route
+  '/social/badge': typeof SocialBadgeRoute
+  '/social/edit': typeof SocialEditRoute
+  '/social/invites': typeof SocialInvitesRoute
+  '/social/list': typeof SocialListRoute
+  '/social/me': typeof SocialMeRoute
+  '/social/nominate': typeof SocialNominateRoute
+  '/social/notifications': typeof SocialNotificationsRoute
+  '/social/request': typeof SocialRequestRoute
+  '/social/search': typeof SocialSearchRoute
+  '/social/sign-up': typeof SocialSignUpRoute
   '/social/ticks': typeof SocialTicksRoute
   '/admin/': typeof AdminIndexRoute
   '/members/': typeof MembersIndexRoute
+  '/social/': typeof SocialIndexRoute
   '/admin/members/$id': typeof AdminMembersIdRoute
   '/members/calls/{$id}.ics': typeof MembersCallsChar123idChar125DoticsRoute
   '/members/community/$channel': typeof MembersCommunityChannelRoute
@@ -511,6 +635,8 @@ export interface FileRoutesById {
   '/members/resources/{$id}.md': typeof MembersResourcesChar123idChar125DotmdRoute
   '/members/sessions/{$id}.ics': typeof MembersSessionsChar123idChar125DoticsRoute
   '/social/casebook/new': typeof SocialCasebookNewRoute
+  '/social/claim/$token': typeof SocialClaimTokenRoute
+  '/social/post/$id': typeof SocialPostIdRoute
   '/social/problems/$': typeof SocialProblemsSplatRoute
   '/social/problems/new': typeof SocialProblemsNewRoute
   '/social/verify/email': typeof SocialVerifyEmailRoute
@@ -558,9 +684,21 @@ export interface FileRouteTypes {
     | '/newsletter/confirm'
     | '/newsletter/subscribe'
     | '/social/$'
+    | '/social/@{$handle}'
+    | '/social/badge'
+    | '/social/edit'
+    | '/social/invites'
+    | '/social/list'
+    | '/social/me'
+    | '/social/nominate'
+    | '/social/notifications'
+    | '/social/request'
+    | '/social/search'
+    | '/social/sign-up'
     | '/social/ticks'
     | '/admin/'
     | '/members/'
+    | '/social/'
     | '/admin/members/$id'
     | '/members/calls/{$id}.ics'
     | '/members/community/$channel'
@@ -571,6 +709,8 @@ export interface FileRouteTypes {
     | '/members/resources/{$id}.md'
     | '/members/sessions/{$id}.ics'
     | '/social/casebook/new'
+    | '/social/claim/$token'
+    | '/social/post/$id'
     | '/social/problems/$'
     | '/social/problems/new'
     | '/social/verify/email'
@@ -586,7 +726,6 @@ export interface FileRouteTypes {
     | '/social/review/evidence/$claim'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/social'
     | '/dev-seed'
     | '/dev-seed-admin'
     | '/dev-seed-review'
@@ -614,9 +753,21 @@ export interface FileRouteTypes {
     | '/newsletter/confirm'
     | '/newsletter/subscribe'
     | '/social/$'
+    | '/social/@{$handle}'
+    | '/social/badge'
+    | '/social/edit'
+    | '/social/invites'
+    | '/social/list'
+    | '/social/me'
+    | '/social/nominate'
+    | '/social/notifications'
+    | '/social/request'
+    | '/social/search'
+    | '/social/sign-up'
     | '/social/ticks'
     | '/admin'
     | '/members'
+    | '/social'
     | '/admin/members/$id'
     | '/members/calls/{$id}.ics'
     | '/members/community/$channel'
@@ -627,6 +778,8 @@ export interface FileRouteTypes {
     | '/members/resources/{$id}.md'
     | '/members/sessions/{$id}.ics'
     | '/social/casebook/new'
+    | '/social/claim/$token'
+    | '/social/post/$id'
     | '/social/problems/$'
     | '/social/problems/new'
     | '/social/verify/email'
@@ -672,9 +825,21 @@ export interface FileRouteTypes {
     | '/newsletter/confirm'
     | '/newsletter/subscribe'
     | '/social/$'
+    | '/social/@{$handle}'
+    | '/social/badge'
+    | '/social/edit'
+    | '/social/invites'
+    | '/social/list'
+    | '/social/me'
+    | '/social/nominate'
+    | '/social/notifications'
+    | '/social/request'
+    | '/social/search'
+    | '/social/sign-up'
     | '/social/ticks'
     | '/admin/'
     | '/members/'
+    | '/social/'
     | '/admin/members/$id'
     | '/members/calls/{$id}.ics'
     | '/members/community/$channel'
@@ -685,6 +850,8 @@ export interface FileRouteTypes {
     | '/members/resources/{$id}.md'
     | '/members/sessions/{$id}.ics'
     | '/social/casebook/new'
+    | '/social/claim/$token'
+    | '/social/post/$id'
     | '/social/problems/$'
     | '/social/problems/new'
     | '/social/verify/email'
@@ -938,11 +1105,95 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NewsletterSubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/social/': {
+      id: '/social/'
+      path: '/'
+      fullPath: '/social/'
+      preLoaderRoute: typeof SocialIndexRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
     '/social/$': {
       id: '/social/$'
       path: '/$'
       fullPath: '/social/$'
       preLoaderRoute: typeof SocialSplatRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/@{$handle}': {
+      id: '/social/@{$handle}'
+      path: '/@{$handle}'
+      fullPath: '/social/@{$handle}'
+      preLoaderRoute: typeof SocialAtChar123handleChar125RouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/badge': {
+      id: '/social/badge'
+      path: '/badge'
+      fullPath: '/social/badge'
+      preLoaderRoute: typeof SocialBadgeRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/edit': {
+      id: '/social/edit'
+      path: '/edit'
+      fullPath: '/social/edit'
+      preLoaderRoute: typeof SocialEditRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/invites': {
+      id: '/social/invites'
+      path: '/invites'
+      fullPath: '/social/invites'
+      preLoaderRoute: typeof SocialInvitesRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/list': {
+      id: '/social/list'
+      path: '/list'
+      fullPath: '/social/list'
+      preLoaderRoute: typeof SocialListRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/me': {
+      id: '/social/me'
+      path: '/me'
+      fullPath: '/social/me'
+      preLoaderRoute: typeof SocialMeRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/nominate': {
+      id: '/social/nominate'
+      path: '/nominate'
+      fullPath: '/social/nominate'
+      preLoaderRoute: typeof SocialNominateRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/notifications': {
+      id: '/social/notifications'
+      path: '/notifications'
+      fullPath: '/social/notifications'
+      preLoaderRoute: typeof SocialNotificationsRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/request': {
+      id: '/social/request'
+      path: '/request'
+      fullPath: '/social/request'
+      preLoaderRoute: typeof SocialRequestRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/search': {
+      id: '/social/search'
+      path: '/search'
+      fullPath: '/social/search'
+      preLoaderRoute: typeof SocialSearchRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/sign-up': {
+      id: '/social/sign-up'
+      path: '/sign-up'
+      fullPath: '/social/sign-up'
+      preLoaderRoute: typeof SocialSignUpRouteImport
       parentRoute: typeof SocialRouteRoute
     }
     '/social/ticks': {
@@ -1055,6 +1306,20 @@ declare module '@tanstack/react-router' {
       path: '/casebook/new'
       fullPath: '/social/casebook/new'
       preLoaderRoute: typeof SocialCasebookNewRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/claim/$token': {
+      id: '/social/claim/$token'
+      path: '/claim/$token'
+      fullPath: '/social/claim/$token'
+      preLoaderRoute: typeof SocialClaimTokenRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/post/$id': {
+      id: '/social/post/$id'
+      path: '/post/$id'
+      fullPath: '/social/post/$id'
+      preLoaderRoute: typeof SocialPostIdRouteImport
       parentRoute: typeof SocialRouteRoute
     }
     '/social/problems/': {
@@ -1199,8 +1464,22 @@ const MembersRouteRouteWithChildren = MembersRouteRoute._addFileChildren(
 
 interface SocialRouteRouteChildren {
   SocialSplatRoute: typeof SocialSplatRoute
+  SocialAtChar123handleChar125Route: typeof SocialAtChar123handleChar125Route
+  SocialBadgeRoute: typeof SocialBadgeRoute
+  SocialEditRoute: typeof SocialEditRoute
+  SocialInvitesRoute: typeof SocialInvitesRoute
+  SocialListRoute: typeof SocialListRoute
+  SocialMeRoute: typeof SocialMeRoute
+  SocialNominateRoute: typeof SocialNominateRoute
+  SocialNotificationsRoute: typeof SocialNotificationsRoute
+  SocialRequestRoute: typeof SocialRequestRoute
+  SocialSearchRoute: typeof SocialSearchRoute
+  SocialSignUpRoute: typeof SocialSignUpRoute
   SocialTicksRoute: typeof SocialTicksRoute
+  SocialIndexRoute: typeof SocialIndexRoute
   SocialCasebookNewRoute: typeof SocialCasebookNewRoute
+  SocialClaimTokenRoute: typeof SocialClaimTokenRoute
+  SocialPostIdRoute: typeof SocialPostIdRoute
   SocialProblemsSplatRoute: typeof SocialProblemsSplatRoute
   SocialProblemsNewRoute: typeof SocialProblemsNewRoute
   SocialVerifyEmailRoute: typeof SocialVerifyEmailRoute
@@ -1212,8 +1491,22 @@ interface SocialRouteRouteChildren {
 
 const SocialRouteRouteChildren: SocialRouteRouteChildren = {
   SocialSplatRoute: SocialSplatRoute,
+  SocialAtChar123handleChar125Route: SocialAtChar123handleChar125Route,
+  SocialBadgeRoute: SocialBadgeRoute,
+  SocialEditRoute: SocialEditRoute,
+  SocialInvitesRoute: SocialInvitesRoute,
+  SocialListRoute: SocialListRoute,
+  SocialMeRoute: SocialMeRoute,
+  SocialNominateRoute: SocialNominateRoute,
+  SocialNotificationsRoute: SocialNotificationsRoute,
+  SocialRequestRoute: SocialRequestRoute,
+  SocialSearchRoute: SocialSearchRoute,
+  SocialSignUpRoute: SocialSignUpRoute,
   SocialTicksRoute: SocialTicksRoute,
+  SocialIndexRoute: SocialIndexRoute,
   SocialCasebookNewRoute: SocialCasebookNewRoute,
+  SocialClaimTokenRoute: SocialClaimTokenRoute,
+  SocialPostIdRoute: SocialPostIdRoute,
   SocialProblemsSplatRoute: SocialProblemsSplatRoute,
   SocialProblemsNewRoute: SocialProblemsNewRoute,
   SocialVerifyEmailRoute: SocialVerifyEmailRoute,

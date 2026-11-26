@@ -39,6 +39,10 @@ function educate(text: string, before: string): string {
  * Walks the tokens in reading order, educating the quotes in each run of text. Each block, and each table cell, starts
  * with no character before it, so a quote that opens one is an opening quote.
  */
+/* marked's Token union ends in a generic token whose type is any string, so a switch on type does not narrow it. */
+const isTable = (token: Token): token is Tokens.Table => token.type === 'table';
+const isList = (token: Token): token is Tokens.List => token.type === 'list';
+
 function educateTokens(tokens: readonly Token[], context: { last: string }): void {
   for (const token of tokens) {
     switch (token.type) {
@@ -55,12 +59,11 @@ function educateTokens(tokens: readonly Token[], context: { last: string }): voi
         }
         break;
       case 'table': {
-        const table = token as Tokens.Table;
-        for (const cell of [...table.header, ...table.rows.flat()]) educateTokens(cell.tokens, { last: '' });
+        if (isTable(token)) for (const cell of [...token.header, ...token.rows.flat()]) educateTokens(cell.tokens, { last: '' });
         continue;
       }
       case 'list':
-        for (const item of (token as Tokens.List).items) educateTokens(item.tokens, { last: '' });
+        if (isList(token)) for (const item of token.items) educateTokens(item.tokens, { last: '' });
         continue;
       case 'paragraph':
       case 'heading':

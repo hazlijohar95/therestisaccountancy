@@ -3,9 +3,9 @@ import { useEffect, useState, type FormEvent, type ReactNode, type RefObject } f
 import { bodyById, CLAIM_LIMITS } from '../../../../../src/data/social.ts';
 import { formatDay, formatMonth } from '../../../../../src/lib/format.ts';
 import { CopyLink } from '../../../components/social/CopyLink.tsx';
-import { SocialLink } from '../../../components/social/SocialLink.tsx';
+import { SocialLink } from '../../../components/social/PathLink.tsx';
 import { Tick } from '../../../components/social/Tick.tsx';
-import { useAction } from '../../../components/social/useAction.ts';
+import { useAction } from '../../../components/social/useFormAction.ts';
 import {
   approveAccount,
   approveClaim,
