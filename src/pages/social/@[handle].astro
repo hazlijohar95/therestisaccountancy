@@ -14,7 +14,7 @@ import { addressed, signInPath, socialPath, socialPathOf } from '../../server/pa
 export const prerender = false;
 
 const handle = Astro.params.handle ?? '';
-const { member, socialProfiles, socialClaims, socialFloor } = Astro.locals;
+const { member, socialProfiles, socialClaims, socialFloor, socialProblems } = Astro.locals;
 const profile = await socialProfiles.profile(handle);
 const followed = Astro.getActionResult(actions.follow) ?? Astro.getActionResult(actions.unfollow);
 const vouched = Astro.getActionResult(actions.vouch);
@@ -30,6 +30,8 @@ const following = member && profile && !own ? await socialProfiles.isFollowing(m
 const counts = profile ? await socialProfiles.followCounts(profile.memberId) : null;
 const ledger = profile ? await socialClaims.ledger(profile.memberId, member?.id ?? null) : { claims: [], accounts: [] };
 const posts = profile ? await socialFloor.recentPosts(member?.id ?? null, profile.memberId) : [];
+const record = profile ? await socialProblems.record(profile.memberId) : null;
+const share = (n: number) => (record?.rated ? (n / record.rated) * 100 : 0);
 const usefulFocus = useful?.data ? `useful-${useful.data.target}-${useful.data.id}` : null;
 /* Only members with the seal vouch, and never for themselves. Others see the count. */
 const canVouch = !own && (Astro.locals.profile?.sealed ?? false);
@@ -199,6 +201,41 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
         </div>
 
         <aside class="side" aria-label="About ticks">
+          {record && (
+            <div class="card record">
+              <p class="kicker">Judgment record</p>
+              {record.rated ? (
+                <>
+                  <div class="big">
+                    <b>{Math.round(share(record.sound))}%</b>
+                    <span class="small">
+                      of {plural(record.rated, 'rated answer', 'rated answers')} judged sound by members with the seal
+                      {record.answers > record.rated && `, out of ${plural(record.answers, 'answer', 'answers')}`}
+                    </span>
+                  </div>
+                  <div class="meter" role="img" aria-label={`${record.sound} sound, ${record.partly} partly sound, ${record.unsound} unsound`}>
+                    <i class="ht-5" style={`width: ${share(record.sound)}%`} />
+                    <i class="hatch" style={`width: ${share(record.partly)}%`} />
+                    <i style="flex: 1" />
+                  </div>
+                  <div class="heat-legend" aria-hidden="true">
+                    <span class="scale"><i class="ht-5" /> Sound</span>
+                    <span class="scale"><i class="hatch" /> Partly</span>
+                    <span class="scale"><i class="empty-box" /> Unsound</span>
+                  </div>
+                </>
+              ) : (
+                <p class="small">
+                  {record.answers
+                    ? `${plural(record.answers, 'answer', 'answers')}. None rated yet.`
+                    : own
+                      ? 'No answers yet. Answer a problem and members with the seal rate your reasoning.'
+                      : 'No answers yet.'}
+                </p>
+              )}
+              <a class="small" href={to('/problems')}>{own && !record.answers ? 'Answer this week’s problem' : 'Open problems'}</a>
+            </div>
+          )}
           <div class="card">
             <p class="kicker">Find them on</p>
             <ul class="links">

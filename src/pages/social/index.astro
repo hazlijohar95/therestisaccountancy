@@ -6,14 +6,14 @@ import ReportDialog from '../../components/social/ReportDialog.astro';
 import { FEED_FILTERS, FLOOR_LIMITS, POST_JURISDICTIONS, ROOMS, type FeedFilter, type RoomId } from '../../data/social.ts';
 import Social from '../../layouts/Social.astro';
 import { postedFields } from '../../lib/form.ts';
-import { formAction } from '../../lib/format.ts';
+import { formAction, tally } from '../../lib/format.ts';
 import { pageCount, pageHref, pagingOf } from '../../lib/paging.ts';
 import { addressed, signInPath, socialPath, socialPathOf } from '../../server/paths.ts';
 
 export const prerender = false;
 
 const to = (path: string) => socialPath(Astro.url, path);
-const { member, profile, socialFloor } = Astro.locals;
+const { member, profile, socialFloor, socialProblems } = Astro.locals;
 const params = Astro.url.searchParams;
 const room: RoomId | null = ROOMS.find((r) => r.id === params.get('room'))?.id ?? null;
 const filter: FeedFilter = FEED_FILTERS.find((f) => f.id === params.get('filter'))?.id ?? 'all';
@@ -26,6 +26,7 @@ const reported = Astro.getActionResult(actions.report);
 const paging = pagingOf(Astro.url, FLOOR_LIMITS.pageSize);
 const feed = await socialFloor.feed(member?.id ?? null, { room, filter, offset: paging.offset });
 const pages = pageCount(feed.total, FLOOR_LIMITS.pageSize);
+const week = await socialProblems.view(member?.id ?? null, null);
 if (paging.page > pages) return Astro.redirect(pageHref(Astro.url, pages));
 
 /* The Floor with one choice changed and the other kept, back on the first page. */
@@ -183,6 +184,20 @@ const roomName = room ? ROOMS.find((r) => r.id === room)?.name : null;
       }
     </section>
     <aside class="rail" aria-label="Next steps">
+      {
+        week && (
+          <a class="rail-card card potw" href={to('/problems')}>
+            <span class="tape" aria-hidden="true">this week</span>
+            <p class="kicker">Problem #{week.problem.number} · {week.problem.tag}</p>
+            <p class="head">{week.problem.title}</p>
+            <p class="small">{week.mine ? `You answered. ${tally(week.problem.answers, 'answer')} so far.` : `${tally(week.problem.answers, 'answer')}. Hidden until you answer.`}</p>
+            <span class="btn sm">
+              {week.mine ? 'See the answers' : 'Answer it'}
+              <svg aria-hidden="true"><use href="#i-arrow" /></svg>
+            </span>
+          </a>
+        )
+      }
       {
         !(profile?.sealed ?? false) && (
           <div class="rail-card card">

@@ -108,6 +108,35 @@ export function claimFacts(db: Db, memberId: number): ClaimFact[] {
     });
 }
 
+/** A member as their words are signed on the Floor and in Problems. */
+export interface Author {
+  readonly memberId: number;
+  readonly handle: string;
+  readonly name: string;
+  readonly track: Track;
+  readonly sealed: boolean;
+}
+
+/** A member who has a profile, as an author. Track and seal come from their claims now. */
+export function authorOf(db: Db, memberId: number): Author {
+  const row = db.prepare('SELECT m.name, p.handle, p.creator FROM members m JOIN profiles p ON p.member_id = m.id WHERE m.id = ?').get(memberId);
+  if (!row) throw new Error(`Member ${memberId} has no profile`);
+  const facts = claimFacts(db, memberId);
+  return { memberId, handle: text(row, 'handle'), name: text(row, 'name'), track: trackOf(facts, integer(row, 'creator') === 1), sealed: sealOf(facts) };
+}
+
+/** A member who has set a password and is not suspended, as SQL on a member id column. */
+export const activeSql = (memberColumn: string) => `EXISTS (SELECT 1 FROM members WHERE id = ${memberColumn} AND ${STATUS_SQL.active})`;
+
+/** Malaysian time has no daylight saving. */
+const MYT_OFFSET_MS = 8 * 3_600_000;
+
+/** The moment the quarter that date falls in began, in Malaysia. Peer points count from here. */
+export function quarterStart(date: Date): Date {
+  const local = new Date(date.getTime() + MYT_OFFSET_MS);
+  return new Date(Date.UTC(local.getUTCFullYear(), Math.floor(local.getUTCMonth() / 3) * 3, 1) - MYT_OFFSET_MS);
+}
+
 const iso = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 /** The registry's entries that were stored, in the registry's order. Anything the registry no longer has is dropped. */
@@ -123,8 +152,19 @@ const PROFILES = 'SELECT p.*, m.name FROM profiles p JOIN members m ON m.id = p.
 
 /** Handles, profiles, follows and The List. */
 export function createSocialProfiles(db: Db, now: () => Date = () => new Date()) {
-  /* Peer points arrive with Problems and the shelf. Until then everyone has none. */
-  const peerPoints = (_memberId: number): number => 0;
+  /**
+   * Peer points this quarter: ratings of Sound on the member's answers, from raters who hold the seal now. A changed
+   * rating counts from when it changed.
+   */
+  const peerPoints = (memberId: number): number =>
+    count(
+      db
+        .prepare(
+          `SELECT count(*) AS n FROM ratings rt JOIN answers a ON a.id = rt.answer_id
+           WHERE a.member_id = ? AND rt.verdict = 'sound' AND rt.created_at >= ? AND ${activeSql('rt.rater_id')} AND ${sealedSql('rt.rater_id')}`,
+        )
+        .get(memberId, iso(quarterStart(now()))),
+    );
 
   const toProfile = (row: Row): Profile => {
     const memberId = integer(row, 'member_id');

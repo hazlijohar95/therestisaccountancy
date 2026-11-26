@@ -1,0 +1,244 @@
+---
+import { actions, isInputError } from 'astro:actions';
+import { OPTION_KEYS, POST_JURISDICTIONS, PROBLEM_LIMITS, TOPICS } from '../../../data/social.ts';
+import Social from '../../../layouts/Social.astro';
+import { postedValues } from '../../../lib/form.ts';
+import { formAction, formatMoment, tally } from '../../../lib/format.ts';
+import { addressed, signInPath, socialPath } from '../../../server/paths.ts';
+
+export const prerender = false;
+
+const to = (path: string) => socialPath(Astro.url, path);
+const { member, socialProblems } = Astro.locals;
+if (!member) return Astro.redirect(signInPath(Astro.url, '/problems/new'));
+const team = member.role === 'admin';
+if (!team) Astro.response.status = 404;
+
+const written = Astro.getActionResult(actions.writeProblem);
+if (written?.data) return Astro.redirect(to(`/problems/${written.data.number}?written=1`));
+const removed = Astro.getActionResult(actions.removeProblem);
+if (removed?.data) return Astro.redirect(to('/problems/new?done=removed'));
+
+const schedule = team ? await socialProblems.schedule() : [];
+const nextNumber = team ? await socialProblems.nextNumber() : 1;
+const posted = await postedValues(Astro.request);
+const fields = written?.error && isInputError(written.error) ? written.error.fields : {};
+const failure = [written, removed].map((result) => (result?.error && !isInputError(result.error) ? result.error.message : null)).find(Boolean) ?? null;
+const action = (which: { toString(): string }) => formAction(addressed(Astro.url), which);
+const again = written?.error !== undefined;
+const value = (name: string, fallback: string) => (again ? posted.one(name) : fallback);
+const many = (name: string, i: number) => (again ? (posted.all(name)[i] ?? '') : '');
+const invalid = (name: keyof typeof fields) => (fields[name] ? { 'aria-invalid': 'true' as const, 'aria-describedby': `${name}-error` } : {});
+const described = (name: keyof typeof fields) => (fields[name] ? `${name}-error` : undefined);
+
+/* The next free week: from the next hour, or from when the latest problem closes if that is later. Shown in Malaysian time. */
+const HOUR = 3_600_000;
+const latestClose = schedule[0] ? new Date(schedule[0].closesAt).getTime() : 0;
+const start = Math.max(Math.ceil(Date.now() / HOUR) * HOUR, latestClose);
+const malaysian = (ms: number) => new Date(ms + 8 * HOUR).toISOString();
+const opens = malaysian(start);
+const closes = malaysian(start + 7 * 24 * HOUR);
+const stateLabel = { scheduled: 'Scheduled', open: 'Open now', closed: 'Closed' } as const;
+---
+
+<Social title="Write a problem" noindex section="problems">
+  {
+    !team ? (
+      <div class="page">
+        <div class="card empty">
+          <h1 class="head">Not found.</h1>
+          <a class="btn sm" href={to('/problems')}>
+            Back to Problems
+          </a>
+        </div>
+      </div>
+    ) : (
+      <div class="page narrow">
+        <p class="note tip plain">
+          <svg aria-hidden="true">
+            <use href="#i-shield" />
+          </svg>
+          <span>Team view. Members see a problem once it opens.</span>
+        </p>
+        <div class="page-head">
+          <div>
+            <p class="kicker">Problems</p>
+            <h1 class="title">Write a problem.</h1>
+            <p class="lead">A short scenario and one judgment call. No client data. Only one problem is open at a time, and you can take one back until someone answers it.</p>
+          </div>
+        </div>
+        {Astro.url.searchParams.get('done') === 'removed' && (
+          <p class="note" role="status">
+            Taken back. It is gone.
+          </p>
+        )}
+        {failure && (
+          <p class="error" role="alert">
+            {failure}
+          </p>
+        )}
+
+        <form class="panel card" method="POST" action={action(actions.writeProblem)} novalidate>
+          <div class="row2">
+            <div class="field">
+              <label for="p-number">Number</label>
+              <input class="input" id="p-number" name="number" inputmode="numeric" required value={value('number', String(nextNumber))} {...invalid('number')} />
+              {fields.number && (
+                <span class="error" id="number-error">
+                  {fields.number[0]}
+                </span>
+              )}
+            </div>
+            <div class="field">
+              <label for="p-tag">Topic</label>
+              <select class="input" id="p-tag" name="tag">
+                {TOPICS.map((topic) => (
+                  <option selected={value('tag', TOPICS[0]) === topic ? true : undefined}>{topic}</option>
+                ))}
+              </select>
+            </div>
+            <div class="field">
+              <label for="p-jurisdiction">Jurisdiction</label>
+              <select class="input" id="p-jurisdiction" name="jurisdiction">
+                {POST_JURISDICTIONS.map((j) => (
+                  <option selected={value('jurisdiction', 'MY') === j ? true : undefined}>{j}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="p-title">Title</label>
+            <input class="input" id="p-title" name="title" required maxlength={PROBLEM_LIMITS.title} value={value('title', '')} placeholder="The stock count nobody attended" {...invalid('title')} />
+            {fields.title && (
+              <span class="error" id="title-error">
+                {fields.title[0]}
+              </span>
+            )}
+          </div>
+          <fieldset class="field plain-fieldset" aria-describedby={described('scenario')}>
+            <legend class="label-text">Scenario · {PROBLEM_LIMITS.scenario.min} to {PROBLEM_LIMITS.scenario.max} lines</legend>
+            {Array.from({ length: PROBLEM_LIMITS.scenario.max }, (_, i) => (
+              <input class="input" name="scenario" maxlength={PROBLEM_LIMITS.line} value={many('scenario', i)} aria-label={`Scenario line ${i + 1}${i < PROBLEM_LIMITS.scenario.min ? '' : ', optional'}`} />
+            ))}
+            {fields.scenario && (
+              <span class="error" id="scenario-error">
+                {fields.scenario[0]}
+              </span>
+            )}
+          </fieldset>
+          <div class="field">
+            <label for="p-ask">The question</label>
+            <input class="input" id="p-ask" name="ask" required maxlength={PROBLEM_LIMITS.ask} value={value('ask', '')} placeholder="What do you do before signing?" {...invalid('ask')} />
+            {fields.ask && (
+              <span class="error" id="ask-error">
+                {fields.ask[0]}
+              </span>
+            )}
+          </div>
+          <fieldset class="field plain-fieldset" aria-describedby={described('options')}>
+            <legend class="label-text">Options · {PROBLEM_LIMITS.options.min} to {PROBLEM_LIMITS.options.max}, lettered in order</legend>
+            {OPTION_KEYS.map((key, i) => (
+              <div class="prefix" data-prefix={key}>
+                <input class="input" name="options" maxlength={PROBLEM_LIMITS.option} value={many('options', i)} aria-label={`Option ${key}${i < PROBLEM_LIMITS.options.min ? '' : ', optional'}`} />
+              </div>
+            ))}
+            {fields.options && (
+              <span class="error" id="options-error">
+                {fields.options[0]}
+              </span>
+            )}
+          </fieldset>
+          <div class="row2">
+            <div class="field">
+              <label for="p-opens-date">Opens · date</label>
+              <input class="input" id="p-opens-date" name="opensDate" type="date" required value={value('opensDate', opens.slice(0, 10))} {...invalid('opensDate')} />
+              {fields.opensDate && (
+                <span class="error" id="opensDate-error">
+                  {fields.opensDate[0]}
+                </span>
+              )}
+            </div>
+            <div class="field">
+              <label for="p-opens-time">Opens · time</label>
+              <input class="input" id="p-opens-time" name="opensTime" type="time" required value={value('opensTime', opens.slice(11, 16))} {...invalid('opensTime')} />
+              {fields.opensTime && (
+                <span class="error" id="opensTime-error">
+                  {fields.opensTime[0]}
+                </span>
+              )}
+            </div>
+            <div class="field">
+              <label for="p-closes-date">Closes · date</label>
+              <input class="input" id="p-closes-date" name="closesDate" type="date" required value={value('closesDate', closes.slice(0, 10))} {...invalid('closesDate')} />
+              {fields.closesDate && (
+                <span class="error" id="closesDate-error">
+                  {fields.closesDate[0]}
+                </span>
+              )}
+            </div>
+            <div class="field">
+              <label for="p-closes-time">Closes · time</label>
+              <input class="input" id="p-closes-time" name="closesTime" type="time" required value={value('closesTime', closes.slice(11, 16))} {...invalid('closesTime')} />
+              {fields.closesTime && (
+                <span class="error" id="closesTime-error">
+                  {fields.closesTime[0]}
+                </span>
+              )}
+            </div>
+          </div>
+          <div class="panel-foot">
+            <span class="small">Times are Malaysian. Members see it once it opens.</span>
+            <button class="btn" type="submit">
+              Save problem
+            </button>
+          </div>
+        </form>
+
+        <section class="section" aria-labelledby="schedule-title">
+          <header>
+            <h2 class="head" id="schedule-title">
+              All problems
+            </h2>
+          </header>
+          <ul class="queue">
+            {schedule.length === 0 && (
+              <li class="empty card">
+                <p>None yet. The first one you save opens when you say.</p>
+              </li>
+            )}
+            {schedule.map((problem) => (
+              <li class="queue-item card">
+                <div>
+                  <p>
+                    <b>
+                      <a href={to(`/problems/${problem.number}`)}>
+                        #{problem.number} {problem.title}
+                      </a>
+                    </b>
+                  </p>
+                  <p class="small">
+                    {stateLabel[problem.state]} · {formatMoment(problem.opensAt)} to {formatMoment(problem.closesAt)} · {tally(problem.answers, 'answer')}
+                  </p>
+                </div>
+                {problem.answers === 0 && (
+                  <details class="remove">
+                    <summary class="act">
+                      Take back<span class="sr-only"> problem {problem.number}</span>
+                    </summary>
+                    <form method="POST" action={action(actions.removeProblem)}>
+                      <input type="hidden" name="number" value={problem.number} />
+                      <p class="small">Take back #{problem.number}? It is deleted. Write it again to fix it.</p>
+                      <button class="btn sm danger" type="submit">
+                        Take it back
+                      </button>
+                    </form>
+                  </details>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+    )
+  }
+</Social>

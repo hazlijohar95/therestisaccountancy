@@ -190,3 +190,19 @@ export const TICK_SOURCES = {
   self: { glyph: 't-self', name: 'Self-declared', means: 'Their word. Not checked yet.' },
 } as const;
 export type TickSource = keyof typeof TICK_SOURCES;
+
+/** A weekly problem's options carry these letters, in order. */
+export const OPTION_KEYS = ['A', 'B', 'C', 'D'] as const;
+export type OptionKey = (typeof OPTION_KEYS)[number];
+
+/** Problem and answer limits, shared by the forms and the server. */
+export const PROBLEM_LIMITS = { title: 140, line: 300, ask: 300, option: 200, reasoning: 1000, scenario: { min: 2, max: 4 }, options: { min: 2, max: 4 } } as const;
+
+/** What a member with the seal says about another member's reasoning. */
+export const RATINGS = [
+  { id: 'sound', label: 'Sound' },
+  { id: 'partly', label: 'Partly' },
+  { id: 'unsound', label: 'Unsound' },
+] as const;
+export type Rating = (typeof RATINGS)[number]['id'];
+export const RATING_IDS = RATINGS.map((rating) => rating.id);

@@ -22,7 +22,8 @@ The visual and interaction spec is the static design in `../social/` at the work
 - **Nominations stay private.** Only the nominator sees their own (on The List), the team sees the queue, and the nominee sees their invite. A handle counts as on The List once a member has proven that account; a pending account blocks nothing. We know only a handle, so the team sends the invite link by direct message themselves. The link is shown once, in the response to Invite (only its hash is kept); Make a new link replaces a lost one. Claiming signed out goes through sign-up with only the token, and the server reads the account from it.
 - **What the Floor shows.** One rule for every read and write: not removed, written by an active member with a handle, and the practitioners' room only for a member with any ticked licence claim (or the team). Search, profiles and the feed all go through it. Posting needs a handle, never the seal.
 - **Answers and corrections are read from current ticks.** "Answered by a ticked X" shows while the accepted reply's author holds the seal, X being their most telling ticked credential (a qualifying body status, then a training one, then a licence, then an academic post), or "member" when the seal rests on a workplace or experience. A member with the seal marks their own reply as a correction when they post it; it shows in red while they hold the seal.
-- **Peer points** for The List: answers rated sound by ticked members plus saves of shelf items, in the current quarter.
+- **Peer points** for The List: Sound ratings on the member's answers from raters who hold the seal now, plus saves of their shelf items, both in the current quarter (Malaysian time). A changed rating counts from when it changed.
+- **Problems.** The team writes them at `/problems/new`; only one is open at a time, so windows may not overlap, and one nobody has answered can be taken back. A scheduled problem is the team's until it opens. Other answers and the spread stay hidden until you answer or it closes; rating checks the same rule, needs the seal now, never your own, and closes with the problem. The judgment record judges each rated answer by its most common rating, ties going to the harsher; unrated answers count only as answers. The streak counts problems answered in a row back from the latest to open; the open one breaks nothing until it closes unanswered.
 
 ## Constraints from the domain move (another session, landing on main before this branch merges)
 
@@ -88,7 +89,7 @@ Each module is wired into `ClubStore.open()`, `src/env.d.ts` and the middleware'
 
 ## Pages (`src/pages/social/`)
 
-`index` (Floor), `list`, `problems`, `problems/[number]`, `post/[id]`, `@[handle]` (profile), `me` (redirects to own profile), `edit`, `verify` (accounts, bodies, licence upload, work email), `badge`, `nominate`, `claim/[token]`, `casebook/new`, `notifications`, `ticks`, `search` (JSON for the dialog), `sign-up`, and the team's `review` (admin only). Actions live in `src/actions/social.ts`.
+`index` (Floor), `list`, `problems/[...number]` (the open problem at `/problems`, any number at `/problems/12`), `problems/new` (the team's), `post/[id]`, `@[handle]` (profile), `me` (redirects to own profile), `edit`, `verify` (accounts, bodies, licence upload, work email), `badge`, `nominate`, `claim/[token]`, `casebook/new`, `notifications`, `ticks`, `search` (JSON for the dialog), `sign-up`, and the team's `review` (admin only). Actions live in `src/actions/social.ts`.
 
 ## Slices (each ends with `pnpm test` and `pnpm check` green, and is one commit)
 

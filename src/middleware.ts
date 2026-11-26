@@ -24,6 +24,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     context.locals.socialClaims = store.socialClaims;
     context.locals.socialNominations = store.socialNominations;
     context.locals.socialFloor = store.socialFloor;
+    context.locals.socialProblems = store.socialProblems;
     const key = await context.session?.get('signedIn');
     context.locals.member = key ? await store.club.sessionMember(key) : null;
     if (context.locals.member && isSocialPage(context.url.pathname)) context.locals.profile = await store.socialProfiles.ownProfile(context.locals.member.id);

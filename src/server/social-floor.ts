@@ -13,13 +13,12 @@ import {
   type ReportReason,
   type ReportTarget,
   type RoomId,
-  type Track,
 } from '../data/social.ts';
 import { matcher } from '../lib/search.ts';
 import { STATUS_SQL } from './club.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Param, type Row } from './db.ts';
 import { fail, ok, type Result } from './result.ts';
-import { claimFacts, normaliseHandle, sealedSql, sealOf, trackOf } from './social-profiles.ts';
+import { authorOf as readAuthor, claimFacts, normaliseHandle, sealedSql, sealOf, type Author } from './social-profiles.ts';
 
 /*
  * The Floor: posts in rooms, replies, the accepted answer, corrections from sealed members, useful marks, and reports.
@@ -27,14 +26,6 @@ import { claimFacts, normaliseHandle, sealedSql, sealOf, trackOf } from './socia
  * the practitioners' room only for someone with a ticked licence (or the team). Writes check the same rule, so nobody
  * can reply to, mark or report what they cannot read.
  */
-
-export interface Author {
-  readonly memberId: number;
-  readonly handle: string;
-  readonly name: string;
-  readonly track: Track;
-  readonly sealed: boolean;
-}
 
 /** Who is looking, as the Floor needs to know it. */
 export interface Viewer {
@@ -183,10 +174,7 @@ export function createSocialFloor(db: Db, now: () => Date = () => new Date()) {
   const authorOf = (memberId: number): Author => {
     const known = authors.get(memberId);
     if (known) return known;
-    const row = db.prepare('SELECT m.name, p.handle, p.creator FROM members m JOIN profiles p ON p.member_id = m.id WHERE m.id = ?').get(memberId);
-    if (!row) throw new Error(`Member ${memberId} has no profile`);
-    const facts = claimFacts(db, memberId);
-    const found: Author = { memberId, handle: text(row, 'handle'), name: text(row, 'name'), track: trackOf(facts, integer(row, 'creator') === 1), sealed: sealOf(facts) };
+    const found = readAuthor(db, memberId);
     authors.set(memberId, found);
     return found;
   };

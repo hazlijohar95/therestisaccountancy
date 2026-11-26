@@ -441,6 +441,43 @@ const MIGRATIONS: readonly string[] = [
   CREATE INDEX reports_by_state ON reports (state, created_at);
   CREATE UNIQUE INDEX one_open_report_per_reporter ON reports (reporter_id, target, target_id) WHERE state = 'open';
   `,
+  `
+  CREATE TABLE problems (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    number INTEGER NOT NULL UNIQUE CHECK (number > 0),
+    tag TEXT NOT NULL,
+    jurisdiction TEXT NOT NULL CHECK (jurisdiction IN ('MY', 'SG', 'AU', 'UK', 'Any')),
+    title TEXT NOT NULL,
+    scenario TEXT NOT NULL,
+    ask TEXT NOT NULL,
+    options TEXT NOT NULL,
+    opens_at TEXT NOT NULL,
+    closes_at TEXT NOT NULL CHECK (closes_at > opens_at),
+    created_by INTEGER REFERENCES members (id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX problems_by_window ON problems (opens_at, closes_at);
+
+  CREATE TABLE answers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    problem_id INTEGER NOT NULL REFERENCES problems (id) ON DELETE CASCADE,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    pick TEXT NOT NULL CHECK (pick IN ('A', 'B', 'C', 'D')),
+    reasoning TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    UNIQUE (problem_id, member_id)
+  );
+  CREATE INDEX answers_by_member ON answers (member_id, created_at);
+
+  CREATE TABLE ratings (
+    answer_id INTEGER NOT NULL REFERENCES answers (id) ON DELETE CASCADE,
+    rater_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    verdict TEXT NOT NULL CHECK (verdict IN ('sound', 'partly', 'unsound')),
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (answer_id, rater_id)
+  );
+  CREATE INDEX ratings_by_rater ON ratings (rater_id);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

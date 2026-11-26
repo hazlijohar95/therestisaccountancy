@@ -500,6 +500,93 @@
     .composer .btn span { display: none; }
   }
   @media (max-width: 480px) { .top-end { gap: var(--space-1); } }
+
+  /* ---------- Halftone fills: intensity is dot size, never a tint ---------- */
+  .ht-0 { background: transparent; }
+  .ht-1 { background: radial-gradient(circle, var(--ink) 20%, transparent 22%) 0 0 / 7px 7px; }
+  .ht-2 { background: radial-gradient(circle, var(--ink) 33%, transparent 35%) 0 0 / 7px 7px; }
+  .ht-3 { background: radial-gradient(circle, var(--ink) 47%, transparent 49%) 0 0 / 7px 7px; }
+  .ht-4 { background: radial-gradient(circle, var(--ink) 62%, transparent 64%) 0 0 / 7px 7px; }
+  .ht-5 { background: var(--ink); }
+  .hatch { background: repeating-linear-gradient(-45deg, var(--ink) 0 1.5px, transparent 1.5px 6px); }
+  .prefix[data-prefix]::before { content: attr(data-prefix); }
+
+  /* ---------- Problems ---------- */
+  .problems { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--space-5); align-items: start; }
+  .problems > div { display: grid; gap: var(--space-5); align-content: start; min-width: 0; }
+  .problem { padding: var(--space-6); display: grid; gap: var(--space-5); position: relative; overflow: hidden; }
+  .problem > .tape { position: absolute; top: 18px; right: -6px; font-size: 1.1rem; }
+  .problem form { display: grid; gap: var(--space-5); }
+  .problem .no { font: 400 var(--size-label)/1 var(--font-pixel); color: color-mix(in srgb, var(--ink) 65%, var(--surface)); }
+  .problem .title { font-size: clamp(2rem, 1.5rem + 2vw, 3rem); }
+  .scenario { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); counter-reset: s; }
+  .scenario li { counter-increment: s; display: grid; grid-template-columns: 2rem minmax(0, 1fr); font-size: 1.15rem; line-height: 1.45; }
+  .scenario li::before { content: counter(s, decimal-leading-zero); font: 400 var(--size-label)/2.1 var(--font-pixel); color: color-mix(in srgb, var(--ink) 60%, var(--surface)); }
+  .ask { font: 400 1.6rem/1.2 var(--font-serif); padding-top: var(--space-5); border-top: 1px solid var(--line); }
+  .options { display: grid; gap: var(--space-2); list-style: none; margin: 0; padding: 0; border: 0; min-width: 0; }
+  .opt { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: var(--space-4); align-items: center; padding: var(--space-3) var(--space-4); border: 1px solid var(--control); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: 400 1.02rem/1.35 var(--font-sans); text-align: start; position: relative; overflow: hidden; transition: background-color var(--motion-quick), box-shadow var(--motion-quick); }
+  label.opt { cursor: pointer; }
+  .opt .k { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--control); border-radius: var(--radius-round); font: 400 1.15rem/1 var(--font-serif); z-index: 1; background: var(--surface); }
+  .opt > span, .opt > b { position: relative; z-index: 1; }
+  @media (hover: hover) { label.opt:hover { background: var(--hover); } }
+  .opt:has(:checked), .opt.mine { box-shadow: inset 0 0 0 1px var(--ink); border-color: var(--ink); }
+  .opt:has(:checked) .k, .opt.mine .k { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  .opt:has(:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .opt .fill { position: absolute; left: 0; bottom: 0; height: 5px; width: var(--w); z-index: 0; transition: width 900ms var(--motion-ease); }
+  .opt .fill.from-zero { width: 0; }
+  .opt .pct { font: 400 1.3rem/1 var(--font-serif); font-variant-numeric: tabular-nums; }
+  .reason textarea { min-height: 110px; resize: vertical; }
+  .lockline { display: flex; align-items: center; gap: var(--space-3); font-size: var(--size-small); font-weight: 600; flex-wrap: wrap; }
+  .lockline svg { width: 16px; height: 16px; flex: none; }
+  .lockline .btn { margin-left: auto; }
+  .answers { display: grid; gap: var(--space-3); }
+  .answer { padding: var(--space-5); display: grid; gap: var(--space-3); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--shadow); }
+  .answer[data-mine] { background: color-mix(in srgb, var(--mark) 18%, var(--surface)); }
+  .answer .by { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: center; font-size: var(--size-small); }
+  .answer .by a { text-decoration: none; }
+  .answer .pick { margin-left: auto; width: 30px; height: 30px; border-radius: var(--radius-round); background: var(--hover); display: grid; place-items: center; font: 400 1rem/1 var(--font-serif); }
+  .answer p { font-size: 1rem; max-width: 64ch; }
+  .rate { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; padding-top: var(--space-3); border-top: 1px solid var(--line); }
+  .rate form { display: contents; }
+  .rate .label { margin-right: var(--space-2); }
+  .rate .chip { font-variant-numeric: tabular-nums; }
+  .rate .chip[data-k="unsound"][aria-pressed="true"] { background: var(--alert); border-color: var(--alert); color: var(--color-paper); }
+  .rated-line { display: flex; align-items: center; gap: var(--space-2); }
+  .rated-line .tick { width: 18px; height: 18px; flex: none; }
+  .past, .side .past.card { list-style: none; margin: 0; padding: 0; gap: 0; overflow: hidden; }
+  .past li { border-bottom: 1px solid var(--line); }
+  .past li:last-child { border-bottom: 0; }
+  .past li a { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-3); align-items: center; padding: var(--space-3) var(--space-4); font-size: var(--size-small); text-decoration: none; color: inherit; transition: background-color var(--motion-quick); }
+  @media (hover: hover) { .past li a:hover { background: color-mix(in srgb, var(--hover) 60%, var(--surface)); } }
+  .past li a[aria-current="page"] { background: color-mix(in srgb, var(--mark) 40%, var(--surface)); }
+  .past li b { font: 400 1.05rem/1.15 var(--font-serif); }
+  .past .pixel { font-size: var(--size-label); }
+  .past .num { font: 400 var(--size-label)/1 var(--font-pixel); color: color-mix(in srgb, var(--ink) 65%, var(--surface)); }
+  .past li a[aria-current="page"] .num { color: inherit; }
+  .how ol { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-3); counter-reset: h; }
+  .how li { counter-increment: h; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: var(--space-2); font-size: var(--size-small); align-items: start; }
+  .how li::before { content: counter(h); width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--radius-round); background: var(--hover); font: 400 .85rem/1 var(--font-serif); }
+  .side-label { margin-bottom: var(--space-2); }
+  .streak-num { font: 400 2.2rem/1 var(--font-serif); letter-spacing: -.03em; }
+  .back-week { display: inline-block; margin-top: var(--space-3); font-weight: 600; }
+  .potw { background: var(--color-night); color: var(--color-paper); border-color: var(--color-night); --ink: var(--color-paper); --surface: var(--color-night); position: relative; overflow: hidden; text-decoration: none; }
+  .potw .kicker { color: color-mix(in srgb, var(--color-paper) 70%, var(--color-night)); }
+  .potw .tape { position: absolute; top: 16px; right: -6px; font-size: .95rem; }
+  .potw .btn { background: var(--color-tape); color: var(--color-ink); border-color: transparent; justify-self: start; }
+  @media (max-width: 1000px) { .problems { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 600px) { .problem { padding: var(--space-5) var(--space-4); } .opt { grid-template-columns: 36px minmax(0, 1fr) auto; gap: var(--space-3); } }
+  @media (prefers-reduced-motion: reduce) { .opt .fill { transition: none; } }
+
+  /* ---------- Judgment record ---------- */
+  .record .big { display: grid; gap: var(--space-2); }
+  .record .big b { font: 400 3.2rem/.9 var(--font-serif); letter-spacing: -.04em; }
+  .meter { display: flex; height: 10px; border-radius: var(--r-ctl); overflow: hidden; background: color-mix(in srgb, var(--hover) 60%, var(--surface)); gap: 2px; }
+  .meter i { display: block; height: 100%; }
+  .heat-legend { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; font-size: var(--size-label); }
+  .heat-legend .scale { display: inline-flex; gap: 3px; align-items: center; }
+  .heat-legend .scale i { width: 20px; height: 13px; border-radius: 3px; background-color: color-mix(in srgb, var(--hover) 50%, var(--surface)); }
+  .heat-legend .scale i.ht-5 { background-color: var(--ink); }
+  .heat-legend .scale i.empty-box { box-shadow: inset 0 0 0 1px var(--control); background: transparent; }
 }
 
 /* Dark mode: the seal keeps an ink core on tape, with a paper ring so it reads on night. */

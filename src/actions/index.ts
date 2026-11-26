@@ -9,8 +9,9 @@ import { listings } from './listings.ts';
 import { newsletter } from './newsletter.ts';
 import { nominations } from './nominations.ts';
 import { plans } from './plans.ts';
+import { problems } from './problems.ts';
 import { sessions } from './sessions.ts';
 import { social } from './social.ts';
 import { ticks } from './ticks.ts';
 
-export const server = { ...account, ...adminActions, ...community, ...sessions, ...billing, ...plans, ...calls, ...listings, ...fees, ...social, ...ticks, ...nominations, ...floor, newsletter };
+export const server = { ...account, ...adminActions, ...community, ...sessions, ...billing, ...plans, ...calls, ...listings, ...fees, ...social, ...ticks, ...nominations, ...floor, ...problems, newsletter };
