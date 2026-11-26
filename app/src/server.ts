@@ -17,9 +17,18 @@ const outside: Record<string, (request: Request) => Promise<Response>> = {
   '/unsubscribe': unsubscribe,
 };
 
-/** Where Astro's static build puts a marketing page: /about is /_site/about.html, / is /_site/index.html. */
-const MARKETING = '/_site';
-const marketingFile = (pathname: string) => `${MARKETING}${pathname.replace(/\/+$/, '') || '/index'}.html`;
+/**
+ * Where Astro's static build puts a marketing page: /about is /about.html, / is /index.html. Each segment is encoded the
+ * way the asset store keys files, so /@hazli finds /%40hazli.html.
+ */
+const encoded = (segment: string) => {
+  try {
+    return encodeURIComponent(decodeURIComponent(segment));
+  } catch {
+    return segment;
+  }
+};
+const marketingFile = (pathname: string) => `${(pathname.replace(/\/+$/, '') || '/index').split('/').map(encoded).join('/')}.html`;
 
 /**
  * The club's host serves its marketing pages as static files and everything else from the app. The social host is all
@@ -34,7 +43,12 @@ async function route(request: Request): Promise<Response> {
     return Response.redirect(`https://${socialHost}${url.pathname.slice(SOCIAL.length) || '/'}${url.search}`, 301);
   }
   const page = await env.ASSETS.fetch(new Request(new URL(marketingFile(url.pathname), url), request));
-  return page.ok ? page : handler.fetch(request);
+  if (page.ok) return page;
+  /* A club page nobody has is Astro's 404, so the marketing site and the app look the same when a link is wrong. */
+  const answer = await handler.fetch(request);
+  if (answer.status !== 404) return answer;
+  const notFound = await env.ASSETS.fetch(new Request(new URL('/404.html', url), request));
+  return notFound.ok ? new Response(notFound.body, { status: 404, headers: notFound.headers }) : answer;
 }
 
 const app = createServerEntry({ fetch: route });

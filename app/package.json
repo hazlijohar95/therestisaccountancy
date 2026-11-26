@@ -4,9 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev --port 4176",
-    "build": "vite build",
+    "build": "pnpm --dir .. build && vite build",
     "check": "tsc --noEmit",
-    "deploy": "cf deploy"
+    "deploy": "pnpm --dir .. build && cf deploy"
   },
   "dependencies": {
     "@tanstack/react-router": "1.170.46",
