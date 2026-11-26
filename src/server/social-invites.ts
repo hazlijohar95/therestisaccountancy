@@ -134,7 +134,7 @@ export function createSocialInvites(db: Db, now: () => Date = () => new Date()) 
       });
     },
 
-    /** The team's invites: live ones, and any used, expired or withdrawn in the last KEEP_DEAD_DAYS. Newest first. */
+    /** The team's last 100 invites, newest first. The hourly prune drops unused ones dead for KEEP_DEAD_DAYS. */
     teamInvites(): Invite[] {
       return db.prepare(`${INVITES} WHERE i.kind = 'team' ORDER BY i.created_at DESC, i.id DESC LIMIT 100`).all().map(toInvite);
     },

@@ -82,3 +82,18 @@ test('the schema refuses a request decided without a time, or a link that is not
   assert.throws(() => w.db.prepare(`INSERT INTO social_requests (name, email, about, state, created_at) VALUES ('A', 'a@b.my', 'x', 'declined', '2026-01-01T00:00:00Z')`).run());
   assert.throws(() => w.db.prepare(`INSERT INTO social_requests (name, email, about, link, created_at) VALUES ('A', 'a@b.my', 'x', 'http://a.my', '2026-01-01T00:00:00Z')`).run());
 });
+
+test('approving someone who never set a password gives their new link the full time before the account counts as abandoned', async () => {
+  const w = socialWorld();
+  const host = await w.host;
+  const { memberId } = value(w.profiles.signUp({ name: 'Siti', email: 'siti@firm.my', handle: 'siti' }, { via: 'open' }));
+  w.later(13 * DAY);
+  value(w.requests.request(draft()));
+  const approval = value(w.requests.approve(w.requests.queue()[0]?.id ?? 0, host.id));
+  assert.deepEqual(approval, { kind: 'welcome', memberId });
+  w.later(2 * DAY);
+  assert.equal(w.profiles.pruneAbandoned(), 0, 'the clock started again at approval');
+  assert.ok(w.club.member(memberId));
+  w.later(13 * DAY);
+  assert.equal(w.profiles.pruneAbandoned(), 1, 'and runs out like any other');
+});

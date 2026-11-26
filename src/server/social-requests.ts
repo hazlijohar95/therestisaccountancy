@@ -96,6 +96,8 @@ export function createSocialRequests(db: Db, now: () => Date = () => new Date())
         if (optionalText(member, 'suspended_at') !== null) refuse('suspended');
         const memberId = integer(member, 'id');
         admit(db, now(), memberId, { via: 'request' });
+        /* Their welcome link starts now, so the clock for sign-ups abandoned before a password starts again too. */
+        db.prepare('UPDATE members SET joined_at = ? WHERE id = ? AND password_hash IS NULL').run(iso(now()), memberId);
         decide(id, 'approved', teamId);
         if (optionalText(member, 'password_hash') === null) return { kind: 'welcome', memberId };
         return { kind: 'sign-in', name: text(member, 'name'), email: text(member, 'email'), hasProfile: request.onSocial !== null };
