@@ -1,9 +1,10 @@
 import cloudflare from '@astrojs/cloudflare';
 import react from '@astrojs/react';
 import { defineConfig } from 'astro/config';
+import { site as club } from './src/data/site.ts';
 
 /* The public address. Emailed links are built on it, never on a request's Host header. */
-const site = process.env.SITE_URL ?? 'https://better-accountant.com';
+const site = process.env.SITE_URL ?? `https://${club.domain}`;
 
 export default defineConfig({
   site,

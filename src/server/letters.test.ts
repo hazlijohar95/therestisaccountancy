@@ -13,11 +13,11 @@ test('typed text is escaped and never becomes a link', async () => {
 });
 
 test('a link the club built is clickable in HTML and readable in text, as a button when it has a label', async () => {
-  const { html, text } = await renderLetter(letter(['Hello Aina,', { href: 'https://better-accountant.com/welcome?token=a&b' }, { href: 'https://better-accountant.com/members/pay', label: 'Pay now' }]));
-  assert.ok(html.includes('href="https://better-accountant.com/welcome?token=a&amp;b"'));
+  const { html, text } = await renderLetter(letter(['Hello Aina,', { href: 'https://therestisaccountancy.com/welcome?token=a&b' }, { href: 'https://therestisaccountancy.com/members/pay', label: 'Pay now' }]));
+  assert.ok(html.includes('href="https://therestisaccountancy.com/welcome?token=a&amp;b"'));
   assert.ok(html.includes('>Pay now<'));
-  assert.ok(text.includes('https://better-accountant.com/welcome?token=a&b'));
-  assert.ok(text.includes('https://better-accountant.com/members/pay'));
+  assert.ok(text.includes('https://therestisaccountancy.com/welcome?token=a&b'));
+  assert.ok(text.includes('https://therestisaccountancy.com/members/pay'));
 });
 
 test('an optional email carries its unsubscribe link in the footer', async () => {
@@ -27,7 +27,7 @@ test('an optional email carries its unsubscribe link in the footer', async () =>
 });
 
 test('a backslash in a session title is escaped in the calendar file', () => {
-  const ics = calendarFile(sessionEvent({ id: 1, title: 'A\\B', kind: 'Clinics', startsAt: '2026-11-26T12:00:00Z', minutes: 60, link: 'https://meet.example/x', detail: '', going: 0, attending: false }, 'better-accountant.com'));
+  const ics = calendarFile(sessionEvent({ id: 1, title: 'A\\B', kind: 'Clinics', startsAt: '2026-11-26T12:00:00Z', minutes: 60, link: 'https://meet.example/x', detail: '', going: 0, attending: false }));
   assert.ok(ics.includes('SUMMARY:A\\\\B\r\n'));
 });
 

@@ -1,7 +1,8 @@
 import { bindings, defineConfig, exports, triggers } from 'cf/config';
 import * as entrypoint from './src/worker.ts' with { type: 'cf-worker' };
+import { site } from './src/data/site.ts';
 
-const sender = 'club@better-accountant.com';
+const sender = site.inbox;
 
 export default defineConfig({
   accountId: '9c006d850453ab5c068f5688d138521b',
@@ -27,7 +28,7 @@ export default defineConfig({
     },
     /** Hourly: session reminders, and the digest on Monday mornings. */
     triggers: [triggers.scheduled({ schedule: '0 * * * *' })],
-    domains: ['better-accountant.com', 'www.better-accountant.com'],
+    domains: [site.domain, `www.${site.domain}`],
     workersDev: false,
     observability: { enabled: true },
   },

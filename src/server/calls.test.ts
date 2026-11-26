@@ -9,7 +9,7 @@ import type { Result } from './result.ts';
 
 const PASSWORD = 'correct horse battery';
 const LINK = 'https://meet.example/hazli';
-const SITE = 'https://better-accountant.com/';
+const SITE = 'https://therestisaccountancy.com/';
 const HOUR = 3_600_000;
 /** 3 pm on Thursday 26 November, Malaysia time. */
 const THURSDAY = '2026-11-26T07:00:00Z';
@@ -221,8 +221,8 @@ test("a call goes into each side's calendar as one event, with a UID no session 
   const w = await world();
   const id = w.slot(THURSDAY);
   const first = value(w.calls.book(w.aina.id, id, 'Repricing.')).call;
-  const forMember = calendarFile(callEvent(first, 'member', 'better-accountant.com'));
-  const forHost = calendarFile(callEvent(first, 'host', 'better-accountant.com'));
+  const forMember = calendarFile(callEvent(first, 'member'));
+  const forHost = calendarFile(callEvent(first, 'host'));
   assert.ok(forMember.includes('\r\nSUMMARY:One-to-one with Hazli Johar\r\n'));
   assert.ok(forHost.includes('\r\nSUMMARY:One-to-one with Aina Rahman\r\n'));
   assert.match(forMember, /\r\nDTSTART:20261126T070000Z\r\nDTEND:20261126T073000Z\r\n/);
@@ -230,12 +230,12 @@ test("a call goes into each side's calendar as one event, with a UID no session 
   assert.match(uid(forMember) ?? '', /^call-/);
 
   const session = { id, title: 'Clinic', kind: 'Clinics' as const, startsAt: THURSDAY, minutes: 30, link: LINK, detail: '', going: 0, attending: false };
-  assert.notEqual(uid(calendarFile(sessionEvent(session, 'better-accountant.com'))), uid(forMember));
+  assert.notEqual(uid(calendarFile(sessionEvent(session))), uid(forMember));
 
   value(w.calls.cancelBooking(w.aina.id, id));
   w.at('2026-11-25T02:00:00Z');
   const second = value(w.calls.book(w.abu.id, id, 'My first hire.')).call;
-  assert.notEqual(uid(calendarFile(callEvent(second, 'host', 'better-accountant.com'))), uid(forHost), "the host's cancelled event does not swallow the new booking");
+  assert.notEqual(uid(calendarFile(callEvent(second, 'host'))), uid(forHost), "the host's cancelled event does not swallow the new booking");
 });
 
 /** A booked call from the store, with a topic that tries to be a link. */
@@ -256,7 +256,7 @@ test('booking a call writes to the member, from the host, and to the host with w
   assert.equal(toMember.subject, 'Booked: your call with Hazli on 26 Nov 2026, 3:00 pm');
   const member = await renderLetter(toMember);
   assert.ok(member.html.includes(`href="${LINK}"`), 'the member gets the link');
-  assert.ok(member.html.includes('href="https://better-accountant.com/members/calls"'));
+  assert.ok(member.html.includes('href="https://therestisaccountancy.com/members/calls"'));
   assert.ok(member.text.includes('Repricing. See https://evil.example <b>now</b>'));
   assert.ok(!member.html.includes('href="https://evil.example'), 'what they typed never becomes a link');
   assert.match(calendarOf(toMember), /METHOD:PUBLISH[\s\S]*SUMMARY:One-to-one with Hazli Johar/);
@@ -267,7 +267,7 @@ test('booking a call writes to the member, from the host, and to the host with w
   const host = await renderLetter(toHost);
   assert.ok(host.text.includes('Aina Rahman (aina@firm.com.my)'));
   assert.ok(host.text.includes('Repricing. See https://evil.example'));
-  assert.ok(host.html.includes('href="https://better-accountant.com/admin/calls"'));
+  assert.ok(host.html.includes('href="https://therestisaccountancy.com/admin/calls"'));
   assert.match(calendarOf(toHost), /METHOD:PUBLISH[\s\S]*SUMMARY:One-to-one with Aina Rahman/);
 });
 
@@ -301,7 +301,7 @@ test('a host cancelling tells only the member, from the host, and points them at
   assert.equal(letter.from, 'Hazli from The Rest Is Accountancy');
   const { html, text } = await renderLetter(letter);
   assert.ok(text.includes('your call with Hazli Johar on 26 Nov 2026, 3:00 pm'));
-  assert.ok(html.includes('href="https://better-accountant.com/members/calls"'));
+  assert.ok(html.includes('href="https://therestisaccountancy.com/members/calls"'));
   assert.ok(!html.includes(`href="${LINK}"`), 'no link to a call that is off');
   assert.match(calendarOf(letter), /METHOD:CANCEL[\s\S]*STATUS:CANCELLED/);
 });

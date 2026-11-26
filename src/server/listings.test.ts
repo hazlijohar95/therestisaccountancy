@@ -282,11 +282,11 @@ test('the hosts are told about a listing to check, and only the hosts', async ()
   const w = await world();
   const aina = await w.member('Aina Rahman', 'aina@firm.com.my');
   const { listing } = w.listings.save(aina.id, practice());
-  const letter = listingQueuedLetter(['host@club.test'], listing, 'submitted', 'https://better-accountant.com/admin/listings');
+  const letter = listingQueuedLetter(['host@club.test'], listing, 'submitted', 'https://therestisaccountancy.com/admin/listings');
   assert.deepEqual(letter.to, ['host@club.test']);
   const { html, text } = await renderLetter(letter);
   assert.ok(text.includes('Rahman & Co (Petaling Jaya, Selangor)'));
-  assert.ok(html.includes('href="https://better-accountant.com/admin/listings"'));
+  assert.ok(html.includes('href="https://therestisaccountancy.com/admin/listings"'));
   assert.ok(!text.includes('hello@rahman.example'), 'the typed contact address is not where club mail goes');
 });
 
@@ -294,11 +294,11 @@ test('the member hears from the host who listed it, at their own address, with a
   const w = await world();
   const aina = await w.member('Aina Rahman', 'aina@firm.com.my');
   const listed = w.listed(aina.id, practice());
-  const letter = listingApprovedLetter(listed, w.host, 'https://better-accountant.com');
+  const letter = listingApprovedLetter(listed, w.host, 'https://therestisaccountancy.com');
   assert.equal(letter.to, 'aina@firm.com.my');
   assert.equal(letter.from, 'Hazli from The Rest Is Accountancy');
   const { html } = await renderLetter(letter);
-  assert.ok(html.includes(`href="https://better-accountant.com/directory?state=Selangor#listing-${aina.id}"`));
+  assert.ok(html.includes(`href="https://therestisaccountancy.com/directory?state=Selangor#listing-${aina.id}"`));
 });
 
 test('approving a paused listing tells the member it shows once they unpause, and links to no entry', async () => {
@@ -307,11 +307,11 @@ test('approving a paused listing tells the member it shows once they unpause, an
   const { listing } = w.listings.save(aina.id, practice());
   w.listings.setPaused(aina.id, true);
   const approved = value(w.listings.approve(aina.id, w.host.id, listing.updatedAt));
-  const letter = listingApprovedLetter(approved, w.host, 'https://better-accountant.com');
+  const letter = listingApprovedLetter(approved, w.host, 'https://therestisaccountancy.com');
   assert.equal(letter.subject, 'Your directory listing is approved');
   const { html, text } = await renderLetter(letter);
   assert.ok(text.includes('It is paused, so it goes in the directory when you unpause it.'));
-  assert.ok(html.includes('href="https://better-accountant.com/members/listing"'));
+  assert.ok(html.includes('href="https://therestisaccountancy.com/members/listing"'));
   assert.ok(!html.includes('/directory?'), 'no link to an entry the public cannot see');
 });
 
@@ -321,11 +321,11 @@ test('a returned listing carries the note as plain text', async () => {
   const { listing } = w.listings.save(aina.id, practice());
   const note = 'Your site at https://rahman.example does not load. <b>Check it</b>.';
   const returned = value(w.listings.sendBack(aina.id, listing.updatedAt, note));
-  const letter = listingReturnedLetter(returned, note, w.host, 'https://better-accountant.com');
+  const letter = listingReturnedLetter(returned, note, w.host, 'https://therestisaccountancy.com');
   assert.equal(letter.to, 'aina@firm.com.my');
   const { html, text } = await renderLetter(letter);
   assert.ok(text.includes('https://rahman.example does not load.'));
   assert.ok(!html.includes('href="https://rahman.example'), 'a typed address never becomes a link');
   assert.ok(html.includes('&lt;b&gt;Check it&lt;/b&gt;'));
-  assert.ok(html.includes('href="https://better-accountant.com/members/listing"'));
+  assert.ok(html.includes('href="https://therestisaccountancy.com/members/listing"'));
 });

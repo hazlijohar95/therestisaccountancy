@@ -30,9 +30,15 @@ const fold = (line: string) => {
   return [...parts, part].join('\r\n ');
 };
 
+/**
+ * The host part of every event UID. Fixed, not the site's domain: calendars match an update or a cancellation to the
+ * event by UID, so it must not change when the site moves. Events were first sent from this domain.
+ */
+export const UID_HOST = 'better-accountant.com';
+
 /** A live session as a calendar event, under the UID it has always had. */
-export const sessionEvent = (session: LiveSession, host: string): CalendarEvent => ({
-  uid: `session-${session.id}@${host}`,
+export const sessionEvent = (session: LiveSession): CalendarEvent => ({
+  uid: `session-${session.id}@${UID_HOST}`,
   title: session.title,
   startsAt: session.startsAt,
   minutes: session.minutes,

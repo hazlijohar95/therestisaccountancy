@@ -29,13 +29,13 @@ test('a checkout with savable methods asks CHIP to keep the card, and sends the 
   }) as typeof fetch;
   const purchase = await chip({ secretKey: 'k', brandId: 'brand' }, recording).purchase({
     email: 'aina@firm.com.my', name: 'Aina', product: 'Membership, one month', amount: 9900, reference: 'member-1', saveWith: ['visa', 'mastercard'],
-    callback: 'https://better-accountant.com/chip/callback', back: { paid: 'https://x/paid', failed: 'https://x/failed' },
+    callback: 'https://therestisaccountancy.com/chip/callback', back: { paid: 'https://x/paid', failed: 'https://x/failed' },
   });
   assert.equal(purchase.checkout_url, 'https://gate.chip-in.asia/p/p1/');
   assert.deepEqual(sent, {
     brand_id: 'brand', reference: 'member-1', client: { email: 'aina@firm.com.my', full_name: 'Aina' },
     purchase: { currency: 'MYR', products: [{ name: 'Membership, one month', price: 9900 }] }, send_receipt: true,
-    success_callback: 'https://better-accountant.com/chip/callback', force_recurring: true, payment_method_whitelist: ['visa', 'mastercard'],
+    success_callback: 'https://therestisaccountancy.com/chip/callback', force_recurring: true, payment_method_whitelist: ['visa', 'mastercard'],
     success_redirect: 'https://x/paid', failure_redirect: 'https://x/failed', cancel_redirect: 'https://x/failed',
   });
 });

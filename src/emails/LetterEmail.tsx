@@ -7,7 +7,7 @@ import type { Line } from '../server/letters.ts';
  * 03-Protocol): a dark 640px column, a large headline, muted body text and a quiet footer. The type and wordmark are
  * the club's own, served from /email/ on the site.
  */
-const HOME = 'https://better-accountant.com';
+const HOME = `https://${site.domain}`;
 
 const color = { page: '#212121', panel: '#131313', fg: '#FFFFFF', fg2: '#C4C4C4', fg3: '#818181', stroke: '#2B2B2B' };
 const sans = "'Instrument Sans', Arial, sans-serif";
@@ -77,7 +77,7 @@ export function LetterEmail({ subject, lines, unsubscribe }: { subject: string; 
           <Section style={styles.footer} className="gutter">
             <Text style={styles.tagline}>{site.tagline}</Text>
             <Text style={styles.small}>
-              <Link href={HOME} style={styles.quiet}>better-accountant.com</Link>
+              <Link href={HOME} style={styles.quiet}>{site.domain}</Link>
             </Text>
             {unsubscribe && (
               <Text style={styles.small}>

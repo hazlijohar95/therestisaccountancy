@@ -6,4 +6,8 @@ export const site = {
   tagline: 'Club, membership and community for accountants.',
   /** The host who signs the emails that come from a person. Replies reach club@, which forwards to the hosts. */
   host: 'Hazli',
+  /** The public address. Emailed links, the Worker's domains and the mail sender are all built on it. */
+  domain: 'therestisaccountancy.com',
+  /** The club's inbox. Email Routing forwards it to the hosts, and letters are sent from it. */
+  inbox: 'club@therestisaccountancy.com',
 } as const;

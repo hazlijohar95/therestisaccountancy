@@ -2,6 +2,7 @@ import { ActionError, defineAction } from 'astro:actions';
 import { getEntry } from 'astro:content';
 import { z } from 'astro/zod';
 import { joinSection } from '../data/club.ts';
+import { site } from '../data/site.ts';
 import type { SignInRefusal } from '../server/club.ts';
 import { joinRequestLetter, passwordLetter } from '../server/letters.ts';
 import { send } from '../server/mail.ts';
@@ -9,7 +10,7 @@ import { email, mismatch, newPassword, oneLine, passwordsMatch, formKey, paidMem
 
 const signInRefusals: Record<SignInRefusal, Refusal> = {
   'no-match': { code: 'UNAUTHORIZED', message: 'That email and password do not match.' },
-  suspended: { code: 'FORBIDDEN', message: 'Your membership is paused. Write to club@better-accountant.com to ask about it.' },
+  suspended: { code: 'FORBIDDEN', message: `Your membership is paused. Write to ${site.inbox} to ask about it.` },
 };
 
 export const account = {

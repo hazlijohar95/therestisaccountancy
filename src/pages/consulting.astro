@@ -4,9 +4,10 @@ import Closing from '../components/Closing.astro';
 import PageHead from '../components/PageHead.astro';
 import Section from '../components/Section.astro';
 import { programmeBySlug, programmePath, type Programme } from '../data/programmes.ts';
+import { site } from '../data/site.ts';
 import Page from '../layouts/Page.astro';
 
-const inbox = 'club@better-accountant.com';
+const inbox = site.inbox;
 const enquiry = `mailto:${inbox}?subject=${encodeURIComponent('Consulting enquiry')}`;
 
 const areas = (['pricing', 'advisory', 'ai', 'growth'] as const).flatMap((slug) => programmeBySlug(slug) ?? []) satisfies Programme[];

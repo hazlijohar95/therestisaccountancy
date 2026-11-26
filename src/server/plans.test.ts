@@ -196,23 +196,23 @@ test('the wait is told in words', () => {
 test('the admins hear a plan has come in, with its question and a link to answer it', async () => {
   const { aina, sendAll } = await setup();
   const plan = sendAll(aina.id, { ...complete, question: 'Should I hire first?\n\nOr raise fees?' });
-  const letter = planSentLetter(['hazli@club.test'], plan, 'https://better-accountant.com/admin/plans#plan-1');
+  const letter = planSentLetter(['hazli@club.test'], plan, 'https://therestisaccountancy.com/admin/plans#plan-1');
   assert.deepEqual(letter.to, ['hazli@club.test'], 'never the member');
   assert.equal(letter.subject, 'Aina Rahman sent their plan');
   const { html, text } = await renderLetter(letter);
   assert.ok(text.includes('Should I hire first?'));
   assert.ok(text.includes('Or raise fees?'));
-  assert.ok(html.includes('href="https://better-accountant.com/admin/plans#plan-1"'));
+  assert.ok(html.includes('href="https://therestisaccountancy.com/admin/plans#plan-1"'));
 });
 
 test('the member hears from the host who answered, with a link to read it', async () => {
   const { plans, host, aina, sendAll } = await setup();
   const answered = value(plans.reply(host.id, sendAll(aina.id), 'Start with pricing.'));
-  const letter = planAnsweredLetter(answered, host, 'https://better-accountant.com/members/plan/1');
+  const letter = planAnsweredLetter(answered, host, 'https://therestisaccountancy.com/members/plan/1');
   assert.equal(letter.to, 'aina@firm.com.my');
   assert.equal(letter.from, 'Hazli from The Rest Is Accountancy');
   assert.equal(letter.subject, 'Hazli answered your plan');
   const { html, text } = await renderLetter(letter);
-  assert.ok(html.includes('href="https://better-accountant.com/members/plan/1"'));
+  assert.ok(html.includes('href="https://therestisaccountancy.com/members/plan/1"'));
   assert.ok(text.includes('Hi Aina,'));
 });

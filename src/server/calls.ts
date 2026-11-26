@@ -1,6 +1,6 @@
 import { site } from '../data/site.ts';
 import { firstName, formatMoment } from '../lib/format.ts';
-import { calendarFile, type CalendarEvent } from './calendar.ts';
+import { calendarFile, UID_HOST, type CalendarEvent } from './calendar.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Param, type Row } from './db.ts';
 import type { Letter, Line } from './letters.ts';
 import type { Recipient } from './mailings.ts';
@@ -250,10 +250,10 @@ type Side = 'member' | 'host';
  * A call as an event in one side's calendar. Each booking has its own UID, never a session's, so cancelling one
  * booking cannot hide the next booking of the same slot in a host's calendar.
  */
-export function callEvent(call: Call, side: Side, host: string): CalendarEvent {
+export function callEvent(call: Call, side: Side): CalendarEvent {
   const { member, topic, bookedAt } = call.booking;
   return {
-    uid: `call-${call.id}-${bookedAt.replace(/\D/g, '')}@${host}`,
+    uid: `call-${call.id}-${bookedAt.replace(/\D/g, '')}@${UID_HOST}`,
     title: `One-to-one with ${side === 'member' ? call.host.name : member.name}`,
     startsAt: call.startsAt,
     minutes: call.minutes,
@@ -340,7 +340,7 @@ export function callLetters(news: CallNews, call: Call, siteUrl: string): Letter
     const letter: Letter = { to: to[side].email, subject: flat(draft.subject), lines: [hi(to[side].name), ...draft.lines] };
     const from = side === 'member' ? { from: `${hostFirst} from ${site.name}` } : {};
     const attachments = draft.calendar
-      ? { attachments: [{ filename: 'call.ics', type: 'text/calendar; charset=utf-8', content: calendarFile(callEvent(call, side, new URL(siteUrl).hostname), draft.calendar === 'remove') }] }
+      ? { attachments: [{ filename: 'call.ics', type: 'text/calendar; charset=utf-8', content: calendarFile(callEvent(call, side), draft.calendar === 'remove') }] }
       : {};
     return [{ ...letter, ...from, ...attachments }];
   });

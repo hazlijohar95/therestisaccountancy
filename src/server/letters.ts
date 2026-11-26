@@ -168,7 +168,7 @@ export function sessionLetters(news: SessionNews, session: LiveSession, members:
     },
   } as const satisfies Record<SessionNews, { subject: string; lines: readonly Line[] }>;
   const { subject, lines } = body[news];
-  const attachments = news === 'reminder' ? null : [{ filename: 'session.ics', type: 'text/calendar; charset=utf-8', content: calendarFile(sessionEvent(session, new URL(siteUrl).hostname), news === 'cancelled') }];
+  const attachments = news === 'reminder' ? null : [{ filename: 'session.ics', type: 'text/calendar; charset=utf-8', content: calendarFile(sessionEvent(session), news === 'cancelled') }];
   return members.map((to) => {
     const letter = { to: to.email, subject: flat(subject), lines: [hi(to.name), ...lines] };
     return attachments ? { ...letter, attachments } : letter;
