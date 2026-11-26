@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { progressOf } from "./domain/progress.ts";
 import { merge, seconds, type Range, type Rate } from "./domain/rules.ts";
 import type { Course } from "./domain/types.ts";
-import { useActions, useAppState, useCatalogue, useSession } from "./state.tsx";
+import { useActions, useAppState, useSession } from "./state.tsx";
 
 export { RATES, type Rate } from "./domain/rules.ts";
 
@@ -16,7 +16,8 @@ interface Player {
   rate: Rate;
   /** A review checkpoint the listener has reached and not yet answered. */
   pending: number | null;
-  play: (course: Course, at?: number) => void;
+  /** A preview plays a Studio draft: nothing is reported and review questions do not pause it. */
+  play: (course: Course, at?: number, options?: { preview?: boolean }) => void;
   toggle: () => void;
   seek: (t: number) => void;
   setRate: (r: Rate) => void;
@@ -36,16 +37,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const state = useAppState();
   const session = useSession();
   const actions = useActions();
-  const { courseById } = useCatalogue();
   const audio = useRef<HTMLAudioElement | null>(null);
   const last = useRef<number | null>(null);
-  const [courseId, setCourseId] = useState<string | null>(null);
+  const [course, setCourse] = useState<Course | null>(null);
+  const [preview, setPreview] = useState(false);
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [rate, setRateState] = useState<Rate>(1);
   const [pending, setPending] = useState<number | null>(null);
-  const course = courseId ? (courseById(courseId) ?? null) : null;
-  const member = session.status === "member";
+  const courseId = course?.id ?? null;
+  const member = session.status === "member" && !preview;
 
   const progress = course ? progressOf(state, course) : null;
   const answeredRef = useRef<readonly number[]>([]);
@@ -116,7 +117,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const prev = last.current;
       last.current = t;
       setTime(t);
-      if (prev === null || t <= prev || t - prev > 1.5 * el.playbackRate) return;
+      if (preview || prev === null || t <= prev || t - prev > 1.5 * el.playbackRate) return;
       const hit = course.checkpointTimes.findIndex((at, i) => !answeredRef.current.includes(i) && prev <= at && at <= t);
       if (hit >= 0) {
         const at = course.checkpointTimes[hit]!;
@@ -153,13 +154,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       el.removeEventListener("pause", onPause);
       el.removeEventListener("ended", onPause);
     };
-  }, [course]);
+  }, [course, preview]);
 
   const play = useCallback(
-    (next: Course, at?: number) => {
+    (next: Course, at?: number, options: { preview?: boolean } = {}) => {
       const el = audio.current;
       if (!el) return;
-      if (courseId !== next.id) {
+      const asPreview = options.preview ?? false;
+      if (courseId !== next.id || course?.version !== next.version || preview !== asPreview) {
         reportRef.current(true);
         el.src = next.audio;
         el.playbackRate = rate;
@@ -168,7 +170,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         last.current = el.currentTime;
         lastSent.current = { heard: -1, position: -1 };
         setTime(el.currentTime);
-        setCourseId(next.id);
+        setCourse(next);
+        setPreview(asPreview);
         setPending(null);
       } else if (at !== undefined) {
         el.currentTime = at;
@@ -178,7 +181,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         navigator.mediaSession.metadata = new MediaMetadata({ title: next.title, artist: next.show.title, album: "CPE" });
       }
     },
-    [courseId, rate, state],
+    [course, courseId, preview, rate, state],
   );
 
   const value = useMemo<Player>(

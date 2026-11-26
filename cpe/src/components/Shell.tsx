@@ -2,9 +2,9 @@ import { formatHours } from "../domain/courses.ts";
 import { ledgerLines, standing } from "../domain/ledger.ts";
 import { phaseOf, type Phase } from "../domain/progress.ts";
 import { Link } from "../router.tsx";
-import { useAppState, useCatalogue } from "../state.tsx";
+import { useAppState, useCatalogue, useSession } from "../state.tsx";
 import { Cover } from "./Cover.tsx";
-import { Check, Home, Ledger, Search } from "./Icons.tsx";
+import { Check, Home, Ledger, Plus, Search } from "./Icons.tsx";
 import { Logo } from "./Logo.tsx";
 import { Ring } from "./Ring.tsx";
 
@@ -30,6 +30,8 @@ export function statusLabel(phase: Phase): string {
 export function Rail({ path }: { path: string }) {
   const state = useAppState();
   const { courses } = useCatalogue();
+  const session = useSession();
+  const admin = session.status === "member" && session.member.role === "admin";
   const s = standing(ledgerLines(state), state.requirement, new Date());
   return (
     <aside className="rail" aria-label="Main">
@@ -49,6 +51,12 @@ export function Rail({ path }: { path: string }) {
             {label}
           </Link>
         ))}
+        {admin && (
+          <Link href="/studio" className={`navlink${path.startsWith("/studio") ? " navlink--on" : ""}`} aria-current={path.startsWith("/studio") ? "page" : undefined} data-test="nav-studio">
+            <Plus width={22} height={22} />
+            Studio
+          </Link>
+        )}
       </nav>
       <div className="rail__lib">
         <p className="eyebrow">Courses</p>

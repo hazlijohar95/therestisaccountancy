@@ -1,6 +1,6 @@
 import type { AppState, Certificate, CourseProgress } from "./progress.ts";
 import type { Range } from "./rules.ts";
-import type { Course, Field, Level, PublicQuestion, Show } from "./types.ts";
+import type { Audio, Course, CourseScript, Field, Level, PublicQuestion, Show, Timing } from "./types.ts";
 
 /** The contract between the app and the CPE Worker. Every response is JSON in one of these shapes. */
 
@@ -69,4 +69,45 @@ export interface LegacyImport {
 
 export interface ApiError {
   error: string;
+}
+
+/* The Studio, for club admins only. These carry answers: they are never sent to anyone but an admin. */
+
+export type VersionStatus = "draft" | "published";
+
+/** One version of a course as an author sees it, answers included. */
+export interface StudioVersion {
+  readonly courseId: string;
+  readonly version: number;
+  readonly status: VersionStatus;
+  readonly script: CourseScript;
+  readonly audio: Audio | null;
+  readonly timing: Timing | null;
+  readonly author: string;
+  readonly updatedAt: string;
+  readonly publishedAt: string | null;
+}
+
+export interface StudioIndex {
+  courses: readonly { id: string; title: string; showId: string; versions: readonly { version: number; status: VersionStatus; updatedAt: string; publishedAt: string | null }[] }[];
+  shows: Show[];
+  /** Whether automatic alignment is configured. Without it, timings are set by hand. */
+  aligner: string | null;
+}
+
+export interface StudioCourse {
+  draft: StudioVersion | null;
+  /** The newest published version, for reference while editing. */
+  live: StudioVersion | null;
+  /** Why the draft cannot be published yet. Empty when it can. */
+  problems: string[];
+  shows: Show[];
+  aligner: string | null;
+}
+
+export interface UploadStart {
+  key: string;
+  uploadId: string;
+  /** Bytes per part. Every part but the last must be exactly this size. */
+  partSize: number;
 }

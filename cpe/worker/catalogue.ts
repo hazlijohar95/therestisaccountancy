@@ -1,3 +1,4 @@
+import type { StudioVersion, VersionStatus } from "../src/domain/api.ts";
 import type { Audio, CourseScript, Field, Level, Show, Timing } from "../src/domain/types.ts";
 import { integer, json, migrate, oneOf, optionalText, real, text, type Db, type Row } from "./db.ts";
 import { scripts as seedScripts, shows as seedShows } from "./seed/catalog.ts";
@@ -52,20 +53,10 @@ const MIGRATIONS: readonly string[] = [
   `,
 ];
 
-export type Status = "draft" | "published";
+export type Status = VersionStatus;
 
 /** One version of a course as stored: the author's script with answers, and its audio and timings once attached. */
-export interface Entry {
-  readonly courseId: string;
-  readonly version: number;
-  readonly status: Status;
-  readonly script: CourseScript;
-  readonly audio: Audio | null;
-  readonly timing: Timing | null;
-  readonly author: string;
-  readonly updatedAt: string;
-  readonly publishedAt: string | null;
-}
+export type Entry = StudioVersion;
 
 /** A published version with everything needed to play it. */
 export interface Published extends Entry {

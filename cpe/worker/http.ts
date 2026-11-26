@@ -31,3 +31,16 @@ export async function paidMember(request: Request, env: CpeEnv): Promise<ClubIde
   return who;
 }
 
+
+/** A club admin, or a refusal. The Studio checks this on every request. */
+export async function admin(request: Request, env: CpeEnv): Promise<ClubIdentity> {
+  const who = await identify(request, env);
+  if (!who) throw refuse(401, "Sign in to the club first.");
+  if (who.role !== "admin") throw refuse(403, "The Studio is for club admins.");
+  return who;
+}
+
+export type Handler = (request: Request, env: CpeEnv, params: string[]) => Promise<unknown>;
+
+/** [method, path, handler]. A path segment written :x captures that segment. */
+export type Route = [string, string, Handler];

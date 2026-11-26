@@ -6,7 +6,7 @@ import { usePlayer } from "./player.tsx";
 import { Link, usePath } from "./router.tsx";
 import { useCatalogue, useSession } from "./state.tsx";
 import { Gate } from "./pages/Gate.tsx";
-import { Assessment, CertificatePage, CheckpointCard, CoursePage, Home, Landing, Ledger, PlayerBar, prefetchWhenIdle, Search, ShowPage, ToastLayer, VerifyPage } from "./pages/index.ts";
+import { Assessment, CertificatePage, CheckpointCard, CoursePage, Home, Landing, Ledger, PlayerBar, prefetchWhenIdle, Search, ShowPage, Studio, ToastLayer, VerifyPage } from "./pages/index.ts";
 import { NotFound } from "./pages/NotFound.tsx";
 
 const Pending = () => <div className="view" aria-busy="true" />;
@@ -21,6 +21,7 @@ type Route =
   | { page: "assessment"; id: string }
   | { page: "certificate"; id: string }
   | { page: "verify"; id: string }
+  | { page: "studio"; id: string | null }
   | { page: "missing" };
 
 function route(pathname: string): Route {
@@ -34,11 +35,12 @@ function route(pathname: string): Route {
   if (a === "course" && b && c === "assessment") return { page: "assessment", id: b };
   if (a === "certificate" && b && !c) return { page: "certificate", id: b };
   if (a === "verify" && b && !c) return { page: "verify", id: decodeURIComponent(b) };
+  if (a === "studio" && !c) return { page: "studio", id: b ?? null };
   return { page: "missing" };
 }
 
 function titleOf(r: Route, catalogue: ReturnType<typeof useCatalogue>): string {
-  const course = "id" in r ? catalogue.courseById(r.id)?.title : undefined;
+  const course = "id" in r && r.id ? catalogue.courseById(r.id)?.title : undefined;
   switch (r.page) {
     case "landing":
       return "CPE you can listen to";
@@ -58,6 +60,8 @@ function titleOf(r: Route, catalogue: ReturnType<typeof useCatalogue>): string {
       return "Certificate";
     case "verify":
       return "Certificate check";
+    case "studio":
+      return "Studio";
     case "missing":
       return "Not found";
   }
@@ -151,6 +155,7 @@ export function App() {
           {r.page === "ledger" && <Ledger />}
           {r.page === "show" && <ShowPage key={r.id} id={r.id} />}
           {r.page === "course" && <CoursePage key={r.id} id={r.id} />}
+          {r.page === "studio" && <Studio id={r.id} />}
           {r.page === "missing" && <NotFound />}
         </Suspense>
       </main>

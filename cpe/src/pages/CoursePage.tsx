@@ -52,7 +52,7 @@ function Steps({ course, phase, heard, answered }: { course: Course; phase: Phas
   );
 }
 
-function CourseView({ course }: { course: Course }) {
+export function CourseView({ course, preview = false }: { course: Course; preview?: boolean }) {
   const state = useAppState();
   const player = usePlayer();
   const active = player.course?.id === course.id;
@@ -67,7 +67,7 @@ function CourseView({ course }: { course: Course }) {
   const missed = course.checkpoints
     .map((c, i) => ({ c, i }))
     .filter(({ i }) => !p.checkpoints.includes(i) && course.checkpointTimes[i]! < time - 1);
-  const seek = (t: number) => (active ? player.seek(t) : player.play(course, t));
+  const seek = (t: number) => (active ? player.seek(t) : player.play(course, t, { preview }));
 
   return (
     <div className="view view--course">
@@ -85,7 +85,7 @@ function CourseView({ course }: { course: Course }) {
       </header>
 
       <div className="actions">
-        <PlayButton course={course} size="lg" />
+        <PlayButton course={course} size="lg" preview={preview} />
         {phase.kind === "ready" && (
           <Button className="pill pill--cpe" onClick={() => navigate(`/course/${course.id}/assessment`)} data-test="take-assessment">
             Take the assessment <Arrow width={18} height={18} />
@@ -124,7 +124,7 @@ function CourseView({ course }: { course: Course }) {
           <div className="notice" data-test="missed">
             Answer skipped review questions to unlock the assessment.
             {missed.map(({ c, i }) => (
-              <Button key={i} className="textbtn" onClick={() => player.play(course, course.segments[c.afterSegment]!.start)}>
+              <Button key={i} className="textbtn" onClick={() => player.play(course, course.segments[c.afterSegment]!.start, { preview })}>
                 Back to review question {i + 1}
               </Button>
             ))}
@@ -133,7 +133,7 @@ function CourseView({ course }: { course: Course }) {
       </section>
 
       <div className="course-body">
-        <Transcript course={course} current={active ? current : -1} onPlay={(t) => player.play(course, t)} />
+        <Transcript course={course} current={active ? current : -1} onPlay={(t) => player.play(course, t, { preview })} />
         <aside className="facts">
           <h2 className="eyebrow">You’ll learn to</h2>
           <ul className="learn">

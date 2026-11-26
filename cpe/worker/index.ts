@@ -5,7 +5,8 @@ import type { Range } from "../src/domain/rules.ts";
 import type { Course } from "../src/domain/types.ts";
 import { serveAudio } from "./audio.ts";
 import type { Published } from "./catalogue.ts";
-import { body, paidMember, refuse, Reply } from "./http.ts";
+import { body, paidMember, refuse, Reply, type Route } from "./http.ts";
+import { studio } from "./studio.ts";
 import { identify, type ClubIdentity, type CpeEnv } from "./identity.ts";
 import type { Assessed, Legacy } from "./learner.ts";
 import { openCatalogue, openLearner } from "./objects.ts";
@@ -75,10 +76,7 @@ const signInUrl = (env: CpeEnv, request: Request) => {
   return `${env.CLUB_URL}/sign-in?next=${encodeURIComponent(back.origin === new URL(request.url).origin ? back.href : new URL("/home", request.url).href)}`;
 };
 
-type Handler = (request: Request, env: CpeEnv, params: string[]) => Promise<unknown>;
-
-/** Routes as [method, path pattern]. A segment written :x captures that segment. */
-const routes: [string, string, Handler][] = [
+const routes: Route[] = [
   [
     "GET",
     "/api/session",
@@ -269,6 +267,7 @@ const routes: [string, string, Handler][] = [
       return { id: issued.id, name: issued.name, title: issued.title, field: issued.field, level: issued.level, credits: issued.credits, issuedAt: issued.issuedAt, version: issued.version };
     },
   ],
+  ...studio,
 ];
 
 /** The prototype's browser record, kept only where every field reads cleanly; anything malformed is dropped. */
