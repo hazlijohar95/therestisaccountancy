@@ -4,6 +4,7 @@ import { Arrow, Check, Ledger as LedgerIcon, Play, Plus } from "../components/Ic
 import { Logo } from "../components/Logo.tsx";
 import { Ring } from "../components/Ring.tsx";
 import { formatHours } from "../domain/courses.ts";
+import type { Course } from "../domain/types.ts";
 import { LISTEN_THRESHOLD } from "../domain/progress.ts";
 import { HeroDemo } from "../landing/HeroDemo.tsx";
 import { SamplePlayer } from "../landing/SamplePlayer.tsx";
@@ -21,10 +22,11 @@ const STEPS = [
   { icon: <LedgerIcon width={18} height={18} />, title: "Pass, and it posts", body: "Score 70% on a short assessment. The certificate is issued and the hours land in your ledger." },
 ];
 
-const FACTS = [
+/** The flagship course supplies its own question count, so the claim follows the course. */
+const facts = (flagship: Course | undefined) => [
   { n: heardToCount, label: "of the audio heard to count" },
   { n: "70%", label: "to pass the assessment" },
-  { n: "5", label: `questions for a ${formatHours(1)}h course` },
+  ...(flagship ? [{ n: String(flagship.quizLength), label: `questions for a ${formatHours(flagship.credits)}h course` }] : []),
   { n: "CSV", label: "export of your ledger" },
 ];
 
@@ -114,7 +116,7 @@ export function Landing() {
               <p className="l-eyebrow">Try it now</p>
               <h2 className="l-h2">Listen to a sample course</h2>
             </div>
-            <p className="l-intro">Every sample here is a real course. Press play and it counts, the same as in the app, so you can pick up where you left off.</p>
+            <p className="l-intro">Every sample here is a real course. Press play to hear one. Sign in with your club membership and listening counts towards credit.</p>
           </div>
           {courses.length > 0 && <SamplePlayer courses={courses} />}
         </section>
@@ -137,7 +139,7 @@ export function Landing() {
             ))}
           </ol>
           <ul className="l-facts" aria-label="The rules">
-            {FACTS.map((f) => (
+            {facts(flagship).map((f) => (
               <li key={f.label}>
                 <b>{f.n}</b>
                 <span>{f.label}</span>

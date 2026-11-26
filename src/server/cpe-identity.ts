@@ -51,7 +51,7 @@ export function isIdentityRequest(request: Request): boolean {
 export function parseIdentity(body: unknown): ClubIdentity | null {
   if (body === null) return null;
   if (typeof body !== 'object') throw new TypeError('identity is not an object');
-  const { id, name, email, role, paid } = body as Record<string, unknown>;
+  const { id, name, email, role, paid } = Object.fromEntries(Object.entries(body));
   if (typeof id !== 'number' || typeof name !== 'string' || typeof email !== 'string' || typeof paid !== 'boolean' || (role !== 'member' && role !== 'admin')) {
     throw new TypeError('identity has the wrong shape');
   }

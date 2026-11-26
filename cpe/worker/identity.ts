@@ -28,13 +28,13 @@ export interface CpeEnv {
   ELEVENLABS_API_KEY?: string;
 }
 
-const isIdentity = (v: unknown): v is ClubIdentity => {
+export const isIdentity = (v: unknown): v is ClubIdentity => {
   if (typeof v !== "object" || v === null) return false;
   const o = Object.fromEntries(Object.entries(v));
   return typeof o.id === "number" && typeof o.name === "string" && typeof o.email === "string" && (o.role === "member" || o.role === "admin") && typeof o.paid === "boolean";
 };
 
-export async function identify(request: Request, env: CpeEnv): Promise<ClubIdentity | null> {
+export async function identify(request: Request, env: Pick<CpeEnv, "CLUB">): Promise<ClubIdentity | null> {
   const who: unknown = await env.CLUB.member(request.headers.get("cookie"));
   if (who === null) return null;
   if (!isIdentity(who)) throw new Error("The club answered with an identity of the wrong shape.");

@@ -69,8 +69,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [ended, setEnded] = useState(false);
   const handsFreeRef = useRef(handsFree);
   handsFreeRef.current = handsFree;
+  /** Only a member can answer review questions, so for anyone else (the landing page's samples) they never stop playback. */
+  const askRef = useRef(false);
   const courseId = course?.id ?? null;
   const member = session.status === "member" && !preview;
+  askRef.current = member;
 
   const progress = course ? progressOf(state, course) : null;
   const answeredRef = useRef<readonly number[]>([]);
@@ -141,7 +144,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const prev = last.current;
       last.current = t;
       setTime(t);
-      if (preview || prev === null || t <= prev || t - prev > 1.5 * el.playbackRate) return;
+      if (!askRef.current || prev === null || t <= prev || t - prev > 1.5 * el.playbackRate) return;
       const hit = course.checkpointTimes.findIndex((at, i) => !answeredRef.current.includes(i) && prev <= at && at <= t);
       if (hit < 0) return;
       // Hands-free, or playing in the background where nobody can answer: queue it and keep playing.

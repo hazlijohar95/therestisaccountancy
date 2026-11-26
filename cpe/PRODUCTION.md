@@ -99,13 +99,15 @@ Verified locally (club dev server and CPE dev server, cross-Worker binding throu
   - passes 3/3, gets a server-issued certificate and opens it on the public verify page; the verify API answers without a cookie
 - Hands-free on a sample course: both review questions queued while playing, came up one after another at the end, and unlocked the assessment once answered.
 - Media Session reports playing and paused, with metadata.
+- Signed out, a landing-page sample plays straight past a review question: only members are asked them.
 - The one-time localStorage import produced:
   - a self-reported entry
   - an unverified entry
   - no listening credit, but the resume position
   - the key cleared
   - no duplicates on reload
-- Tests pass: 22 CPE server tests (rules, learner, catalogue, alignment, audio ranges) and the club suite with the new identity and `safeNext` tests. Typecheck and build pass in both apps.
+- The club build bundles `cpe-identity.ts` once, imported by both the entrypoint and the internal route, so they share the token.
+- Tests pass: 25 CPE server tests (rules, learner, catalogue, alignment, audio ranges, the member and admin guards) and the club suite with the new identity and `safeNext` tests. Typecheck and build pass in both apps.
 
 How sign-in was simulated locally: the club dev server ran from this branch under the Worker name `club-cpe-dev`. That name is an uncommitted local tweak to `site/cloudflare.config.ts`, because another session's club dev server holds `better-accountant` in the dev registry. CPE ran with `CLUB_WORKER=club-cpe-dev`. Both servers were reached on `cpe.localhost` so the host-only dev cookie was shared without touching other sessions' `localhost` cookies. A scratch script (not committed) wrote three accounts into the club dev server's own SQLite: the admin, a paid member and an unpaid member. Passwords were hashed with the club's `hashPassword`, and the paid member got a `subscriptions` row. Each sign-in then went through the real club sign-in action, and the real session cookie went through the real binding.
 

@@ -24,7 +24,7 @@ export async function body(request: Request): Promise<Record<string, unknown>> {
 }
 
 /** A signed-in member with paid access, or a refusal the app turns into the right sign-in or membership state. */
-export async function paidMember(request: Request, env: CpeEnv): Promise<ClubIdentity> {
+export async function paidMember(request: Request, env: Pick<CpeEnv, "CLUB">): Promise<ClubIdentity> {
   const who = await identify(request, env);
   if (!who) throw refuse(401, "Sign in to the club first.");
   if (!who.paid) throw refuse(403, "CPE is part of paid membership.");
@@ -33,7 +33,7 @@ export async function paidMember(request: Request, env: CpeEnv): Promise<ClubIde
 
 
 /** A club admin, or a refusal. The Studio checks this on every request. */
-export async function admin(request: Request, env: CpeEnv): Promise<ClubIdentity> {
+export async function admin(request: Request, env: Pick<CpeEnv, "CLUB">): Promise<ClubIdentity> {
   const who = await identify(request, env);
   if (!who) throw refuse(401, "Sign in to the club first.");
   if (who.role !== "admin") throw refuse(403, "The Studio is for club admins.");
