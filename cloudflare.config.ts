@@ -1,9 +1,14 @@
 import { bindings, defineConfig, exports, triggers } from 'cf/config';
 import * as entrypoint from './src/worker.ts' with { type: 'cf-worker' };
-import { site } from './src/data/site.ts';
-import { socialHost } from './src/data/social.ts';
 
-const sender = site.inbox;
+/*
+ * Written out here rather than imported from src/data/site.ts: the Cloudflare Vite plugin blocks the dev server from
+ * loading any module this file imports, which breaks every Worker module that imports the same file.
+ * src/data/deploy-config.test.ts keeps these equal to site.ts.
+ */
+const domain = 'therestisaccountancy.com';
+const sender = `club@${domain}`;
+const socialHost = `social.${domain}`;
 
 export default defineConfig({
   accountId: '9c006d850453ab5c068f5688d138521b',
@@ -34,12 +39,13 @@ export default defineConfig({
     },
     /** Hourly: session reminders, and the digest on Monday mornings. */
     triggers: [triggers.scheduled({ schedule: '0 * * * *' })],
-    domains: [site.domain, `www.${site.domain}`, socialHost],
+    domains: [domain, `www.${domain}`, socialHost],
     /*
      * Pages go through the Worker first, so the social host can serve its own page at a path the club has prerendered,
-     * like /. Built files under /_astro never differ by host and skip the Worker.
+     * like /. Built files under /_astro never differ by host and skip the Worker. The dev server renders every page in the
+     * Worker anyway, and routing first to the Worker there would swallow the scripts, styles and images Vite serves.
      */
-    assets: { runWorkerFirst: ['/*', '!/_astro/*'] },
+    ...(process.env.NODE_ENV === 'development' ? {} : { assets: { runWorkerFirst: ['/*', '!/_astro/*'] } }),
     workersDev: false,
     observability: { enabled: true },
   },
