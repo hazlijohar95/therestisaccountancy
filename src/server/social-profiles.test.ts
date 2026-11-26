@@ -343,3 +343,28 @@ test("a member's page shows the same profile to everyone, and what only the owne
     'the owner',
   );
 });
+
+function saveProfile(w: ReturnType<typeof socialWorld>, memberId: number, handle: string | null, changes: ProfileFields): string {
+  if (!w.profiles.ownProfile(memberId)) {
+    if (!handle) return 'no-handle';
+    const claim = w.profiles.claimHandle(memberId, handle);
+    if (!claim.ok) return claim.reason;
+  }
+  return w.profiles.update(memberId, changes)?.handle ?? 'not-saved';
+}
+
+test('saving a profile claims the handle first when there is none, and keeps the one there is', async () => {
+  const w = socialWorld();
+  await w.joined('Aina', 'aina@firm.my', 'aina');
+  const aina = w.profiles.profile('aina');
+  const siti = await w.club.ensureAdmin({ email: 'siti@club.test', name: 'Siti', password: 'correct horse battery' });
+  assert.ok(aina);
+
+  assert.equal(saveProfile(w, siti.id, null, fields()), 'no-handle');
+  assert.equal(saveProfile(w, siti.id, 'aina', fields()), 'handle-taken');
+  assert.equal(w.profiles.ownProfile(siti.id), null, 'nothing is saved when the handle is refused');
+  assert.equal(saveProfile(w, siti.id, '@Siti', fields({ headline: 'Club host.' })), 'siti');
+  assert.equal(w.profiles.ownProfile(siti.id)?.headline, 'Club host.');
+  assert.equal(saveProfile(w, aina.memberId, 'somethingelse', fields({ city: 'Ipoh' })), 'aina', 'a handle, once claimed, stays');
+  assert.equal(w.profiles.ownProfile(aina.memberId)?.city, 'Ipoh');
+});
