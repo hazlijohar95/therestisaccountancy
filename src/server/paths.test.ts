@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { addressed, clubPath, isSocialPage, paidAccess, requiredRole, safeNext, signInPath, socialPath, socialPathOf, socialRoute, socialUrl } from './paths.ts';
+import { addressed, clubPath, isSocialPage, paidAccess, requiredRole, safeNext, signInPath, socialHere, socialPath, socialPathOf, socialRoute, socialUrl } from './paths.ts';
 
 test('member and admin areas are guarded, and nothing else is', () => {
   assert.equal(requiredRole('/members'), 'member');
@@ -82,4 +82,9 @@ test('emailed social links go to the social host from the configured site, and s
   assert.equal(isSocialPage('/social/review'), true);
   assert.equal(isSocialPage('/social'), true);
   assert.equal(isSocialPage('/socially'), false);
+});
+
+test('signing in comes back to the same social page and query, without the form action that was posted', () => {
+  assert.equal(socialHere(new URL('http://127.0.0.1:8799/social/sign-up?invite=abc&_action=socialSignUp')), '/sign-up?invite=abc');
+  assert.equal(socialHere(new URL('https://social.therestisaccountancy.com/list')), '/list');
 });

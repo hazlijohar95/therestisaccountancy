@@ -134,3 +134,27 @@ test('a rejected nomination leaves the queue and its link stops working', async 
   assert.deepEqual(w.nominations.queue(), { pending: [], invited: [] });
   assert.deepEqual(w.nominations.mine(aina.id), []);
 });
+
+test('a nominee joins from the link: one account, let in by the nomination, with the nominated account waiting for proof', async () => {
+  const w = world();
+  const host = await w.host;
+  const aina = await w.joined('Aina', 'aina@firm.my', 'aina');
+  value(w.nominations.nominate(aina.id, draft()));
+  const { token } = value(w.nominations.invite(w.nominations.queue().pending[0]?.id ?? 0, host.id));
+
+  /* Someone else proved the account first: nothing is saved, and the link still works for the real nominee. */
+  const rival = await w.joined('Rival', 'rival@firm.my', 'rival');
+  const proven = value(w.claims.addAccount(rival.id, 'YouTube', 'taxwithtan'));
+  value(w.claims.decideAccount(proven.id, (await w.host).id, { verdict: 'approve' }));
+  assert.equal(reason(w.nominations.join(token, { name: 'Tan', email: 'tan@tax.my', handle: 'taxwithtan' })), 'proven-elsewhere');
+  assert.equal(w.db.prepare(`SELECT count(*) AS n FROM members WHERE email = 'tan@tax.my'`).get()?.['n'], 0, 'a refused join saves nothing');
+  assert.ok(w.nominations.invitation(token));
+  assert.ok(w.claims.removeAccount(rival.id, proven.id));
+
+  const { memberId, platform } = value(w.nominations.join(token, { name: 'Tan', email: 'tan@tax.my', handle: 'taxwithtan' }));
+  assert.equal(platform, 'YouTube');
+  assert.deepEqual(w.profiles.entry(memberId), { via: 'nomination', inviterId: null });
+  assert.equal(w.db.prepare(`SELECT handle FROM social_accounts WHERE member_id = ?`).get(memberId)?.['handle'], 'taxwithtan');
+  assert.equal(reason(w.nominations.join(token, { name: 'Other', email: 'other@firm.my', handle: 'other' })), 'not-found', 'a link lets in one person');
+  assert.equal(w.db.prepare(`SELECT count(*) AS n FROM members WHERE email = 'other@firm.my'`).get()?.['n'], 0);
+});

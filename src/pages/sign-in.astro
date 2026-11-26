@@ -27,7 +27,7 @@ const error = result?.error && !isInputError(result.error) ? result.error.messag
       <div>
         <p class="label top">{forSocial ? 'Social' : 'Members'}</p>
         <h1 class="headline serif" id="page-title">{forSocial ? 'Sign in to Social.' : 'Sign in to the club.'}</h1>
-        <p class="lead">{forSocial ? 'One account for Social and the club. Just signed up? Use the link we emailed to set a password first.' : 'New member? Use the link in your invitation to set a password first.'}</p>
+        <p class="lead">{forSocial ? 'One account for Social and the club. Just joined? Use the link we emailed to set a password first.' : 'New member? Use the link in your invitation to set a password first.'}</p>
       </div>
       <form method="POST" action={formAction(Astro.url, actions.signIn)} class="form">
         {signedOut?.data && <p class="note" role="status">You have signed out.</p>}

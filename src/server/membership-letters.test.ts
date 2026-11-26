@@ -14,9 +14,9 @@ test('the invitation names both rates', async () => {
   assert.ok(!text.includes('first month'));
 });
 
-test('a social sign-up is asked to finish signing up, and told it is free', async () => {
+test('someone joining Social is asked to finish joining, and told it is free', async () => {
   const letter = passwordLetter({ ...aina, purpose: 'welcome', link: 'https://club.test/welcome?token=t', expiresAt: '2026-12-01T00:00:00Z', rate: null, welcomeTo: 'social' });
-  assert.equal(letter.subject, 'Set a password to finish signing up');
+  assert.equal(letter.subject, 'Set a password to finish joining');
   const { text, html } = await renderLetter(letter);
   assert.ok(text.includes('There is nothing to pay.'));
   assert.ok(html.includes('>Set your password<'));

@@ -5,7 +5,7 @@ import Social from '../../layouts/Social.astro';
 import { formAction } from '../../lib/format.ts';
 import { postedFields } from '../../lib/form.ts';
 import { LINK_DAYS } from '../../server/club.ts';
-import { addressed, clubPath, signInPath, socialPath, socialPathOf } from '../../server/paths.ts';
+import { addressed, clubPath, signInPath, socialHere, socialPath } from '../../server/paths.ts';
 
 export const prerender = false;
 
@@ -44,7 +44,7 @@ const failure = refusal && refusal.code !== 'UNAUTHORIZED' && !errors.handle ? r
 const typed = result?.error ? await postedFields(Astro.request) : () => '';
 const suggestedHandle = invitation && HANDLE.pattern.test(invitation.handle) ? invitation.handle : '';
 /* Someone who already has an account signs in and comes back to this link, not to a blank profile. */
-const here = `${socialPathOf(Astro.url)}${Astro.url.search}`;
+const here = socialHere(Astro.url);
 const afterSignIn = nomination ? `/claim/${encodeURIComponent(nomination)}` : here;
 const first = (['name', 'email', 'handle'] as const).find((field) => errors[field]);
 const invalid = (field: keyof typeof errors) => (errors[field] ? 'true' : undefined);

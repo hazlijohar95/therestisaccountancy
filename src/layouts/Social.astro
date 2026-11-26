@@ -4,7 +4,7 @@ import Logo from '../components/Logo.astro';
 import Avatar from '../components/social/Avatar.astro';
 import Symbols from '../components/social/Symbols.astro';
 import { SEARCH_MAX } from '../lib/search.ts';
-import { clubPath, isSocialHost, signInPath, socialPath, socialPathOf } from '../server/paths.ts';
+import { clubPath, isSocialHost, signInPath, socialHere, socialPath } from '../server/paths.ts';
 import Base from './Base.astro';
 
 export type Section = 'floor' | 'list' | 'problems' | 'verify' | 'notifications';
@@ -31,7 +31,7 @@ const nav: readonly { section: Section; href: string; label: string; icon: strin
   { section: 'verify', href: to('/verify'), label: 'Get ticked', icon: 'tk' },
 ];
 /* Signing in happens on the club's host, and comes back to this page. */
-const signIn = signInPath(url, socialPathOf(url));
+const signIn = signInPath(url, socialHere(url));
 ---
 
 <Base title={title} description={description} noindex={noindex} brand="social">

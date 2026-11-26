@@ -38,8 +38,8 @@ const plural = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` :
 const flat = (value: string) => value.replace(/\s+/g, ' ').trim();
 
 /**
- * An invitation for someone without a password, or a reset for a member who has one. Someone who signed up on the
- * social site, and has not been accepted into the club, is finishing their own sign-up: their first link says that and
+ * An invitation for someone without a password, or a reset for a member who has one. Someone who joined the social
+ * site from an invite, and has not been accepted into the club, is finishing joining: their first link says that and
  * nothing about paying.
  */
 export function passwordLetter(link: { email: string; name: string; purpose: LinkPurpose; link: string; expiresAt: string; rate: string | null; welcomeTo: JoinedVia }): Letter {
@@ -47,14 +47,14 @@ export function passwordLetter(link: { email: string; name: string; purpose: Lin
   if (link.purpose === 'welcome' && link.welcomeTo === 'social') {
     return {
       to: link.email,
-      subject: 'Set a password to finish signing up',
+      subject: 'Set a password to finish joining',
       lines: [
         hi(link.name),
-        `You signed up for ${site.name} Social. Set a password and your profile goes live.`,
+        `You joined ${site.name} Social. Set a password and your profile goes live.`,
         { href: link.link, label: 'Set your password' },
         `The link works once and runs out on ${until}. If it does, ask for a new one on the sign-in page.`,
         'Social is free. There is nothing to pay.',
-        "Didn't sign up? Ignore this email. Without a password, the account never goes live.",
+        "Didn't join? Ignore this email. Without a password, the account never goes live.",
       ],
     };
   }
