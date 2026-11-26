@@ -322,3 +322,58 @@ test('a host who is suspended or loses the admin role takes their slots off the 
   value(w.club.updateMember(w.shukri.id, w.hazli.id, { name: 'Hazli Johar', email: 'hazli@club.test', role: 'member' }));
   assert.deepEqual(w.openIds(w.abu.id), [], 'nor with a host who is no longer an admin');
 });
+
+type World = Awaited<ReturnType<typeof world>>;
+
+function changeHost<T, R extends string>(w: World, hostId: number, change: () => Result<T, R>, keepsHosting: (value: T) => boolean = () => false) {
+  const host = w.club.member(hostId);
+  const booked = host?.role === 'admin' ? w.calls.upcoming().flatMap((s) => (s.state === 'booked' && s.host.email === host.email ? [s] : [])) : [];
+  const result = change();
+  const letters = result.ok && !keepsHosting(result.value) ? booked.flatMap((call) => callLetters('cancelled-by-host', call, SITE)) : [];
+  return { result, letters: letters.map((l) => [l.to, l.subject]) };
+}
+
+const twoBooked = async () => {
+  const w = await world();
+  value(w.calls.book(w.aina.id, w.slot(THURSDAY), 'Pricing.'));
+  value(w.calls.book(w.abu.id, w.slot(shift(THURSDAY, DAY)), 'Hiring.'));
+  w.slot(shift(THURSDAY, 2 * HOUR));
+  return w;
+};
+const DAY = 24 * HOUR;
+const calledOff = [
+  ['aina@firm.com.my', 'Cancelled: your call with Hazli on 26 Nov 2026, 3:00 pm'],
+  ['abu@firm.com.my', 'Cancelled: your call with Hazli on 27 Nov 2026, 3:00 pm'],
+];
+
+test('suspending or removing a host calls off their booked calls and tells each member who booked one', async () => {
+  const suspended = await twoBooked();
+  assert.deepEqual(changeHost(suspended, suspended.hazli.id, () => suspended.club.suspendMember(suspended.shukri.id, suspended.hazli.id)).letters, calledOff);
+  assert.equal(suspended.calls.booking(suspended.aina.id), null);
+
+  const removed = await twoBooked();
+  assert.deepEqual(changeHost(removed, removed.hazli.id, () => removed.club.removeMember(removed.shukri.id, removed.hazli.id)).letters, calledOff);
+  assert.equal(removed.calls.booking(removed.abu.id), null);
+});
+
+test('demoting a host tells their members by the name they booked with; a rename alone tells nobody', async () => {
+  const renamed = await twoBooked();
+  const kept = changeHost(renamed, renamed.hazli.id, () => renamed.club.updateMember(renamed.shukri.id, renamed.hazli.id, { name: 'Harun Johar', email: 'hazli@club.test' }), (m) => m.role === 'admin');
+  assert.deepEqual(kept.letters, []);
+  assert.equal(renamed.calls.booking(renamed.aina.id)?.host.name, 'Harun Johar', 'the call stays booked');
+
+  const demoted = await twoBooked();
+  const change = () => demoted.club.updateMember(demoted.shukri.id, demoted.hazli.id, { name: 'Harun Johar', email: 'harun@club.test', role: 'member' });
+  assert.deepEqual(changeHost(demoted, demoted.hazli.id, change, (m) => m.role === 'admin').letters, calledOff);
+});
+
+test('a refused change to a host, or a change to someone who hosts nothing, tells nobody', async () => {
+  const w = await twoBooked();
+  const self = changeHost(w, w.hazli.id, () => w.club.suspendMember(w.hazli.id, w.hazli.id));
+  assert.equal(reason(self.result), 'self');
+  assert.deepEqual(self.letters, []);
+  assert.equal(w.calls.booking(w.aina.id)?.host.name, 'Hazli Johar', 'the call is still on');
+
+  assert.deepEqual(changeHost(w, w.aina.id, () => w.club.removeMember(w.hazli.id, w.aina.id)).letters, []);
+  assert.deepEqual(changeHost(w, w.shukri.id, () => w.club.suspendMember(w.hazli.id, w.shukri.id)).letters, [], 'a host with nothing booked');
+});

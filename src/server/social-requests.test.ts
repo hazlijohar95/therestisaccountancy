@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import type { Letter } from './letters.ts';
+import { socialUrl } from './paths.ts';
 import { DAY, PASSWORD, reason, socialWorld, value } from './social-fixtures.ts';
+import { requestApprovedLetter } from './social-letters.ts';
 
 const draft = (email = 'siti@firm.my') => ({ name: 'Siti', email, about: 'Audit senior in KL. I post on LinkedIn about MFRS.', link: 'https://www.linkedin.com/in/siti' });
 
@@ -96,4 +99,60 @@ test('approving someone who never set a password gives their new link the full t
   assert.ok(w.club.member(memberId));
   w.later(13 * DAY);
   assert.equal(w.profiles.pruneAbandoned(), 1, 'and runs out like any other');
+});
+
+const SITE = 'https://therestisaccountancy.com/';
+
+function approveAndWrite(w: ReturnType<typeof socialWorld>, id: number, teamId: number): Letter[] {
+  const approval = value(w.requests.approve(id, teamId));
+  if (approval.kind === 'sign-in') {
+    const signIn = new URL(`/sign-in?next=${encodeURIComponent(socialUrl(SITE, '/me'))}`, SITE).href;
+    return [requestApprovedLetter(approval, { signIn, hasProfile: approval.hasProfile })];
+  }
+  const { member, token, expiresAt } = value(w.club.newLink(approval.memberId));
+  return [requestApprovedLetter(member, { link: new URL(`/welcome?token=${encodeURIComponent(token)}`, SITE).href, expiresAt })];
+}
+
+test('approval writes to the account by its own name, with a link that sets the password', async () => {
+  const w = socialWorld();
+  const host = await w.host;
+  value(w.profiles.signUp({ name: 'Nur Siti', email: 'siti@firm.my', handle: 'nursiti' }, { via: 'open' }));
+  value(w.requests.request(draft()));
+  const [letter, ...rest] = approveAndWrite(w, w.requests.queue()[0]?.id ?? 0, host.id);
+  assert.deepEqual(rest, []);
+  assert.equal(letter?.to, 'siti@firm.my');
+  assert.equal(letter?.subject, "You're in: The Rest Is Accountancy Social");
+  const [greeting, read, setPassword, expiry, free] = letter?.lines ?? [];
+  assert.equal(greeting, 'Hi Nur,', 'the account keeps its name; the request does not rename it');
+  assert.equal(read, 'We read your request to join, and you are in.');
+  assert.equal(expiry, 'Then pick your handle. The link works once and runs out on 10 Dec 2026. If it does, ask for a new one on the sign-in page.');
+  assert.equal(free, 'Social is free. There is nothing to pay.');
+  assert.ok(typeof setPassword === 'object' && setPassword.label === 'Set your password');
+  const link = new URL(setPassword.href);
+  assert.equal(`${link.origin}${link.pathname}`, 'https://therestisaccountancy.com/welcome');
+  const accepted = await w.club.setPasswordFromLink(link.searchParams.get('token') ?? '', PASSWORD);
+  assert.equal(accepted?.purpose, 'welcome');
+  assert.equal(accepted?.member.email, 'siti@firm.my');
+});
+
+test('approval tells someone who signs in already to sign in, and sends no link', async () => {
+  const w = socialWorld();
+  const host = await w.host;
+  await w.joined('Aina Rahman', 'aina@firm.my', 'aina');
+  value(w.requests.request(draft('aina@firm.my')));
+  const letters = approveAndWrite(w, w.requests.queue()[0]?.id ?? 0, host.id);
+  assert.deepEqual(letters, [
+    {
+      to: 'aina@firm.my',
+      subject: "You're in: The Rest Is Accountancy Social",
+      lines: [
+        'Hi Aina,',
+        'We read your request to join, and you are in.',
+        'You already sign in here, so there is nothing new to set up.',
+        { href: 'https://therestisaccountancy.com/sign-in?next=https%3A%2F%2Fsocial.therestisaccountancy.com%2Fme', label: 'Sign in' },
+        'Social is free. There is nothing to pay.',
+      ],
+    },
+  ]);
+  assert.equal(w.db.prepare(`SELECT count(*) AS n FROM invites WHERE used_at IS NULL`).get()?.['n'], 0, 'no password link is left open');
 });

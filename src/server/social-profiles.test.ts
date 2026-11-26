@@ -261,3 +261,108 @@ test('the setup checklist follows what the member has done', async () => {
   assert.deepEqual(w.profiles.checklist(aina.id), { ticked: true, headline: true, casebook: true, answered: true, badge: true });
   assert.equal(w.profiles.credential(aina.id), 'ACCA · Member');
 });
+
+function profilePage(w: ReturnType<typeof socialWorld>, handle: string, viewerId: number | null) {
+  const profile = w.profiles.profile(handle);
+  if (!profile) return null;
+  const own = viewerId !== null && profile.memberId === viewerId;
+  const viewer = viewerId === null ? null : w.profiles.ownProfile(viewerId);
+  return {
+    profile,
+    own,
+    canVouch: !own && (viewer?.sealed ?? false),
+    following: viewerId !== null && !own ? w.profiles.isFollowing(viewerId, profile.memberId) : false,
+    counts: w.profiles.followCounts(profile.memberId),
+    invitedBy: w.profiles.invitedBy(profile.memberId),
+    ledger: w.claims.ledger(profile.memberId, viewerId),
+    roles: w.casebook.roles(profile.memberId),
+    record: w.problems.record(profile.memberId),
+    heat: w.casebook.heatmap(profile.memberId),
+    posts: w.floor.recentPosts(viewerId, profile.memberId),
+    shelf: w.shelf.shelf(profile.memberId, viewerId),
+    saved: own ? w.shelf.saved(viewerId) : [],
+    checklist: own ? w.profiles.checklist(viewerId) : null,
+  };
+}
+
+test("a member's page shows the same profile to everyone, and what only the owner or a sealed reader may do", async () => {
+  const w = socialWorld();
+  const aina = await w.joined('Aina Rahman', 'aina@firm.my', 'aina');
+  const abu = await w.joined('Abu Musa', 'abu@firm.my', 'abu');
+  const siti = await w.club.ensureAdmin({ email: 'siti@club.test', name: 'Siti', password: 'correct horse battery' });
+  await w.seal(aina.id, 'aina-r');
+  await w.seal(abu.id, 'abu-m');
+  const experience = value(w.claims.addClaim(aina.id, { kind: 'experience', text: 'Six years in audit' }));
+  value(w.claims.vouch(abu.id, experience.id));
+  value(w.profiles.follow(abu.id, 'aina'));
+  value(w.floor.post(aina.id, { room: 'tax-my', jurisdiction: 'MY', title: 'Does a dormant Sdn Bhd still need an audit?', body: 'Asking for a client.' }));
+  const ainasItem = value(w.shelf.add(aina.id, { kind: 'Template', title: 'Audit checklist', url: 'https://example.com/checklist' }));
+  const abusItem = value(w.shelf.add(abu.id, { kind: 'Template', title: 'Engagement letter', url: 'https://example.com/letter' }));
+  value(w.shelf.save(abu.id, ainasItem.id));
+  value(w.shelf.save(aina.id, abusItem.id));
+
+  assert.equal(profilePage(w, 'nobody', abu.id), null);
+
+  const seen = (viewerId: number | null) => {
+    const page = profilePage(w, 'AINA', viewerId);
+    assert.ok(page);
+    return {
+      handle: page.profile.handle,
+      own: page.own,
+      canVouch: page.canVouch,
+      following: page.following,
+      counts: page.counts,
+      invitedBy: page.invitedBy,
+      accounts: page.ledger.accounts.map((a) => a.handle),
+      claims: page.ledger.claims.map((c) => [c.label, c.review.state, c.vouches, c.vouchedByViewer]),
+      roles: page.roles,
+      answers: page.record.answers,
+      entries: page.heat.entries,
+      posts: page.posts.map((p) => p.title),
+      shelf: page.shelf.map((i) => [i.title, i.saves, i.savedByViewer]),
+      saved: page.saved.map((i) => i.title),
+      checklist: page.checklist,
+    };
+  };
+  const everyone = {
+    handle: 'aina',
+    own: false,
+    canVouch: false,
+    following: false,
+    counts: { followers: 1, following: 0 },
+    invitedBy: null,
+    accounts: ['aina-r'],
+    claims: [
+      ['ACCA · Member', 'ticked', 0, false],
+      ['Six years in audit', 'pending', 1, false],
+    ],
+    roles: [],
+    answers: 0,
+    entries: 0,
+    posts: ['Does a dormant Sdn Bhd still need an audit?'],
+    shelf: [['Audit checklist', 1, false]],
+    saved: [],
+    checklist: null,
+  };
+  assert.deepEqual(seen(null), everyone, 'signed out');
+  assert.deepEqual(seen(siti.id), everyone, 'signed in without a handle');
+  assert.deepEqual(
+    seen(abu.id),
+    {
+      ...everyone,
+      canVouch: true,
+      following: true,
+      claims: [
+        ['ACCA · Member', 'ticked', 0, false],
+        ['Six years in audit', 'pending', 1, true],
+      ],
+      shelf: [['Audit checklist', 1, true]],
+    },
+    'a sealed reader who follows and vouched',
+  );
+  assert.deepEqual(
+    seen(aina.id),
+    { ...everyone, own: true, saved: ['Engagement letter'], checklist: { ticked: true, headline: false, casebook: false, answered: false, badge: false } },
+    'the owner',
+  );
+});
