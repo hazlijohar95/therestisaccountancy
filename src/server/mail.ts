@@ -14,7 +14,7 @@ export async function send(letter: Letter): Promise<boolean> {
       subject: letter.subject,
       text,
       html,
-      ...(letter.unsubscribe && { headers: { 'List-Unsubscribe': `<${letter.unsubscribe}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } }),
+      ...(letter.unsubscribe && { headers: { 'List-Unsubscribe': `<${letter.unsubscribe.url}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' } }),
       ...(letter.attachments && { attachments: letter.attachments.map((a) => ({ disposition: 'attachment' as const, ...a })) }),
     });
     return true;

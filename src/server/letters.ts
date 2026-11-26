@@ -1,9 +1,10 @@
+import { week } from '../data/club.ts';
 import { TERMS, terms, type Term } from '../data/membership.ts';
 import { site } from '../data/site.ts';
-import { firstName, formatDay, formatMoment } from '../lib/format.ts';
+import { firstName, formatDay, formatMoment, numberWord } from '../lib/format.ts';
 import type { JoinRequest, LinkPurpose } from './club.ts';
 import { calendarFile, sessionEvent } from './calendar.ts';
-import type { Recipient, Subscriber } from './mailings.ts';
+import type { List, OnboardingStep, Recipient, Subscriber } from './mailings.ts';
 import type { LiveSession } from './schedule.ts';
 
 /*
@@ -26,8 +27,8 @@ export interface Letter {
   /** The sender's display name, when a host sends it. The address is always the club's. */
   readonly from?: string;
   readonly attachments?: readonly { readonly filename: string; readonly type: string; readonly content: string }[];
-  /** Where one click stops this kind of email. Sent as List-Unsubscribe too, so mail apps offer it. */
-  readonly unsubscribe?: string;
+  /** Where one click stops this kind of email, and which kind it is. Sent as List-Unsubscribe too, so mail apps offer it. */
+  readonly unsubscribe?: { readonly url: string; readonly list: List };
 }
 
 const fromHost = `${site.host} from ${site.name}`;
@@ -95,11 +96,11 @@ export function joinRequestLetter(admins: readonly string[], request: Pick<JoinR
 }
 
 /** One click on this stops the one kind of email, without signing in. Built on the site the settings link names. */
-const unsubscribeUrl = (settingsUrl: string, to: Subscriber, list: 'replies' | 'digest') => {
+const unsubscribeUrl = (settingsUrl: string, to: Subscriber, list: List) => {
   const url = new URL('/unsubscribe', settingsUrl);
   url.searchParams.set('k', to.key);
   url.searchParams.set('list', list);
-  return url.href;
+  return { url: url.href, list };
 };
 
 /** Tells a member someone replied in a thread they posted in. */
@@ -147,6 +148,61 @@ export function digestLetter(to: Subscriber, news: DigestNews): Letter {
   };
 }
 
+export interface Onboarding {
+  /** The next few sessions, soonest first. The job sends nothing until there is at least one to name. */
+  readonly sessions: readonly { readonly title: string; readonly startsAt: string }[];
+  readonly sessionsUrl: string;
+  readonly settingsUrl: string;
+}
+
+/**
+ * The getting-started emails, from a host. Each leads to one thing, a first live session, and names the real ones
+ * coming up. They stop once the member says they are coming to a session.
+ */
+export function onboardingLetter(to: Subscriber, step: OnboardingStep, news: Onboarding): Letter {
+  const coming = news.sessions.map((s) => `${s.title}, ${formatMoment(s.startsAt)} Malaysia time`);
+  const body: Record<OnboardingStep, { readonly subject: string; readonly lines: readonly Line[] }> = {
+    0: {
+      subject: 'Your first live session',
+      lines: [
+        'The quickest way to get something out of the club is to come to one live session, with a real problem from your practice.',
+        'Coming up:',
+        ...coming,
+        { href: news.sessionsUrl, label: 'Save your seat' },
+        "Say you're coming and you'll get a calendar invite now and a reminder the day before.",
+        "You're getting this because you joined recently. I'll send at most two more short notes about sessions, then stop. Book one and they stop sooner.",
+      ],
+    },
+    1: {
+      subject: 'Which session to start with',
+      lines: [
+        `Not sure which session to come to first? There are ${numberWord(week.sessions.length)} kinds:`,
+        ...week.sessions.map((k) => `${k.term}: ${k.detail}`),
+        'Coming up:',
+        ...coming,
+        { href: news.sessionsUrl, label: 'Pick a session' },
+        "You're getting this because you haven't booked a session yet.",
+      ],
+    },
+    2: {
+      subject: 'Do any of these times work?',
+      lines: [
+        "This is my last note about sessions. Here's what's on:",
+        ...coming,
+        { href: news.sessionsUrl, label: 'Save your seat' },
+        "If none of the times suit you, reply and tell me when would. It comes straight to me, and it shapes when we hold the next ones.",
+      ],
+    },
+  };
+  return {
+    to: to.email,
+    from: fromHost,
+    unsubscribe: unsubscribeUrl(news.settingsUrl, to, 'onboarding'),
+    subject: body[step].subject,
+    lines: [hi(to.name), ...body[step].lines, site.host],
+  };
+}
+
 export type SessionNews = 'confirmed' | 'reminder' | 'cancelled';
 
 /** About a session members said they would come to, one letter each. The confirmation and the cancellation carry a calendar file. */
@@ -175,7 +231,6 @@ export function sessionLetters(news: SessionNews, session: LiveSession, members:
   });
 }
 
-/** A card renewal did not go through. The member keeps access through the grace period while it is retried. */
 /** A saved card is about to be charged for a long term: when, how much, and how to stop it first. */
 export function renewalNoticeLetter(to: Recipient, notice: { term: Term; chargesAt: string; accountUrl: string }): Letter {
   const date = formatDay(notice.chargesAt);
@@ -192,6 +247,7 @@ export function renewalNoticeLetter(to: Recipient, notice: { term: Term; charges
   };
 }
 
+/** A card renewal did not go through. The member keeps access through the grace period while it is retried. */
 export function renewalLetter(to: Recipient, failure: { term: Term; cardRefused: boolean; accessUntil: string; payUrl: string }): Letter {
   const tried = `We tried to charge your card ${terms[failure.term].price} for your next ${failure.term}`;
   return {

@@ -1,5 +1,5 @@
 import { STATUS_SQL } from './club.ts';
-import { integer, text, type Db, type Row } from './db.ts';
+import { integer, optionalText, text, type Db, type Row } from './db.ts';
 
 /** Someone an email goes to. */
 export interface Recipient {
@@ -13,7 +13,7 @@ export interface Subscriber extends Recipient {
 }
 
 /** The optional emails, each of which one click can stop. */
-export const LISTS = ['replies', 'digest'] as const;
+export const LISTS = ['replies', 'digest', 'onboarding'] as const;
 export type List = (typeof LISTS)[number];
 
 /** Which club emails a member wants. Invitations, resets and session emails they asked for always go. */
@@ -22,10 +22,37 @@ export interface EmailPrefs {
   readonly digest: boolean;
 }
 
+/** The lists a member can also turn on and off on their account page. The rest only stop. */
+export const inSettings = (list: List): list is keyof EmailPrefs => list === 'replies' || list === 'digest';
+
 /** A member hears about a thread at most this often, however busy it gets. */
 export const REPLY_NOTICE_GAP_MS = 6 * 3_600_000;
 
 const MALAYSIA_MS = 8 * 3_600_000;
+const DAY_MS = 86_400_000;
+
+/**
+ * The getting-started emails: the day after a member first pays that each is due. They lead to one thing, a first
+ * live session, and stop once the member says they are coming to one.
+ */
+export const ONBOARDING_DAYS = [1, 4, 9] as const;
+/** An index into ONBOARDING_DAYS, so a new day fails to compile until its email is written. */
+export type OnboardingStep = Exclude<Partial<typeof ONBOARDING_DAYS>['length'], (typeof ONBOARDING_DAYS)['length']>;
+const isStep = (n: number): n is OnboardingStep => Number.isInteger(n) && n >= 0 && n < ONBOARDING_DAYS.length;
+/** Two emails never go closer together than this, even when one was held back for want of a session to name. */
+const ONBOARDING_GAP_MS = 2 * DAY_MS;
+/** Past this, a member who has still not booked is left alone: the sequence has had its chance. */
+const ONBOARDING_WINDOW_MS = 21 * DAY_MS;
+
+/** The step due now for a member who first paid at `from` and has had `sent` of the emails, or null if none is. */
+export function onboardingStep(from: Date, sent: number, lastAt: Date | null, now: Date): OnboardingStep | null {
+  if (!isStep(sent)) return null;
+  const t = now.getTime();
+  if (t > from.getTime() + ONBOARDING_WINDOW_MS) return null;
+  if (t < from.getTime() + ONBOARDING_DAYS[sent] * DAY_MS) return null;
+  if (lastAt && t < lastAt.getTime() + ONBOARDING_GAP_MS) return null;
+  return sent;
+}
 
 /** The week a digest is due for: that Monday's date in Malaysia, from 8 am on. Null on any other day or hour. */
 export function digestWeek(at: Date): string | null {
@@ -36,7 +63,7 @@ export function digestWeek(at: Date): string | null {
 const iso = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
 export const toRecipient = (row: Row): Recipient => ({ email: text(row, 'email'), name: text(row, 'name') });
 const toSubscriber = (row: Row): Subscriber => ({ ...toRecipient(row), key: text(row, 'unsubscribe_key') });
-const COLUMN: Record<List, string> = { replies: 'email_replies', digest: 'digest_opt_in' };
+const COLUMN: Record<List, string> = { replies: 'email_replies', digest: 'digest_opt_in', onboarding: 'email_onboarding' };
 
 /** Who gets which optional email, and the records that keep each from going twice. */
 export function createMailings(db: Db, now: () => Date = () => new Date()) {
@@ -91,6 +118,42 @@ export function createMailings(db: Db, now: () => Date = () => new Date()) {
     /** Stops one optional email for whoever holds the key. True if the key was someone's. */
     unsubscribe(key: string, list: List): boolean {
       return db.prepare(`UPDATE members SET ${COLUMN[list]} = 0 WHERE unsubscribe_key = ?`).run(key).changes > 0;
+    },
+
+    /**
+     * Members owed a getting-started email now, each marked as sent so a rerun finds none. Only paying members who have
+     * not said they are coming to any session, and who have not stopped these emails. The clock starts at the first
+     * payment, because a member cannot book a session before paying.
+     */
+    dueOnboarding(): (Subscriber & { readonly memberId: number; readonly step: OnboardingStep })[] {
+      return db.transaction(() => {
+        keyed();
+        const at = now();
+        const rows = db
+          .prepare(
+            `SELECT m.id, m.email, m.name, m.unsubscribe_key, m.onboarding_sent, m.onboarding_last_at,
+               (SELECT min(p.paid_at) FROM payments p WHERE p.member_id = m.id AND p.status = 'paid' AND p.reversed_at IS NULL) AS first_paid_at
+             FROM members m JOIN subscriptions s ON s.member_id = m.id
+             WHERE m.role = 'member' AND ${STATUS_SQL.active} AND m.email_onboarding = 1 AND m.onboarding_sent < ? AND s.paid_until > ?
+               AND NOT EXISTS (SELECT 1 FROM rsvps r WHERE r.member_id = m.id)`,
+          )
+          .all(ONBOARDING_DAYS.length, iso(at));
+        const mark = db.prepare('UPDATE members SET onboarding_sent = onboarding_sent + 1, onboarding_last_at = ? WHERE id = ?');
+        return rows.flatMap((row) => {
+          const firstPaid = optionalText(row, 'first_paid_at');
+          if (firstPaid === null) return [];
+          const lastAt = optionalText(row, 'onboarding_last_at');
+          const step = onboardingStep(new Date(firstPaid), integer(row, 'onboarding_sent'), lastAt === null ? null : new Date(lastAt), at);
+          if (step === null) return [];
+          mark.run(iso(at), integer(row, 'id'));
+          return [{ ...toSubscriber(row), memberId: integer(row, 'id'), step }];
+        });
+      });
+    },
+
+    /** Hands back a getting-started email that did not send, so the next hourly run tries it again. */
+    releaseOnboarding(memberId: number, step: OnboardingStep): void {
+      db.prepare('UPDATE members SET onboarding_sent = ?, onboarding_last_at = NULL WHERE id = ? AND onboarding_sent = ?').run(step, memberId, step + 1);
     },
 
     /** Claims a week's digest. True the first time for that week only, so a retried job never sends it twice. */

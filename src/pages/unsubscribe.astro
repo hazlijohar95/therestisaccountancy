@@ -8,13 +8,14 @@ const copy = {
   newsletter: { ask: 'Stop the newsletter?', done: 'Done. The newsletter will stop.' },
   digest: { ask: 'Stop the weekly email?', done: 'Done. No more weekly emails.' },
   replies: { ask: 'Stop emails about replies in your threads?', done: 'Done. No more emails about replies in your threads.' },
+  onboarding: { ask: 'Stop the getting-started emails?', done: 'Done. No more getting-started emails.' },
 } as const;
 
 const list = Astro.url.searchParams.get('list');
 const key = Astro.url.searchParams.get('k') ?? '';
 const done = Astro.url.searchParams.has('done');
 const newsletter = list === 'newsletter';
-const text = list === 'newsletter' || list === 'digest' || list === 'replies' ? copy[list] : null;
+const text = list === 'newsletter' || list === 'digest' || list === 'replies' || list === 'onboarding' ? copy[list] : null;
 ---
 
 <Page title="Unsubscribe" noindex signup={false}>
@@ -30,6 +31,8 @@ const text = list === 'newsletter' || list === 'digest' || list === 'replies' ? 
           <h1 class="head" id="page-title">{text.done}</h1>
           {newsletter ? (
             <p>Changed your mind? <a href="/newsletter">Subscribe again</a>.</p>
+          ) : list === 'onboarding' ? (
+            <p>The sessions are still on <a href="/members/sessions">the sessions page</a> whenever you want one.</p>
           ) : (
             <p>Change your mind any time in <a href="/members/account#email">your account</a>.</p>
           )}

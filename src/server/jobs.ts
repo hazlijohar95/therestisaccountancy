@@ -3,13 +3,17 @@ import { openStore } from './instance.ts';
 import { GRACE_MS } from './billing.ts';
 import { callLetters } from './calls.ts';
 import { summaryDue } from './incidents.ts';
-import { digestLetter, incidentsLetter, paymentDueLetter, renewalLetter, renewalNoticeLetter, sessionLetters, type Letter } from './letters.ts';
+import { digestLetter, incidentsLetter, onboardingLetter, paymentDueLetter, renewalLetter, renewalNoticeLetter, sessionLetters, type Letter } from './letters.ts';
 import { send } from './mail.ts';
-import { digestWeek } from './mailings.ts';
+import { digestWeek, type OnboardingStep } from './mailings.ts';
 import { renew } from './payments.ts';
 import { report } from './report.ts';
+import { REMINDER_LEAD_MS } from './schedule.ts';
 
 const WEEK_MS = 7 * 86_400_000;
+/** Getting-started emails name sessions this far ahead, and at most this many. */
+const ONBOARDING_HORIZON_MS = 2 * WEEK_MS;
+const ONBOARDING_SESSIONS = 3;
 /** Letters go a few at a time, so a long list never trips the sending limits all at once. */
 const SENDING_AT_ONCE = 5;
 
@@ -18,6 +22,8 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
   const url = (path: string) => new URL(path, siteUrl).href;
   const store = await openStore();
   const letters: Letter[] = [];
+  /* Getting-started emails are claimed before sending; one that fails is handed back, since nothing about it is urgent. */
+  const onboarding = new Map<Letter, { readonly memberId: number; readonly step: OnboardingStep }>();
   let summary: { readonly letter: Letter; readonly lastId: number } | null = null;
   /* Each source runs on its own, so one failing query never holds back the emails after it. */
   const step = (name: string, run: () => Promise<void>) =>
@@ -48,6 +54,23 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
     await step('call reminders', async () => {
       for (const call of await store.calls.dueReminders()) letters.push(...callLetters('reminder', call, siteUrl));
     });
+    /*
+     * With no session to name, the emails wait rather than go: an invitation to nothing is worse than none. Sessions
+     * inside the reminder window are left out, because their reminder has gone and the email promises one.
+     */
+    await step('getting-started emails', async () => {
+      const startsIn = (s: { startsAt: string }) => new Date(s.startsAt).getTime() - at.getTime();
+      const sessions = (await store.schedule.upcoming(null))
+        .filter((s) => startsIn(s) > REMINDER_LEAD_MS && startsIn(s) < ONBOARDING_HORIZON_MS)
+        .slice(0, ONBOARDING_SESSIONS);
+      if (!sessions.length) return;
+      const news = { sessions: sessions.map((s) => ({ title: s.title, startsAt: s.startsAt })), sessionsUrl: url('/members/sessions'), settingsUrl: url('/members/account#email') };
+      for (const to of await store.mailings.dueOnboarding()) {
+        const letter = onboardingLetter(to, to.step, news);
+        onboarding.set(letter, { memberId: to.memberId, step: to.step });
+        letters.push(letter);
+      }
+    });
 
     const week = digestWeek(at);
     if (week && (await store.mailings.claimDigest(week))) {
@@ -77,11 +100,22 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
     store[Symbol.dispose]();
   }
 
-  let sent = 0;
+  const failed: Letter[] = [];
   for (let i = 0; i < letters.length; i += SENDING_AT_ONCE) {
-    sent += (await Promise.all(letters.slice(i, i + SENDING_AT_ONCE).map(send))).filter(Boolean).length;
+    const batch = letters.slice(i, i + SENDING_AT_ONCE);
+    const results = await Promise.all(batch.map(send));
+    batch.forEach((letter, k) => results[k] || failed.push(letter));
   }
-  if (letters.length) console.log(`Hourly job sent ${sent} of ${letters.length} emails`);
+  if (letters.length) console.log(`Hourly job sent ${letters.length - failed.length} of ${letters.length} emails`);
+  const unsent = failed.flatMap((letter) => onboarding.get(letter) ?? []);
+  if (unsent.length) {
+    const after = await openStore();
+    try {
+      for (const { memberId, step } of unsent) await after.mailings.releaseOnboarding(memberId, step);
+    } finally {
+      after[Symbol.dispose]();
+    }
+  }
   /* The summary is marked sent only once it has gone; if it fails, its failures wait for tomorrow's. */
   if (summary && (await send(summary.letter))) {
     const after = await openStore();

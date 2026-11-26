@@ -270,6 +270,12 @@ const MIGRATIONS: readonly string[] = [
     unsubscribed_at TEXT
   );
   `,
+  `
+  ALTER TABLE members ADD COLUMN email_onboarding INTEGER NOT NULL DEFAULT 1 CHECK (email_onboarding IN (0, 1));
+  ALTER TABLE members ADD COLUMN onboarding_sent INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE members ADD COLUMN onboarding_last_at TEXT;
+  UPDATE members SET onboarding_sent = 3 WHERE EXISTS (SELECT 1 FROM payments p WHERE p.member_id = members.id AND p.status = 'paid');
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

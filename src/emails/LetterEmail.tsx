@@ -1,6 +1,7 @@
 import { Body, Button, Container, Font, Head, Html, Img, Link, Preview, Section, Text } from '@react-email/components';
 import { site } from '../data/site.ts';
-import type { Line } from '../server/letters.ts';
+import type { Letter, Line } from '../server/letters.ts';
+import { inSettings } from '../server/mailings.ts';
 
 /*
  * The layout follows React Email's "Protocol" demo template (MIT, github.com/resend/react-email, apps/demo/emails/
@@ -37,7 +38,7 @@ const mobile = `@media (max-width: 600px) {
 
 /**
 /** Every email the club sends, in one layout. The subject is the headline; the lines are the body (see Line). */
-export function LetterEmail({ subject, lines, unsubscribe }: { subject: string; lines: readonly Line[]; unsubscribe?: string | undefined }) {
+export function LetterEmail({ subject, lines, unsubscribe }: { subject: string; lines: readonly Line[]; unsubscribe?: Letter['unsubscribe'] }) {
   const preview = lines.find((line, i): line is string => typeof line === 'string' && i > 0) ?? subject;
   return (
     <Html lang="en-GB">
@@ -81,7 +82,13 @@ export function LetterEmail({ subject, lines, unsubscribe }: { subject: string; 
             </Text>
             {unsubscribe && (
               <Text style={styles.small}>
-                <Link href={unsubscribe} style={styles.quiet}>Stop these emails</Link>, or <Link href={`${HOME}/members/account#email`} style={styles.quiet}>choose which you get</Link>.
+                <Link href={unsubscribe.url} style={styles.quiet}>Stop these emails</Link>
+                {inSettings(unsubscribe.list) && (
+                  <>
+                    , or <Link href={`${HOME}/members/account#email`} style={styles.quiet}>choose which you get</Link>
+                  </>
+                )}
+                .
               </Text>
             )}
           </Section>
