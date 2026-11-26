@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { states } from '../../../src/data/directory.ts';
 import { confidence, FEE_FIGURES, feeChoices, feeFigures, type FeeFigure } from '../../../src/data/fees.ts';
 import type { AnswerRefusal, Edition, Report } from '../../../src/server/fees.ts';
-import { allowed, tooManyTries } from '../lib/limits.server.ts';
+import { tooManyTries } from '../lib/action.ts';
+import { allowed } from '../lib/limits.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
@@ -66,7 +67,7 @@ const survey = z
 export const answerFeeSurvey = createServerFn({ method: 'POST' })
   .validator((input: Readonly<Record<string, string>>) => input)
   .handler(async ({ data }): Promise<Outcome<null>> => {
-    const input = parsed(survey, data);
+    const input = await parsed(survey, data);
     if (!input.ok) return input;
     if (!(await allowed('survey'))) return refused(tooManyTries);
     const { trap, niche, hourly, bookkeeping, taxReturn, ...answers } = input.value;

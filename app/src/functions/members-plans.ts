@@ -80,7 +80,7 @@ const withTheHosts = 'Your plan is with the hosts, so that was not saved. Take i
 export const savePlan = createServerFn({ method: 'POST' })
   .validator((input: Record<string, string>) => input)
   .handler(async ({ data }): Promise<Outcome<null>> => {
-    const input = parsed(planFields, data);
+    const input = await parsed(planFields, data);
     if (!input.ok) return input;
     const member = await paidOrRefusal();
     if (!member.ok) return member;
@@ -95,7 +95,7 @@ export const savePlan = createServerFn({ method: 'POST' })
 export const sendPlan = createServerFn({ method: 'POST' })
   .validator((input: Record<string, string>) => input)
   .handler(async ({ data }): Promise<Outcome<{ sent: boolean }>> => {
-    const input = parsed(planFields, data);
+    const input = await parsed(planFields, data);
     if (!input.ok) return input;
     const member = await paidOrRefusal();
     if (!member.ok) return member;

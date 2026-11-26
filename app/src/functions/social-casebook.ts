@@ -8,7 +8,8 @@ import { signInPath } from '../../../src/server/paths.ts';
 import type { EntryRefusal, RoleRefusal } from '../../../src/server/social-casebook.ts';
 import { blankable, id, oneLine } from '../lib/fields.ts';
 import { memberOrRefusal } from '../lib/guards.server.ts';
-import { allowed, tooManyTries } from '../lib/limits.server.ts';
+import { tooManyTries } from '../lib/action.ts';
+import { allowed } from '../lib/limits.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
@@ -74,7 +75,7 @@ export const addEntry = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ id: number }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(entryInput, data);
+    const input = await parsed(entryInput, data);
     if (!input.ok) return input;
     if (!(await allowed('casebook'))) return refused(tooManyTries);
     const added = await withStore(async (store) => await store.socialCasebook.add(member.value.id, input.value));
@@ -86,7 +87,7 @@ export const removeEntry = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ removed: boolean }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ entry: id }), data);
+    const input = await parsed(z.object({ entry: id }), data);
     if (!input.ok) return input;
     return done({ removed: await withStore(async (store) => await store.socialCasebook.remove(member.value.id, input.value.entry)) });
   });
@@ -116,7 +117,7 @@ export const addRole = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ id: number }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(roleInput, data);
+    const input = await parsed(roleInput, data);
     if (!input.ok) {
       /* A title can trip more than one guard. The form shows every one, as the page always has. */
       const guards = identifying(oneLine(data.title), ROLE_TITLE_SKIP);
@@ -132,7 +133,7 @@ export const removeRole = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ removed: boolean }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ role: id }), data);
+    const input = await parsed(z.object({ role: id }), data);
     if (!input.ok) return input;
     return done({ removed: await withStore(async (store) => await store.socialCasebook.removeRole(member.value.id, input.value.role)) });
   });

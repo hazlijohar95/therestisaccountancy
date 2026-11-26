@@ -23,7 +23,7 @@ const rsvpInput = z.object({ session: numberId, going: z.boolean() });
 export const rsvp = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof rsvpInput>) => input)
   .handler(async ({ data }): Promise<Outcome<{ going: boolean }>> => {
-    const input = parsed(rsvpInput, data);
+    const input = await parsed(rsvpInput, data);
     if (!input.ok) return input;
     const member = await paidOrRefusal();
     if (!member.ok) return member;

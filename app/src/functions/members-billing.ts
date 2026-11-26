@@ -6,7 +6,8 @@ import type { CheckoutRefusal } from '../../../src/server/charges.ts';
 import { checkout as openCheckout, settle } from '../../../src/server/payments.ts';
 import { report } from '../../../src/server/report.ts';
 import { memberOrRefusal, memberOrSignIn } from '../lib/guards.server.ts';
-import { allowed, tooManyTries } from '../lib/limits.server.ts';
+import { tooManyTries } from '../lib/action.ts';
+import { allowed } from '../lib/limits.server.ts';
 import { absolute } from '../lib/mail.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
@@ -42,7 +43,7 @@ const checkoutInput = z.object({ term: z.enum(TERMS) });
 export const checkout = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof checkoutInput>) => input)
   .handler(async ({ data }): Promise<Outcome<{ url: string }>> => {
-    const input = parsed(checkoutInput, data);
+    const input = await parsed(checkoutInput, data);
     if (!input.ok) return input;
     const member = await memberOrRefusal();
     if (!member.ok) return member;
@@ -61,7 +62,7 @@ const renewsInput = z.object({ renews: z.boolean() });
 export const setRenews = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof renewsInput>) => input)
   .handler(async ({ data }): Promise<Outcome<{ renews: boolean }>> => {
-    const input = parsed(renewsInput, data);
+    const input = await parsed(renewsInput, data);
     if (!input.ok) return input;
     const member = await memberOrRefusal();
     if (!member.ok) return member;

@@ -21,7 +21,8 @@ import {
 } from '../../../src/server/social-claims.ts';
 import { workEmailLetter } from '../../../src/server/social-letters.ts';
 import type { Profile } from '../../../src/server/social-profiles.ts';
-import { allowed, tooManyTries } from '../lib/limits.server.ts';
+import { tooManyTries } from '../lib/action.ts';
+import { allowed } from '../lib/limits.server.ts';
 import { sendLater } from '../lib/mail.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
@@ -164,7 +165,7 @@ export const addAccount = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ account: number }>> => {
     const profile = await profileOrRefusal();
     if (!profile.ok) return profile;
-    const input = parsed(accountInput, data);
+    const input = await parsed(accountInput, data);
     if (!input.ok) return input;
     if (!(await allowed('ticks'))) return refused(tooManyTries);
     const platform: Platform = input.value.platform;
@@ -177,7 +178,7 @@ export const removeAccount = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ removed: boolean }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ account: id }), data);
+    const input = await parsed(z.object({ account: id }), data);
     if (!input.ok) return input;
     return done({ removed: await withStore(async (store) => await store.socialClaims.removeAccount(member.value.id, input.value.account)) });
   });
@@ -207,7 +208,7 @@ export const addBody = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ claim: number }>> => {
     const profile = await profileOrRefusal();
     if (!profile.ok) return profile;
-    const input = await parsedAsync(bodyInput, formFields(data, ['body', 'status', 'reference', 'otherName', 'evidence']));
+    const input = await parsed(bodyInput, formFields(data, ['body', 'status', 'reference', 'otherName', 'evidence']));
     if (!input.ok) return input;
     if (!(await allowed('ticks'))) return refused(tooManyTries);
     const body = bodyById(input.value.body);
@@ -241,7 +242,7 @@ export const addLicence = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ claim: number }>> => {
     const profile = await profileOrRefusal();
     if (!profile.ok) return profile;
-    const input = await parsedAsync(licenceInput, formFields(data, ['licence', 'reference', 'until', 'evidence']));
+    const input = await parsed(licenceInput, formFields(data, ['licence', 'reference', 'until', 'evidence']));
     if (!input.ok) return input;
     if (!(await allowed('ticks'))) return refused(tooManyTries);
     const { evidence: file, licence, reference, until } = input.value;
@@ -254,7 +255,7 @@ export const addAcademic = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ claim: number }>> => {
     const profile = await profileOrRefusal();
     if (!profile.ok) return profile;
-    const input = parsed(z.object({ role: line(CLAIM_LIMITS.label, 'Enter your post, like Senior lecturer, Universiti Malaya.'), url: https }), data);
+    const input = await parsed(z.object({ role: line(CLAIM_LIMITS.label, 'Enter your post, like Senior lecturer, Universiti Malaya.'), url: https }), data);
     if (!input.ok) return input;
     if (!(await allowed('ticks'))) return refused(tooManyTries);
     return addPlain(profile.value.memberId, { kind: 'academic', role: input.value.role, url: input.value.url });
@@ -265,7 +266,7 @@ export const addExperience = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ claim: number }>> => {
     const profile = await profileOrRefusal();
     if (!profile.ok) return profile;
-    const input = parsed(z.object({ text: line(CLAIM_LIMITS.label, 'Say what experience you have, like Six years in audit.') }), data);
+    const input = await parsed(z.object({ text: line(CLAIM_LIMITS.label, 'Say what experience you have, like Six years in audit.') }), data);
     if (!input.ok) return input;
     if (!(await allowed('ticks'))) return refused(tooManyTries);
     return addPlain(profile.value.memberId, { kind: 'experience', text: input.value.text });
@@ -276,7 +277,7 @@ export const removeClaim = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ removed: boolean }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ claim: id }), data);
+    const input = await parsed(z.object({ claim: id }), data);
     if (!input.ok) return input;
     const { removed, evidenceKey } = await withStore(async (store) => await store.socialClaims.removeClaim(member.value.id, input.value.claim));
     if (evidenceKey) await deleteEvidence(evidenceKey).catch((error: unknown) => report('evidence', `The document of removed claim ${input.value.claim} was not deleted`, error));
@@ -289,7 +290,7 @@ export const sendWorkEmail = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ address: string }>> => {
     const profile = await profileOrRefusal();
     if (!profile.ok) return profile;
-    const input = parsed(z.object({ email }), data);
+    const input = await parsed(z.object({ email }), data);
     if (!input.ok) return input;
     if (!(await allowed('work-email'))) return refused(tooManyTries);
     const check = await withStore(async (store) => await store.socialClaims.startWorkEmail(profile.value.memberId, input.value.email));
@@ -326,7 +327,7 @@ export const confirmWorkEmail = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ label: string }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ token: z.string().min(1) }), data);
+    const input = await parsed(z.object({ token: z.string().min(1) }), data);
     if (!input.ok) return input;
     const claim = await withStore(async (store) => await store.socialClaims.confirmWorkEmail(member.value.id, input.value.token));
     return claim.ok ? done({ label: claim.value.label }) : refused(confirmRefusals[claim.reason]);
@@ -338,20 +339,9 @@ export const vouch = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ vouches: number; ticked: boolean }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ claim: id }), data);
+    const input = await parsed(z.object({ claim: id }), data);
     if (!input.ok) return input;
     const claim = await withStore(async (store) => await store.socialClaims.vouch(member.value.id, input.value.claim));
     return claim.ok ? done({ vouches: claim.value.vouches, ticked: claim.value.review.state === 'ticked' }) : refused(vouchRefusals[claim.reason]);
   });
 
-/** Like parsed(), for a schema with async checks: the file checks read the upload's first bytes. */
-async function parsedAsync<S extends z.ZodType>(schema: S, input: unknown): Promise<{ readonly ok: true; readonly value: z.output<S> } | Outcome<never>> {
-  const result = await schema.safeParseAsync(input);
-  if (result.success) return { ok: true, value: result.data };
-  const fields: Record<string, string> = {};
-  for (const issue of result.error.issues) {
-    const field = String(issue.path[0] ?? '');
-    if (field && !(field in fields)) fields[field] = issue.message;
-  }
-  return refused('Check the fields marked below.', fields);
-}

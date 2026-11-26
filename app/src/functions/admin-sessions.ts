@@ -40,7 +40,7 @@ export const addSession = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const admin = await adminOrRefusal();
     if (!admin.ok) return admin;
-    const input = parsed(newSession, data);
+    const input = await parsed(newSession, data);
     if (!input.ok) return input;
     const { date, time, ...session } = input.value;
     const startsAt = malaysiaTime(date, time);
@@ -57,7 +57,7 @@ export const cancelSession = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<number>> => {
     const admin = await adminOrRefusal();
     if (!admin.ok) return admin;
-    const input = parsed(sessionInput, data);
+    const input = await parsed(sessionInput, data);
     if (!input.ok) return input;
     const roll = await withStore(async (store) => await store.schedule.cancel(input.value.session));
     if (!roll) return refused('That session is already over or called off.');

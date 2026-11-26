@@ -5,7 +5,8 @@ import { tidy } from '../../../src/server/community.ts';
 import { listingQueuedLetter, type SaveOutcome } from '../../../src/server/listings.ts';
 import { email, oneLine } from '../lib/fields.ts';
 import { paidOrRefusal } from '../lib/guards.server.ts';
-import { allowed, tooManyTries } from '../lib/limits.server.ts';
+import { tooManyTries } from '../lib/action.ts';
+import { allowed } from '../lib/limits.server.ts';
 import { absolute, sendLater } from '../lib/mail.server.ts';
 import { paidMemberOrRedirect } from '../lib/members.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
@@ -69,7 +70,7 @@ export interface ListingForm {
 export const saveListing = createServerFn({ method: 'POST' })
   .validator((input: ListingForm) => input)
   .handler(async ({ data }): Promise<Outcome<{ outcome: SaveOutcome }>> => {
-    const input = parsed(listingInput, data);
+    const input = await parsed(listingInput, data);
     if (!input.ok) return input;
     const member = await paidOrRefusal();
     if (!member.ok) return member;
@@ -89,7 +90,7 @@ const pauseInput = z.object({ paused: z.boolean() });
 export const pauseListing = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof pauseInput>) => input)
   .handler(async ({ data }): Promise<Outcome<{ paused: boolean }>> => {
-    const input = parsed(pauseInput, data);
+    const input = await parsed(pauseInput, data);
     if (!input.ok) return input;
     const member = await paidOrRefusal();
     if (!member.ok) return member;

@@ -108,7 +108,7 @@ const startInput = z.object({ channel, title, body });
 export const startThread = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof startInput>) => input)
   .handler(async ({ data }): Promise<Outcome<Landing>> => {
-    const input = parsed(startInput, data);
+    const input = await parsed(startInput, data);
     if (!input.ok) return input;
     const member = await paidOrRefusal();
     if (!member.ok) return member;
@@ -120,7 +120,7 @@ const replyInput = z.object({ thread: numberId, body });
 export const reply = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof replyInput>) => input)
   .handler(async ({ data }): Promise<Outcome<Landing>> => {
-    const input = parsed(replyInput, data);
+    const input = await parsed(replyInput, data);
     if (!input.ok) return input;
     const member = await paidOrRefusal();
     if (!member.ok) return member;
@@ -139,7 +139,7 @@ const editInput = z.object({ post: numberId, body });
 export const editPost = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof editInput>) => input)
   .handler(async ({ data }): Promise<Outcome<Landing>> => {
-    const input = parsed(editInput, data);
+    const input = await parsed(editInput, data);
     if (!input.ok) return input;
     const member = await paidOrRefusal();
     if (!member.ok) return member;
@@ -152,7 +152,7 @@ const deleteInput = z.object({ post: numberId });
 export const deletePost = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof deleteInput>) => input)
   .handler(async ({ data }): Promise<Outcome<Landing & { threadRemoved: boolean }>> => {
-    const input = parsed(deleteInput, data);
+    const input = await parsed(deleteInput, data);
     if (!input.ok) return input;
     const member = await memberOrRefusal();
     if (!member.ok) return member;
@@ -165,7 +165,7 @@ const moderateInput = z.object({ thread: numberId, action: z.enum(MODERATIONS) }
 export const moderateThread = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof moderateInput>) => input)
   .handler(async ({ data }): Promise<Outcome<{ threadId: number; channel: ChannelSlug; action: Moderation }>> => {
-    const input = parsed(moderateInput, data);
+    const input = await parsed(moderateInput, data);
     if (!input.ok) return input;
     const member = await memberOrRefusal();
     if (!member.ok) return member;

@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { byDay, callLetters, TOPIC_MAX, type BookRefusal } from '../../../src/server/calls.ts';
 import { numberId, oneLine } from '../lib/fields.ts';
 import { memberOrRefusal, paidOrRefusal } from '../lib/guards.server.ts';
-import { allowed, tooManyTries } from '../lib/limits.server.ts';
+import { tooManyTries } from '../lib/action.ts';
+import { allowed } from '../lib/limits.server.ts';
 import { absolute, sendLater } from '../lib/mail.server.ts';
 import { paidMemberOrRedirect } from '../lib/members.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
@@ -42,7 +43,7 @@ const bookInput = z.object({
 export const bookCall = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof bookInput>) => input)
   .handler(async ({ data }): Promise<Outcome<{ id: number }>> => {
-    const input = parsed(bookInput, data);
+    const input = await parsed(bookInput, data);
     if (!input.ok) return input;
     const member = await paidOrRefusal();
     if (!member.ok) return member;
@@ -58,7 +59,7 @@ const cancelInput = z.object({ slot: numberId });
 export const cancelCall = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof cancelInput>) => input)
   .handler(async ({ data }): Promise<Outcome<{ id: number }>> => {
-    const input = parsed(cancelInput, data);
+    const input = await parsed(cancelInput, data);
     if (!input.ok) return input;
     const member = await memberOrRefusal();
     if (!member.ok) return member;

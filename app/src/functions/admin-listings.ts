@@ -54,7 +54,7 @@ export const approveListing = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<Decision>> => {
     const admin = await adminOrRefusal();
     if (!admin.ok) return admin;
-    const input = parsed(decision, data);
+    const input = await parsed(decision, data);
     if (!input.ok) return input;
     const host = admin.value;
     const result = await withStore(async (store) => await store.listings.approve(input.value.member, host.id, input.value.seen));
@@ -76,7 +76,7 @@ export const returnListing = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<Decision>> => {
     const admin = await adminOrRefusal();
     if (!admin.ok) return admin;
-    const input = parsed(sendBack, data);
+    const input = await parsed(sendBack, data);
     if (!input.ok) return input;
     const host = admin.value;
     const result = await withStore(async (store) => await store.listings.sendBack(input.value.member, input.value.seen, input.value.note));

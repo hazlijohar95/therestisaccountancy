@@ -129,7 +129,7 @@ export const inviteRequest = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<Invited>> => {
     const admin = await adminOrRefusal();
     if (!admin.ok) return admin;
-    const input = parsed(requestInput, data);
+    const input = await parsed(requestInput, data);
     if (!input.ok) return input;
     const invitation = await withStore(async (store) => await store.club.inviteFromRequest(input.value.request));
     if (!invitation.ok) return refused(inviteRefusals[invitation.reason]);
@@ -144,7 +144,7 @@ export const declineRequest = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const admin = await adminOrRefusal();
     if (!admin.ok) return admin;
-    const input = parsed(requestInput, data);
+    const input = await parsed(requestInput, data);
     if (!input.ok) return input;
     const declined = await withStore(async (store) => await store.club.declineRequest(input.value.request));
     return declined ? done(null) : refused(inviteRefusals.decided);
@@ -156,7 +156,7 @@ export const issueLink = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<Issued>> => {
     const admin = await adminOrRefusal();
     if (!admin.ok) return admin;
-    const input = parsed(memberInput, data);
+    const input = await parsed(memberInput, data);
     if (!input.ok) return input;
     const link = await withStore(async (store) => await store.club.newLink(input.value.member));
     if (!link.ok) return refused(linkRefusals[link.reason]);
@@ -170,7 +170,7 @@ export const updateMember = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const admin = await adminOrRefusal();
     if (!admin.ok) return admin;
-    const input = parsed(memberUpdate, data);
+    const input = await parsed(memberUpdate, data);
     if (!input.ok) return input;
     const updated = await withStore(async (store) => await store.club.updateMember(admin.value.id, input.value.member, input.value, absolute('/')));
     if (!updated.ok) return refused(memberRefusals[updated.reason]);
@@ -183,7 +183,7 @@ export const suspendMember = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const admin = await adminOrRefusal();
     if (!admin.ok) return admin;
-    const input = parsed(memberInput, data);
+    const input = await parsed(memberInput, data);
     if (!input.ok) return input;
     const suspended = await withStore(async (store) => await store.club.suspendMember(admin.value.id, input.value.member, absolute('/')));
     if (!suspended.ok) return refused(memberRefusals[suspended.reason]);
@@ -196,7 +196,7 @@ export const reinstateMember = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const admin = await adminOrRefusal();
     if (!admin.ok) return admin;
-    const input = parsed(memberInput, data);
+    const input = await parsed(memberInput, data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.club.reinstateMember(input.value.member));
     return result.ok ? done(null) : refused(memberRefusals[result.reason]);
@@ -209,7 +209,7 @@ export const removeMember = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const admin = await adminOrRefusal();
     if (!admin.ok) return admin;
-    const input = parsed(memberRemoval, data);
+    const input = await parsed(memberRemoval, data);
     if (!input.ok) return input;
     const member = input.value.member;
     const removed = await withStore(async (store) => await store.club.removeMember(admin.value.id, member, absolute('/')));

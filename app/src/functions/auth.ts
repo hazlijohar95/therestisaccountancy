@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { site } from '../../../src/data/site.ts';
 import type { SignInRefusal } from '../../../src/server/club.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
-import { clientKey, tooManyTries } from '../lib/limits.server.ts';
+import { tooManyTries } from '../lib/action.ts';
+import { clientKey } from '../lib/limits.server.ts';
 import { currentMember, endSession, startSession } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
 
@@ -24,7 +25,7 @@ export const me = createServerFn({ method: 'GET' }).handler(async () => {
 export const signIn = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof credentials>) => input)
   .handler(async ({ data }): Promise<Outcome<{ role: 'member' | 'admin'; clubApproved: boolean }>> => {
-    const input = parsed(credentials, data);
+    const input = await parsed(credentials, data);
     if (!input.ok) return input;
     const key = clientKey('sign-in');
     const result = await withStore(async (store) => {

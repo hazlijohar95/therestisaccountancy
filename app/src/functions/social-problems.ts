@@ -5,7 +5,8 @@ import { OPTION_KEYS, POST_JURISDICTIONS, PROBLEM_LIMITS, RATING_IDS, TOPICS } f
 import type { AnswerRefusal, CreateRefusal, RateRefusal, RemoveProblemRefusal } from '../../../src/server/social-problems.ts';
 import { blankable, id, line, malaysiaTime, oneLine } from '../lib/fields.ts';
 import { adminOrRefusal, memberOrRefusal } from '../lib/guards.server.ts';
-import { allowed, tooManyTries } from '../lib/limits.server.ts';
+import { tooManyTries } from '../lib/action.ts';
+import { allowed } from '../lib/limits.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
@@ -73,7 +74,7 @@ export const answerProblem = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ number: number }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(
+    const input = await parsed(
       z.object({
         number: id,
         pick: z.enum(OPTION_KEYS, 'Pick an answer first.'),
@@ -99,7 +100,7 @@ export const rateAnswer = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ answer: number; rating: string | null; button: string }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ answer: id, button: z.enum(RATING_IDS), rating: z.enum([...RATING_IDS, 'none']) }), data);
+    const input = await parsed(z.object({ answer: id, button: z.enum(RATING_IDS), rating: z.enum([...RATING_IDS, 'none']) }), data);
     if (!input.ok) return input;
     const { answer, button, rating } = input.value;
     const rated = await withStore(async (store) => await store.socialProblems.rate(member.value.id, answer, rating === 'none' ? null : rating));
@@ -160,7 +161,7 @@ export const writeProblem = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ number: number }>> => {
     const team = await adminOrRefusal();
     if (!team.ok) return team;
-    const input = parsed(problemInput, data);
+    const input = await parsed(problemInput, data);
     if (!input.ok) return input;
     const { opensDate, opensTime, closesDate, closesTime, ...draft } = input.value;
     const opensAt = malaysiaTime(opensDate, opensTime);
@@ -175,7 +176,7 @@ export const removeProblem = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ number: number }>> => {
     const team = await adminOrRefusal();
     if (!team.ok) return team;
-    const input = parsed(z.object({ number: id }), data);
+    const input = await parsed(z.object({ number: id }), data);
     if (!input.ok) return input;
     const removed = await withStore(async (store) => await store.socialProblems.remove(input.value.number));
     return removed.ok ? done({ number: input.value.number }) : refused(removeRefusals[removed.reason]);

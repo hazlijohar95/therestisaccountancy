@@ -48,7 +48,7 @@ export const openSlot = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const admin = await adminOrRefusal();
     if (!admin.ok) return admin;
-    const input = parsed(newSlot, data);
+    const input = await parsed(newSlot, data);
     if (!input.ok) return input;
     const { date, time, minutes, link } = input.value;
     const startsAt = malaysiaTime(date, time);
@@ -65,7 +65,7 @@ export const cancelSlot = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<string | null>> => {
     const admin = await adminOrRefusal();
     if (!admin.ok) return admin;
-    const input = parsed(slotInput, data);
+    const input = await parsed(slotInput, data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.calls.cancelSlot(input.value.slot));
     if (!result.ok) return refused('That slot is already over or cancelled.');

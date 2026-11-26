@@ -11,7 +11,8 @@ import type { SignUpRefusal } from '../../../src/server/social-profiles.ts';
 import type { RequestRefusal } from '../../../src/server/social-requests.ts';
 import { email, memberName, numberId, oneLine, token } from '../lib/fields.ts';
 import { memberOrRefusal } from '../lib/guards.server.ts';
-import { allowed, tooManyTries } from '../lib/limits.server.ts';
+import { tooManyTries } from '../lib/action.ts';
+import { allowed } from '../lib/limits.server.ts';
 import { absolute, sendLater } from '../lib/mail.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
@@ -97,7 +98,7 @@ export const requestPage = createServerFn({ method: 'GET' }).handler(async () =>
 export const requestToJoin = createServerFn({ method: 'POST' })
   .validator((input: { name: string; email: string; about: string; link: string; trap: string }) => input)
   .handler(async ({ data }): Promise<Outcome<{ email: string; waiting: string | null }>> => {
-    const input = parsed(requestSchema, data);
+    const input = await parsed(requestSchema, data);
     if (!input.ok) return input;
     if (!(await allowed('social-request'))) return refused(tooManyTries);
     const { trap, ...draft } = input.value;
@@ -132,7 +133,7 @@ export const revokeInvite = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ invite: numberId }), data);
+    const input = await parsed(z.object({ invite: numberId }), data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.socialInvites.revoke(member.value.id, input.value.invite));
     return result.ok ? done(null) : refused(revokeRefusals[result.reason]);
@@ -144,7 +145,7 @@ export const useInvite = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ token: token }), data);
+    const input = await parsed(z.object({ token: token }), data);
     if (!input.ok) return input;
     if (!input.value.token) return refused(redeemRefusals.dead);
     const result = await withStore(async (store) => await store.socialInvites.redeem(member.value.id, input.value.token));
@@ -183,7 +184,7 @@ export const signUpPage = createServerFn({ method: 'GET' })
 export const socialSignUp = createServerFn({ method: 'POST' })
   .validator((input: { name: string; email: string; handle: string; trap: string; invite: string; nomination: string }) => input)
   .handler(async ({ data }): Promise<Outcome<{ email: string; claimed: boolean }>> => {
-    const input = parsed(signUpSchema, data);
+    const input = await parsed(signUpSchema, data);
     if (!input.ok) return input;
     if (!(await allowed('social-sign-up'))) return refused(tooManyTries);
     const { trap, invite, nomination, ...person } = input.value;

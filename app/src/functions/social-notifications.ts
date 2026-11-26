@@ -48,7 +48,7 @@ export const decideCosign = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ outcome: 'signed' | 'declined' }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ entry: numberId, outcome: z.enum(['signed', 'declined']) }), data);
+    const input = await parsed(z.object({ entry: numberId, outcome: z.enum(['signed', 'declined']) }), data);
     if (!input.ok) return input;
     const { entry, outcome } = input.value;
     const result = await withStore(async (store) => await store.socialCasebook.decide(member.value.id, entry, outcome));

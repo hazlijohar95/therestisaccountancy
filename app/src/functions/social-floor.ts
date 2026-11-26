@@ -6,7 +6,8 @@ import { SEARCH_MAX } from '../../../src/lib/search.ts';
 import type { AcceptRefusal, EditRefusal, PostRefusal, RemoveRefusal, ReplyRefusal, ReportRefusal, ThreadSort, UsefulRefusal } from '../../../src/server/social-floor.ts';
 import { numberId, oneLine } from '../lib/fields.ts';
 import { memberOrRefusal } from '../lib/guards.server.ts';
-import { allowed, tooManyTries } from '../lib/limits.server.ts';
+import { tooManyTries } from '../lib/action.ts';
+import { allowed } from '../lib/limits.server.ts';
 import { socialHref } from '../lib/links.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
@@ -133,7 +134,7 @@ export const floorPost = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ id: number }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(postSchema, data);
+    const input = await parsed(postSchema, data);
     if (!input.ok) return input;
     if (!(await allowed('floor'))) return refused(tooManyTries);
     const result = await withStore(async (store) => await store.socialFloor.post(member.value.id, input.value));
@@ -145,7 +146,7 @@ export const editFloorPost = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(editPostSchema, data);
+    const input = await parsed(editPostSchema, data);
     if (!input.ok) return input;
     const { post, ...draft } = input.value;
     const result = await withStore(async (store) => await store.socialFloor.editPost(member.value.id, post, draft));
@@ -157,7 +158,7 @@ export const removeFloorPost = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ post: numberId }), data);
+    const input = await parsed(z.object({ post: numberId }), data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.socialFloor.removePost(member.value.id, input.value.post));
     return result.ok ? done(null) : refused(removeRefusals[result.reason]);
@@ -168,7 +169,7 @@ export const floorReply = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ id: number }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(replySchema, data);
+    const input = await parsed(replySchema, data);
     if (!input.ok) return input;
     if (!(await allowed('floor'))) return refused(tooManyTries);
     const result = await withStore(async (store) => await store.socialFloor.reply(member.value.id, input.value.post, input.value));
@@ -180,7 +181,7 @@ export const editFloorReply = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(editReplySchema, data);
+    const input = await parsed(editReplySchema, data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.socialFloor.editReply(member.value.id, input.value.reply, input.value.body));
     return result.ok ? done(null) : refused(editRefusals[result.reason]);
@@ -191,7 +192,7 @@ export const removeFloorReply = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ reply: numberId }), data);
+    const input = await parsed(z.object({ reply: numberId }), data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.socialFloor.removeReply(member.value.id, input.value.reply));
     return result.ok ? done(null) : refused(removeRefusals[result.reason]);
@@ -202,7 +203,7 @@ export const acceptReply = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ reply: numberId }), data);
+    const input = await parsed(z.object({ reply: numberId }), data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.socialFloor.accept(member.value.id, input.value.reply));
     return result.ok ? done(null) : refused(acceptRefusals[result.reason]);
@@ -213,7 +214,7 @@ export const unacceptReply = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ reply: numberId }), data);
+    const input = await parsed(z.object({ reply: numberId }), data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.socialFloor.unaccept(member.value.id, input.value.reply));
     return result.ok ? done(null) : refused(acceptRefusals[result.reason]);
@@ -224,7 +225,7 @@ export const markUseful = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ useful: number }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(usefulSchema, data);
+    const input = await parsed(usefulSchema, data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.socialFloor.markUseful(member.value.id, input.value.target, input.value.id));
     return result.ok ? done({ useful: result.value.useful }) : refused(usefulRefusals[result.reason]);
@@ -235,7 +236,7 @@ export const unmarkUseful = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ useful: number }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(usefulSchema, data);
+    const input = await parsed(usefulSchema, data);
     if (!input.ok) return input;
     const { useful } = await withStore(async (store) => await store.socialFloor.unmarkUseful(member.value.id, input.value.target, input.value.id));
     return done({ useful });
@@ -247,7 +248,7 @@ export const report = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(reportSchema, data);
+    const input = await parsed(reportSchema, data);
     if (!input.ok) return input;
     if (!(await allowed('report'))) return refused(tooManyTries);
     const { target, reason, note } = input.value;

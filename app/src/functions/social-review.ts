@@ -87,7 +87,7 @@ export const approveAccount = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const reviewer = await adminOrRefusal();
     if (!reviewer.ok) return reviewer;
-    const input = parsed(z.object({ account: id }), data);
+    const input = await parsed(z.object({ account: id }), data);
     if (!input.ok) return input;
     const decided = await withStore(async (store) => await store.socialClaims.decideAccount(input.value.account, reviewer.value.id, { verdict: 'approve' }));
     if (!decided.ok) return refused(decisionRefusals[decided.reason]);
@@ -100,7 +100,7 @@ export const rejectAccount = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const reviewer = await adminOrRefusal();
     if (!reviewer.ok) return reviewer;
-    const input = parsed(z.object({ account: id, reason }), data);
+    const input = await parsed(z.object({ account: id, reason }), data);
     if (!input.ok) return input;
     const decided = await withStore(
       async (store) => await store.socialClaims.decideAccount(input.value.account, reviewer.value.id, { verdict: 'reject', reason: input.value.reason }),
@@ -115,7 +115,7 @@ export const approveClaim = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const reviewer = await adminOrRefusal();
     if (!reviewer.ok) return reviewer;
-    const input = parsed(z.object({ claim: id }), data);
+    const input = await parsed(z.object({ claim: id }), data);
     if (!input.ok) return input;
     const { key, decided } = await withStore(async (store) => ({
       key: await store.socialClaims.evidenceKey(input.value.claim),
@@ -133,7 +133,7 @@ export const rejectClaim = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const reviewer = await adminOrRefusal();
     if (!reviewer.ok) return reviewer;
-    const input = parsed(z.object({ claim: id, reason }), data);
+    const input = await parsed(z.object({ claim: id, reason }), data);
     if (!input.ok) return input;
     const { key, decided } = await withStore(async (store) => ({
       key: await store.socialClaims.evidenceKey(input.value.claim),
@@ -161,7 +161,7 @@ export const inviteNomination = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<InviteLink>> => {
     const reviewer = await adminOrRefusal();
     if (!reviewer.ok) return reviewer;
-    const input = parsed(nominationInput, data);
+    const input = await parsed(nominationInput, data);
     if (!input.ok) return input;
     const invited = await withStore(async (store) => await store.socialNominations.invite(input.value.nomination, reviewer.value.id));
     if (!invited.ok) return refused(inviteRefusals[invited.reason]);
@@ -174,7 +174,7 @@ export const relinkNomination = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<InviteLink>> => {
     const reviewer = await adminOrRefusal();
     if (!reviewer.ok) return reviewer;
-    const input = parsed(nominationInput, data);
+    const input = await parsed(nominationInput, data);
     if (!input.ok) return input;
     const invited = await withStore(async (store) => await store.socialNominations.relink(input.value.nomination, reviewer.value.id));
     if (!invited.ok) return refused(inviteRefusals[invited.reason]);
@@ -187,7 +187,7 @@ export const rejectNomination = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const reviewer = await adminOrRefusal();
     if (!reviewer.ok) return reviewer;
-    const input = parsed(nominationInput, data);
+    const input = await parsed(nominationInput, data);
     if (!input.ok) return input;
     const rejected = await withStore(async (store) => await store.socialNominations.reject(input.value.nomination, reviewer.value.id));
     return rejected.ok ? done(null) : refused(inviteRefusals[rejected.reason]);
@@ -201,7 +201,7 @@ export const hideReported = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const reviewer = await adminOrRefusal();
     if (!reviewer.ok) return reviewer;
-    const input = parsed(reportedInput, data);
+    const input = await parsed(reportedInput, data);
     if (!input.ok) return input;
     const decided = await withStore(async (store) => await store.socialFloor.decideReports(reviewer.value.id, input.value.target, input.value.id, 'hide'));
     return decided.ok ? done(null) : refused(reportDecided);
@@ -213,7 +213,7 @@ export const dismissReported = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const reviewer = await adminOrRefusal();
     if (!reviewer.ok) return reviewer;
-    const input = parsed(reportedInput, data);
+    const input = await parsed(reportedInput, data);
     if (!input.ok) return input;
     const decided = await withStore(async (store) => await store.socialFloor.decideReports(reviewer.value.id, input.value.target, input.value.id, 'dismiss'));
     return decided.ok ? done(null) : refused(reportDecided);
@@ -227,7 +227,7 @@ export const approveRequest = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const team = await adminOrRefusal();
     if (!team.ok) return team;
-    const input = parsed(requestInput, data);
+    const input = await parsed(requestInput, data);
     if (!input.ok) return input;
     const approved = await withStore(async (store) => await store.socialRequests.approve(input.value.request, team.value.id, absolute('/')));
     if (!approved.ok) return refused(decideRefusals[approved.reason]);
@@ -240,7 +240,7 @@ export const declineRequest = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const team = await adminOrRefusal();
     if (!team.ok) return team;
-    const input = parsed(requestInput, data);
+    const input = await parsed(requestInput, data);
     if (!input.ok) return input;
     const declined = await withStore(async (store) => await store.socialRequests.decline(input.value.request, team.value.id));
     if (!declined.ok) return refused(decideRefusals.decided);
@@ -254,7 +254,7 @@ export const teamInvite = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ email: string; link: string; emailed: boolean }>> => {
     const team = await adminOrRefusal();
     if (!team.ok) return team;
-    const input = parsed(z.object({ email, name: blankable(z.string().transform(oneLine).pipe(z.string().max(60, 'Keep the name under 60 characters.'))) }), data);
+    const input = await parsed(z.object({ email, name: blankable(z.string().transform(oneLine).pipe(z.string().max(60, 'Keep the name under 60 characters.'))) }), data);
     if (!input.ok) return input;
     const to = { email: input.value.email, name: input.value.name || null };
     const invited = await withStore(async (store) => await store.socialInvites.inviteByEmail(team.value.id, to));
@@ -269,7 +269,7 @@ export const withdrawTeamInvite = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const team = await adminOrRefusal();
     if (!team.ok) return team;
-    const input = parsed(z.object({ invite: id }), data);
+    const input = await parsed(z.object({ invite: id }), data);
     if (!input.ok) return input;
     const withdrawn = await withStore(async (store) => await store.socialInvites.withdraw(input.value.invite));
     return withdrawn.ok ? done(null) : refused(revokeRefusals[withdrawn.reason]);

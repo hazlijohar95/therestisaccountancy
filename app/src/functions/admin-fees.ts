@@ -67,7 +67,7 @@ export const publishFees = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ edition: number }>> => {
     const admin = await adminOrRefusal();
     if (!admin.ok) return admin;
-    const input = parsed(editionInput, data);
+    const input = await parsed(editionInput, data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.fees.publish(input.value.edition, admin.value.id));
     return result.ok ? done({ edition: result.value.edition }) : refused(publishRefusals[result.reason]);
@@ -79,7 +79,7 @@ export const unpublishFees = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ edition: number; reopened: boolean }>> => {
     const admin = await adminOrRefusal();
     if (!admin.ok) return admin;
-    const input = parsed(editionInput, data);
+    const input = await parsed(editionInput, data);
     if (!input.ok) return input;
     const edition = await withStore(async (store) => await store.fees.unpublish(input.value.edition));
     return done({ edition: edition.edition, reopened: edition.status === 'open' });
@@ -93,7 +93,7 @@ export const deleteFeeResponse = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const admin = await adminOrRefusal();
     if (!admin.ok) return admin;
-    const input = parsed(answerInput, data);
+    const input = await parsed(answerInput, data);
     if (!input.ok) return input;
     const removed = await withStore(async (store) => await store.fees.remove(input.value.answer));
     return removed ? done(null) : refused('That answer is already gone.');

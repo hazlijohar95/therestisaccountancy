@@ -4,7 +4,8 @@ import { SHELF_KINDS, SHELF_LIMITS, socialHost } from '../../../src/data/social.
 import type { SaveRefusal, ShelfRefusal } from '../../../src/server/social-shelf.ts';
 import { numberId, oneLine } from '../lib/fields.ts';
 import { memberOrRefusal } from '../lib/guards.server.ts';
-import { allowed, tooManyTries } from '../lib/limits.server.ts';
+import { tooManyTries } from '../lib/action.ts';
+import { allowed } from '../lib/limits.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
@@ -32,7 +33,7 @@ export const addShelfItem = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(shelfSchema, data);
+    const input = await parsed(shelfSchema, data);
     if (!input.ok) return input;
     if (!(await allowed('shelf'))) return refused(tooManyTries);
     const result = await withStore(async (store) => await store.socialShelf.add(member.value.id, input.value));
@@ -45,7 +46,7 @@ export const removeShelfItem = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ item: numberId }), data);
+    const input = await parsed(z.object({ item: numberId }), data);
     if (!input.ok) return input;
     await withStore(async (store) => await store.socialShelf.remove(member.value.id, input.value.item));
     return done(null);
@@ -56,7 +57,7 @@ export const saveItem = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ item: numberId }), data);
+    const input = await parsed(z.object({ item: numberId }), data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.socialShelf.save(member.value.id, input.value.item));
     return result.ok ? done(null) : refused(saveRefusals[result.reason]);
@@ -67,7 +68,7 @@ export const unsaveItem = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ item: numberId }), data);
+    const input = await parsed(z.object({ item: numberId }), data);
     if (!input.ok) return input;
     await withStore(async (store) => await store.socialShelf.unsave(member.value.id, input.value.item));
     return done(null);

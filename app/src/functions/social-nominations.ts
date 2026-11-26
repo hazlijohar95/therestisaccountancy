@@ -4,7 +4,8 @@ import { accountHandle, CLAIM_LIMITS, PLATFORM_PROFILES, PLATFORMS, TOPICS } fro
 import type { ClaimRefusal, NominateRefusal } from '../../../src/server/social-nominations.ts';
 import { token } from '../lib/fields.ts';
 import { memberOrRefusal } from '../lib/guards.server.ts';
-import { allowed, tooManyTries } from '../lib/limits.server.ts';
+import { tooManyTries } from '../lib/action.ts';
+import { allowed } from '../lib/limits.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
@@ -54,7 +55,7 @@ export const nominate = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ outcome: 'yes' | 'already' }> | (Outcome<never> & { readonly listed: string | null })> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(nominateSchema, data);
+    const input = await parsed(nominateSchema, data);
     if (!input.ok) return input;
     if (!(await allowed('nominate'))) return refused(tooManyTries);
     return withStore(async (store) => {
@@ -91,7 +92,7 @@ export const claimNomination = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ token: token }), data);
+    const input = await parsed(z.object({ token: token }), data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.socialNominations.claim(member.value.id, input.value.token));
     return result.ok ? done(null) : refused(claimInviteRefusals[result.reason]);
@@ -101,7 +102,7 @@ export const claimNomination = createServerFn({ method: 'POST' })
 export const declineNomination = createServerFn({ method: 'POST' })
   .validator((input: { token: string }) => input)
   .handler(async ({ data }): Promise<Outcome<null>> => {
-    const input = parsed(z.object({ token: token }), data);
+    const input = await parsed(z.object({ token: token }), data);
     if (!input.ok) return input;
     if (!(await allowed('decline'))) return refused(tooManyTries);
     const declined = await withStore(async (store) => await store.socialNominations.decline(input.value.token));

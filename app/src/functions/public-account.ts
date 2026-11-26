@@ -6,7 +6,8 @@ import { LINK_FOR, type LinkPurpose, type PasswordLink } from '../../../src/serv
 import { passwordLetter } from '../../../src/server/letters.ts';
 import { MIN_PASSWORD_LENGTH } from '../../../src/server/password.ts';
 import { email } from '../lib/fields.ts';
-import { allowed, tooManyTries } from '../lib/limits.server.ts';
+import { tooManyTries } from '../lib/action.ts';
+import { allowed } from '../lib/limits.server.ts';
 import { absolute, sendLater } from '../lib/mail.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { startSession } from '../lib/session.server.ts';
@@ -54,7 +55,7 @@ export const passwordLink = createServerFn({ method: 'GET' })
 export const setPassword = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof newPassword>) => input)
   .handler(async ({ data }): Promise<Outcome<{ purpose: LinkPurpose; clubApproved: boolean }>> => {
-    const input = parsed(newPassword, data);
+    const input = await parsed(newPassword, data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => store.club.setPasswordFromLink(input.value.token, input.value.password));
     if (!result) return refused('This link has been used or has expired. Get a new one from the sign-in page.');
@@ -68,7 +69,7 @@ const linkRequest = z.object({ email });
 export const requestLink = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof linkRequest>) => input)
   .handler(async ({ data }): Promise<Outcome<{ email: string }>> => {
-    const input = parsed(linkRequest, data);
+    const input = await parsed(linkRequest, data);
     if (!input.ok) return input;
     if (!(await allowed('link'))) return refused(tooManyTries);
     const link = await withStore(async (store) => store.club.requestLink(input.value.email));

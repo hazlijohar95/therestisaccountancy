@@ -106,7 +106,7 @@ const lessonDoneInput = z.object({ lesson: z.string(), done: z.boolean() });
 export const lessonDone = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof lessonDoneInput>) => input)
   .handler(async ({ data }): Promise<Outcome<{ done: boolean }>> => {
-    const input = parsed(lessonDoneInput, data);
+    const input = await parsed(lessonDoneInput, data);
     if (!input.ok) return input;
     const member = await paidOrRefusal();
     if (!member.ok) return member;

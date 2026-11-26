@@ -29,7 +29,7 @@ const passwordInput = z
 export const changePassword = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof passwordInput>) => input)
   .handler(async ({ data }): Promise<Outcome<null>> => {
-    const input = parsed(passwordInput, data);
+    const input = await parsed(passwordInput, data);
     if (!input.ok) return input;
     const member = await memberOrRefusal();
     if (!member.ok) return member;
@@ -44,7 +44,7 @@ const prefsInput = z.object({ replies: z.boolean(), digest: z.boolean() });
 export const setEmailPrefs = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof prefsInput>) => input)
   .handler(async ({ data }): Promise<Outcome<z.output<typeof prefsInput>>> => {
-    const input = parsed(prefsInput, data);
+    const input = await parsed(prefsInput, data);
     if (!input.ok) return input;
     const member = await memberOrRefusal();
     if (!member.ok) return member;

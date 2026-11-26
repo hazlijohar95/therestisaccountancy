@@ -66,7 +66,7 @@ export const answerPlan = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const admin = await adminOrRefusal();
     if (!admin.ok) return admin;
-    const input = parsed(answer, data);
+    const input = await parsed(answer, data);
     if (!input.ok) return input;
     const host = admin.value;
     const result = await withStore(async (store) => await store.plans.reply(host.id, { id: input.value.plan, sentAt: input.value.sentAt }, input.value.reply));

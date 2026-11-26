@@ -133,7 +133,7 @@ export const follow = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ handle: token }), data);
+    const input = await parsed(z.object({ handle: token }), data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.socialProfiles.follow(member.value.id, input.value.handle));
     return result.ok ? done(null) : refused(followRefusals[result.reason]);
@@ -144,7 +144,7 @@ export const unfollow = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ handle: token }), data);
+    const input = await parsed(z.object({ handle: token }), data);
     if (!input.ok) return input;
     await withStore(async (store) => await store.socialProfiles.unfollow(member.value.id, input.value.handle));
     return done(null);
@@ -156,7 +156,7 @@ export const vouch = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ ticked: boolean }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ claim: numberId }), data);
+    const input = await parsed(z.object({ claim: numberId }), data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.socialClaims.vouch(member.value.id, input.value.claim));
     return result.ok ? done({ ticked: result.value.review.state === 'ticked' }) : refused(vouchRefusals[result.reason]);
@@ -180,7 +180,7 @@ export const saveProfile = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ handle: string }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(profileSchema, data);
+    const input = await parsed(profileSchema, data);
     if (!input.ok) return input;
     const { handle, ...fields } = input.value;
     const saved = await withStore(async (store) => await store.socialProfiles.save(member.value.id, handle ?? null, fields));
