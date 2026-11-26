@@ -4,8 +4,8 @@ import { useState, type FormEvent } from 'react';
 import type { ConfirmRefusal } from '../../../../src/server/newsletter.ts';
 import { Page } from '../../components/club/Page.tsx';
 import { PageHead } from '../../components/club/PageHead.tsx';
-import { textParam } from '../../components/public/search.ts';
 import { confirmNewsletter } from '../../functions/public-newsletter.ts';
+import { linkTextParam } from '../../lib/search-params.ts';
 import { clubTitle, noindex } from '../../lib/title.ts';
 
 const refusals = {
@@ -18,7 +18,7 @@ const refusals = {
  * on a plain visit would sign up any address someone typed into the form. Pressing it twice is safe.
  */
 export const Route = createFileRoute('/newsletter/confirm')({
-  validateSearch: (search: Record<string, unknown>): { token?: string } => (search['token'] === undefined ? {} : { token: textParam(search['token']) }),
+  validateSearch: (search: Record<string, unknown>): { token?: string } => (search['token'] === undefined ? {} : { token: linkTextParam(search['token']) }),
   head: () => ({ meta: [...clubTitle('Newsletter'), noindex] }),
   component: Confirm,
 });

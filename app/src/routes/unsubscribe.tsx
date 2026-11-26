@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { Page } from '../components/club/Page.tsx';
-import { textParam } from '../components/public/search.ts';
+import { linkTextParam } from '../lib/search-params.ts';
 import { clubTitle, noindex } from '../lib/title.ts';
 import s from './unsubscribe.module.css';
 
@@ -17,8 +17,8 @@ const isList = (value: string): value is List => Object.hasOwn(copy, value);
 /* The page's button posts to /unsubscribe, which the Worker answers before the app and sends back here with ?done. */
 export const Route = createFileRoute('/unsubscribe')({
   validateSearch: (search: Record<string, unknown>): { list?: string; k?: string; done?: true } => ({
-    ...(search['list'] !== undefined && { list: textParam(search['list']) }),
-    ...(search['k'] !== undefined && { k: textParam(search['k']) }),
+    ...(search['list'] !== undefined && { list: linkTextParam(search['list']) }),
+    ...(search['k'] !== undefined && { k: linkTextParam(search['k']) }),
     ...('done' in search && { done: true }),
   }),
   head: () => ({ meta: [...clubTitle('Unsubscribe'), noindex] }),

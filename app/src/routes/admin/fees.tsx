@@ -6,8 +6,8 @@ import { useActing } from '../../components/admin/acting.ts';
 import { Masthead } from '../../components/club/Masthead.tsx';
 import { Notice } from '../../components/club/Notice.tsx';
 import { Pager } from '../../components/club/Pager.tsx';
-import { countParam } from '../../components/admin/search.ts';
 import { adminFees, deleteFeeResponse, publishFees, unpublishFees } from '../../functions/admin-fees.ts';
+import { countParam } from '../../lib/search-params.ts';
 import { clubTitle } from '../../lib/title.ts';
 import s from './fees.module.css';
 

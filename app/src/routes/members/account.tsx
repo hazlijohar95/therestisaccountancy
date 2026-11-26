@@ -6,6 +6,7 @@ import { formatDay } from '../../../../src/lib/format.ts';
 import { Masthead } from '../../components/club/Masthead.tsx';
 import { changePassword, membersAccount, setEmailPrefs } from '../../functions/members-account.ts';
 import { setRenews } from '../../functions/members-billing.ts';
+import { formText } from '../../lib/form.ts';
 import type { Outcome } from '../../lib/outcome.ts';
 import { clubTitle } from '../../lib/title.ts';
 import s from './account.module.css';
@@ -15,8 +16,6 @@ export const Route = createFileRoute('/members/account')({
   head: () => ({ meta: clubTitle('Account') }),
   component: Account,
 });
-
-const text = (form: FormData, name: string) => String(form.get(name) ?? '');
 
 function Account() {
   const { member, standing, prefs, minPassword: MIN_PASSWORD_LENGTH } = Route.useLoaderData();
@@ -71,7 +70,7 @@ function Account() {
     event.preventDefault();
     const element = event.currentTarget;
     const form = new FormData(element);
-    const outcome = await sendPassword({ data: { current: text(form, 'current'), password: text(form, 'password'), confirm: text(form, 'confirm') } });
+    const outcome = await sendPassword({ data: { current: formText(form, 'current'), password: formText(form, 'password'), confirm: formText(form, 'confirm') } });
     setPassword(outcome);
     if (outcome.ok) element.reset();
   };

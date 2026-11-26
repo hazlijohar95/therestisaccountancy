@@ -5,6 +5,7 @@ import { Tick } from '../../../components/social/Tick.tsx';
 import { useAction } from '../../../components/social/useAction.ts';
 import { confirmWorkEmail, workEmailPage } from '../../../functions/social-ticks.ts';
 import { socialSignInHref } from '../../../lib/links.ts';
+import { textParam } from '../../../lib/search-params.ts';
 import { noindex, socialTitle } from '../../../lib/title.ts';
 
 /*
@@ -12,7 +13,7 @@ import { noindex, socialTitle } from '../../../lib/title.ts';
  * confirms with a button, signed in, so a link sent to someone else's address can never tick a stranger's claim.
  */
 export const Route = createFileRoute('/social/verify/email')({
-  validateSearch: (search: Record<string, unknown>) => ({ token: typeof search['token'] === 'string' || typeof search['token'] === 'number' ? String(search['token']) : '' }),
+  validateSearch: (search: Record<string, unknown>) => ({ token: textParam(search['token']) ?? '' }),
   loaderDeps: ({ search }) => ({ token: search.token }),
   loader: ({ deps }) => workEmailPage({ data: { token: deps.token } }),
   head: () => ({ meta: [...socialTitle('Confirm your work email'), noindex] }),

@@ -8,8 +8,8 @@ import { LinkNotice } from '../../components/admin/LinkNotice.tsx';
 import { Masthead } from '../../components/club/Masthead.tsx';
 import { Notice } from '../../components/club/Notice.tsx';
 import { Pager } from '../../components/club/Pager.tsx';
-import { countParam, textParam } from '../../components/admin/search.ts';
 import { adminOverview, declineRequest, inviteRequest } from '../../functions/admin-members.ts';
+import { countParam, textParam } from '../../lib/search-params.ts';
 import { clubTitle } from '../../lib/title.ts';
 import s from './index.module.css';
 

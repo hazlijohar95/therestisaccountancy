@@ -7,6 +7,7 @@ import { ListingEntry } from '../../components/club/ListingEntry.tsx';
 import { Masthead } from '../../components/club/Masthead.tsx';
 import { Notice } from '../../components/club/Notice.tsx';
 import { membersListing, pauseListing, saveListing } from '../../functions/members-listings.ts';
+import { formText } from '../../lib/form.ts';
 import type { Outcome } from '../../lib/outcome.ts';
 import { clubTitle } from '../../lib/title.ts';
 import s from './listing.module.css';
@@ -38,8 +39,6 @@ function standing(l: Listing | null): string {
   return l.paused ? 'Your listing is paused, so business owners cannot see it until you unpause it.' : 'Your listing is approved, but it is out of the directory until your membership is paid up.';
 }
 
-const text = (form: FormData, name: string) => String(form.get(name) ?? '');
-
 function ListingPage() {
   const { email, listing } = Route.useLoaderData();
   const search = Route.useSearch();
@@ -70,16 +69,16 @@ function ListingPage() {
     const form = new FormData(event.currentTarget);
     const result = await save({
       data: {
-        practice: text(form, 'practice'),
-        state: text(form, 'state'),
-        town: text(form, 'town'),
+        practice: formText(form, 'practice'),
+        state: formText(form, 'state'),
+        town: formText(form, 'town'),
         remote: form.has('remote'),
         services: form.getAll('services').map(String),
-        niche: text(form, 'niche'),
-        bio: text(form, 'bio'),
-        qualifications: text(form, 'qualifications'),
-        website: text(form, 'website'),
-        contactEmail: text(form, 'contactEmail'),
+        niche: formText(form, 'niche'),
+        bio: formText(form, 'bio'),
+        qualifications: formText(form, 'qualifications'),
+        website: formText(form, 'website'),
+        contactEmail: formText(form, 'contactEmail'),
         declared: form.has('declared'),
       },
     });
