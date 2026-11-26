@@ -14,6 +14,9 @@ import { Route as DevSeedReviewRouteImport } from './routes/dev-seed-review'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SocialRouteRouteImport } from './routes/social/route'
 import { Route as SocialTicksRouteImport } from './routes/social/ticks'
+import { Route as SocialProblemsIndexRouteImport } from './routes/social/problems/index'
+import { Route as SocialProblemsSplatRouteImport } from './routes/social/problems/$'
+import { Route as SocialProblemsNewRouteImport } from './routes/social/problems/new'
 import { Route as SocialReviewIndexRouteImport } from './routes/social/review/index'
 import { Route as SocialVerifyIndexRouteImport } from './routes/social/verify/index'
 import { Route as SocialVerifyEmailRouteImport } from './routes/social/verify/email'
@@ -44,6 +47,21 @@ const SocialTicksRoute = SocialTicksRouteImport.update({
   path: '/ticks',
   getParentRoute: () => SocialRouteRoute,
 } as any)
+const SocialProblemsIndexRoute = SocialProblemsIndexRouteImport.update({
+  id: '/problems/',
+  path: '/problems/',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialProblemsSplatRoute = SocialProblemsSplatRouteImport.update({
+  id: '/problems/$',
+  path: '/problems/$',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialProblemsNewRoute = SocialProblemsNewRouteImport.update({
+  id: '/problems/new',
+  path: '/problems/new',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
 const SocialReviewIndexRoute = SocialReviewIndexRouteImport.update({
   id: '/review/',
   path: '/review/',
@@ -72,7 +90,10 @@ export interface FileRoutesByFullPath {
   '/dev-seed-review': typeof DevSeedReviewRoute
   '/sign-in': typeof SignInRoute
   '/social/ticks': typeof SocialTicksRoute
+  '/social/problems/$': typeof SocialProblemsSplatRoute
+  '/social/problems/new': typeof SocialProblemsNewRoute
   '/social/verify/email': typeof SocialVerifyEmailRoute
+  '/social/problems/': typeof SocialProblemsIndexRoute
   '/social/review/': typeof SocialReviewIndexRoute
   '/social/verify/': typeof SocialVerifyIndexRoute
   '/social/review/evidence/$claim': typeof SocialReviewEvidenceClaimRoute
@@ -83,7 +104,10 @@ export interface FileRoutesByTo {
   '/dev-seed-review': typeof DevSeedReviewRoute
   '/sign-in': typeof SignInRoute
   '/social/ticks': typeof SocialTicksRoute
+  '/social/problems/$': typeof SocialProblemsSplatRoute
+  '/social/problems/new': typeof SocialProblemsNewRoute
   '/social/verify/email': typeof SocialVerifyEmailRoute
+  '/social/problems': typeof SocialProblemsIndexRoute
   '/social/review': typeof SocialReviewIndexRoute
   '/social/verify': typeof SocialVerifyIndexRoute
   '/social/review/evidence/$claim': typeof SocialReviewEvidenceClaimRoute
@@ -95,7 +119,10 @@ export interface FileRoutesById {
   '/dev-seed-review': typeof DevSeedReviewRoute
   '/sign-in': typeof SignInRoute
   '/social/ticks': typeof SocialTicksRoute
+  '/social/problems/$': typeof SocialProblemsSplatRoute
+  '/social/problems/new': typeof SocialProblemsNewRoute
   '/social/verify/email': typeof SocialVerifyEmailRoute
+  '/social/problems/': typeof SocialProblemsIndexRoute
   '/social/review/': typeof SocialReviewIndexRoute
   '/social/verify/': typeof SocialVerifyIndexRoute
   '/social/review/evidence/$claim': typeof SocialReviewEvidenceClaimRoute
@@ -108,7 +135,10 @@ export interface FileRouteTypes {
     | '/dev-seed-review'
     | '/sign-in'
     | '/social/ticks'
+    | '/social/problems/$'
+    | '/social/problems/new'
     | '/social/verify/email'
+    | '/social/problems/'
     | '/social/review/'
     | '/social/verify/'
     | '/social/review/evidence/$claim'
@@ -119,7 +149,10 @@ export interface FileRouteTypes {
     | '/dev-seed-review'
     | '/sign-in'
     | '/social/ticks'
+    | '/social/problems/$'
+    | '/social/problems/new'
     | '/social/verify/email'
+    | '/social/problems'
     | '/social/review'
     | '/social/verify'
     | '/social/review/evidence/$claim'
@@ -130,7 +163,10 @@ export interface FileRouteTypes {
     | '/dev-seed-review'
     | '/sign-in'
     | '/social/ticks'
+    | '/social/problems/$'
+    | '/social/problems/new'
     | '/social/verify/email'
+    | '/social/problems/'
     | '/social/review/'
     | '/social/verify/'
     | '/social/review/evidence/$claim'
@@ -180,6 +216,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SocialTicksRouteImport
       parentRoute: typeof SocialRouteRoute
     }
+    '/social/problems/': {
+      id: '/social/problems/'
+      path: '/problems'
+      fullPath: '/social/problems/'
+      preLoaderRoute: typeof SocialProblemsIndexRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/problems/$': {
+      id: '/social/problems/$'
+      path: '/problems/$'
+      fullPath: '/social/problems/$'
+      preLoaderRoute: typeof SocialProblemsSplatRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/problems/new': {
+      id: '/social/problems/new'
+      path: '/problems/new'
+      fullPath: '/social/problems/new'
+      preLoaderRoute: typeof SocialProblemsNewRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
     '/social/review/': {
       id: '/social/review/'
       path: '/review'
@@ -213,7 +270,10 @@ declare module '@tanstack/react-router' {
 
 interface SocialRouteRouteChildren {
   SocialTicksRoute: typeof SocialTicksRoute
+  SocialProblemsSplatRoute: typeof SocialProblemsSplatRoute
+  SocialProblemsNewRoute: typeof SocialProblemsNewRoute
   SocialVerifyEmailRoute: typeof SocialVerifyEmailRoute
+  SocialProblemsIndexRoute: typeof SocialProblemsIndexRoute
   SocialReviewIndexRoute: typeof SocialReviewIndexRoute
   SocialVerifyIndexRoute: typeof SocialVerifyIndexRoute
   SocialReviewEvidenceClaimRoute: typeof SocialReviewEvidenceClaimRoute
@@ -221,7 +281,10 @@ interface SocialRouteRouteChildren {
 
 const SocialRouteRouteChildren: SocialRouteRouteChildren = {
   SocialTicksRoute: SocialTicksRoute,
+  SocialProblemsSplatRoute: SocialProblemsSplatRoute,
+  SocialProblemsNewRoute: SocialProblemsNewRoute,
   SocialVerifyEmailRoute: SocialVerifyEmailRoute,
+  SocialProblemsIndexRoute: SocialProblemsIndexRoute,
   SocialReviewIndexRoute: SocialReviewIndexRoute,
   SocialVerifyIndexRoute: SocialVerifyIndexRoute,
   SocialReviewEvidenceClaimRoute: SocialReviewEvidenceClaimRoute,

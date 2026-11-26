@@ -106,10 +106,10 @@ function Review() {
 
   const settle: Settle = (outcome, decided) => {
     setFailure(outcome.ok || Object.keys(outcome.fields).length ? null : outcome.message);
+    setDone(outcome.ok ? decided : null);
     if (!outcome.ok) return;
     setInvited(null);
     setTeamInvited(null);
-    setDone(decided);
   };
 
   const counts: Record<Tab, number> = {
@@ -187,7 +187,10 @@ function Review() {
             setFailure(null);
             setTeamInvited(sent);
           }}
-          onRefused={setFailure}
+          onRefused={(message) => {
+            setDone(null);
+            setFailure(message);
+          }}
         />
       )}
       {tab === 'nominations' && (
