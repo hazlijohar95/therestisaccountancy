@@ -5,10 +5,11 @@ import { formatDay } from '../../../src/lib/format.ts';
 import { pageCount } from '../../../src/lib/paging.ts';
 import type { Edition, PublishRefusal } from '../../../src/server/fees.ts';
 import { id } from '../lib/fields.ts';
-import { adminOrRefusal } from '../lib/guards.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { admit, toClub } from '../lib/access.server.ts';
+import { action } from '../lib/action.server.ts';
+import { done, refused } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
-import { adminOrRedirect, pagingFor } from './admin.server.ts';
+import { pagingFor } from './admin.server.ts';
 
 const PAGE_SIZE = 50;
 
@@ -32,7 +33,7 @@ export interface FeesSearch {
 export const adminFees = createServerFn({ method: 'GET' })
   .validator((input: FeesSearch) => input)
   .handler(async ({ data }) => {
-    await adminOrRedirect();
+    await admit('admin', toClub);
     const paging = pagingFor(data.page, PAGE_SIZE);
     const { editions, shown, items, total } = await withStore(async (store) => {
       const current = await store.fees.current();
@@ -64,37 +65,31 @@ const editionInput = z.object({ edition: id });
 /** Puts a year's results up on the fee survey page. */
 export const publishFees = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof editionInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<{ edition: number }>> => {
-    const admin = await adminOrRefusal();
-    if (!admin.ok) return admin;
-    const input = await parsed(editionInput, data);
-    if (!input.ok) return input;
-    const result = await withStore(async (store) => await store.fees.publish(input.value.edition, admin.value.id));
-    return result.ok ? done({ edition: result.value.edition }) : refused(publishRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'admin', input: editionInput, refusals: publishRefusals }, async ({ actor, input, store }) => {
+      const result = await store.fees.publish(input.edition, actor.id);
+      return result.ok ? done({ edition: result.value.edition }) : result;
+    }),
+  );
 
 /** Takes a year's results down. This year's then takes answers again. */
 export const unpublishFees = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof editionInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<{ edition: number; reopened: boolean }>> => {
-    const admin = await adminOrRefusal();
-    if (!admin.ok) return admin;
-    const input = await parsed(editionInput, data);
-    if (!input.ok) return input;
-    const edition = await withStore(async (store) => await store.fees.unpublish(input.value.edition));
-    return done({ edition: edition.edition, reopened: edition.status === 'open' });
-  });
+  .handler(
+    action({ access: 'admin', input: editionInput }, async ({ input, store }) => {
+      const edition = await store.fees.unpublish(input.edition);
+      return done({ edition: edition.edition, reopened: edition.status === 'open' });
+    }),
+  );
 
 const answerInput = z.object({ answer: id });
 
 /** Deletes an answer that is plainly made up, so it no longer counts. */
 export const deleteFeeResponse = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof answerInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const admin = await adminOrRefusal();
-    if (!admin.ok) return admin;
-    const input = await parsed(answerInput, data);
-    if (!input.ok) return input;
-    const removed = await withStore(async (store) => await store.fees.remove(input.value.answer));
-    return removed ? done(null) : refused('That answer is already gone.');
-  });
+  .handler(
+    action({ access: 'admin', input: answerInput }, async ({ input, store }) => {
+      const removed = await store.fees.remove(input.answer);
+      return removed ? done(null) : refused('That answer is already gone.');
+    }),
+  );

@@ -3,11 +3,12 @@ import { z } from 'zod';
 import { formatMoment } from '../../../src/lib/format.ts';
 import { CALL_MINUTES, callLetters, type AddRefusal } from '../../../src/server/calls.ts';
 import { id, malaysiaTime } from '../lib/fields.ts';
-import { adminOrRefusal } from '../lib/guards.server.ts';
-import { absolute, sendLater } from '../lib/mail.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { admit, toClub } from '../lib/access.server.ts';
+import { action } from '../lib/action.server.ts';
+import { absolute } from '../lib/mail.server.ts';
+import { done, refused } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
-import { adminOrRedirect, malaysiaToday } from './admin.server.ts';
+import { malaysiaToday } from './admin.server.ts';
 
 const addRefusals: Record<AddRefusal, string> = {
   'too-soon': 'Booking closes two hours before a call, so the slot has to start later than that.',
@@ -16,7 +17,7 @@ const addRefusals: Record<AddRefusal, string> = {
 
 /** The one-to-one slots still to come, open or booked, and the link this admin used last. */
 export const adminCalls = createServerFn({ method: 'GET' }).handler(async () => {
-  const me = await adminOrRedirect();
+  const me = await admit('admin', toClub);
   const { upcoming, lastLink } = await withStore(async (store) => ({ upcoming: await store.calls.upcoming(), lastLink: await store.calls.lastLink(me.id) }));
   return {
     slots: upcoming.map((s) => ({
@@ -45,31 +46,27 @@ export type SlotForm = Readonly<Record<'date' | 'time' | 'minutes' | 'link', str
 
 export const openSlot = createServerFn({ method: 'POST' })
   .validator((input: SlotForm) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const admin = await adminOrRefusal();
-    if (!admin.ok) return admin;
-    const input = await parsed(newSlot, data);
-    if (!input.ok) return input;
-    const { date, time, minutes, link } = input.value;
-    const startsAt = malaysiaTime(date, time);
-    if (!startsAt) return refused('That date or time does not exist.');
-    const added = await withStore(async (store) => await store.calls.add(admin.value.id, { startsAt, minutes, link }));
-    return added.ok ? done(null) : refused(addRefusals[added.reason]);
-  });
+  .handler(
+    action({ access: 'admin', input: newSlot, refusals: addRefusals }, async ({ actor, input, store }) => {
+      const { date, time, minutes, link } = input;
+      const startsAt = malaysiaTime(date, time);
+      if (!startsAt) return refused('That date or time does not exist.');
+      const added = await store.calls.add(actor.id, { startsAt, minutes, link });
+      return added.ok ? done(null) : added;
+    }),
+  );
 
 const slotInput = z.object({ slot: id });
 
 /** Cancels a slot. Whoever booked it is emailed; the answer is their name, or null when nobody had. */
 export const cancelSlot = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof slotInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<string | null>> => {
-    const admin = await adminOrRefusal();
-    if (!admin.ok) return admin;
-    const input = await parsed(slotInput, data);
-    if (!input.ok) return input;
-    const result = await withStore(async (store) => await store.calls.cancelSlot(input.value.slot));
-    if (!result.ok) return refused('That slot is already over or cancelled.');
-    const call = result.value;
-    if (call) sendLater(callLetters('cancelled-by-host', call, absolute('/')));
-    return done(call ? call.booking.member.name : null);
-  });
+  .handler(
+    action({ access: 'admin', input: slotInput }, async ({ input, store, send }) => {
+      const result = await store.calls.cancelSlot(input.slot);
+      if (!result.ok) return refused('That slot is already over or cancelled.');
+      const call = result.value;
+      if (call) send(callLetters('cancelled-by-host', call, absolute('/')));
+      return done(call ? call.booking.member.name : null);
+    }),
+  );

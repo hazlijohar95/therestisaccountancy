@@ -11,11 +11,12 @@ import { clubApprovedLetter } from '../../../src/server/letters.ts';
 import { send } from '../../../src/server/mail.ts';
 import { report } from '../../../src/server/report.ts';
 import { email, id, memberName } from '../lib/fields.ts';
-import { adminOrRefusal } from '../lib/guards.server.ts';
-import { absolute, sendLater } from '../lib/mail.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { admit, toClub } from '../lib/access.server.ts';
+import { action } from '../lib/action.server.ts';
+import { absolute } from '../lib/mail.server.ts';
+import { done, refused } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
-import { adminOrRedirect, deliver, pagingFor, type Issued } from './admin.server.ts';
+import { deliver, pagingFor, type Issued } from './admin.server.ts';
 
 const PAGE_SIZE = 50;
 const DECIDED_SHOWN = 20;
@@ -50,7 +51,7 @@ export interface OverviewSearch {
 export const adminOverview = createServerFn({ method: 'GET' })
   .validator((input: OverviewSearch) => input)
   .handler(async ({ data }) => {
-    await adminOrRedirect();
+    await admit('admin', toClub);
     const query = (typeof data.q === 'string' ? data.q : '').trim().slice(0, 100);
     const status = MEMBER_STATUSES.find((s) => s === data.status);
     const paging = pagingFor(data.page, PAGE_SIZE);
@@ -80,7 +81,7 @@ export const adminOverview = createServerFn({ method: 'GET' })
 export const adminMember = createServerFn({ method: 'GET' })
   .validator((input: { id: string }) => input)
   .handler(async ({ data }) => {
-    const me = await adminOrRedirect();
+    const me = await admit('admin', toClub);
     const memberId = Number(data.id);
     if (!Number.isInteger(memberId) || memberId <= 0) throw notFound();
     const found = await withStore(async (store) => {
@@ -126,96 +127,82 @@ const memberInput = z.object({ member: id });
 /** Accepts a join request: a new member gets an invitation link; someone already on Social is approved for the club. */
 export const inviteRequest = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof requestInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<Invited>> => {
-    const admin = await adminOrRefusal();
-    if (!admin.ok) return admin;
-    const input = await parsed(requestInput, data);
-    if (!input.ok) return input;
-    const invitation = await withStore(async (store) => await store.club.inviteFromRequest(input.value.request));
-    if (!invitation.ok) return refused(inviteRefusals[invitation.reason]);
-    if (invitation.value.kind === 'link') return done({ kind: 'link', issued: await deliver(invitation.value.link) });
-    const { name, email: address } = invitation.value.member;
-    const emailed = await send(clubApprovedLetter({ name, email: address, rate: everyRate, payUrl: absolute('/members/pay') }));
-    return done({ kind: 'approved', name, email: address, emailed });
-  });
+  .handler(
+    action({ access: 'admin', input: requestInput, refusals: inviteRefusals }, async ({ input, store }) => {
+      const invitation = await store.club.inviteFromRequest(input.request);
+      if (!invitation.ok) return invitation;
+      if (invitation.value.kind === 'link') return done<Invited>({ kind: 'link', issued: await deliver(invitation.value.link) });
+      const { name, email: address } = invitation.value.member;
+      const emailed = await send(clubApprovedLetter({ name, email: address, rate: everyRate, payUrl: absolute('/members/pay') }));
+      return done<Invited>({ kind: 'approved', name, email: address, emailed });
+    }),
+  );
 
 export const declineRequest = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof requestInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const admin = await adminOrRefusal();
-    if (!admin.ok) return admin;
-    const input = await parsed(requestInput, data);
-    if (!input.ok) return input;
-    const declined = await withStore(async (store) => await store.club.declineRequest(input.value.request));
-    return declined ? done(null) : refused(inviteRefusals.decided);
-  });
+  .handler(
+    action({ access: 'admin', input: requestInput }, async ({ input, store }) => {
+      const declined = await store.club.declineRequest(input.request);
+      return declined ? done(null) : refused(inviteRefusals.decided);
+    }),
+  );
 
 /** A new invitation or reset link, emailed. The admin sees the link either way, to send by hand if the email failed. */
 export const issueLink = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof memberInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<Issued>> => {
-    const admin = await adminOrRefusal();
-    if (!admin.ok) return admin;
-    const input = await parsed(memberInput, data);
-    if (!input.ok) return input;
-    const link = await withStore(async (store) => await store.club.newLink(input.value.member));
-    if (!link.ok) return refused(linkRefusals[link.reason]);
-    return done(await deliver(link.value));
-  });
+  .handler(
+    action({ access: 'admin', input: memberInput, refusals: linkRefusals }, async ({ input, store }) => {
+      const link = await store.club.newLink(input.member);
+      if (!link.ok) return link;
+      return done(await deliver(link.value));
+    }),
+  );
 
 const memberUpdate = z.object({ member: id, name: memberName, email, role: z.enum(ROLES).optional() });
 
 export const updateMember = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof memberUpdate>) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const admin = await adminOrRefusal();
-    if (!admin.ok) return admin;
-    const input = await parsed(memberUpdate, data);
-    if (!input.ok) return input;
-    const updated = await withStore(async (store) => await store.club.updateMember(admin.value.id, input.value.member, input.value, absolute('/')));
-    if (!updated.ok) return refused(memberRefusals[updated.reason]);
-    sendLater(updated.value.letters);
-    return done(null);
-  });
+  .handler(
+    action({ access: 'admin', input: memberUpdate, refusals: memberRefusals }, async ({ actor, input, store, send }) => {
+      const updated = await store.club.updateMember(actor.id, input.member, input, absolute('/'));
+      if (!updated.ok) return updated;
+      send(updated.value.letters);
+      return done(null);
+    }),
+  );
 
 export const suspendMember = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof memberInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const admin = await adminOrRefusal();
-    if (!admin.ok) return admin;
-    const input = await parsed(memberInput, data);
-    if (!input.ok) return input;
-    const suspended = await withStore(async (store) => await store.club.suspendMember(admin.value.id, input.value.member, absolute('/')));
-    if (!suspended.ok) return refused(memberRefusals[suspended.reason]);
-    sendLater(suspended.value.letters);
-    return done(null);
-  });
+  .handler(
+    action({ access: 'admin', input: memberInput, refusals: memberRefusals }, async ({ actor, input, store, send }) => {
+      const suspended = await store.club.suspendMember(actor.id, input.member, absolute('/'));
+      if (!suspended.ok) return suspended;
+      send(suspended.value.letters);
+      return done(null);
+    }),
+  );
 
 export const reinstateMember = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof memberInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const admin = await adminOrRefusal();
-    if (!admin.ok) return admin;
-    const input = await parsed(memberInput, data);
-    if (!input.ok) return input;
-    const result = await withStore(async (store) => await store.club.reinstateMember(input.value.member));
-    return result.ok ? done(null) : refused(memberRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'admin', input: memberInput, refusals: memberRefusals }, async ({ input, store }) => {
+      const result = await store.club.reinstateMember(input.member);
+      return result.ok ? done(null) : result;
+    }),
+  );
 
 const memberRemoval = z.object({ member: id, confirm: z.literal('yes', { error: 'Tick the box to confirm.' }) });
 
 export const removeMember = createServerFn({ method: 'POST' })
   .validator((input: { member: number; confirm: string }) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const admin = await adminOrRefusal();
-    if (!admin.ok) return admin;
-    const input = await parsed(memberRemoval, data);
-    if (!input.ok) return input;
-    const member = input.value.member;
-    const removed = await withStore(async (store) => await store.club.removeMember(admin.value.id, member, absolute('/')));
-    if (!removed.ok) return refused(memberRefusals[removed.reason]);
-    /* Their claims go with them, so documents still waiting for the team would be left in R2 with nothing pointing at them. */
-    await deleteMemberEvidence(member).catch((error: unknown) => report('evidence', `Documents of removed member ${member} were not deleted`, error));
-    sendLater(removed.value.letters);
-    return done(null);
-  });
+  .handler(
+    action({ access: 'admin', input: memberRemoval, refusals: memberRefusals }, async ({ actor, input, store, send }) => {
+      const member = input.member;
+      const removed = await store.club.removeMember(actor.id, member, absolute('/'));
+      if (!removed.ok) return removed;
+      /* Their claims go with them, so documents still waiting for the team would be left in R2 with nothing pointing at them. */
+      await deleteMemberEvidence(member).catch((error: unknown) => report('evidence', `Documents of removed member ${member} were not deleted`, error));
+      send(removed.value.letters);
+      return done(null);
+    }),
+  );

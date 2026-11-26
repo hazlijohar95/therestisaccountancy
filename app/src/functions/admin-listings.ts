@@ -3,13 +3,13 @@ import { z } from 'zod';
 import { LISTING_LIMITS, listingPath } from '../../../src/data/directory.ts';
 import { capitalised, formatDay, numberWord } from '../../../src/lib/format.ts';
 import { tidy } from '../../../src/server/community.ts';
-import { decisionOf, listingApprovedLetter, listingReturnedLetter, type Decision, type DecisionRefusal, type Listing } from '../../../src/server/listings.ts';
+import { decisionOf, listingApprovedLetter, listingReturnedLetter, type DecisionRefusal, type Listing } from '../../../src/server/listings.ts';
 import { id } from '../lib/fields.ts';
-import { adminOrRefusal } from '../lib/guards.server.ts';
-import { absolute, sendLater } from '../lib/mail.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { admit, toClub } from '../lib/access.server.ts';
+import { action } from '../lib/action.server.ts';
+import { absolute } from '../lib/mail.server.ts';
+import { done } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
-import { adminOrRedirect } from './admin.server.ts';
 
 const decisionRefusals: Record<DecisionRefusal, string> = {
   'not-found': 'That listing is no longer here.',
@@ -36,7 +36,7 @@ const forCheck = (l: Listing) => ({
 
 /** Listings waiting for a check, oldest first, and every other listing. */
 export const adminListings = createServerFn({ method: 'GET' }).handler(async () => {
-  await adminOrRedirect();
+  await admit('admin', toClub);
   const { waiting, rest } = await withStore(async (store) => await store.listings.forHosts());
   return {
     title: waiting.length === 0 ? 'Nothing to check.' : `${capitalised(numberWord(waiting.length))} ${waiting.length === 1 ? 'listing' : 'listings'} to check.`,
@@ -51,17 +51,14 @@ const decision = z.object({ member: id, seen: z.string().min(1) });
 /** Approves a listing as the host read it. The member is emailed. Answers what the public now sees. */
 export const approveListing = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof decision>) => input)
-  .handler(async ({ data }): Promise<Outcome<Decision>> => {
-    const admin = await adminOrRefusal();
-    if (!admin.ok) return admin;
-    const input = await parsed(decision, data);
-    if (!input.ok) return input;
-    const host = admin.value;
-    const result = await withStore(async (store) => await store.listings.approve(input.value.member, host.id, input.value.seen));
-    if (!result.ok) return refused(decisionRefusals[result.reason]);
-    sendLater([listingApprovedLetter(result.value, host, absolute('/'))]);
-    return done(decisionOf(result.value));
-  });
+  .handler(
+    action({ access: 'admin', input: decision, refusals: decisionRefusals }, async ({ actor, input, store, send }) => {
+      const result = await store.listings.approve(input.member, actor.id, input.seen);
+      if (!result.ok) return result;
+      send([listingApprovedLetter(result.value, actor, absolute('/'))]);
+      return done(decisionOf(result.value));
+    }),
+  );
 
 const sendBack = decision.extend({
   note: z
@@ -73,14 +70,11 @@ const sendBack = decision.extend({
 /** Returns a listing, or takes a listed one down, with a note the member gets by email word for word. */
 export const returnListing = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof sendBack>) => input)
-  .handler(async ({ data }): Promise<Outcome<Decision>> => {
-    const admin = await adminOrRefusal();
-    if (!admin.ok) return admin;
-    const input = await parsed(sendBack, data);
-    if (!input.ok) return input;
-    const host = admin.value;
-    const result = await withStore(async (store) => await store.listings.sendBack(input.value.member, input.value.seen, input.value.note));
-    if (!result.ok) return refused(decisionRefusals[result.reason]);
-    sendLater([listingReturnedLetter(result.value, input.value.note, host, absolute('/'))]);
-    return done(decisionOf(result.value));
-  });
+  .handler(
+    action({ access: 'admin', input: sendBack, refusals: decisionRefusals }, async ({ actor, input, store, send }) => {
+      const result = await store.listings.sendBack(input.member, input.seen, input.note);
+      if (!result.ok) return result;
+      send([listingReturnedLetter(result.value, input.note, actor, absolute('/'))]);
+      return done(decisionOf(result.value));
+    }),
+  );

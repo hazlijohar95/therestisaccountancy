@@ -4,15 +4,16 @@ import { SESSION_KINDS } from '../../../src/data/sessions.ts';
 import { formatMoment, listOf } from '../../../src/lib/format.ts';
 import { sessionLetters } from '../../../src/server/letters.ts';
 import { id, malaysiaTime } from '../lib/fields.ts';
-import { adminOrRefusal } from '../lib/guards.server.ts';
-import { absolute, sendLater } from '../lib/mail.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { admit, toClub } from '../lib/access.server.ts';
+import { action } from '../lib/action.server.ts';
+import { absolute } from '../lib/mail.server.ts';
+import { done, refused } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
-import { adminOrRedirect, malaysiaToday } from './admin.server.ts';
+import { malaysiaToday } from './admin.server.ts';
 
 /** The sessions on the calendar, with who is coming to each. */
 export const adminSessions = createServerFn({ method: 'GET' }).handler(async () => {
-  await adminOrRedirect();
+  await admit('admin', toClub);
   const rolls = await withStore(async (store) => await store.schedule.rolls());
   const sessions = rolls.map(({ session: s, attendees }) => ({
     id: s.id,
@@ -37,30 +38,26 @@ export type SessionForm = Readonly<Record<'title' | 'kind' | 'date' | 'time' | '
 
 export const addSession = createServerFn({ method: 'POST' })
   .validator((input: SessionForm) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const admin = await adminOrRefusal();
-    if (!admin.ok) return admin;
-    const input = await parsed(newSession, data);
-    if (!input.ok) return input;
-    const { date, time, ...session } = input.value;
-    const startsAt = malaysiaTime(date, time);
-    if (!startsAt) return refused('That date or time does not exist.');
-    const added = await withStore(async (store) => await store.schedule.add({ ...session, startsAt }));
-    return added.ok ? done(null) : refused('That time has passed. Pick one ahead.');
-  });
+  .handler(
+    action({ access: 'admin', input: newSession }, async ({ input, store }) => {
+      const { date, time, ...session } = input;
+      const startsAt = malaysiaTime(date, time);
+      if (!startsAt) return refused('That date or time does not exist.');
+      const added = await store.schedule.add({ ...session, startsAt });
+      return added.ok ? done(null) : refused('That time has passed. Pick one ahead.');
+    }),
+  );
 
 const sessionInput = z.object({ session: id });
 
 /** Calls a session off and emails everyone who said they were coming. Answers how many were told. */
 export const cancelSession = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof sessionInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<number>> => {
-    const admin = await adminOrRefusal();
-    if (!admin.ok) return admin;
-    const input = await parsed(sessionInput, data);
-    if (!input.ok) return input;
-    const roll = await withStore(async (store) => await store.schedule.cancel(input.value.session));
-    if (!roll) return refused('That session is already over or called off.');
-    sendLater(sessionLetters('cancelled', roll.session, roll.attendees, absolute('/')));
-    return done(roll.attendees.length);
-  });
+  .handler(
+    action({ access: 'admin', input: sessionInput }, async ({ input, store, send }) => {
+      const roll = await store.schedule.cancel(input.session);
+      if (!roll) return refused('That session is already over or called off.');
+      send(sessionLetters('cancelled', roll.session, roll.attendees, absolute('/')));
+      return done(roll.attendees.length);
+    }),
+  );
