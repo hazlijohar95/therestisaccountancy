@@ -1,17 +1,7 @@
 import assert from 'node:assert/strict';
-import { createClub } from './club.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
-import { createSocialCasebook } from './social-casebook.ts';
-import { createSocialClaims } from './social-claims.ts';
-import { createSocialFloor } from './social-floor.ts';
-import { createSocialInvites } from './social-invites.ts';
-import { createSocialNominations } from './social-nominations.ts';
-import { createSocialNotifications } from './social-notifications.ts';
-import { createSocialProblems } from './social-problems.ts';
-import { createSocialProfiles } from './social-profiles.ts';
-import { createSocialRequests } from './social-requests.ts';
-import { createSocialShelf } from './social-shelf.ts';
+import { createStore } from './store.ts';
 
 /* A whole social site on node:sqlite with a clock the test moves, for the tests of slice 6 and on. Tests only. */
 
@@ -30,17 +20,7 @@ export function socialWorld() {
   let clock = new Date('2026-11-26T02:00:00Z');
   const now = () => clock;
   const db = openDatabase(':memory:');
-  const club = createClub(db, now);
-  const profiles = createSocialProfiles(db, now);
-  const claims = createSocialClaims(db, now);
-  const nominations = createSocialNominations(db, now);
-  const floor = createSocialFloor(db, now);
-  const problems = createSocialProblems(db, now);
-  const casebook = createSocialCasebook(db, now);
-  const shelf = createSocialShelf(db, now);
-  const notifications = createSocialNotifications(db, now);
-  const invites = createSocialInvites(db, now);
-  const requests = createSocialRequests(db, now);
+  const { club, socialProfiles: profiles, socialClaims: claims, socialNominations: nominations, socialFloor: floor, socialProblems: problems, socialCasebook: casebook, socialShelf: shelf, socialNotifications: notifications, socialInvites: invites, socialRequests: requests } = createStore(db, now);
   const host = club.ensureAdmin({ email: 'host@club.test', name: 'Host', password: PASSWORD });
 
   /** A member who signed up on the social site and set their password. */

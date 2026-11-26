@@ -1,13 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createClub } from './club.ts';
-import { createCommunity } from './community.ts';
 import { migrate } from './db.ts';
-import { createBilling } from './billing.ts';
-import { createMailings, digestWeek, onboardingStep, REPLY_NOTICE_GAP_MS } from './mailings.ts';
+import { digestWeek, onboardingStep, REPLY_NOTICE_GAP_MS } from './mailings.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
-import { createSchedule } from './schedule.ts';
+import { createStore } from './store.ts';
 
 const PASSWORD = 'correct horse battery';
 const DAY_MS = 86_400_000;
@@ -21,7 +18,7 @@ const world = () => {
   const now = () => clock;
   const db = openDatabase(':memory:');
   migrate(db);
-  const club = createClub(db, now);
+  const { club, community, mailings, schedule, billing } = createStore(db, now);
   const join = async (email: string, name: string) => {
     club.recordJoinRequest({ name, email, stage: 'I run a practice' });
     const request = club.joinRequests({ decided: false }).find((r) => r.email === email);
@@ -31,7 +28,7 @@ const world = () => {
     assert.ok(accepted);
     return accepted.member;
   };
-  return { db, club, join, now, community: createCommunity(db, now), mailings: createMailings(db, now), schedule: createSchedule(db, now), later: (ms: number) => (clock = new Date(clock.getTime() + ms)) };
+  return { db, club, join, now, community, mailings, schedule, billing, later: (ms: number) => (clock = new Date(clock.getTime() + ms)) };
 };
 
 test('a reply tells everyone else who posted in the thread, at most once every six hours', async () => {
@@ -128,7 +125,7 @@ test('the getting-started emails follow the first payment on days 1, 4 and 9, tw
 
 test('a paying member who has not booked a session gets each getting-started email once, until they book or stop them', async () => {
   const w = world();
-  const billing = createBilling(w.db, () => new Date(w.now()));
+  const { billing } = w;
   const pay = (memberId: number, purchase: string) => {
     billing.opened(purchase, memberId, 'checkout', 'month');
     assert.ok(billing.paid(purchase, false));
@@ -163,7 +160,7 @@ test('a paying member who has not booked a session gets each getting-started ema
 
 test('a getting-started email that did not send is tried again on the next run, and only once', async () => {
   const w = world();
-  const billing = createBilling(w.db, () => new Date(w.now()));
+  const { billing } = w;
   const aina = await w.join('aina@firm.com.my', 'Aina');
   billing.opened('p-aina', aina.id, 'checkout', 'month');
   assert.ok(billing.paid('p-aina', false));
@@ -178,7 +175,7 @@ test('a getting-started email that did not send is tried again on the next run, 
 
 test('the migration leaves out members who had already paid, but not members still to pay', async () => {
   const w = world();
-  const billing = createBilling(w.db, () => new Date(w.now()));
+  const { billing } = w;
   const paid = await w.join('paid@firm.com.my', 'Paid');
   const later = await w.join('later@firm.com.my', 'Later');
   billing.opened('p-paid', paid.id, 'checkout', 'month');

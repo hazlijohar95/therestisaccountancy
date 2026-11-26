@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { renderLetter } from '../emails/render.tsx';
-import { createBilling, GRACE_MS } from './billing.ts';
-import { createClub, type Invitation, type Member, type PasswordLink } from './club.ts';
-import { createListings, directorySummary, listingApprovedLetter, listingQueuedLetter, listingReturnedLetter, type ListingContent } from './listings.ts';
+import { GRACE_MS } from './billing.ts';
+import type { Invitation, Member, PasswordLink } from './club.ts';
+import { directorySummary, listingApprovedLetter, listingQueuedLetter, listingReturnedLetter, type ListingContent } from './listings.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
+import { createStore } from './store.ts';
 
 const SITE = 'https://therestisaccountancy.com/';
 
@@ -42,9 +43,7 @@ const world = async () => {
   let clock = new Date('2026-11-25T02:00:00Z');
   const now = () => clock;
   const db = openDatabase(':memory:');
-  const club = createClub(db, now);
-  const billing = createBilling(db, now);
-  const listings = createListings(db, now);
+  const { club, billing, listings } = createStore(db, now);
   const host = await club.ensureAdmin({ email: 'host@club.test', name: 'Hazli Johar', password: PASSWORD });
 
   /** A member who has set a password and paid for a month, by FPX so nothing renews by card. */

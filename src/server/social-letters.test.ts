@@ -1,12 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { renderLetter } from '../emails/render.tsx';
-import { createClub } from './club.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
-import { createSocialClaims } from './social-claims.ts';
 import { accountDecidedLetter, claimDecidedLetter, requestApprovedLetter, requestDeclinedLetter, teamInviteLetter, tickRenewalLetter, workEmailLetter } from './social-letters.ts';
-import { createSocialProfiles } from './social-profiles.ts';
+import { createStore } from './store.ts';
 
 const value = <T, R extends string>(result: Result<T, R>): T => {
   if (!result.ok) assert.fail(`expected success, got ${result.reason}`);
@@ -16,10 +14,10 @@ const value = <T, R extends string>(result: Result<T, R>): T => {
 const world = async () => {
   const now = () => new Date('2026-11-26T02:00:00Z');
   const db = openDatabase(':memory:');
-  const club = createClub(db, now);
+  const { club, socialProfiles, socialClaims } = createStore(db, now);
   const reviewer = await club.ensureAdmin({ email: 'host@club.test', name: 'Hazli Johar', password: 'correct horse battery' });
-  const { memberId } = value(createSocialProfiles(db, now).signUp({ name: 'Priya Nair', email: 'priya@tax.my', handle: 'priyataxes' }, { via: 'team' }));
-  return { claims: createSocialClaims(db, now), reviewer, memberId };
+  const { memberId } = value(socialProfiles.signUp({ name: 'Priya Nair', email: 'priya@tax.my', handle: 'priyataxes' }, { via: 'team' }));
+  return { claims: socialClaims, reviewer, memberId };
 };
 
 const urls = { profile: 'https://social.test/@priyataxes', verify: 'https://social.test/verify' };
