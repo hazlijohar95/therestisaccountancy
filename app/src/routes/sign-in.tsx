@@ -76,7 +76,7 @@ function SignIn() {
               <input className="input" id="password" name="password" type="password" autoComplete="current-password" required />
             </div>
             {error && (
-              <p className={s.error} id="form-error" role="alert">
+              <p className={`error ${s.error}`} id="form-error" role="alert">
                 {error}
               </p>
             )}

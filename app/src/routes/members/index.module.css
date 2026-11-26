@@ -1,0 +1,9 @@
+.masthead { display: grid; gap: var(--space-8); align-items: end; padding-block: clamp(32px, 4vw, 48px) clamp(56px, 7vw, 96px); }
+.top { margin: 0 0 var(--space-6); padding-bottom: var(--space-4); border-bottom: var(--stroke-hair) solid var(--ink); }
+.headline { margin: 0 0 var(--space-5); max-width: 14ch; font-size: clamp(2.5rem, 1.2rem + 4.4vw, 5rem); line-height: 1; letter-spacing: -.035em; text-wrap: balance; }
+.lead { margin: 0; max-width: 44ch; }
+.rail :global(.head) { margin: 0 0 var(--space-3); }
+.rail p { margin: 0; max-width: 38ch; }
+.what { display: grid; gap: var(--space-1); }
+.count { white-space: nowrap; }
+@media (min-width: 1000px) { .masthead { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); column-gap: var(--space-9); } }
