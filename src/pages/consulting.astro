@@ -4,6 +4,7 @@ import Closing from '../components/Closing.astro';
 import PageHead from '../components/PageHead.astro';
 import Section from '../components/Section.astro';
 import { host, hostFirstName } from '../data/authors.ts';
+import { consultingPitch } from '../data/club.ts';
 import { programmeBySlug, programmePath, type Programme } from '../data/programmes.ts';
 import { site } from '../data/site.ts';
 import Page from '../layouts/Page.astro';
@@ -28,7 +29,7 @@ const proof = [
 ---
 
 <Page title="Consulting" description={`Consulting from The Rest Is Accountancy: ${host.name} works with one firm on one problem, from pricing and advisory to AI and growth.`}>
-  <PageHead label="Consulting" title="One firm. One problem. Worked through with you." lead={`For a practice that wants ${hostFirstName} on its own figures and clients, not a programme’s worked example.`}>
+  <PageHead label="Consulting" title={consultingPitch.title} lead={consultingPitch.lead}>
     <a class="btn" href={enquiry}>Write to us</a>
     <p class="small address">Or write to <a href={enquiry}>{inbox}</a>.</p>
   </PageHead>

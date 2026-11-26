@@ -167,3 +167,9 @@ export const joinSection = {
     sent: (email: string) => `Received. We will write to ${email}.`,
   },
 } as const;
+
+/** Consulting in two lines: the head of its page, and the band near the foot of the home page. */
+export const consultingPitch = {
+  title: 'One firm. One problem. Worked through with you.',
+  lead: `For a practice that wants ${hostFirstName} on its own figures and clients, not a programme’s worked example.`,
+} as const;

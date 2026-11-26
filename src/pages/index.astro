@@ -4,25 +4,34 @@ import LedgerHero from '../components/LedgerHero.astro';
 import Logo from '../components/Logo.astro';
 import Module from '../components/Module.astro';
 import PostList from '../components/PostList.astro';
+import ConsultingBand from '../components/ConsultingBand.astro';
 import ProductCard from '../components/ProductCard.astro';
 import Signup from '../components/Signup.astro';
 import Story from '../components/Story.astro';
+import Title from '../components/Title.astro';
+import WaysIn from '../components/WaysIn.astro';
 import { photos } from '../data/author-photos.ts';
-import { authorPath, host } from '../data/authors.ts';
+import { authorByHandle, authorPath, host } from '../data/authors.ts';
 import { podcast } from '../data/club.ts';
+import { columnBySlug, columnPath } from '../data/columns.ts';
+import { coverOf } from '../data/covers.ts';
 import { products } from '../data/products.ts';
 import { programmePath, programmes } from '../data/programmes.ts';
 import Page from '../layouts/Page.astro';
-import { allPosts } from '../server/posts.ts';
+import { allPosts, postPath, type Post } from '../server/posts.ts';
 
 /*
- * Every's home page, in its order: the lead stack, recent posts, what we build, topics, one host, the podcast and the
- * newsletter. Each module that lists posts shows only once it has some, so an empty newsletter leaves no blank boxes.
+ * Every's home page, in its order: the front page (lead story, two beside it, a list of recent ones), what we build, the
+ * Tested column, the three ways in, topics, one host, the podcast, consulting and the newsletter. Each module that
+ * lists posts shows only once it has some, so an empty newsletter leaves no blank boxes.
  */
 const posts = await allPosts();
 const [lead, ...rest] = posts;
 const secondary = rest.slice(0, 2);
 const recent = rest.slice(2, 6);
+const names = (post: Post) => post.data.authors.flatMap((h) => authorByHandle(h)?.name ?? []).join(', ');
+const testedColumn = columnBySlug('tested');
+const tested = posts.filter((p) => p.data.column === 'tested').slice(0, 4);
 const topics = programmes
   .map((programme) => ({ programme, posts: posts.filter((p) => p.data.topics.includes(programme.slug)).slice(0, 4) }))
   .filter((topic) => topic.posts.length > 0)
@@ -42,18 +51,28 @@ const episodes = posts.filter((p) => p.data.column === 'podcast').slice(0, 3);
   {
     lead && (
       <Module id="latest" label="Latest" href="/newsletter">
-        <div class="stack">
-          <Story post={lead} lead />
+        <div class="front">
+          <div class="main"><Story post={lead} lead /></div>
           {secondary.length > 0 && <div class="side">{secondary.map((post) => <Story post={post} />)}</div>}
+          {
+            recent.length > 0 && (
+              <aside class="recent" aria-labelledby="recent-label">
+                <h3 class="label" id="recent-label"><a href="/newsletter">Recent →</a></h3>
+                <ol>
+                  {recent.map((post) => (
+                    <li>
+                      <a class="thumb" href={postPath(post)} tabindex="-1" aria-hidden="true"><Image src={coverOf(post)} alt="" widths={[96, 192]} sizes="96px" loading="lazy" /></a>
+                      <div>
+                        <a class="serif t" href={postPath(post)}><Title text={post.data.title} /></a>
+                        <p class="small">{names(post)}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </aside>
+            )
+          }
         </div>
-      </Module>
-    )
-  }
-
-  {
-    recent.length > 0 && (
-      <Module id="recent" label="Recent posts" href="/newsletter">
-        <div class="grid four">{recent.map((post) => <Story post={post} />)}</div>
       </Module>
     )
   }
@@ -63,6 +82,16 @@ const episodes = posts.filter((p) => p.data.column === 'podcast').slice(0, 3);
       {products.map((product) => <li><ProductCard product={product} /></li>)}
     </ul>
   </Module>
+
+  {
+    testedColumn && tested.length > 0 && (
+      <Module id="tested" label={testedColumn.name} href={columnPath(testedColumn)} intro={testedColumn.tagline}>
+        <div class="grid four">{tested.map((post) => <Story post={post} showColumn={false} />)}</div>
+      </Module>
+    )
+  }
+
+  <WaysIn />
 
   {
     topics.map(({ programme, posts: about }) => (
@@ -108,13 +137,24 @@ const episodes = posts.filter((p) => p.data.column === 'podcast').slice(0, 3);
     </div>
   </Module>
 
+  <ConsultingBand />
+
   <section class="wrap capture"><Signup source="home" /></section>
 </Page>
 
 <style>
-  .stack, .grid, .host, .pod { display: grid; gap: var(--space-6); }
+  .front, .grid, .host, .pod { display: grid; gap: var(--space-6); }
   .side { display: grid; align-content: start; gap: var(--space-6); }
-  .side > :global(* + *) { padding-top: var(--space-5); border-top: var(--stroke-hair) solid var(--ink); }
+  .side > :global(* + *), .recent li + li { padding-top: var(--space-5); border-top: var(--stroke-hair) solid var(--ink); }
+  .recent { display: grid; align-content: start; gap: var(--space-4); }
+  .recent h3 { margin: 0; }
+  .recent h3 a { text-decoration: none; }
+  .recent ol { display: grid; gap: var(--space-5); margin: 0; padding: 0; list-style: none; }
+  .recent li { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: var(--space-3); align-items: start; }
+  .thumb img { display: block; width: 72px; height: auto; aspect-ratio: 1; object-fit: cover; }
+  .recent .t { display: block; font-size: 1.125rem; line-height: 1.2; text-decoration: none; text-wrap: balance; }
+  .recent .small { margin: var(--space-1) 0 0; text-transform: uppercase; letter-spacing: .04em; font-size: var(--size-label); }
+  @media (hover: hover) { .recent .t:hover, .recent h3 a:hover { text-decoration: underline; text-decoration-thickness: var(--stroke-hair); } }
   .cards { margin: 0; padding: 0; list-style: none; }
   .who { display: grid; align-content: start; justify-items: start; gap: var(--space-1); }
   .who img { width: 160px; height: auto; aspect-ratio: 1; object-fit: cover; filter: grayscale(1); margin-bottom: var(--space-3); }
@@ -130,8 +170,15 @@ const episodes = posts.filter((p) => p.data.column === 'podcast').slice(0, 3);
     .four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (min-width: 1000px) {
-    .stack:has(> :nth-child(2)) { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); column-gap: var(--space-8); }
+    .front { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "main main" "side recent"; column-gap: var(--space-7); }
+    .main { grid-area: main; }
+    .side { grid-area: side; }
+    .recent { grid-area: recent; }
     .four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .host, .pod:has(> :nth-child(2)) { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); column-gap: var(--space-8); }
+  }
+  @media (min-width: 1200px) {
+    .front { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr); grid-template-areas: "side main recent"; }
+    .main, .side { padding-inline-end: var(--space-7); border-inline-end: var(--stroke-hair) solid var(--ink); }
   }
 </style>
