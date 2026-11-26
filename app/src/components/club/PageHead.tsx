@@ -10,7 +10,7 @@ export function PageHead({ label, title, lead, children }: { label: string; titl
         <h1 className={`headline serif ${s.headline}`} id="page-title">
           {title}
         </h1>
-        {lead && <p className={s.lead}>{lead}</p>}
+        {lead && <p className={`lead ${s.lead}`}>{lead}</p>}
         {children && <div className={s.actions}>{children}</div>}
       </div>
     </section>
