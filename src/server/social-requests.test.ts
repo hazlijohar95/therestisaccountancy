@@ -1,10 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { Letter } from './letters.ts';
-import { socialUrl } from './paths.ts';
 import { DAY, PASSWORD, reason, socialWorld, value } from './social-fixtures.ts';
-import { requestApprovedLetter } from './social-letters.ts';
 
+const SITE = 'https://therestisaccountancy.com/';
 const draft = (email = 'siti@firm.my') => ({ name: 'Siti', email, about: 'Audit senior in KL. I post on LinkedIn about MFRS.', link: 'https://www.linkedin.com/in/siti' });
 
 test('a request waits for the team, once per email', () => {
@@ -26,21 +24,23 @@ test('an approved request makes the account, records how it joined, and lets the
   const host = await w.host;
   value(w.requests.request(draft()));
   const id = w.requests.queue()[0]?.id ?? 0;
-  const approval = value(w.requests.approve(id, host.id));
-  assert.ok(approval.kind === 'welcome');
-  const member = w.club.member(approval.memberId);
-  assert.equal(member?.joinedVia, 'social');
-  assert.equal(member?.clubApproved, false, 'Social does not let anyone into the club');
-  assert.deepEqual(w.profiles.entry(approval.memberId), { via: 'request', inviterId: null });
-  assert.equal(reason(w.requests.approve(id, host.id)), 'decided');
+  const [letter] = value(w.requests.approve(id, host.id, SITE));
+  const member = w.club.members({ query: 'siti@firm.my', limit: 1, offset: 0 }).items[0];
+  assert.ok(member);
+  assert.equal(member.joinedVia, 'social');
+  assert.equal(member.clubApproved, false, 'Social does not let anyone into the club');
+  assert.deepEqual(w.profiles.entry(member.id), { via: 'request', inviterId: null });
+  assert.equal(reason(w.requests.approve(id, host.id, SITE)), 'decided');
   assert.equal(reason(w.requests.decline(id, host.id)), 'decided');
   assert.deepEqual(w.requests.queue(), []);
 
-  const accepted = await w.club.setPasswordFromLink(value(w.club.newLink(approval.memberId)).token, PASSWORD);
+  const setPassword = letter?.lines.find((line) => typeof line === 'object');
+  assert.ok(typeof setPassword === 'object');
+  const accepted = await w.club.setPasswordFromLink(new URL(setPassword.href).searchParams.get('token') ?? '', PASSWORD);
   assert.ok(accepted);
-  assert.equal(w.profiles.mayClaim(approval.memberId), true);
-  value(w.profiles.claimHandle(approval.memberId, 'siti'));
-  assert.deepEqual(w.profiles.entry(approval.memberId), { via: 'request', inviterId: null });
+  assert.equal(w.profiles.mayClaim(member.id), true);
+  value(w.profiles.claimHandle(member.id, 'siti'));
+  assert.deepEqual(w.profiles.entry(member.id), { via: 'request', inviterId: null });
   assert.equal(w.profiles.profile('siti')?.name, 'Siti');
 });
 
@@ -51,14 +51,17 @@ test('approving someone who already signs in tells them so, and a paused account
   value(w.requests.request(draft('aina@firm.my')));
   const queued = w.requests.queue()[0];
   assert.equal(queued?.onSocial, 'aina', 'the team sees the email is on Social already');
-  assert.deepEqual(value(w.requests.approve(queued?.id ?? 0, host.id)), { kind: 'sign-in', name: 'Aina', email: 'aina@firm.my', hasProfile: true });
+  assert.deepEqual(
+    value(w.requests.approve(queued?.id ?? 0, host.id, SITE)).map((l) => [l.to, l.lines[2]]),
+    [['aina@firm.my', 'You already sign in here, so there is nothing new to set up.']],
+  );
   assert.deepEqual(w.profiles.entry(aina.id), { via: 'team', inviterId: null }, 'the first way in is kept');
 
   const abu = await w.joined('Abu', 'abu@firm.my', 'abu');
   value(w.club.suspendMember(host.id, abu.id));
   value(w.requests.request(draft('abu@firm.my')));
   const paused = w.requests.queue()[0]?.id ?? 0;
-  assert.equal(reason(w.requests.approve(paused, host.id)), 'suspended');
+  assert.equal(reason(w.requests.approve(paused, host.id, SITE)), 'suspended');
   assert.equal(w.requests.queue()[0]?.id, paused, 'a refused approval leaves the request waiting');
 });
 
@@ -70,7 +73,7 @@ test('a declined request can ask again, and is deleted after ninety days', async
   assert.equal(w.club.members({ limit: 10, offset: 0 }).items.some((m) => m.email === 'siti@firm.my'), false, 'declining makes no account');
   value(w.requests.request(draft()));
   value(w.requests.request(draft('approved@firm.my')));
-  value(w.requests.approve(w.requests.queue().find((r) => r.email === 'approved@firm.my')?.id ?? 0, host.id));
+  value(w.requests.approve(w.requests.queue().find((r) => r.email === 'approved@firm.my')?.id ?? 0, host.id, SITE));
 
   w.later(89 * DAY);
   assert.equal(w.requests.prune(), 0);
@@ -92,8 +95,8 @@ test('approving someone who never set a password gives their new link the full t
   const { memberId } = value(w.profiles.signUp({ name: 'Siti', email: 'siti@firm.my', handle: 'siti' }, { via: 'open' }));
   w.later(13 * DAY);
   value(w.requests.request(draft()));
-  const approval = value(w.requests.approve(w.requests.queue()[0]?.id ?? 0, host.id));
-  assert.deepEqual(approval, { kind: 'welcome', memberId });
+  const [letter] = value(w.requests.approve(w.requests.queue()[0]?.id ?? 0, host.id, SITE));
+  assert.equal(letter?.to, 'siti@firm.my', 'the account they never finished gets the new link');
   w.later(2 * DAY);
   assert.equal(w.profiles.pruneAbandoned(), 0, 'the clock started again at approval');
   assert.ok(w.club.member(memberId));
@@ -101,24 +104,13 @@ test('approving someone who never set a password gives their new link the full t
   assert.equal(w.profiles.pruneAbandoned(), 1, 'and runs out like any other');
 });
 
-const SITE = 'https://therestisaccountancy.com/';
-
-function approveAndWrite(w: ReturnType<typeof socialWorld>, id: number, teamId: number): Letter[] {
-  const approval = value(w.requests.approve(id, teamId));
-  if (approval.kind === 'sign-in') {
-    const signIn = new URL(`/sign-in?next=${encodeURIComponent(socialUrl(SITE, '/me'))}`, SITE).href;
-    return [requestApprovedLetter(approval, { signIn, hasProfile: approval.hasProfile })];
-  }
-  const { member, token, expiresAt } = value(w.club.newLink(approval.memberId));
-  return [requestApprovedLetter(member, { link: new URL(`/welcome?token=${encodeURIComponent(token)}`, SITE).href, expiresAt })];
-}
 
 test('approval writes to the account by its own name, with a link that sets the password', async () => {
   const w = socialWorld();
   const host = await w.host;
   value(w.profiles.signUp({ name: 'Nur Siti', email: 'siti@firm.my', handle: 'nursiti' }, { via: 'open' }));
   value(w.requests.request(draft()));
-  const [letter, ...rest] = approveAndWrite(w, w.requests.queue()[0]?.id ?? 0, host.id);
+  const [letter, ...rest] = value(w.requests.approve(w.requests.queue()[0]?.id ?? 0, host.id, SITE));
   assert.deepEqual(rest, []);
   assert.equal(letter?.to, 'siti@firm.my');
   assert.equal(letter?.subject, "You're in: The Rest Is Accountancy Social");
@@ -140,7 +132,7 @@ test('approval tells someone who signs in already to sign in, and sends no link'
   const host = await w.host;
   await w.joined('Aina Rahman', 'aina@firm.my', 'aina');
   value(w.requests.request(draft('aina@firm.my')));
-  const letters = approveAndWrite(w, w.requests.queue()[0]?.id ?? 0, host.id);
+  const letters = value(w.requests.approve(w.requests.queue()[0]?.id ?? 0, host.id, SITE));
   assert.deepEqual(letters, [
     {
       to: 'aina@firm.my',

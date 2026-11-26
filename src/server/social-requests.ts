@@ -1,5 +1,9 @@
+import { issueLink, toMember } from './club.ts';
 import { attempt, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
+import type { Letter } from './letters.ts';
+import { socialUrl } from './paths.ts';
 import type { Result } from './result.ts';
+import { requestApprovedLetter } from './social-letters.ts';
 import { admit } from './social-profiles.ts';
 
 /*
@@ -26,14 +30,6 @@ export interface SocialRequest extends RequestDraft {
   /** The handle of the Social profile this email already holds, for the team. Null when it holds none. */
   readonly onSocial: string | null;
 }
-
-/**
- * What approving did. A newcomer, or someone who never set a password, gets the link to set one. Someone who signs in
- * already is told they are in, never sent a reset.
- */
-export type Approval =
-  | { readonly kind: 'welcome'; readonly memberId: number }
-  | { readonly kind: 'sign-in'; readonly name: string; readonly email: string; readonly hasProfile: boolean };
 
 /** 'pending': this email has a request waiting already. */
 export type RequestRefusal = 'pending';
@@ -84,23 +80,29 @@ export function createSocialRequests(db: Db, now: () => Date = () => new Date())
     },
 
     /**
-     * Lets the person in. A newcomer becomes a Social member without a password, like any sign-up; an email that has
-     * an account already is let in on it. The handle comes after the password, on their first visit.
+     * Lets the person in, and writes to them. A newcomer becomes a Social member without a password, like any sign-up,
+     * and gets the link to set one; an email that has an account already is let in on it, and someone who signs in
+     * already is told so, never sent a reset. The handle comes after the password, on their first visit.
      */
-    approve(id: number, teamId: number): Result<Approval, DecideRefusal> {
-      return attempt<Approval, DecideRefusal>(db, (refuse) => {
+    approve(id: number, teamId: number, siteUrl: string): Result<Letter[], DecideRefusal> {
+      return attempt<Letter[], DecideRefusal>(db, (refuse) => {
+        const at = now();
         const request = pending(id, refuse);
-        db.prepare(`INSERT INTO members (email, name, joined_via, joined_at) VALUES (?, ?, 'social', ?) ON CONFLICT (email) DO NOTHING`).run(request.email, request.name, iso(now()));
-        const member = db.prepare('SELECT id, name, email, suspended_at, password_hash FROM members WHERE email = ?').get(request.email);
-        if (!member) throw new Error(`Member ${request.email} was not saved`);
-        if (optionalText(member, 'suspended_at') !== null) refuse('suspended');
-        const memberId = integer(member, 'id');
-        admit(db, now(), memberId, { via: 'request' });
+        db.prepare(`INSERT INTO members (email, name, joined_via, joined_at) VALUES (?, ?, 'social', ?) ON CONFLICT (email) DO NOTHING`).run(request.email, request.name, iso(at));
+        const row = db.prepare('SELECT * FROM members WHERE email = ?').get(request.email);
+        if (!row) throw new Error(`Member ${request.email} was not saved`);
+        const member = toMember(row);
+        if (member.status === 'suspended') refuse('suspended');
+        admit(db, at, member.id, { via: 'request' });
         /* Their welcome link starts now, so the clock for sign-ups abandoned before a password starts again too. */
-        db.prepare('UPDATE members SET joined_at = ? WHERE id = ? AND password_hash IS NULL').run(iso(now()), memberId);
+        db.prepare('UPDATE members SET joined_at = ? WHERE id = ? AND password_hash IS NULL').run(iso(at), member.id);
         decide(id, 'approved', teamId);
-        if (optionalText(member, 'password_hash') === null) return { kind: 'welcome', memberId };
-        return { kind: 'sign-in', name: text(member, 'name'), email: text(member, 'email'), hasProfile: request.onSocial !== null };
+        if (member.status === 'active') {
+          const signIn = new URL(`/sign-in?next=${encodeURIComponent(socialUrl(siteUrl, '/me'))}`, siteUrl).href;
+          return [requestApprovedLetter(member, { signIn, hasProfile: request.onSocial !== null })];
+        }
+        const link = issueLink(db, at, member) ?? refuse('suspended');
+        return [requestApprovedLetter(member, { link: new URL(`/welcome?token=${encodeURIComponent(link.token)}`, siteUrl).href, expiresAt: link.expiresAt })];
       });
     },
 
