@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { OPTION_KEYS, POST_JURISDICTIONS, PROBLEM_LIMITS, TOPICS } from '../../../../../src/data/social.ts';
 import { formatMoment, tally } from '../../../../../src/lib/format.ts';
-import { SocialLink, useGo } from '../../../components/social/PathLink.tsx';
+import { SocialLink, useGo } from '../../../components/social/SocialLink.tsx';
 import { useAction } from '../../../components/social/useAction.ts';
 import { newProblemPage, removeProblem, writeProblem } from '../../../functions/social-problems.ts';
 import { socialSignInHref } from '../../../lib/links.ts';
@@ -21,7 +21,7 @@ export const Route = createFileRoute('/social/problems/new')({
     <div className="page">
       <div className="card empty">
         <h1 className="head">Not found.</h1>
-        <SocialLink className="btn sm" path="/problems">
+        <SocialLink className="btn sm" to="/social/problems">
           Back to Problems
         </SocialLink>
       </div>
@@ -214,7 +214,7 @@ function WriteProblem() {
               <div>
                 <p>
                   <b>
-                    <SocialLink path={`/problems/${problem.number}`}>
+                    <SocialLink to="/social/problems/$" params={{ _splat: String(problem.number) }}>
                       #{problem.number} {problem.title}
                     </SocialLink>
                   </b>

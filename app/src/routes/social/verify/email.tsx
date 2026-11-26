@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import type { FormEvent } from 'react';
-import { SocialLink, useGo } from '../../../components/social/PathLink.tsx';
+import { SocialLink, useGo } from '../../../components/social/SocialLink.tsx';
 import { Tick } from '../../../components/social/Tick.tsx';
 import { useAction } from '../../../components/social/useAction.ts';
 import { confirmWorkEmail, workEmailPage } from '../../../functions/social-ticks.ts';
@@ -29,7 +29,7 @@ function Gone() {
           This link no longer works.
         </h1>
         <p>It has been used, a newer one was sent, or seven days have passed. Send a new one from Get ticked.</p>
-        <SocialLink className="btn" path="/verify?step=work">
+        <SocialLink className="btn" to="/social/verify" search={{ step: 'work' }}>
           Get ticked
         </SocialLink>
       </section>
@@ -90,7 +90,7 @@ function WorkEmail() {
               </p>
             )}
             <div className="panel-foot">
-              <SocialLink className="btn ghost" path="/verify?step=work">
+              <SocialLink className="btn ghost" to="/social/verify" search={{ step: 'work' }}>
                 Not now
               </SocialLink>
               <button className="btn" type="submit" disabled={confirm.busy}>

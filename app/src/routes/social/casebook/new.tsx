@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { AREAS, BANDS, CASEBOOK_LIMITS, EMPLOYER_KINDS, ENGAGEMENT_ROLES, FRAMEWORKS, INDUSTRIES, ROLE_LIMITS, SERVICES } from '../../../../../src/data/social.ts';
 import { identifying } from '../../../../../src/lib/guard.ts';
-import { SocialLink } from '../../../components/social/PathLink.tsx';
+import { SocialLink } from '../../../components/social/SocialLink.tsx';
 import { Tick } from '../../../components/social/Tick.tsx';
 import { useAction } from '../../../components/social/useAction.ts';
 import { addEntry, addRole, casebookPage, removeEntry, removeRole } from '../../../functions/social-casebook.ts';
@@ -74,7 +74,7 @@ function Casebook() {
         <div className="card empty">
           <p className="head">Claim your handle first.</p>
           <p>Your casebook shows on your profile.</p>
-          <SocialLink className="btn sm" path="/edit">
+          <SocialLink className="btn sm" to="/social/edit">
             Claim your handle
           </SocialLink>
         </div>
@@ -97,7 +97,7 @@ function Casebook() {
               <h2 className="head" id="entries-title">
                 Your entries
               </h2>
-              <SocialLink className="small" path="/me#casebook">
+              <SocialLink className="small" to="/social/me" hash="casebook">
                 See your heatmap
               </SocialLink>
             </header>

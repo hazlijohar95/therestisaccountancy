@@ -7,7 +7,7 @@ import { socialSignInHref } from '../../lib/links.ts';
 import { Avatar } from './Avatar.tsx';
 import { Flair } from './Flair.tsx';
 import { PostText } from '../PostText.tsx';
-import { SocialLink } from './PathLink.tsx';
+import { SocialLink } from './SocialLink.tsx';
 import { Tick } from './Tick.tsx';
 import { useAction } from './useAction.ts';
 
@@ -44,7 +44,7 @@ export function ProblemPage({ board, view, here, written = false }: { board: Boa
         ) : numbered ? (
           <div className="card empty">
             <h1 className="head">No problem with that number.</h1>
-            <SocialLink className="btn sm" path="/problems">
+            <SocialLink className="btn sm" to="/social/problems">
               This week’s problem
             </SocialLink>
           </div>
@@ -68,7 +68,7 @@ export function ProblemPage({ board, view, here, written = false }: { board: Boa
                 <p className="head">The first problem opens soon.</p>
               )}
               {board.team ? (
-                <SocialLink className="btn sm" path="/problems/new">
+                <SocialLink className="btn sm" to="/social/problems/new">
                   {board.past.length || board.next ? 'Write a problem' : 'Write the first problem'}
                 </SocialLink>
               ) : board.past.length ? (
@@ -76,14 +76,14 @@ export function ProblemPage({ board, view, here, written = false }: { board: Boa
               ) : board.signedIn ? (
                 <>
                   <p>Claim your handle now and you can answer it the week it opens.</p>
-                  <SocialLink className="btn sm" path="/me">
+                  <SocialLink className="btn sm" to="/social/me">
                     Go to your profile
                   </SocialLink>
                 </>
               ) : (
                 <>
                   <p>Join and you can answer it the week it opens. Social is free and invite-only.</p>
-                  <SocialLink className="btn sm" path="/request">
+                  <SocialLink className="btn sm" to="/social/request">
                     Request to join
                   </SocialLink>
                 </>
@@ -118,7 +118,7 @@ export function ProblemPage({ board, view, here, written = false }: { board: Boa
             <ul className="past card" aria-labelledby="past-title">
               {board.past.map((entry) => (
                 <li key={entry.number}>
-                  <SocialLink path={`/problems/${entry.number}`} aria-current={entry.number === problem?.number ? 'page' : undefined}>
+                  <SocialLink to="/social/problems/$" params={{ _splat: String(entry.number) }} current={entry.number === problem?.number}>
                     <span className="num">#{entry.number}</span>
                     <span>
                       <b>{entry.title}</b>
@@ -134,14 +134,14 @@ export function ProblemPage({ board, view, here, written = false }: { board: Boa
               ))}
             </ul>
             {closed && (
-              <SocialLink className="small back-week" path="/problems">
+              <SocialLink className="small back-week" to="/social/problems">
                 This week’s problem
               </SocialLink>
             )}
           </div>
         )}
         {board.team && (
-          <SocialLink className="btn sm ghost" path="/problems/new">
+          <SocialLink className="btn sm ghost" to="/social/problems/new">
             Write a problem
           </SocialLink>
         )}
@@ -309,12 +309,12 @@ function Problem({ view, board, here, written }: { view: View; board: Board; her
                 </svg>
                 {board.signedIn ? (
                   <span>
-                    <SocialLink path="/edit">Claim your handle</SocialLink> to answer. Answers stay hidden until you do.
+                    <SocialLink to="/social/edit">Claim your handle</SocialLink> to answer. Answers stay hidden until you do.
                   </span>
                 ) : (
                   <span>
                     <a href={socialSignInHref(here)}>Sign in</a> to answer. Answers stay hidden until you do. New here?{' '}
-                    <SocialLink path="/request">Request to join</SocialLink>.
+                    <SocialLink to="/social/request">Request to join</SocialLink>.
                   </span>
                 )}
               </p>
@@ -340,7 +340,7 @@ function Problem({ view, board, here, written }: { view: View; board: Board; her
             <p className="note plain">
               <Tick source="self" state="self" />
               <span>
-                Members with the seal rate answers. <SocialLink path="/verify">Get ticked</SocialLink> to rate.
+                Members with the seal rate answers. <SocialLink to="/social/verify">Get ticked</SocialLink> to rate.
               </span>
             </p>
           )}
@@ -348,7 +348,7 @@ function Problem({ view, board, here, written }: { view: View; board: Board; her
             {view.answers.map((a) => (
               <article key={a.id} className="answer" id={`answer-${a.id}`} data-mine={a.mine ? '' : undefined} aria-label={a.mine ? 'Your answer' : `Answer from ${a.author.name}`}>
                 <div className="by">
-                  <SocialLink className="author" path={`/@${a.author.handle}`}>
+                  <SocialLink className="author" to="/social/@{$handle}" params={{ handle: a.author.handle }}>
                     <Avatar name={a.author.name} track={a.author.track} sealed={a.author.sealed} size="sm" />
                     <span className="name-line">
                       {a.author.name}

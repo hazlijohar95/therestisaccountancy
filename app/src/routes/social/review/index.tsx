@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent, type ReactNode, type RefObject } f
 import { bodyById, CLAIM_LIMITS } from '../../../../../src/data/social.ts';
 import { formatDay, formatMonth } from '../../../../../src/lib/format.ts';
 import { CopyLink } from '../../../components/social/CopyLink.tsx';
-import { SocialLink } from '../../../components/social/PathLink.tsx';
+import { SocialLink } from '../../../components/social/SocialLink.tsx';
 import { Tick } from '../../../components/social/Tick.tsx';
 import { useAction } from '../../../components/social/useAction.ts';
 import {
@@ -76,7 +76,7 @@ export const Route = createFileRoute('/social/review/')({
     <div className="page">
       <div className="card empty">
         <h1 className="head">Not found.</h1>
-        <SocialLink className="btn sm" path="/">
+        <SocialLink className="btn sm" to="/social">
           Back to the Floor
         </SocialLink>
       </div>
@@ -140,7 +140,7 @@ function Review() {
       </div>
       <nav className="chips" aria-label="Queue">
         {TABS.map((t) => (
-          <SocialLink key={t.id} className="chip" path={`/review?tab=${t.id}`} aria-current={t.id === tab ? 'page' : undefined}>
+          <SocialLink key={t.id} className="chip" to="/social/review" search={{ tab: t.id }} current={t.id === tab}>
             {t.label} · {counts[t.id]}
           </SocialLink>
         ))}
@@ -265,7 +265,7 @@ function RequestItem({ request: r, settle }: { request: Queue['requests'][number
         )}
         {r.onSocial && (
           <p>
-            Already on Social as <SocialLink path={`/@${r.onSocial}`}>@{r.onSocial}</SocialLink>.
+            Already on Social as <SocialLink to="/social/@{$handle}" params={{ handle: r.onSocial }}>@{r.onSocial}</SocialLink>.
           </p>
         )}
       </div>
@@ -373,7 +373,7 @@ function TeamInviteItem({ invite: i, settle }: { invite: Queue['teamInvites'][nu
           {i.state === 'used' && i.usedBy && (
             <>
               {' '}
-              by <SocialLink path={`/@${i.usedBy}`}>@{i.usedBy}</SocialLink>
+              by <SocialLink to="/social/@{$handle}" params={{ handle: i.usedBy }}>@{i.usedBy}</SocialLink>
             </>
           )}
           {i.state === 'live' && ` · works until ${formatDay(i.expiresAt)}`}
@@ -484,7 +484,7 @@ function ReportItem({ item, settle }: { item: Queue['reports'][number]; settle: 
         <p>
           <b>{WHAT[item.target]}</b> by{' '}
           {item.member.handle ? (
-            <SocialLink path={`/@${item.member.handle}`}>
+            <SocialLink to="/social/@{$handle}" params={{ handle: item.member.handle }}>
               {item.member.name} (@{item.member.handle})
             </SocialLink>
           ) : (
@@ -494,7 +494,7 @@ function ReportItem({ item, settle }: { item: Queue['reports'][number]; settle: 
         </p>
         {item.summary && <p>“{item.summary}”</p>}
         <p>
-          <SocialLink path={item.path}>Open it where it is</SocialLink>
+          <ReportedPlace path={item.path}>Open it where it is</ReportedPlace>
         </p>
         <ul>
           {item.reports.map((r, i) => (
@@ -519,6 +519,25 @@ function ReportItem({ item, settle }: { item: Queue['reports'][number]; settle: 
   );
 }
 
+/** A link to where a reported item sits. The store writes the place as Social's own links do: /post/12, /post/12#reply-40 or /@aina. */
+function ReportedPlace({ path, children }: { path: string; children: ReactNode }) {
+  const post = /^\/post\/(\d+)(?:#(.+))?$/.exec(path);
+  if (post?.[1])
+    return (
+      <SocialLink to="/social/post/$id" params={{ id: post[1] }} {...(post[2] ? { hash: post[2] } : {})}>
+        {children}
+      </SocialLink>
+    );
+  const handle = /^\/@(.+)$/.exec(path);
+  if (handle?.[1])
+    return (
+      <SocialLink to="/social/@{$handle}" params={{ handle: handle[1] }}>
+        {children}
+      </SocialLink>
+    );
+  return <SocialLink to="/social">{children}</SocialLink>;
+}
+
 function Claims({ tab, data, settle }: { tab: 'accounts' | 'credentials' | 'documents'; data: Queue; settle: Settle }) {
   return (
     <ul className="queue">
@@ -536,7 +555,7 @@ function Who({ who }: { who: Person }) {
   return (
     <p>
       {who.handle ? (
-        <SocialLink path={`/@${who.handle}`}>
+        <SocialLink to="/social/@{$handle}" params={{ handle: who.handle }}>
           {who.name} (@{who.handle})
         </SocialLink>
       ) : (
