@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { HANDLE, HANDLE_TAKEN, JURISDICTIONS, PROFILE_LIMITS, SECTORS, TOPICS, TRACKS, type Topic, type Track } from '../../../src/data/social.ts';
 import { claimWhen, renewsIn } from '../../../src/lib/ticks.ts';
 import type { VouchRefusal } from '../../../src/server/social-claims.ts';
-import { handleProblem, normaliseHandle, type ClaimRefusal, type FollowRefusal, type HandleRefusal, type Profile } from '../../../src/server/social-profiles.ts';
+import { handleProblem, normaliseHandle, type FollowRefusal, type HandleRefusal, type Profile, type SaveRefusal } from '../../../src/server/social-profiles.ts';
 import { numberId, oneLine, token } from '../lib/fields.ts';
 import { memberOrRefusal } from '../lib/guards.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
@@ -18,10 +18,11 @@ export const handleRefusals: Record<HandleRefusal, string> = {
   'handle-taken': HANDLE_TAKEN,
 };
 
-const claimRefusals: Record<ClaimRefusal, string> = {
+const saveRefusals: Record<SaveRefusal, string> = {
   ...handleRefusals,
   'already-claimed': 'You already have a handle.',
   'not-invited': 'Social is invite-only. Use an invite link, or ask to join.',
+  'no-handle': 'Pick a handle first.',
 };
 
 const followRefusals: Record<FollowRefusal, string> = {
@@ -199,14 +200,8 @@ export const saveProfile = createServerFn({ method: 'POST' })
     const input = parsed(profileSchema, data);
     if (!input.ok) return input;
     const { handle, ...fields } = input.value;
-    return withStore(async (store): Promise<Outcome<{ handle: string }>> => {
-      if (!(await store.socialProfiles.ownProfile(member.value.id))) {
-        /* Before a handle is claimed, every refusal is about the handle, so it shows beside it. */
-        if (!handle) return refused('Pick a handle first.', { handle: 'Pick a handle first.' });
-        const claim = await store.socialProfiles.claimHandle(member.value.id, handle);
-        if (!claim.ok) return refused(claimRefusals[claim.reason], { handle: claimRefusals[claim.reason] });
-      }
-      const profile = await store.socialProfiles.update(member.value.id, fields);
-      return profile ? done({ handle: profile.handle }) : refused('Your profile was not saved. Try again.');
-    });
+    const saved = await withStore(async (store) => await store.socialProfiles.save(member.value.id, handle ?? null, fields));
+    if (saved.ok) return done({ handle: saved.value.handle });
+    /* Every refusal comes before a handle is claimed, and is about the handle, so it shows beside it. */
+    return refused(saveRefusals[saved.reason], { handle: saveRefusals[saved.reason] });
   });

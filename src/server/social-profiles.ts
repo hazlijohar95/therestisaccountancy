@@ -58,6 +58,8 @@ export type HandleRefusal = 'handle-invalid' | 'handle-reserved' | 'handle-taken
 export type SignUpRefusal = HandleRefusal | 'email-taken';
 /** 'not-invited': Social is invite-only, and nothing has let this member in yet. */
 export type ClaimRefusal = HandleRefusal | 'already-claimed' | 'not-invited';
+/** 'no-handle': the member has no profile yet and picked no handle to start one. */
+export type SaveRefusal = ClaimRefusal | 'no-handle';
 export type FollowRefusal = 'not-found' | 'self';
 
 /**
@@ -354,6 +356,20 @@ export function createSocialProfiles(db: Db, now: () => Date = () => new Date())
   /** Let in already, or accepted by the club, which lets them in without an invite. */
   const mayClaim = (memberId: number) => admitted(db, memberId) || db.prepare(`SELECT 1 FROM members WHERE id = ? AND ${CLUB_APPROVED_SQL}`).get(memberId) !== undefined;
 
+  /** Inside a transaction: a handle for a member who has none, letting a club member in as they claim it. */
+  const claim = (memberId: number, handle: string, refuse: (reason: ClaimRefusal) => never): void => {
+    if (ownProfile(memberId)) refuse('already-claimed');
+    if (!mayClaim(memberId)) refuse('not-invited');
+    admit(db, now(), memberId, { via: 'club' });
+    insertProfile(db, now(), memberId, normaliseHandle(handle), refuse);
+  };
+
+  const saved = (memberId: number): Profile => {
+    const profile = ownProfile(memberId);
+    if (!profile) throw new Error(`Profile for member ${memberId} was not saved`);
+    return profile;
+  };
+
   return {
     /**
      * A new member from the social site, let in by entry, with a handle. For callers that have already checked how they
@@ -373,13 +389,8 @@ export function createSocialProfiles(db: Db, now: () => Date = () => new Date())
      */
     claimHandle(memberId: number, handle: string): Result<Profile, ClaimRefusal> {
       return attempt<Profile, ClaimRefusal>(db, (refuse) => {
-        if (ownProfile(memberId)) refuse('already-claimed');
-        if (!mayClaim(memberId)) refuse('not-invited');
-        admit(db, now(), memberId, { via: 'club' });
-        insertProfile(db, now(), memberId, normaliseHandle(handle), refuse);
-        const claimed = ownProfile(memberId);
-        if (!claimed) throw new Error(`Profile for member ${memberId} was not saved`);
-        return claimed;
+        claim(memberId, handle, refuse);
+        return saved(memberId);
       });
     },
 
@@ -399,23 +410,26 @@ export function createSocialProfiles(db: Db, now: () => Date = () => new Date())
     /** A profile as the public sees it, by handle. Null when nobody public holds it. */
     profile: publicProfile,
 
-    /** Saves what the member wrote. Null when they have no profile yet. */
-    update(memberId: number, fields: ProfileFields): Profile | null {
-      db.prepare(
-        `UPDATE profiles SET headline = ?, sector = ?, city = ?, jurisdictions = ?, topics = ?, creator = ?, listed = ?, updated_at = ?
-         WHERE member_id = ?`,
-      ).run(
-        fields.headline,
-        fields.sector,
-        fields.city,
-        JSON.stringify(JURISDICTIONS.filter((j) => fields.jurisdictions.includes(j))),
-        JSON.stringify(TOPICS.filter((t) => fields.topics.includes(t))),
-        fields.creator ? 1 : 0,
-        fields.listed ? 1 : 0,
-        iso(now()),
-        memberId,
-      );
-      return ownProfile(memberId);
+    /** Saves what the member wrote, claiming the handle first when they have no profile yet. Nothing is saved when anything is refused. */
+    save(memberId: number, handle: string | null, fields: ProfileFields): Result<Profile, SaveRefusal> {
+      return attempt<Profile, SaveRefusal>(db, (refuse) => {
+        if (!ownProfile(memberId)) claim(memberId, handle || refuse('no-handle'), refuse);
+        db.prepare(
+          `UPDATE profiles SET headline = ?, sector = ?, city = ?, jurisdictions = ?, topics = ?, creator = ?, listed = ?, updated_at = ?
+           WHERE member_id = ?`,
+        ).run(
+          fields.headline,
+          fields.sector,
+          fields.city,
+          JSON.stringify(JURISDICTIONS.filter((j) => fields.jurisdictions.includes(j))),
+          JSON.stringify(TOPICS.filter((t) => fields.topics.includes(t))),
+          fields.creator ? 1 : 0,
+          fields.listed ? 1 : 0,
+          iso(now()),
+          memberId,
+        );
+        return saved(memberId);
+      });
     },
 
     /** The List: listed public profiles, highest peer points first, then the longest here. */

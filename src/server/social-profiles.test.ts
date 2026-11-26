@@ -151,20 +151,20 @@ test('the member edits their profile, and The List shows only listed profiles th
   const priya = await w.joined('Priya Nair', 'priya@tax.my', 'priyataxes');
   const aina = await w.joined('Aina Rahman', 'aina@firm.my', 'aina');
 
-  const saved = w.social.update(priya.id, fields({ topics: ['Tax', 'Audit'], jurisdictions: ['SG', 'MY'] }));
-  assert.deepEqual(saved?.topics, ['Audit', 'Tax'], 'kept in the registry order');
-  assert.deepEqual(saved?.jurisdictions, ['MY', 'SG']);
-  assert.equal(saved?.sector, 'Practice');
-  w.social.update(aina.id, fields({ topics: ['Audit'], creator: true }));
+  const saved = value(w.social.save(priya.id, null, fields({ topics: ['Tax', 'Audit'], jurisdictions: ['SG', 'MY'] })));
+  assert.deepEqual(saved.topics, ['Audit', 'Tax'], 'kept in the registry order');
+  assert.deepEqual(saved.jurisdictions, ['MY', 'SG']);
+  assert.equal(saved.sector, 'Practice');
+  value(w.social.save(aina.id, null, fields({ topics: ['Audit'], creator: true })));
 
   assert.deepEqual(w.social.list().map((e) => e.profile.handle), ['priyataxes', 'aina'], 'equal points: the longest here first');
   assert.deepEqual(w.social.list({ topic: 'Tax' }).map((e) => e.profile.handle), ['priyataxes']);
   assert.deepEqual(w.social.list({ track: 'creator' }).map((e) => e.profile.handle), ['aina'], 'the creator flair is their choice');
 
-  w.social.update(priya.id, fields({ listed: false }));
+  value(w.social.save(priya.id, null, fields({ listed: false })));
   assert.deepEqual(w.social.list().map((e) => e.profile.handle), ['aina']);
   assert.equal(w.social.profile('priyataxes')?.listed, false, 'off The List, still reachable by handle');
-  assert.equal(w.social.update(999, fields()), null, 'no profile, nothing saved');
+  assert.equal(reason(w.social.save(999, null, fields())), 'no-handle', 'no profile, nothing saved');
 });
 
 test('a suspended member leaves The List and their profile goes dark', async () => {
@@ -251,7 +251,7 @@ test('the setup checklist follows what the member has done', async () => {
   const aina = await w.joined('Aina', 'aina@firm.my', 'aina');
   assert.deepEqual(w.profiles.checklist(aina.id), { ticked: false, headline: false, casebook: false, answered: false, badge: false });
   await w.seal(aina.id, 'aina-rahman');
-  w.profiles.update(aina.id, { headline: 'Audit partner.', sector: null, city: '', jurisdictions: [], topics: [], creator: false, listed: true });
+  value(w.profiles.save(aina.id, null, { headline: 'Audit partner.', sector: null, city: '', jurisdictions: [], topics: [], creator: false, listed: true }));
   value(w.casebook.add(aina.id, { service: 'Audit', industry: 'Retail', band: 'Under RM5m', framework: 'MPERS', year: '2024', role: 'Partner', areas: [], note: '', cosigner: null }));
   value(
     w.problems.create(host.id, { number: 1, tag: 'Audit', jurisdiction: 'MY', title: 'T', scenario: ['a', 'b'], ask: 'Q', options: ['x', 'y'], opensAt: at(w.now()), closesAt: at(new Date(w.now().getTime() + DAY)) }),
@@ -344,15 +344,6 @@ test("a member's page shows the same profile to everyone, and what only the owne
   );
 });
 
-function saveProfile(w: ReturnType<typeof socialWorld>, memberId: number, handle: string | null, changes: ProfileFields): string {
-  if (!w.profiles.ownProfile(memberId)) {
-    if (!handle) return 'no-handle';
-    const claim = w.profiles.claimHandle(memberId, handle);
-    if (!claim.ok) return claim.reason;
-  }
-  return w.profiles.update(memberId, changes)?.handle ?? 'not-saved';
-}
-
 test('saving a profile claims the handle first when there is none, and keeps the one there is', async () => {
   const w = socialWorld();
   await w.joined('Aina', 'aina@firm.my', 'aina');
@@ -360,11 +351,11 @@ test('saving a profile claims the handle first when there is none, and keeps the
   const siti = await w.club.ensureAdmin({ email: 'siti@club.test', name: 'Siti', password: 'correct horse battery' });
   assert.ok(aina);
 
-  assert.equal(saveProfile(w, siti.id, null, fields()), 'no-handle');
-  assert.equal(saveProfile(w, siti.id, 'aina', fields()), 'handle-taken');
+  assert.equal(reason(w.profiles.save(siti.id, null, fields())), 'no-handle');
+  assert.equal(reason(w.profiles.save(siti.id, 'aina', fields())), 'handle-taken');
   assert.equal(w.profiles.ownProfile(siti.id), null, 'nothing is saved when the handle is refused');
-  assert.equal(saveProfile(w, siti.id, '@Siti', fields({ headline: 'Club host.' })), 'siti');
+  assert.equal(value(w.profiles.save(siti.id, '@Siti', fields({ headline: 'Club host.' }))).handle, 'siti');
   assert.equal(w.profiles.ownProfile(siti.id)?.headline, 'Club host.');
-  assert.equal(saveProfile(w, aina.memberId, 'somethingelse', fields({ city: 'Ipoh' })), 'aina', 'a handle, once claimed, stays');
+  assert.equal(value(w.profiles.save(aina.memberId, 'somethingelse', fields({ city: 'Ipoh' }))).handle, 'aina', 'a handle, once claimed, stays');
   assert.equal(w.profiles.ownProfile(aina.memberId)?.city, 'Ipoh');
 });

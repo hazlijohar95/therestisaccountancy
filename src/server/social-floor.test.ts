@@ -279,7 +279,7 @@ test('search finds posts and listed people by the start of a word, five at most'
   const w = world();
   const aina = await w.joined('Aina Rahman', 'aina@firm.my', 'aina');
   const hidden = await w.joined('Ainul Unlisted', 'ainul@firm.my', 'ainul');
-  assert.ok(w.profiles.update(hidden.id, { headline: '', sector: null, city: '', jurisdictions: [], topics: [], creator: false, listed: false }));
+  assert.ok(w.profiles.save(hidden.id, null, { headline: '', sector: null, city: '', jurisdictions: [], topics: [], creator: false, listed: false }).ok);
   value(w.floor.post(aina.id, draft({ title: 'MFRS 16 leases for a small firm' })));
   value(w.floor.post(aina.id, draft({ title: 'Release dates for exams', body: '' })));
 
