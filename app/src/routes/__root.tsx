@@ -5,6 +5,7 @@ import { createRootRoute, HeadContent, Outlet, Scripts, useRouterState } from '@
 import type { ReactNode } from 'react';
 import { site } from '../../../src/data/site.ts';
 import globalCss from '../../../src/styles/global.css?url';
+import { NotFound } from '../components/club/NotFound.tsx';
 import { me } from '../functions/auth.ts';
 import appCss from '../styles/app.css?url';
 import { isSocialRoute } from '../lib/hosts.ts';
@@ -28,6 +29,7 @@ export const Route = createRootRoute({
       { rel: 'preload', href: sansFont, as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' },
     ],
   }),
+  notFoundComponent: NotFound,
   component: () => (
     <Document>
       <Outlet />

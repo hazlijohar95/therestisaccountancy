@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DevSeedRouteImport } from './routes/dev-seed'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as SocialRouteRouteImport } from './routes/social/route'
+import { Route as SocialTicksRouteImport } from './routes/social/ticks'
 
 const DevSeedRoute = DevSeedRouteImport.update({
   id: '/dev-seed',
@@ -22,29 +24,46 @@ const SignInRoute = SignInRouteImport.update({
   path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SocialRouteRoute = SocialRouteRouteImport.update({
+  id: '/social',
+  path: '/social',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SocialTicksRoute = SocialTicksRouteImport.update({
+  id: '/ticks',
+  path: '/ticks',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
+  '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
   '/sign-in': typeof SignInRoute
+  '/social/ticks': typeof SocialTicksRoute
 }
 export interface FileRoutesByTo {
+  '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
   '/sign-in': typeof SignInRoute
+  '/social/ticks': typeof SocialTicksRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
   '/sign-in': typeof SignInRoute
+  '/social/ticks': typeof SocialTicksRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/dev-seed' | '/sign-in'
+  fullPaths: '/social' | '/dev-seed' | '/sign-in' | '/social/ticks'
   fileRoutesByTo: FileRoutesByTo
-  to: '/dev-seed' | '/sign-in'
-  id: '__root__' | '/dev-seed' | '/sign-in'
+  to: '/social' | '/dev-seed' | '/sign-in' | '/social/ticks'
+  id: '__root__' | '/social' | '/dev-seed' | '/sign-in' | '/social/ticks'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  SocialRouteRoute: typeof SocialRouteRouteWithChildren
   DevSeedRoute: typeof DevSeedRoute
   SignInRoute: typeof SignInRoute
 }
@@ -65,10 +84,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignInRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/social': {
+      id: '/social'
+      path: '/social'
+      fullPath: '/social'
+      preLoaderRoute: typeof SocialRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/social/ticks': {
+      id: '/social/ticks'
+      path: '/ticks'
+      fullPath: '/social/ticks'
+      preLoaderRoute: typeof SocialTicksRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
   }
 }
 
+interface SocialRouteRouteChildren {
+  SocialTicksRoute: typeof SocialTicksRoute
+}
+
+const SocialRouteRouteChildren: SocialRouteRouteChildren = {
+  SocialTicksRoute: SocialTicksRoute,
+}
+
+const SocialRouteRouteWithChildren = SocialRouteRoute._addFileChildren(
+  SocialRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
+  SocialRouteRoute: SocialRouteRouteWithChildren,
   DevSeedRoute: DevSeedRoute,
   SignInRoute: SignInRoute,
 }

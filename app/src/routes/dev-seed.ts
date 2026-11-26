@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { startSession } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
 
 /*
@@ -34,7 +35,16 @@ export const Route = createFileRoute('/dev-seed')({
             if (claim.ok) await store.socialClaims.decideClaim(claim.value.id, host.id, { verdict: 'approve' });
           }
         });
-        return Response.json({ password: PASSWORD, accounts: ['team@local.test', ...MEMBERS.map((m) => m.email)] });
+        const as = new URL(request.url).searchParams.get('as');
+        if (as) {
+          const key = await withStore(async (store) => {
+            const access = await store.club.authenticate(as, PASSWORD);
+            return access.ok ? access.value.key : null;
+          });
+          if (!key) return new Response(`No seeded account ${as}`, { status: 404 });
+          await startSession(key);
+        }
+        return Response.json({ password: PASSWORD, accounts: ['team@local.test', ...MEMBERS.map((m) => m.email)], signedIn: as });
       },
     },
   },
