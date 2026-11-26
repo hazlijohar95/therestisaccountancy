@@ -2,13 +2,13 @@ import { createServerFn } from '@tanstack/react-start';
 import { notFound, redirect } from '@tanstack/react-router';
 import { z } from 'zod';
 import { isChannelSlug, LIMITS, PAGE_SIZE, threadPath, channelBySlug, type ChannelSlug } from '../../../src/data/community.ts';
-import { MODERATIONS, tidy, type Moderation, type PostPlace, type PostRefusal } from '../../../src/server/community.ts';
+import { MODERATIONS, tidy, type PostPlace, type PostRefusal } from '../../../src/server/community.ts';
 import { replyLetter } from '../../../src/server/letters.ts';
 import { numberId } from '../lib/fields.ts';
-import { memberOrRefusal, paidOrRefusal } from '../lib/guards.server.ts';
-import { absolute, sendLater } from '../lib/mail.server.ts';
-import { paidMemberOrRedirect } from '../lib/members.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { admit, toClub } from '../lib/access.server.ts';
+import { action } from '../lib/action.server.ts';
+import { absolute } from '../lib/mail.server.ts';
+import { done } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
 
 /** The refusal for a post or thread that has gone. A page whose thread went with it sends the member back to the board. */
@@ -30,7 +30,7 @@ const pageCount = (total: number, size: number) => Math.max(1, Math.ceil(total /
 const RECENT = 10;
 
 export const membersCommunity = createServerFn({ method: 'GET' }).handler(async () => {
-  await paidMemberOrRedirect();
+  await admit('paid', toClub);
   return withStore(async (store) => {
     const summaries = (await store.community.channels()).map(({ slug, threads, latest }) => ({ slug, threads, latest: latest && { title: latest.title, lastPostAt: latest.lastPostAt } }));
     const recent = await store.community.recent(RECENT);
@@ -42,7 +42,7 @@ export const membersCommunity = createServerFn({ method: 'GET' }).handler(async 
 export const membersChannel = createServerFn({ method: 'GET' })
   .validator((input: { channel: string; page: number | undefined; query: string }) => input)
   .handler(async ({ data }) => {
-    await paidMemberOrRedirect();
+    await admit('paid', toClub);
     const channel = channelBySlug(data.channel);
     if (!channel) throw notFound();
     const page = pageOf(data.page);
@@ -65,7 +65,7 @@ function pageAt(pathname: string, query: string, page: number): string {
 export const membersThread = createServerFn({ method: 'GET' })
   .validator((input: { id: string; page: number | undefined; query: string }) => input)
   .handler(async ({ data }) => {
-    const member = await paidMemberOrRedirect();
+    const member = await admit('paid', toClub);
     const id = Number(data.id);
     const page = pageOf(data.page);
     const found = Number.isInteger(id)
@@ -107,68 +107,56 @@ const startInput = z.object({ channel, title, body });
 
 export const startThread = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof startInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<Landing>> => {
-    const input = await parsed(startInput, data);
-    if (!input.ok) return input;
-    const member = await paidOrRefusal();
-    if (!member.ok) return member;
-    return done(landing(await withStore(async (store) => store.community.startThread(member.value, input.value))));
-  });
+  .handler(
+    action({ access: 'paid', input: startInput }, async ({ actor, input, store }) => done(landing(await store.community.startThread(actor, input)))),
+  );
 
 const replyInput = z.object({ thread: numberId, body });
 
 export const reply = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof replyInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<Landing>> => {
-    const input = await parsed(replyInput, data);
-    if (!input.ok) return input;
-    const member = await paidOrRefusal();
-    if (!member.ok) return member;
-    const posted = await withStore(async (store) => await store.community.reply(member.value, input.value.thread, input.value));
-    if (!posted.ok) return refused(postRefusals[posted.reason]);
-    const place = landing(posted.value);
-    const url = absolute(landingHref(place));
-    const settingsUrl = absolute('/members/account#email');
-    const { title, recipients } = posted.value.notices;
-    sendLater(recipients.map((to) => replyLetter(to, { title, by: member.value.name, url, settingsUrl })));
-    return done(place);
-  });
+  .handler(
+    action({ access: 'paid', input: replyInput, refusals: postRefusals }, async ({ actor, input, store, send }) => {
+      const posted = await store.community.reply(actor, input.thread, input);
+      if (!posted.ok) return posted;
+      const place = landing(posted.value);
+      const url = absolute(landingHref(place));
+      const settingsUrl = absolute('/members/account#email');
+      const { title, recipients } = posted.value.notices;
+      send(recipients.map((to) => replyLetter(to, { title, by: actor.name, url, settingsUrl })));
+      return done(place);
+    }),
+  );
 
 const editInput = z.object({ post: numberId, body });
 
 export const editPost = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof editInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<Landing>> => {
-    const input = await parsed(editInput, data);
-    if (!input.ok) return input;
-    const member = await paidOrRefusal();
-    if (!member.ok) return member;
-    const edited = await withStore(async (store) => store.community.editPost(member.value, input.value.post, input.value));
-    return edited.ok ? done(landing(edited.value)) : refused(postRefusals[edited.reason]);
-  });
+  .handler(
+    action({ access: 'paid', input: editInput, refusals: postRefusals }, async ({ actor, input, store }) => {
+      const edited = await store.community.editPost(actor, input.post, input);
+      return edited.ok ? done(landing(edited.value)) : edited;
+    }),
+  );
 
 const deleteInput = z.object({ post: numberId });
 
 export const deletePost = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof deleteInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<Landing & { threadRemoved: boolean }>> => {
-    const input = await parsed(deleteInput, data);
-    if (!input.ok) return input;
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const deleted = await withStore(async (store) => store.community.deletePost(member.value, input.value.post));
-    return deleted.ok ? done({ ...landing(deleted.value), threadRemoved: deleted.value.threadRemoved }) : refused(postRefusals[deleted.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: deleteInput, refusals: postRefusals }, async ({ actor, input, store }) => {
+      const deleted = await store.community.deletePost(actor, input.post);
+      return deleted.ok ? done({ ...landing(deleted.value), threadRemoved: deleted.value.threadRemoved }) : deleted;
+    }),
+  );
 
 const moderateInput = z.object({ thread: numberId, action: z.enum(MODERATIONS) });
 
 export const moderateThread = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof moderateInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<{ threadId: number; channel: ChannelSlug; action: Moderation }>> => {
-    const input = await parsed(moderateInput, data);
-    if (!input.ok) return input;
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const moderated = await withStore(async (store) => store.community.moderate(member.value, input.value.thread, input.value.action));
-    return moderated.ok ? done({ threadId: moderated.value.threadId, channel: moderated.value.channel, action: input.value.action }) : refused(moderationRefusals[moderated.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: moderateInput, refusals: moderationRefusals }, async ({ actor, input, store }) => {
+      const moderated = await store.community.moderate(actor, input.thread, input.action);
+      return moderated.ok ? done({ threadId: moderated.value.threadId, channel: moderated.value.channel, action: input.action }) : moderated;
+    }),
+  );

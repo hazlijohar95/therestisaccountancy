@@ -5,11 +5,10 @@ import { TERMS } from '../../../src/data/membership.ts';
 import type { CheckoutRefusal } from '../../../src/server/charges.ts';
 import { checkout as openCheckout, settle } from '../../../src/server/payments.ts';
 import { report } from '../../../src/server/report.ts';
-import { memberOrRefusal, memberOrSignIn } from '../lib/guards.server.ts';
-import { tooManyTries } from '../lib/action.ts';
-import { allowed } from '../lib/limits.server.ts';
+import { admit, toClub } from '../lib/access.server.ts';
+import { action } from '../lib/action.server.ts';
 import { absolute } from '../lib/mail.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { done, refused } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
 
 const checkoutRefusals: Record<CheckoutRefusal, string> = {
@@ -23,7 +22,7 @@ const checkoutRefusals: Record<CheckoutRefusal, string> = {
 export const membersPay = createServerFn({ method: 'GET' })
   .validator((back: 'paid' | 'failed' | undefined) => back)
   .handler(async ({ data: back }) => {
-    const member = await memberOrSignIn();
+    const member = await admit('member', toClub);
     if (member.role === 'admin') throw redirect({ href: '/members' });
     const standing = await withStore(async (store) => {
       if (back === 'paid') {
@@ -42,30 +41,25 @@ const checkoutInput = z.object({ term: z.enum(TERMS) });
 /** Opens CHIP's payment page for the term the member chose, saving a card where CHIP can. Answers where to send them. */
 export const checkout = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof checkoutInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<{ url: string }>> => {
-    const input = await parsed(checkoutInput, data);
-    if (!input.ok) return input;
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    if (!(await allowed('checkout'))) return refused(tooManyTries);
-    try {
-      const opened = await withStore((store) => openCheckout(store.billing, member.value, input.value.term, absolute('/')));
-      return opened.ok ? done({ url: opened.value }) : refused(checkoutRefusals[opened.reason]);
-    } catch (error) {
-      await report('payment', `CHIP could not open a payment page for ${member.value.email}`, error);
-      return refused('The payment page did not open. Try again in a minute.');
-    }
-  });
+  .handler(
+    action({ access: 'member', input: checkoutInput, limit: 'checkout', refusals: checkoutRefusals }, async ({ actor, input, store }) => {
+      try {
+        const opened = await openCheckout(store.billing, actor, input.term, absolute('/'));
+        return opened.ok ? done({ url: opened.value }) : opened;
+      } catch (error) {
+        await report('payment', `CHIP could not open a payment page for ${actor.email}`, error);
+        return refused('The payment page did not open. Try again in a minute.');
+      }
+    }),
+  );
 
 const renewsInput = z.object({ renews: z.boolean() });
 
 export const setRenews = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof renewsInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<{ renews: boolean }>> => {
-    const input = await parsed(renewsInput, data);
-    if (!input.ok) return input;
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const standing = await withStore(async (store) => store.billing.setRenews(member.value.id, input.value.renews));
-    return done({ renews: standing.renews });
-  });
+  .handler(
+    action({ access: 'member', input: renewsInput }, async ({ actor, input, store }) => {
+      const standing = await store.billing.setRenews(actor.id, input.renews);
+      return done({ renews: standing.renews });
+    }),
+  );

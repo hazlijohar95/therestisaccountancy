@@ -3,13 +3,13 @@ import { programmes } from '../../../src/data/programmes.ts';
 import { formatMoment } from '../../../src/lib/format.ts';
 import { memberNumber } from '../../../src/server/club.ts';
 import { allResources, lessonsOf } from '../lib/content.server.ts';
-import { paidMemberOrRedirect } from '../lib/members.server.ts';
+import { admit, toClub } from '../lib/access.server.ts';
 import { withStore } from '../lib/store.server.ts';
 import { hostFirstName } from '../../../src/data/authors.ts';
 
 /** The overview: the member, their progress through each programme, and where they stand with the rest of the club. */
 export const membersOverview = createServerFn({ method: 'GET' }).handler(async () => {
-  const member = await paidMemberOrRedirect();
+  const member = await admit('paid', toClub);
   const { done, plan, call, listing } = await withStore(async (store) => {
     const done = await store.club.completedLessons(member.id);
     const plan = await store.plans.ofMember(member.id);

@@ -2,18 +2,16 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { isServiceSlug, LISTING_LIMITS, states, type ServiceSlug } from '../../../src/data/directory.ts';
 import { tidy } from '../../../src/server/community.ts';
-import { listingQueuedLetter, type SaveOutcome } from '../../../src/server/listings.ts';
+import { listingQueuedLetter } from '../../../src/server/listings.ts';
 import { email, oneLine } from '../lib/fields.ts';
-import { paidOrRefusal } from '../lib/guards.server.ts';
-import { tooManyTries } from '../lib/action.ts';
-import { allowed } from '../lib/limits.server.ts';
-import { absolute, sendLater } from '../lib/mail.server.ts';
-import { paidMemberOrRedirect } from '../lib/members.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { admit, toClub } from '../lib/access.server.ts';
+import { action } from '../lib/action.server.ts';
+import { absolute } from '../lib/mail.server.ts';
+import { done, refused } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
 
 export const membersListing = createServerFn({ method: 'GET' }).handler(async () => {
-  const member = await paidMemberOrRedirect();
+  const member = await admit('paid', toClub);
   const listing = await withStore(async (store) => store.listings.listing(member.id));
   return { email: member.email, listing };
 });
@@ -69,34 +67,25 @@ export interface ListingForm {
 
 export const saveListing = createServerFn({ method: 'POST' })
   .validator((input: ListingForm) => input)
-  .handler(async ({ data }): Promise<Outcome<{ outcome: SaveOutcome }>> => {
-    const input = await parsed(listingInput, data);
-    if (!input.ok) return input;
-    const member = await paidOrRefusal();
-    if (!member.ok) return member;
-    if (!(await allowed('listing'))) return refused(tooManyTries);
-    const { declared: _declared, niche, website: site, ...content } = input.value;
-    const saved = await withStore(async (store) => {
-      const { listing, outcome } = await store.listings.save(member.value.id, { ...content, niche: niche ?? '', website: site ?? null });
-      const queued = outcome === 'submitted' || outcome === 'resubmitted' ? { listing, outcome, admins: await store.club.adminEmails() } : null;
-      return { outcome, queued };
-    });
-    if (saved.queued?.admins.length) sendLater([listingQueuedLetter(saved.queued.admins, saved.queued.listing, saved.queued.outcome, absolute('/admin/listings'))]);
-    return done({ outcome: saved.outcome });
-  });
+  .handler(
+    action({ access: 'paid', input: listingInput, limit: 'listing' }, async ({ actor, input, store, send }) => {
+      const { declared: _declared, niche, website: site, ...content } = input;
+      const { listing, outcome } = await store.listings.save(actor.id, { ...content, niche: niche ?? '', website: site ?? null });
+      if (outcome === 'submitted' || outcome === 'resubmitted') {
+        const admins = await store.club.adminEmails();
+        if (admins.length) send([listingQueuedLetter(admins, listing, outcome, absolute('/admin/listings'))]);
+      }
+      return done({ outcome });
+    }),
+  );
 
 const pauseInput = z.object({ paused: z.boolean() });
 
 export const pauseListing = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof pauseInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<{ paused: boolean }>> => {
-    const input = await parsed(pauseInput, data);
-    if (!input.ok) return input;
-    const member = await paidOrRefusal();
-    if (!member.ok) return member;
-    const listing = await withStore(async (store) => {
-      const found = await store.listings.setPaused(member.value.id, input.value.paused);
-      return found && { paused: found.paused };
-    });
-    return listing ? done(listing) : refused('Write your listing first.');
-  });
+  .handler(
+    action({ access: 'paid', input: pauseInput }, async ({ actor, input, store }) => {
+      const found = await store.listings.setPaused(actor.id, input.paused);
+      return found ? done({ paused: found.paused }) : refused('Write your listing first.');
+    }),
+  );

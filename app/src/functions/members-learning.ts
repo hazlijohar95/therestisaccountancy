@@ -4,9 +4,9 @@ import { z } from 'zod';
 import { programmeBySlug, programmes } from '../../../src/data/programmes.ts';
 import type { TemplateSummary } from '../components/members/TemplateList.tsx';
 import { allResources, lessonById, lessonPath, lessonsOf, partsOf, resourceById, resourcesOf, type Resource } from '../lib/content.server.ts';
-import { paidMemberOrRedirect } from '../lib/members.server.ts';
-import { paidOrRefusal } from '../lib/guards.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { admit, toClub } from '../lib/access.server.ts';
+import { action } from '../lib/action.server.ts';
+import { done, refused } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
 
 /*
@@ -27,7 +27,7 @@ const summaryOf = (r: Resource): TemplateSummary => ({
 const completed = (memberId: number) => withStore((store) => store.club.completedLessons(memberId));
 
 export const membersResources = createServerFn({ method: 'GET' }).handler(async () => {
-  await paidMemberOrRedirect();
+  await admit('paid', toClub);
   const all = allResources();
   return programmes
     .map((programme, i) => ({ slug: programme.slug, name: programme.name, promise: programme.promise, number: String(i + 1).padStart(2, '0'), items: all.filter((r) => r.data.programme === programme.slug).map(summaryOf) }))
@@ -37,7 +37,7 @@ export const membersResources = createServerFn({ method: 'GET' }).handler(async 
 export const membersResource = createServerFn({ method: 'GET' })
   .validator((id: string) => id)
   .handler(async ({ data: id }) => {
-    await paidMemberOrRedirect();
+    await admit('paid', toClub);
     const resource = resourceById(id);
     const programme = resource && programmeBySlug(resource.data.programme);
     if (!resource || !programme) throw notFound();
@@ -57,7 +57,7 @@ export const membersResource = createServerFn({ method: 'GET' })
 export const membersProgramme = createServerFn({ method: 'GET' })
   .validator((slug: string) => slug)
   .handler(async ({ data: slug }) => {
-    const member = await paidMemberOrRedirect();
+    const member = await admit('paid', toClub);
     const programme = programmeBySlug(slug);
     if (!programme) throw notFound();
     const finished = await completed(member.id);
@@ -80,7 +80,7 @@ export const membersProgramme = createServerFn({ method: 'GET' })
 export const membersLesson = createServerFn({ method: 'GET' })
   .validator((id: string) => id)
   .handler(async ({ data: id }) => {
-    const member = await paidMemberOrRedirect();
+    const member = await admit('paid', toClub);
     const lesson = lessonById(id);
     if (!lesson) throw notFound();
     const programme = programmeBySlug(lesson.data.programme);
@@ -105,14 +105,10 @@ const lessonDoneInput = z.object({ lesson: z.string(), done: z.boolean() });
 
 export const lessonDone = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof lessonDoneInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<{ done: boolean }>> => {
-    const input = await parsed(lessonDoneInput, data);
-    if (!input.ok) return input;
-    const member = await paidOrRefusal();
-    if (!member.ok) return member;
-    if (!lessonById(input.value.lesson)) return refused('There is no such lesson.');
-    await withStore(async (store) => {
-      await store.club.setLessonDone(member.value.id, input.value.lesson, input.value.done);
-    });
-    return done({ done: input.value.done });
-  });
+  .handler(
+    action({ access: 'paid', input: lessonDoneInput }, async ({ actor, input, store }) => {
+      if (!lessonById(input.lesson)) return refused('There is no such lesson.');
+      await store.club.setLessonDone(actor.id, input.lesson, input.done);
+      return done({ done: input.done });
+    }),
+  );
