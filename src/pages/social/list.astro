@@ -11,8 +11,13 @@ const params = Astro.url.searchParams;
 const pick = <const T extends string>(value: string | null, allowed: readonly T[]): T | undefined => allowed.find((entry) => entry === value);
 const topic = pick(params.get('topic'), TOPICS);
 const track = pick(params.get('track'), TRACKS);
-const entries = await Astro.locals.socialProfiles.list({ topic, track });
+const { member, socialProfiles, socialNominations } = Astro.locals;
+const entries = await socialProfiles.list({ topic, track });
 const filtered = topic !== undefined || track !== undefined;
+/* The member's own nominations, which nobody else sees. Filters narrow The List, so these show only on the full one. */
+const nominated = member && !filtered ? await socialNominations.mine(member.id) : [];
+const NOMINATED = { yes: 'Nominated. Private until they claim it.', already: 'You nominated them already.' } as const;
+const note = Object.entries(NOMINATED).find(([outcome]) => outcome === params.get('nominated'))?.[1];
 
 const to = (path: string) => socialPath(Astro.url, path);
 /** The List with one filter changed and the other kept. */
@@ -35,7 +40,12 @@ const trackChips = [{ label: 'Everyone', track: undefined }, ...TRACKS.map((t) =
         <h1 class="title">People worth following.</h1>
         <p class="lead">Ranked by peers who rated their answers. Never by followers.</p>
       </div>
+      <a class="btn" href={to('/nominate')}>
+        <svg aria-hidden="true"><use href="#i-plus" /></svg>
+        Nominate someone
+      </a>
     </div>
+    {note && <p class="note" role="status">{note}</p>}
     <div class="list-tools">
       <nav class="chips" aria-label="Topic">
         {topicChips.map((chip) => <a class="chip" href={filter({ topic: chip.topic })} aria-current={chip.topic === topic ? 'page' : undefined}>{chip.label}</a>)}
@@ -45,7 +55,7 @@ const trackChips = [{ label: 'Everyone', track: undefined }, ...TRACKS.map((t) =
       </nav>
     </div>
     {
-      entries.length ? (
+      entries.length + nominated.length ? (
         <ol class="list card">
           {entries.map(({ profile, points }, i) => (
             <li>
@@ -79,12 +89,37 @@ const trackChips = [{ label: 'Everyone', track: undefined }, ...TRACKS.map((t) =
               </a>
             </li>
           ))}
+          {nominated.map((n) => (
+            <li>
+              <div class="row unclaimed">
+                <span class="no" aria-hidden="true">·</span>
+                <span class="avatar" data-track="field" aria-hidden="true">@</span>
+                <span class="who">
+                  <b>@{n.handle}</b>
+                  <span class="meta">
+                    <span class="flair" data-track="field">Unclaimed</span>
+                    <span class="tag">{n.platform}</span>
+                    {n.topics.map((t) => <span class="tag">{t}</span>)}
+                  </span>
+                  <span class="meta headline">{n.state === 'invited' ? 'Invited. Only you can see this until they claim it.' : 'Only you can see this. Public once they claim it.'}</span>
+                </span>
+                <span class="score">
+                  <small>{n.state === 'invited' ? 'Invited' : 'Nominated'}</small>
+                </span>
+                <span class="go" aria-hidden="true">
+                  <svg>
+                    <use href="#i-lock" />
+                  </svg>
+                </span>
+              </div>
+            </li>
+          ))}
         </ol>
       ) : (
         <div class="card empty">
           <p class="head">{filtered ? 'No one matches yet.' : 'No one is on The List yet.'}</p>
-          <p>{filtered ? 'Try another topic or track.' : 'It fills with real people as they sign up. Nominations open soon.'}</p>
-          {filtered ? <a class="btn sm ghost" href={to('/list')}>Show everyone</a> : <a class="btn sm" href={to('/sign-up')}>Sign up and claim your handle</a>}
+          <p>{filtered ? 'Try another topic or track.' : 'It fills with real people as they sign up. Know someone who posts things worth learning from?'}</p>
+          {filtered ? <a class="btn sm ghost" href={to('/list')}>Show everyone</a> : <a class="btn sm" href={to('/nominate')}>Nominate them</a>}
         </div>
       )
     }

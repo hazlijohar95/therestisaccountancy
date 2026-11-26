@@ -361,6 +361,30 @@ const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX vouches_by_voucher ON vouches (voucher_id);
   `,
+  `
+  CREATE TABLE nominations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    platform TEXT NOT NULL,
+    handle TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'pending' CHECK (state IN ('pending', 'invited', 'claimed', 'removed', 'rejected')),
+    invite_token_hash TEXT UNIQUE,
+    created_at TEXT NOT NULL,
+    decided_at TEXT,
+    decided_by INTEGER REFERENCES members (id) ON DELETE SET NULL,
+    UNIQUE (platform, handle)
+  );
+  CREATE INDEX nominations_by_state ON nominations (state, created_at);
+
+  CREATE TABLE nominators (
+    nomination_id INTEGER NOT NULL REFERENCES nominations (id) ON DELETE CASCADE,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    topics TEXT NOT NULL DEFAULT '[]',
+    why_url TEXT,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (nomination_id, member_id)
+  );
+  CREATE INDEX nominators_by_member ON nominators (member_id);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

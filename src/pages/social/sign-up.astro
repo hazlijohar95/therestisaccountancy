@@ -10,7 +10,10 @@ import { addressed, clubPath, signInPath, socialPath } from '../../server/paths.
 export const prerender = false;
 
 const to = (path: string) => socialPath(Astro.url, path);
-if (Astro.locals.member) return Astro.redirect(to('/me'));
+/* From an invite link: the account it names waits in Get ticked once they are in. Only the token travels with the form. */
+const invite = Astro.url.searchParams.get('invite') ?? '';
+if (Astro.locals.member) return Astro.redirect(to(invite ? `/claim/${encodeURIComponent(invite)}` : '/me'));
+const invitation = invite ? await Astro.locals.socialNominations.invitation(invite) : null;
 
 const result = Astro.getActionResult(actions.socialSignUp);
 const fieldErrors = result?.error && isInputError(result.error) ? result.error.fields : {};
@@ -23,6 +26,9 @@ const errors = {
 };
 const failure = refusal && refusal.code !== 'UNAUTHORIZED' && refusal.code !== 'CONFLICT' ? refusal.message : null;
 const typed = result?.error ? await postedFields(Astro.request) : () => '';
+const suggestedHandle = invitation && HANDLE.pattern.test(invitation.handle) ? invitation.handle : '';
+/* Someone who already has an account signs in and comes back to their invite, not to a blank profile. */
+const afterSignIn = invitation ? `/claim/${encodeURIComponent(invite)}` : '/edit';
 const first = (['name', 'email', 'handle'] as const).find((field) => errors[field]);
 const invalid = (field: keyof typeof errors) => (errors[field] ? 'true' : undefined);
 const describedBy = (field: keyof typeof errors, hint?: string) => [hint, errors[field] ? `${field}-error` : undefined].filter(Boolean).join(' ') || undefined;
@@ -36,6 +42,7 @@ const describedBy = (field: keyof typeof errors, hint?: string) => [hint, errors
           <p class="kicker">Almost there</p>
           <h1 class="head" id="done-title">Check your email.</h1>
           <p>We sent a link to <b>{result.data.email}</b>. Set a password with it and your profile goes live. The link works for {LINK_DAYS.welcome} days.</p>
+          {result.data.claimed && <p>Your invited account waits in Get ticked. Put the code we give you in its bio, and the team proves it.</p>}
           <p class="small">No email? Check spam, or <a href={clubPath(Astro.url, '/forgot')}>ask for a new link</a>.</p>
         </section>
       ) : (
@@ -47,6 +54,11 @@ const describedBy = (field: keyof typeof errors, hint?: string) => [hint, errors
               <p class="lead">Social is free. Post, answer the weekly problem and get your credentials ticked.</p>
             </div>
           </div>
+          {invitation && (
+            <p class="note plain" role="note">
+              Claiming <b>@{invitation.handle}</b> on {invitation.platform}. It goes to Get ticked for proof once you are in.
+            </p>
+          )}
           <form class="panel card" method="POST" action={formAction(addressed(Astro.url), actions.socialSignUp)} novalidate>
             <div class="field">
               <label for="name">Your name</label>
@@ -59,25 +71,26 @@ const describedBy = (field: keyof typeof errors, hint?: string) => [hint, errors
               <span class="hint" id="email-hint">We send a link here to set your password. Nobody else sees it.</span>
               {errors.email && (
                 <span class="error" id="email-error">
-                  {errors.email} <a href={signInPath(Astro.url, '/edit')}>Sign in</a> and claim your handle there, or <a href={clubPath(Astro.url, '/forgot')}>get a new link</a> if you never set a password.
+                  {errors.email} <a href={signInPath(Astro.url, afterSignIn)}>Sign in</a> and {invitation ? 'claim the invite there' : 'claim your handle there'}, or <a href={clubPath(Astro.url, '/forgot')}>get a new link</a> if you never set a password.
                 </span>
               )}
             </div>
             <div class="field">
               <label for="handle">Handle</label>
               <div class="prefix">
-                <input class="input" id="handle" name="handle" required minlength={HANDLE.min} maxlength={HANDLE.max} autocapitalize="none" autocomplete="nickname" spellcheck="false" value={typed('handle')} aria-invalid={invalid('handle')} aria-describedby={describedBy('handle', 'handle-hint')} autofocus={first === 'handle' ? true : undefined} />
+                <input class="input" id="handle" name="handle" required minlength={HANDLE.min} maxlength={HANDLE.max} autocapitalize="none" autocomplete="nickname" spellcheck="false" value={typed('handle') || suggestedHandle} aria-invalid={invalid('handle')} aria-describedby={describedBy('handle', 'handle-hint')} autofocus={first === 'handle' ? true : undefined} />
               </div>
               <span class="hint" id="handle-hint">{HANDLE.min} to {HANDLE.max} lowercase letters, digits or underscores. Your page is {socialHost}/@handle.</span>
               {errors.handle && <span class="error" id="handle-error">{errors.handle}</span>}
             </div>
+            {invitation && <input type="hidden" name="invite" value={invite} />}
             <div class="trap" aria-hidden="true">
               <label for="signup-trap">Leave this empty</label>
               <input id="signup-trap" name="trap" type="text" tabindex="-1" autocomplete="off" data-1p-ignore data-lpignore="true" />
             </div>
             {failure && <p class="error" role="alert">{failure}</p>}
             <div class="panel-foot">
-              <span class="small">Have an account? <a href={signInPath(Astro.url, '/edit')}>Sign in</a> and claim a handle.</span>
+              <span class="small">Have an account? <a href={signInPath(Astro.url, afterSignIn)}>Sign in</a> and {invitation ? 'claim the invite' : 'claim a handle'}.</span>
               <button class="btn" type="submit">Sign up</button>
             </div>
           </form>

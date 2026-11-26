@@ -361,6 +361,29 @@
   .queue-item .reject { display: grid; gap: var(--space-2); flex: 1; min-width: min(100%, 260px); }
   .queue-item .reject .input { min-height: 0; }
   .queue-item code { font-family: var(--font-pixel); }
+  .queue-item .facts ul { margin: 0; padding-inline-start: 1.1em; }
+  .invite-link { display: grid; gap: var(--space-2); padding: var(--space-4); border: 1px dashed var(--control); border-radius: var(--r-sm); background: color-mix(in srgb, var(--hover) 45%, var(--surface)); }
+  .invite-link .input { font-family: var(--font-pixel); font-size: var(--size-small); }
+
+  /* ---------- Nominate and claim ---------- */
+  .form-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: var(--space-5); align-items: start; }
+  @media (max-width: 1000px) { .form-grid { grid-template-columns: minmax(0, 1fr); } }
+  .aside-stack { display: grid; gap: var(--space-3); align-content: start; }
+  .preview-card { padding: var(--space-5); display: grid; gap: var(--space-3); position: relative; border-style: dashed; border-color: var(--control); box-shadow: none; }
+  .preview-card .stamp { position: absolute; right: var(--space-4); top: var(--space-4); }
+  .preview-card .avatar, .row.unclaimed .avatar { background: transparent; box-shadow: inset 0 0 0 1.5px var(--control); }
+  .row.unclaimed { background: color-mix(in srgb, var(--mark) 22%, var(--surface)); }
+  .row.unclaimed .score .pixel { white-space: nowrap; }
+  .claim { position: relative; overflow: hidden; padding: var(--space-7) var(--space-6); display: grid; gap: var(--space-4); justify-items: start; margin-top: var(--space-4); }
+  .claim .tape { position: absolute; top: 20px; right: -6px; font-size: 1rem; }
+  .claim .title { max-width: 20ch; overflow-wrap: anywhere; }
+  .claim-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: var(--space-3); width: 100%; }
+  .claim-grid > div { padding: var(--space-4); border-radius: var(--r-sm); background: color-mix(in srgb, var(--hover) 45%, var(--surface)); display: grid; gap: var(--space-2); align-content: start; }
+  .plain-list { margin: 0; padding-inline-start: 1.1em; display: grid; gap: 4px; }
+  .confirm { width: 100%; display: grid; gap: var(--space-3); padding: var(--space-4); border-radius: var(--r-sm); border: 1px solid var(--alert); }
+  .confirm-actions, .claim .actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .confirm-actions form, .claim .actions form { display: contents; }
+  @media (max-width: 600px) { .claim { padding: var(--space-6) var(--space-4); } }
 }
 
 /* Dark mode: the seal keeps an ink core on tape, with a paper ring so it reads on night. */

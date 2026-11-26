@@ -14,3 +14,10 @@ export const postedFields = async (request: Request): Promise<(name: string) => 
     return () => '';
   }
 };
+
+/** Every value of a field that was just posted, such as a group of checkboxes. Read the request once: call this or postedFields. */
+export const postedValues = async (request: Request): Promise<{ one: (name: string) => string; all: (name: string) => string[] }> => {
+  const form = request.method === 'POST' ? await request.formData().catch(() => null) : null;
+  const strings = (name: string) => (form?.getAll(name) ?? []).filter((value): value is string => typeof value === 'string');
+  return { one: (name) => strings(name)[0] ?? '', all: strings };
+};

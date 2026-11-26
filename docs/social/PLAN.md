@@ -19,6 +19,7 @@ The visual and interaction spec is the static design in `../social/` at the work
 - **Work email needs the member.** Opening the emailed link confirms nothing (mail scanners open links). The member who asked confirms with a button, signed in.
 - **Notifications** are rows in a table, written when the event happens.
 - **Drafts** stay in the browser (`localStorage`), never on the server.
+- **Nominations stay private.** Only the nominator sees their own (on The List), the team sees the queue, and the nominee sees their invite. A handle counts as on The List once a member has proven that account; a pending account blocks nothing. We know only a handle, so the team sends the invite link by direct message themselves. The link is shown once, in the response to Invite (only its hash is kept); Make a new link replaces a lost one. Claiming signed out goes through sign-up with only the token, and the server reads the account from it.
 - **Peer points** for The List: answers rated sound by ticked members plus saves of shelf items, in the current quarter.
 
 ## Constraints from the domain move (another session, landing on main before this branch merges)
@@ -44,8 +45,10 @@ claims             id AUTOINCREMENT, member_id, kind body|licence|employer|acade
                    reminded 0|1|2, note (the team's reason), created_at, decided_at, decided_by
 email_checks       token_hash PK, claim_id, address, created_at, expires_at, used_at
 vouches            claim_id, voucher_id, created_at  (PK claim_id+voucher_id)
-nominations        id, platform, handle, topics JSON, why_url, nominated_by, created_at,
-                   state pending|invited|claimed|removed|rejected, invite_token_hash NULL
+nominations        id AUTOINCREMENT, platform, handle (accountHandle form), state pending|invited|claimed|removed|rejected,
+                   invite_token_hash NULL, created_at, decided_at, decided_by  (UNIQUE platform+handle: one row ever;
+                   'removed' is the nominee's no, kept with its nominators deleted so the handle is never invited again)
+nominators         nomination_id, member_id, topics JSON, why_url NULL, created_at (PK both: a member counts once)
 follows            follower_id, followee_id, created_at (PK both)
 floor_posts        id, member_id, room, jurisdiction, title, body, created_at, edited_at, removed_at
 floor_replies      id, post_id, member_id, body, accepted INTEGER, correction INTEGER, created_at, removed_at

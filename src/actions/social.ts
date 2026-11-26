@@ -53,14 +53,21 @@ export const social = {
       handle,
       /** A field people never see. Bots that fill every field get the same answer and nothing is saved. */
       trap: z.string().optional(),
+      /** The invite link's token, when they came from one. Its account is read again here, never taken from the form. */
+      invite: z.string().optional(),
     }),
-    handler: async ({ trap, ...input }, context) => {
+    handler: async ({ trap, invite, ...input }, context) => {
       await throttle(context, 'social-sign-up');
-      if (trap) return { email: input.email };
-      const { memberId } = settle(await context.locals.socialProfiles.signUp(input), signUpRefusals);
-      const link = settle(await context.locals.club.newLink(memberId), linkRefusals);
+      if (trap) return { email: input.email, claimed: false };
+      const { socialProfiles, socialNominations, socialClaims, club } = context.locals;
+      const invitation = invite ? await socialNominations.invitation(invite) : null;
+      const { memberId } = settle(await socialProfiles.signUp(input), signUpRefusals);
+      /* The invite is spent only once its account waits for proof. If that is refused, the invite stays open to claim signed in. */
+      const claimed = invite !== undefined && invitation !== null && (await socialClaims.addAccount(memberId, invitation.platform, invitation.handle)).ok;
+      if (claimed) await socialNominations.claim(invite);
+      const link = settle(await club.newLink(memberId), linkRefusals);
       sendLater(context, [passwordLetter(shareable(link, context))]);
-      return { email: input.email };
+      return { email: input.email, claimed };
     },
   }),
 

@@ -24,6 +24,7 @@ declare namespace App {
     newsletter: import('./server/instance.ts').Store['newsletter'];
     socialProfiles: import('./server/instance.ts').Store['socialProfiles'];
     socialClaims: import('./server/instance.ts').Store['socialClaims'];
+    socialNominations: import('./server/instance.ts').Store['socialNominations'];
     /**
      * The signed-in member's own social profile, read once in the middleware on social pages so the layout can draw
      * their avatar with its track and seal. Null when signed out, off the social pages, or before they claim a handle.
