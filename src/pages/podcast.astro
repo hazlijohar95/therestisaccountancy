@@ -1,5 +1,7 @@
 ---
+import catalog from '@therestisaccountancy/brand/logos/catalog.json';
 import staReversed from '@therestisaccountancy/brand/logos/sta-lockup-reversed.svg';
+import Closing from '../components/Closing.astro';
 import Story from '../components/Story.astro';
 import { podcast } from '../data/club.ts';
 import { columnBySlug } from '../data/columns.ts';
@@ -10,15 +12,16 @@ import { postsInColumn } from '../server/posts.ts';
 /* The show's page: its artwork, name and line, where to listen, then every episode. Every's /podcast, in our brand. */
 const show = columnBySlug('podcast');
 const episodes = await postsInColumn('podcast');
+const artAspect = catalog.find((e) => e.file === 'assets/logos/sta-lockup-reversed.svg')?.aspect ?? 3.42;
 ---
 
 <Page title="Podcast" description="Stick to Accounting, the club’s podcast. News, analysis and interviews. Free and public.">
   <header class="wrap show">
-    <div class="art night" aria-hidden="true"><img src={staReversed.src} alt="" width="240" /></div>
+    <div class="art night" aria-hidden="true"><img src={staReversed.src} alt="" width="240" height={Math.round(240 / artAspect)} /></div>
     <h1 class="serif">{show?.name ?? 'Stick to Accounting'}</h1>
     <p class="line">{show?.tagline}</p>
     <p class="small">Hosted by {listOf(podcast.hostNames)}.</p>
-    <a class="platform" href={podcast.youtube} rel="noopener">
+    <a class="platform" href={podcast.subscribe} rel="noopener">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 7.2a3 3 0 0 0-2.1-2.1C19 4.6 12 4.6 12 4.6s-7 0-8.9.5A3 3 0 0 0 1 7.2 31 31 0 0 0 .5 12a31 31 0 0 0 .5 4.8 3 3 0 0 0 2.1 2.1c1.9.5 8.9.5 8.9.5s7 0 8.9-.5a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-4.8 31 31 0 0 0-.5-4.8ZM9.8 15.1V8.9l5.4 3.1Z" /></svg>
       <span>Subscribe on YouTube</span>
     </a>
@@ -33,7 +36,8 @@ const episodes = await postsInColumn('podcast');
     }
   </header>
 
-  <section class="wrap episodes" aria-label="Episodes">
+  <section class="wrap episodes" aria-labelledby="episodes-title">
+    <h2 class="visually-hidden" id="episodes-title">Episodes</h2>
     {
       episodes.length > 0 ? (
         <ol class="grid" data-episodes>
@@ -44,6 +48,7 @@ const episodes = await postsInColumn('podcast');
       )
     }
   </section>
+  <Closing title="The episodes ask. The club answers." lead="Start with the podcast. It is free and public. The club is where members work out the answers, with the hosts and each other." />
 </Page>
 
 <script>

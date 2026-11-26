@@ -17,6 +17,9 @@ p, li, dd { text-wrap: pretty; }
 /* Print grain for night grounds. The brand's grain is dark specks for paper; on black the specks are light. */
 :root { --grain-night: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E"); }
 
+/* Text for screen readers only: a heading a sighted reader gets from the layout. */
+.visually-hidden { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
 /* The brand's display setting, for the type this page adds. */
 .serif { font-family: var(--display-font); font-weight: var(--display-weight); font-synthesis: none; font-variation-settings: var(--display-variation); letter-spacing: var(--display-tracking); text-transform: var(--display-case); }
 
