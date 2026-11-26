@@ -1,6 +1,8 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { LINK_DAYS, type LinkPurpose } from '../data/links.ts';
+import { bookedWith, callLetters, type Call } from './calls.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
+import type { Letter } from './letters.ts';
 import { hashPassword, spendVerifyTime, verifyPassword } from './password.ts';
 import { fail, ok, type Result } from './result.ts';
 
@@ -83,6 +85,12 @@ export type SignInRefusal = 'no-match' | 'suspended';
 export type AdminRefusal = 'not-found' | 'self' | 'last-admin';
 export type EditRefusal = AdminRefusal | 'email-taken';
 
+/** A change an admin made to a member, and the letters it calls for: calls off for the members who booked with a host who no longer hosts. */
+export interface AdminChange {
+  readonly member: Member;
+  readonly letters: Letter[];
+}
+
 const toRequest = (row: Row): JoinRequest => ({
   id: integer(row, 'id'),
   name: text(row, 'name'),
@@ -127,6 +135,9 @@ const LINK_REQUEST_GAP_MS = 10 * 60_000;
 /** Admins hear of at most this many new join requests an hour. The rest still wait on the admin page. */
 export const JOIN_ALERTS_PER_HOUR = 5;
 const HOUR_MS = 3_600_000;
+
+/** The members who booked with a host who no longer hosts are told as if the host had cancelled. */
+const calledOff = (calls: readonly Call[], siteUrl: string): Letter[] => calls.flatMap((call) => callLetters('cancelled-by-host', call, siteUrl));
 
 const retireLinks = (db: Db, at: Date, memberId: number) => {
   db.prepare('UPDATE invites SET used_at = ? WHERE member_id = ? AND used_at IS NULL').run(iso(at), memberId);
@@ -306,27 +317,32 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
       return { invited: of('invited'), active: of('active'), suspended: of('suspended') };
     },
 
-    /** Name, email and role. An admin cannot change their own role; leave role out to keep it. */
-    updateMember(actorId: number, memberId: number, changes: { name: string; email: string; role?: Role | undefined }): Result<Member, EditRefusal> {
-      return attempt<Member, EditRefusal>(db, (refuse) => {
+    /**
+     * Name, email and role. An admin cannot change their own role; leave role out to keep it. A host who stops being an
+     * admin calls off their booked calls.
+     */
+    updateMember(actorId: number, memberId: number, changes: { name: string; email: string; role?: Role | undefined }, siteUrl: string): Result<AdminChange, EditRefusal> {
+      return attempt<AdminChange, EditRefusal>(db, (refuse) => {
         const member = subject(actorId, memberId, refuse, true);
         const role = changes.role ?? member.role;
         if (role !== member.role && actorId === memberId) refuse('self');
         if (db.prepare('SELECT 1 FROM members WHERE email = ? AND id != ?').get(changes.email, memberId)) refuse('email-taken');
+        const booked = bookedWith(db, now(), memberId);
         db.prepare('UPDATE members SET name = ?, email = ?, role = ? WHERE id = ?').run(changes.name, changes.email, role, memberId);
         keepAnAdmin(refuse);
-        return reread(memberId);
+        return { member: reread(memberId), letters: role === 'admin' ? [] : calledOff(booked, siteUrl) };
       });
     },
 
     /** Signs the member out everywhere and stops them signing in or using a link, until reinstated. Safe to repeat. */
-    suspendMember(actorId: number, memberId: number): Result<Member, AdminRefusal> {
-      return attempt<Member, AdminRefusal>(db, (refuse) => {
+    suspendMember(actorId: number, memberId: number, siteUrl: string): Result<AdminChange, AdminRefusal> {
+      return attempt<AdminChange, AdminRefusal>(db, (refuse) => {
         subject(actorId, memberId, refuse);
+        const booked = bookedWith(db, now(), memberId);
         db.prepare('UPDATE members SET suspended_at = ?, session_epoch = session_epoch + 1 WHERE id = ? AND suspended_at IS NULL').run(iso(now()), memberId);
         retireLinks(db, now(), memberId);
         keepAnAdmin(refuse);
-        return reread(memberId);
+        return { member: reread(memberId), letters: calledOff(booked, siteUrl) };
       });
     },
 
@@ -338,12 +354,13 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
     },
 
     /** Deletes the member, their progress, links and join request. Their posts stay, without a name. */
-    removeMember(actorId: number, memberId: number): Result<Member, AdminRefusal> {
-      return attempt<Member, AdminRefusal>(db, (refuse) => {
+    removeMember(actorId: number, memberId: number, siteUrl: string): Result<AdminChange, AdminRefusal> {
+      return attempt<AdminChange, AdminRefusal>(db, (refuse) => {
         const member = subject(actorId, memberId, refuse);
+        const booked = bookedWith(db, now(), memberId);
         db.prepare('DELETE FROM members WHERE id = ?').run(memberId);
         keepAnAdmin(refuse);
-        return member;
+        return { member, letters: calledOff(booked, siteUrl) };
       });
     },
 

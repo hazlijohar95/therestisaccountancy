@@ -7,6 +7,8 @@ import { createListings, directorySummary, listingApprovedLetter, listingQueuedL
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
 
+const SITE = 'https://therestisaccountancy.com/';
+
 const PASSWORD = 'correct horse battery';
 
 const value = <T, R extends string>(result: Result<T, R>): T => {
@@ -180,7 +182,7 @@ test('the directory shows a listing only while its member is active and paid up,
   agrees('while paid');
   assert.equal(shown(), true);
 
-  value(w.club.suspendMember(w.host.id, aina.id));
+  value(w.club.suspendMember(w.host.id, aina.id, SITE));
   assert.equal(shown(), false, 'a suspended member is not shown');
   value(w.club.reinstateMember(aina.id));
   assert.equal(shown(), true);

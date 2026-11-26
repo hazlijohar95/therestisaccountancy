@@ -5,6 +5,8 @@ import { createCommunity, tidy } from './community.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
 
+const SITE = 'https://therestisaccountancy.com/';
+
 const PASSWORD = 'correct horse battery';
 
 const value = <T, R extends string>(result: Result<T, R>): T => {
@@ -22,8 +24,8 @@ const setup = async () => {
   const admin = await club.ensureAdmin({ email: 'admin@club.test', name: 'Admin', password: PASSWORD });
   const aina = await club.ensureAdmin({ email: 'aina@firm.com.my', name: 'Aina', password: PASSWORD });
   const abu = await club.ensureAdmin({ email: 'abu@firm.com.my', name: 'Abu', password: PASSWORD });
-  value(club.updateMember(admin.id, aina.id, { name: 'Aina', email: aina.email, role: 'member' }));
-  value(club.updateMember(admin.id, abu.id, { name: 'Abu', email: abu.email, role: 'member' }));
+  value(club.updateMember(admin.id, aina.id, { name: 'Aina', email: aina.email, role: 'member' }, SITE));
+  value(club.updateMember(admin.id, abu.id, { name: 'Abu', email: abu.email, role: 'member' }, SITE));
   const later = (seconds: number) => {
     clock.now = new Date(clock.now.getTime() + seconds * 1000);
   };
@@ -146,7 +148,7 @@ test('moderation is for admins, repeats harmlessly, and pinned threads lead thei
 test('a removed member’s posts stay, without a name', async () => {
   const { club, board, aina, admin } = await setup();
   const thread = board.startThread(aina, { channel: 'tools', title: 'My template', body: 'Sharing my engagement letter.' });
-  value(club.removeMember(admin.id, aina.id));
+  value(club.removeMember(admin.id, aina.id, SITE));
   const kept = board.thread(thread.threadId);
   assert.equal(kept?.author, null);
   assert.equal(board.posts(thread.threadId, { limit: 10, offset: 0 }).items[0]?.body, 'Sharing my engagement letter.');

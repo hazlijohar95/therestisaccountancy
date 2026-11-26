@@ -4,7 +4,7 @@ import { createClub } from './club.ts';
 import { migrate, SCHEMA_VERSION } from './db.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
-import { at, DAY, socialWorld } from './social-fixtures.ts';
+import { at, DAY, SITE, socialWorld } from './social-fixtures.ts';
 import { createSocialProfiles, sealOf, trackOf, type ProfileFields } from './social-profiles.ts';
 
 const PASSWORD = 'correct horse battery';
@@ -171,7 +171,7 @@ test('a suspended member leaves The List and their profile goes dark', async () 
   const w = world();
   const admin = await w.club.ensureAdmin({ email: 'host@club.test', name: 'Host', password: PASSWORD });
   const aina = await w.joined('Aina Rahman', 'aina@firm.my', 'aina');
-  value(w.club.suspendMember(admin.id, aina.id));
+  value(w.club.suspendMember(admin.id, aina.id, SITE));
   assert.equal(w.social.profile('aina'), null);
   assert.deepEqual(w.social.list(), []);
 });
@@ -223,7 +223,7 @@ test('sign-ups that never set a password go after 14 days, handle and all; nobod
   const { memberId: gone } = value(w.profiles.signUp({ name: 'Gone', email: 'gone@firm.my', handle: 'gone' }, { via: 'team' }));
   const { memberId: accepted } = value(w.profiles.signUp({ name: 'Accepted', email: 'accepted@firm.my', handle: 'accepted' }, { via: 'team' }));
   const { memberId: paused } = value(w.profiles.signUp({ name: 'Paused', email: 'paused@firm.my', handle: 'paused' }, { via: 'team' }));
-  value(w.club.suspendMember(host.id, paused));
+  value(w.club.suspendMember(host.id, paused, SITE));
   w.club.recordJoinRequest({ name: 'Accepted', email: 'accepted@firm.my', stage: 'I run a practice' });
   value(w.club.inviteFromRequest(w.club.joinRequests()[0]?.id ?? 0));
   w.club.recordJoinRequest({ name: 'Club invite', email: 'club@firm.my', stage: 'Student' });

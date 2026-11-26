@@ -4,6 +4,8 @@ import { createClub } from './club.ts';
 import { openDatabase } from './node-db.ts';
 import { createSchedule } from './schedule.ts';
 
+const SITE = 'https://therestisaccountancy.com/';
+
 const PASSWORD = 'correct horse battery';
 const session = (title: string, startsAt: string) => ({ title, kind: 'Clinics' as const, startsAt, minutes: 60, link: 'https://meet.example/room', detail: '' });
 
@@ -25,7 +27,7 @@ test('the admin sees each session still to come with the active members coming t
   schedule.rsvp(aina.id, later, true);
   schedule.rsvp(abu.id, later, true);
   schedule.rsvp(abu.id, onlyAbu, true);
-  club.suspendMember(admin.id, abu.id);
+  club.suspendMember(admin.id, abu.id, SITE);
 
   const listed = schedule.upcoming(null).map((s) => ({ id: s.id, title: s.title, going: s.going, names: schedule.attendees(s.id).map((m) => m.name) }));
   assert.deepEqual(listed, [

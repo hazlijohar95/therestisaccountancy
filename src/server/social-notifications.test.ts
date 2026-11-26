@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { at, DAY, socialWorld, value } from './social-fixtures.ts';
+import { at, DAY, SITE, socialWorld, value } from './social-fixtures.ts';
 import type { PostDraft } from './social-floor.ts';
 
 const post: PostDraft = { room: 'tax-my', jurisdiction: 'MY', title: 'Does a dormant Sdn Bhd still need an audit?', body: '' };
@@ -52,7 +52,7 @@ test('the bell counts what is unread and still there; viewing marks everything r
   assert.equal(w.notifications.unread(aina.id), 1);
   assert.equal(w.notifications.list(aina.id)[0]?.unread, true, 'newest first');
 
-  value(w.club.suspendMember(host.id, abu.id));
+  value(w.club.suspendMember(host.id, abu.id, SITE));
   assert.equal(w.notifications.unread(aina.id), 0, 'a suspended actor drops out');
   value(w.floor.removePost(aina.id, postId));
   assert.deepEqual(kinds(w, aina.id), [], 'a removed post takes its replies’ notifications with it');

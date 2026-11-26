@@ -7,6 +7,8 @@ import { createSocialClaims } from './social-claims.ts';
 import { createSocialFloor, type PostDraft } from './social-floor.ts';
 import { createSocialProfiles, sealedSql } from './social-profiles.ts';
 
+const SITE = 'https://therestisaccountancy.com/';
+
 const PASSWORD = 'correct horse battery';
 const MINUTE = 60_000;
 
@@ -268,7 +270,7 @@ test('a suspended member’s posts and replies leave the Floor', async () => {
   const post = value(w.floor.post(aina.id, draft()));
   value(w.floor.post(abu.id, draft({ title: 'A question from Abu' })));
   value(w.floor.reply(abu.id, post.id, { body: 'Yes.', correction: false }));
-  value(w.club.suspendMember(host.id, abu.id));
+  value(w.club.suspendMember(host.id, abu.id, SITE));
   assert.deepEqual(w.titles(aina.id), ['Does a dormant Sdn Bhd still need an audit?']);
   assert.equal(w.feed(aina.id).posts[0]?.replies, 0);
 });

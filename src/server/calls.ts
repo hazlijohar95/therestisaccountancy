@@ -122,6 +122,14 @@ export function byDay<T extends { readonly startsAt: string }>(slots: readonly T
   return days;
 }
 
+/**
+ * Inside a transaction: the calls booked with a host, read before a change that stops them hosting (removal,
+ * suspension or losing the admin role). Their slots then read as cancelled.
+ */
+export function bookedWith(db: Db, at: Date, hostId: number): Call[] {
+  return db.prepare(`${SLOT} SELECT * FROM slot WHERE state = 'booked' AND host_id = ? ORDER BY starts_at, id`).all(...clock(at), hostId).map(toCall);
+}
+
 /** One-to-one call slots the hosts open and members book. */
 export function createCalls(db: Db, now: () => Date = () => new Date()) {
   const read = (where: string, at: Date, ...params: Param[]): Row[] =>

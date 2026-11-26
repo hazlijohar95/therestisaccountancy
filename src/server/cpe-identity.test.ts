@@ -5,6 +5,8 @@ import { createClub } from './club.ts';
 import { identify, sessionToken } from './cpe-identity.ts';
 import { openDatabase } from './node-db.ts';
 
+const SITE = 'https://therestisaccountancy.com/';
+
 /** A club with one admin and one member who has set a password, both able to sign in. */
 const world = async () => {
   let clock = new Date('2026-11-26T10:00:00Z');
@@ -49,7 +51,7 @@ test('an admin always has paid access, and no session means nobody', async () =>
 test('a session ended by suspension or a password change identifies nobody', async () => {
   const w = await world();
   assert.equal(w.club.sessionMember({ memberId: w.member.member.id, epoch: w.member.key.epoch + 1 }), null, 'an older epoch');
-  const suspended = w.club.suspendMember(w.admin.member.id, w.member.member.id);
+  const suspended = w.club.suspendMember(w.admin.member.id, w.member.member.id, SITE);
   assert.ok(suspended.ok);
   assert.equal(await identify(w.club.sessionMember(w.member.key), (id) => w.billing.access(id)), null);
 });

@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { DAY, PASSWORD, reason, socialWorld, value } from './social-fixtures.ts';
+import { DAY, PASSWORD, reason, SITE, socialWorld, value } from './social-fixtures.ts';
 
-const SITE = 'https://therestisaccountancy.com/';
 const draft = (email = 'siti@firm.my') => ({ name: 'Siti', email, about: 'Audit senior in KL. I post on LinkedIn about MFRS.', link: 'https://www.linkedin.com/in/siti' });
 
 test('a request waits for the team, once per email', () => {
@@ -58,7 +57,7 @@ test('approving someone who already signs in tells them so, and a paused account
   assert.deepEqual(w.profiles.entry(aina.id), { via: 'team', inviterId: null }, 'the first way in is kept');
 
   const abu = await w.joined('Abu', 'abu@firm.my', 'abu');
-  value(w.club.suspendMember(host.id, abu.id));
+  value(w.club.suspendMember(host.id, abu.id, SITE));
   value(w.requests.request(draft('abu@firm.my')));
   const paused = w.requests.queue()[0]?.id ?? 0;
   assert.equal(reason(w.requests.approve(paused, host.id, SITE)), 'suspended');

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { INVITE_DAYS, MEMBER_INVITES } from '../data/social.ts';
-import { DAY, reason, socialWorld, value } from './social-fixtures.ts';
+import { DAY, reason, SITE, socialWorld, value } from './social-fixtures.ts';
 
 const newcomer = (n = 1) => ({ name: `New ${n}`, email: `new${n}@firm.my`, handle: `new_${n}` });
 
@@ -100,9 +100,9 @@ test('a profile says who invited it while the inviter is public', async () => {
   const { memberId: siti } = value(w.invites.join(team, { name: 'Siti', email: 'siti@firm.my', handle: 'siti' }));
   assert.equal(w.profiles.invitedBy(siti), null, 'a team invite names nobody');
 
-  value(w.club.suspendMember(host.id, aina.id));
+  value(w.club.suspendMember(host.id, aina.id, SITE));
   assert.equal(w.profiles.invitedBy(abu), null, 'a paused inviter is not shown');
-  value(w.club.removeMember(host.id, aina.id));
+  value(w.club.removeMember(host.id, aina.id, SITE));
   assert.deepEqual(w.profiles.entry(abu), { via: 'member', inviterId: null }, 'deleting the inviter keeps how they joined');
 });
 
@@ -112,7 +112,7 @@ test('a paused member’s invites stop working', async () => {
   const aina = await w.joined('Aina', 'aina@firm.my', 'aina');
   await w.seal(aina.id, 'aina');
   const { token } = value(w.invites.create(aina.id));
-  value(w.club.suspendMember(host.id, aina.id));
+  value(w.club.suspendMember(host.id, aina.id, SITE));
   assert.deepEqual(w.invites.look(token), { state: 'revoked' });
   assert.equal(reason(w.invites.join(token, newcomer())), 'dead');
 });
