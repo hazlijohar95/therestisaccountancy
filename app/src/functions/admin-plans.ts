@@ -37,7 +37,6 @@ export const adminPlans = createServerFn({ method: 'GET' }).handler(async () => 
       sentMoment: formatMoment(p.sentAt),
       waited: waited(p.sentAt, now),
       answers: p.answers,
-      reply: null,
     })),
     answered: answered.map((p) => ({
       id: p.id,

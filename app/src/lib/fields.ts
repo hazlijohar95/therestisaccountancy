@@ -1,10 +1,7 @@
 import { z } from 'zod';
 import { joinSection } from '../../../src/data/club.ts';
 
-/*
- * Field rules the server functions share. They repeat src/actions/guards.ts, which imports astro:actions and so cannot
- * be imported here. Messages are the Astro actions' word for word.
- */
+/* Field rules the server functions share. Their messages are the Astro actions' word for word. */
 
 /** Text on one line: runs of whitespace, line breaks included, become one space. Names go into email subjects. */
 export const oneLine = (value: string) => value.replace(/\s+/g, ' ').trim();
