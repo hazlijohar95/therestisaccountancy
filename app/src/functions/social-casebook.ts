@@ -7,6 +7,7 @@ import { identifying, ROLE_TITLE_SKIP } from '../../../src/lib/guard.ts';
 import { signInPath } from '../../../src/server/paths.ts';
 import type { EntryRefusal, RoleRefusal } from '../../../src/server/social-casebook.ts';
 import { blankable, id, oneLine } from '../lib/fields.ts';
+import { memberOrRefusal } from '../lib/guards.server.ts';
 import { allowed, tooManyTries } from '../lib/limits.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
@@ -71,23 +72,23 @@ type EntryForm = Record<'service' | 'industry' | 'band' | 'framework' | 'year' |
 export const addEntry = createServerFn({ method: 'POST' })
   .validator((input: EntryForm) => input)
   .handler(async ({ data }): Promise<Outcome<{ id: number }>> => {
-    const member = await currentMember();
-    if (!member) return refused('Sign in first.');
+    const member = await memberOrRefusal();
+    if (!member.ok) return member;
     const input = parsed(entryInput, data);
     if (!input.ok) return input;
     if (!(await allowed('casebook'))) return refused(tooManyTries);
-    const added = await withStore(async (store) => await store.socialCasebook.add(member.id, input.value));
+    const added = await withStore(async (store) => await store.socialCasebook.add(member.value.id, input.value));
     return added.ok ? done({ id: added.value.id }) : refused(entryRefusals[added.reason]);
   });
 
 export const removeEntry = createServerFn({ method: 'POST' })
   .validator((input: { entry: number }) => input)
   .handler(async ({ data }): Promise<Outcome<{ removed: boolean }>> => {
-    const member = await currentMember();
-    if (!member) return refused('Sign in first.');
+    const member = await memberOrRefusal();
+    if (!member.ok) return member;
     const input = parsed(z.object({ entry: id }), data);
     if (!input.ok) return input;
-    return done({ removed: await withStore(async (store) => await store.socialCasebook.remove(member.id, input.value.entry)) });
+    return done({ removed: await withStore(async (store) => await store.socialCasebook.remove(member.value.id, input.value.entry)) });
   });
 
 const year = z.coerce.number('Enter a year.').int('Enter a year.').min(ROLE_LIMITS.earliest, `Enter a year from ${ROLE_LIMITS.earliest}.`);
@@ -113,8 +114,8 @@ const roleInput = z
 export const addRole = createServerFn({ method: 'POST' })
   .validator((input: Record<'from' | 'to' | 'title' | 'employer', string>) => input)
   .handler(async ({ data }): Promise<Outcome<{ id: number }>> => {
-    const member = await currentMember();
-    if (!member) return refused('Sign in first.');
+    const member = await memberOrRefusal();
+    if (!member.ok) return member;
     const input = parsed(roleInput, data);
     if (!input.ok) {
       /* A title can trip more than one guard. The form shows every one, as the page always has. */
@@ -122,16 +123,16 @@ export const addRole = createServerFn({ method: 'POST' })
       return guards.length > 1 && input.fields['title'] ? refused(input.message, { ...input.fields, title: guards.join(' ') }) : input;
     }
     if (!(await allowed('casebook'))) return refused(tooManyTries);
-    const added = await withStore(async (store) => await store.socialCasebook.addRole(member.id, input.value));
+    const added = await withStore(async (store) => await store.socialCasebook.addRole(member.value.id, input.value));
     return added.ok ? done({ id: added.value.id }) : refused(roleRefusals[added.reason]);
   });
 
 export const removeRole = createServerFn({ method: 'POST' })
   .validator((input: { role: number }) => input)
   .handler(async ({ data }): Promise<Outcome<{ removed: boolean }>> => {
-    const member = await currentMember();
-    if (!member) return refused('Sign in first.');
+    const member = await memberOrRefusal();
+    if (!member.ok) return member;
     const input = parsed(z.object({ role: id }), data);
     if (!input.ok) return input;
-    return done({ removed: await withStore(async (store) => await store.socialCasebook.removeRole(member.id, input.value.role)) });
+    return done({ removed: await withStore(async (store) => await store.socialCasebook.removeRole(member.value.id, input.value.role)) });
   });

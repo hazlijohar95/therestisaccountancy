@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { OPTION_KEYS, POST_JURISDICTIONS, PROBLEM_LIMITS, RATING_IDS, TOPICS } from '../../../src/data/social.ts';
 import type { AnswerRefusal, CreateRefusal, RateRefusal, RemoveProblemRefusal } from '../../../src/server/social-problems.ts';
 import { blankable, id, line, malaysiaTime, oneLine } from '../lib/fields.ts';
-import { adminOrRefusal } from '../lib/guards.server.ts';
+import { adminOrRefusal, memberOrRefusal } from '../lib/guards.server.ts';
 import { allowed, tooManyTries } from '../lib/limits.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
@@ -72,8 +72,8 @@ export const problemView = createServerFn({ method: 'GET' })
 export const answerProblem = createServerFn({ method: 'POST' })
   .validator((input: { number: number; pick: string; reasoning: string }) => input)
   .handler(async ({ data }): Promise<Outcome<{ number: number }>> => {
-    const member = await currentMember();
-    if (!member) return refused('Sign in first.');
+    const member = await memberOrRefusal();
+    if (!member.ok) return member;
     const input = parsed(
       z.object({
         number: id,
@@ -90,7 +90,7 @@ export const answerProblem = createServerFn({ method: 'POST' })
     if (!input.ok) return input;
     if (!(await allowed('answer'))) return refused(tooManyTries);
     const { number, pick, reasoning } = input.value;
-    const answered = await withStore(async (store) => await store.socialProblems.answer(member.id, number, { pick, reasoning }));
+    const answered = await withStore(async (store) => await store.socialProblems.answer(member.value.id, number, { pick, reasoning }));
     return answered.ok ? done({ number: answered.value.number }) : refused(answerRefusals[answered.reason]);
   });
 
@@ -98,12 +98,12 @@ export const answerProblem = createServerFn({ method: 'POST' })
 export const rateAnswer = createServerFn({ method: 'POST' })
   .validator((input: { answer: number; button: string; rating: string }) => input)
   .handler(async ({ data }): Promise<Outcome<{ answer: number; rating: string | null; button: string }>> => {
-    const member = await currentMember();
-    if (!member) return refused('Sign in first.');
+    const member = await memberOrRefusal();
+    if (!member.ok) return member;
     const input = parsed(z.object({ answer: id, button: z.enum(RATING_IDS), rating: z.enum([...RATING_IDS, 'none']) }), data);
     if (!input.ok) return input;
     const { answer, button, rating } = input.value;
-    const rated = await withStore(async (store) => await store.socialProblems.rate(member.id, answer, rating === 'none' ? null : rating));
+    const rated = await withStore(async (store) => await store.socialProblems.rate(member.value.id, answer, rating === 'none' ? null : rating));
     return rated.ok ? done({ answer: rated.value.answerId, rating: rated.value.rating, button }) : refused(rateRefusals[rated.reason]);
   });
 
