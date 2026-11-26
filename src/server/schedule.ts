@@ -67,14 +67,19 @@ export function createSchedule(db: Db, now: () => Date = () => new Date()) {
       .all(sessionId)
       .map(toRecipient);
 
+  const upcoming = (memberId: number | null): LiveSession[] =>
+    db.prepare(`SELECT ${columns(memberId)} FROM live_sessions s WHERE ${NOT_OVER} ORDER BY s.starts_at, s.id`).all(iso(now())).map(toSession);
+
   return {
     /** Sessions not yet over, soonest first. A session counts until it ends, so one in progress still shows. */
-    upcoming(memberId: number | null): LiveSession[] {
-      return db.prepare(`SELECT ${columns(memberId)} FROM live_sessions s WHERE ${NOT_OVER} ORDER BY s.starts_at, s.id`).all(iso(now())).map(toSession);
+    upcoming,
+
+    /** The sessions still to come, each with the active members coming, for the admin. */
+    rolls(): Roll[] {
+      return upcoming(null).map((session) => ({ session, attendees: attendees(session.id) }));
     },
 
     session: (id: number, memberId: number | null) => open(id, memberId),
-    attendees,
 
     add(input: NewSession): number {
       return db

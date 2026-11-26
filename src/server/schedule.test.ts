@@ -29,7 +29,7 @@ test('the admin sees each session still to come with the active members coming t
   schedule.rsvp(abu.id, onlyAbu, true);
   club.suspendMember(admin.id, abu.id, SITE);
 
-  const listed = schedule.upcoming(null).map((s) => ({ id: s.id, title: s.title, going: s.going, names: schedule.attendees(s.id).map((m) => m.name) }));
+  const listed = schedule.rolls().map(({ session: s, attendees }) => ({ id: s.id, title: s.title, going: s.going, names: attendees.map((m) => m.name) }));
   assert.deepEqual(listed, [
     { id: sooner, title: 'Pricing clinic', going: 2, names: ['Aina'] },
     { id: later, title: 'Year-end close', going: 2, names: ['Aina'] },
