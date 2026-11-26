@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { INVITE_DAYS, MEMBER_INVITES } from '../data/social.ts';
-import { DAY, reason, SITE, socialWorld, value } from './social-fixtures.ts';
+import { DAY, PASSWORD, reason, SITE, socialWorld, value } from './social-fixtures.ts';
 
 const newcomer = (n = 1) => ({ name: `New ${n}`, email: `new${n}@firm.my`, handle: `new_${n}` });
 
@@ -178,4 +178,25 @@ test('the abandoned sign-up job spares unused invites and pending requests, and 
   assert.notEqual(w.invites.look(unused).state, 'unknown');
   assert.notEqual(w.invites.look(teamUnused).state, 'unknown');
   assert.equal(w.invites.allowance(aina.id).left, MEMBER_INVITES, 'the abandoned one goes back, and the unused one has run out');
+});
+
+test('joining from an invite or a nomination gives the new account a welcome link that sets its password', async () => {
+  const w = socialWorld();
+  const host = await w.host;
+  const aina = await w.joined('Aina', 'aina@firm.my', 'aina');
+  await w.seal(aina.id, 'aina');
+  const viaInvite = value(w.invites.join(value(w.invites.create(aina.id)).token, { name: 'Abu', email: 'abu@firm.my', handle: 'abu' }));
+  value(w.nominations.nominate(aina.id, { platform: 'YouTube', handle: 'taxwithtan', topics: ['Tax'], whyUrl: null }));
+  const { token } = value(w.nominations.invite(w.nominations.queue().pending[0]?.id ?? 0, host.id));
+  const viaNomination = value(w.nominations.join(token, { name: 'Tan', email: 'tan@tax.my', handle: 'taxwithtan' }));
+
+  for (const [joined, email] of [
+    [viaInvite, 'abu@firm.my'],
+    [viaNomination, 'tan@tax.my'],
+  ] as const) {
+    const link = value(w.club.newLink(joined.memberId));
+    assert.deepEqual([link.purpose, link.member.email, link.expiresAt], ['welcome', email, '2026-12-10T02:00:00Z']);
+    const accepted = await w.club.setPasswordFromLink(link.token, PASSWORD);
+    assert.equal(accepted?.member.id, joined.memberId);
+  }
 });
