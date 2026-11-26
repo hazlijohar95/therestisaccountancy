@@ -7,7 +7,8 @@
   ],
   "exclude": [
     "dist",
-    "brand"
+    "brand",
+    "cpe"
   ],
   "compilerOptions": {
     "jsx": "react-jsx",
