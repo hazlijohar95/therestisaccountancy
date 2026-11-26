@@ -10,22 +10,30 @@ export function requiredRole(pathname: string): 'member' | 'admin' | null {
   return null;
 }
 
-/** A return path from a query string, kept on this site: a path here, or an address on the social host. Anything else falls back. */
+/** A return path from a query string, kept on this site: a path here, or an address on the social or CPE host. Anything else falls back. */
 export function safeNext(value: string | null, fallback = '/members'): string {
   if (!value) return fallback;
   if (value.startsWith('/')) return value.startsWith('//') || value.startsWith('/\\') ? fallback : value;
-  return socialAddress(value) ?? fallback;
+  return socialAddress(value) ?? cpeAddress(value) ?? fallback;
 }
+
+/** CPE, the listening app on its own subdomain, signs members in here and asks to be sent back. */
+export const cpeHost = `cpe.${site.domain}`;
 
 /** The social host, and social.localhost for trying it on a dev server. */
 export const isSocialHost = (hostname: string) => hostname === socialHost || hostname === 'social.localhost';
 
 /** An absolute address on the social host, over https (or http on social.localhost), with no credentials. Null for anything else. */
-function socialAddress(value: string): string | null {
+const socialAddress = (value: string) => addressOn(value, socialHost, 'social.localhost');
+
+/** The same for the CPE host, and cpe.localhost for a dev server. */
+const cpeAddress = (value: string) => addressOn(value, cpeHost, 'cpe.localhost');
+
+function addressOn(value: string, host: string, devHost: string): string | null {
   if (!URL.canParse(value)) return null;
   const url = new URL(value);
-  const secure = url.protocol === 'https:' || (url.protocol === 'http:' && url.hostname === 'social.localhost');
-  return isSocialHost(url.hostname) && secure && !url.username && !url.password ? url.href : null;
+  const secure = (url.protocol === 'https:' && (url.hostname === host || url.hostname === devHost)) || (url.protocol === 'http:' && url.hostname === devHost);
+  return secure && !url.username && !url.password ? url.href : null;
 }
 
 /**
