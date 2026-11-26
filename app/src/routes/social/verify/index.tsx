@@ -317,9 +317,9 @@ function AccountStep({ data, onDone }: StepProps) {
             </span>
           )}
         </div>
-        {add.refusal && (
+        {add.failure && (
           <p className="error" role="alert">
-            {add.refusal.message}
+            {add.failure}
           </p>
         )}
         <div className="panel-foot">
@@ -474,9 +474,9 @@ function BodyStep({ data, body, onDone }: StepProps & { body: Body | undefined }
               )}
             </>
           )}
-          {add.refusal && (
+          {add.failure && (
             <p className="error" role="alert">
-              {add.refusal.message}
+              {add.failure}
             </p>
           )}
           <div className="panel-foot">
@@ -600,9 +600,9 @@ function LicenceStep({ data, onDone }: StepProps) {
             {fileError}
           </span>
         )}
-        {add.refusal && (
+        {add.failure && (
           <p className="error" role="alert">
-            {add.refusal.message}
+            {add.failure}
           </p>
         )}
         <div className="panel-foot">
@@ -623,7 +623,7 @@ function WorkStep({ data, onDone }: StepProps) {
   const academic = useAction(addAcademic);
   const experience = useAction(addExperience);
   /* A refusal that is not about the address's shape still is about the address, so it shows beside it. */
-  const workFailure = work.refusal && !Object.keys(work.refusal.fields).length ? work.refusal.message : null;
+  const workFailure = work.failure;
 
   const submitWork = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -733,9 +733,9 @@ function WorkStep({ data, onDone }: StepProps) {
             )}
           </div>
         </div>
-        {academic.refusal && (
+        {academic.failure && (
           <p className="error" role="alert">
-            {academic.refusal.message}
+            {academic.failure}
           </p>
         )}
         <div className="panel-foot">
@@ -768,9 +768,9 @@ function WorkStep({ data, onDone }: StepProps) {
             </span>
           )}
         </div>
-        {experience.refusal && (
+        {experience.failure && (
           <p className="error" role="alert">
-            {experience.refusal.message}
+            {experience.failure}
           </p>
         )}
         <div className="panel-foot">

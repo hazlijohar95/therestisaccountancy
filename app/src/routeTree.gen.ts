@@ -14,6 +14,7 @@ import { Route as DevSeedReviewRouteImport } from './routes/dev-seed-review'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SocialRouteRouteImport } from './routes/social/route'
 import { Route as SocialTicksRouteImport } from './routes/social/ticks'
+import { Route as SocialCasebookNewRouteImport } from './routes/social/casebook/new'
 import { Route as SocialProblemsIndexRouteImport } from './routes/social/problems/index'
 import { Route as SocialProblemsSplatRouteImport } from './routes/social/problems/$'
 import { Route as SocialProblemsNewRouteImport } from './routes/social/problems/new'
@@ -45,6 +46,11 @@ const SocialRouteRoute = SocialRouteRouteImport.update({
 const SocialTicksRoute = SocialTicksRouteImport.update({
   id: '/ticks',
   path: '/ticks',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialCasebookNewRoute = SocialCasebookNewRouteImport.update({
+  id: '/casebook/new',
+  path: '/casebook/new',
   getParentRoute: () => SocialRouteRoute,
 } as any)
 const SocialProblemsIndexRoute = SocialProblemsIndexRouteImport.update({
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/dev-seed-review': typeof DevSeedReviewRoute
   '/sign-in': typeof SignInRoute
   '/social/ticks': typeof SocialTicksRoute
+  '/social/casebook/new': typeof SocialCasebookNewRoute
   '/social/problems/$': typeof SocialProblemsSplatRoute
   '/social/problems/new': typeof SocialProblemsNewRoute
   '/social/verify/email': typeof SocialVerifyEmailRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByTo {
   '/dev-seed-review': typeof DevSeedReviewRoute
   '/sign-in': typeof SignInRoute
   '/social/ticks': typeof SocialTicksRoute
+  '/social/casebook/new': typeof SocialCasebookNewRoute
   '/social/problems/$': typeof SocialProblemsSplatRoute
   '/social/problems/new': typeof SocialProblemsNewRoute
   '/social/verify/email': typeof SocialVerifyEmailRoute
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/dev-seed-review': typeof DevSeedReviewRoute
   '/sign-in': typeof SignInRoute
   '/social/ticks': typeof SocialTicksRoute
+  '/social/casebook/new': typeof SocialCasebookNewRoute
   '/social/problems/$': typeof SocialProblemsSplatRoute
   '/social/problems/new': typeof SocialProblemsNewRoute
   '/social/verify/email': typeof SocialVerifyEmailRoute
@@ -135,6 +144,7 @@ export interface FileRouteTypes {
     | '/dev-seed-review'
     | '/sign-in'
     | '/social/ticks'
+    | '/social/casebook/new'
     | '/social/problems/$'
     | '/social/problems/new'
     | '/social/verify/email'
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
     | '/dev-seed-review'
     | '/sign-in'
     | '/social/ticks'
+    | '/social/casebook/new'
     | '/social/problems/$'
     | '/social/problems/new'
     | '/social/verify/email'
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/dev-seed-review'
     | '/sign-in'
     | '/social/ticks'
+    | '/social/casebook/new'
     | '/social/problems/$'
     | '/social/problems/new'
     | '/social/verify/email'
@@ -214,6 +226,13 @@ declare module '@tanstack/react-router' {
       path: '/ticks'
       fullPath: '/social/ticks'
       preLoaderRoute: typeof SocialTicksRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/casebook/new': {
+      id: '/social/casebook/new'
+      path: '/casebook/new'
+      fullPath: '/social/casebook/new'
+      preLoaderRoute: typeof SocialCasebookNewRouteImport
       parentRoute: typeof SocialRouteRoute
     }
     '/social/problems/': {
@@ -270,6 +289,7 @@ declare module '@tanstack/react-router' {
 
 interface SocialRouteRouteChildren {
   SocialTicksRoute: typeof SocialTicksRoute
+  SocialCasebookNewRoute: typeof SocialCasebookNewRoute
   SocialProblemsSplatRoute: typeof SocialProblemsSplatRoute
   SocialProblemsNewRoute: typeof SocialProblemsNewRoute
   SocialVerifyEmailRoute: typeof SocialVerifyEmailRoute
@@ -281,6 +301,7 @@ interface SocialRouteRouteChildren {
 
 const SocialRouteRouteChildren: SocialRouteRouteChildren = {
   SocialTicksRoute: SocialTicksRoute,
+  SocialCasebookNewRoute: SocialCasebookNewRoute,
   SocialProblemsSplatRoute: SocialProblemsSplatRoute,
   SocialProblemsNewRoute: SocialProblemsNewRoute,
   SocialVerifyEmailRoute: SocialVerifyEmailRoute,

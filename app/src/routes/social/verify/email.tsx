@@ -83,9 +83,9 @@ function WorkEmail() {
               <Tick source="email" state="pending" />
               <p>Your profile shows “Works at {pending.domain}”. It never shows the address.</p>
             </div>
-            {confirm.refusal && (
+            {confirm.failure && (
               <p className="error" role="alert">
-                {confirm.refusal.message}
+                {confirm.failure}
               </p>
             )}
             <div className="panel-foot">

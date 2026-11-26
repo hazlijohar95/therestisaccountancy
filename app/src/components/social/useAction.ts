@@ -35,7 +35,10 @@ export function useAction<I, T>(fn: (options: { data: I }) => Promise<Outcome<T>
   /** The refusal's message for one field, if it named that field. */
   const error = (field: string): string | undefined => refusal?.fields[field];
 
-  return { form, busy, refusal, run, error, clear: () => setRefusal(null) };
+  /** A refusal not about any one field, to show above the form's button. Field refusals show beside their fields. */
+  const failure = refusal && !Object.keys(refusal.fields).length ? refusal.message : null;
+
+  return { form, busy, refusal, failure, run, error, clear: () => setRefusal(null) };
 }
 
 /** The ids a field's description is made of, joined, or nothing when there are none. */

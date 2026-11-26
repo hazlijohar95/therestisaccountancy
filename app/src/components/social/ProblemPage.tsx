@@ -160,7 +160,7 @@ function Problem({ view, board, here, written }: { view: View; board: Board; her
   const [status, setStatus] = useState<string | null>(null);
   const answersRef = useRef<HTMLElement>(null);
   const optionText = (key: string) => problem.options.find((option) => option.key === key)?.text ?? key;
-  const failure = [answer.refusal, rate.refusal].map((refusal) => (refusal && !Object.keys(refusal.fields).length ? refusal.message : null)).find(Boolean) ?? null;
+  const failure = answer.failure ?? rate.failure;
 
   /* Answering lands on the answers, now open to read, as the page did after its redirect. */
   useEffect(() => {

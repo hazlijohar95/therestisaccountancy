@@ -38,7 +38,7 @@ function WriteProblem() {
   const go = useGo();
   const [removed, setRemoved] = useState(false);
   const [removeFailure, setRemoveFailure] = useState<string | null>(null);
-  const writeFailure = write.refusal && !Object.keys(write.refusal.fields).length ? write.refusal.message : null;
+  const writeFailure = write.failure;
   const failure = writeFailure ?? removeFailure;
   const invalid = (name: string) => (write.error(name) ? { 'aria-invalid': true, 'aria-describedby': `${name}-error` } : {});
   const described = (name: string) => (write.error(name) ? `${name}-error` : undefined);
