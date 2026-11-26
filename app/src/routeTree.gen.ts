@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as DevSeedRouteImport } from './routes/dev-seed'
 import { Route as DevSeedAdminRouteImport } from './routes/dev-seed-admin'
+import { Route as DevSeedReviewRouteImport } from './routes/dev-seed-review'
 import { Route as DirectoryRouteImport } from './routes/directory'
 import { Route as FeesRouteImport } from './routes/fees'
 import { Route as ForgotRouteImport } from './routes/forgot'
@@ -55,7 +56,15 @@ import { Route as MembersResourcesIdRouteImport } from './routes/members/resourc
 import { Route as MembersResourcesChar123idChar125DotmdRouteImport } from './routes/members/resources/{$id}[.]md'
 import { Route as MembersSessionsIndexRouteImport } from './routes/members/sessions/index'
 import { Route as MembersSessionsChar123idChar125DoticsRouteImport } from './routes/members/sessions/{$id}[.]ics'
+import { Route as SocialCasebookNewRouteImport } from './routes/social/casebook/new'
+import { Route as SocialProblemsIndexRouteImport } from './routes/social/problems/index'
+import { Route as SocialProblemsSplatRouteImport } from './routes/social/problems/$'
+import { Route as SocialProblemsNewRouteImport } from './routes/social/problems/new'
+import { Route as SocialReviewIndexRouteImport } from './routes/social/review/index'
+import { Route as SocialVerifyIndexRouteImport } from './routes/social/verify/index'
+import { Route as SocialVerifyEmailRouteImport } from './routes/social/verify/email'
 import { Route as MembersCommunityThreadsIdRouteImport } from './routes/members/community/threads/$id'
+import { Route as SocialReviewEvidenceClaimRouteImport } from './routes/social/review/evidence.$claim'
 
 const AdminRouteRoute = AdminRouteRouteImport.update({
   id: '/admin',
@@ -70,6 +79,11 @@ const DevSeedRoute = DevSeedRouteImport.update({
 const DevSeedAdminRoute = DevSeedAdminRouteImport.update({
   id: '/dev-seed-admin',
   path: '/dev-seed-admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevSeedReviewRoute = DevSeedReviewRouteImport.update({
+  id: '/dev-seed-review',
+  path: '/dev-seed-review',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DirectoryRoute = DirectoryRouteImport.update({
@@ -290,11 +304,52 @@ const MembersSessionsChar123idChar125DoticsRoute =
     path: '/sessions/{$id}.ics',
     getParentRoute: () => MembersRouteRoute,
   } as any)
+const SocialCasebookNewRoute = SocialCasebookNewRouteImport.update({
+  id: '/casebook/new',
+  path: '/casebook/new',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialProblemsIndexRoute = SocialProblemsIndexRouteImport.update({
+  id: '/problems/',
+  path: '/problems/',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialProblemsSplatRoute = SocialProblemsSplatRouteImport.update({
+  id: '/problems/$',
+  path: '/problems/$',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialProblemsNewRoute = SocialProblemsNewRouteImport.update({
+  id: '/problems/new',
+  path: '/problems/new',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialReviewIndexRoute = SocialReviewIndexRouteImport.update({
+  id: '/review/',
+  path: '/review/',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialVerifyIndexRoute = SocialVerifyIndexRouteImport.update({
+  id: '/verify/',
+  path: '/verify/',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialVerifyEmailRoute = SocialVerifyEmailRouteImport.update({
+  id: '/verify/email',
+  path: '/verify/email',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
 const MembersCommunityThreadsIdRoute =
   MembersCommunityThreadsIdRouteImport.update({
     id: '/community/threads/$id',
     path: '/community/threads/$id',
     getParentRoute: () => MembersRouteRoute,
+  } as any)
+const SocialReviewEvidenceClaimRoute =
+  SocialReviewEvidenceClaimRouteImport.update({
+    id: '/review/evidence/$claim',
+    path: '/review/evidence/$claim',
+    getParentRoute: () => SocialRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -303,6 +358,7 @@ export interface FileRoutesByFullPath {
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
   '/dev-seed-admin': typeof DevSeedAdminRoute
+  '/dev-seed-review': typeof DevSeedReviewRoute
   '/directory': typeof DirectoryRoute
   '/fees': typeof FeesRoute
   '/forgot': typeof ForgotRoute
@@ -339,17 +395,26 @@ export interface FileRoutesByFullPath {
   '/members/resources/$id': typeof MembersResourcesIdRoute
   '/members/resources/{$id}.md': typeof MembersResourcesChar123idChar125DotmdRoute
   '/members/sessions/{$id}.ics': typeof MembersSessionsChar123idChar125DoticsRoute
+  '/social/casebook/new': typeof SocialCasebookNewRoute
+  '/social/problems/$': typeof SocialProblemsSplatRoute
+  '/social/problems/new': typeof SocialProblemsNewRoute
+  '/social/verify/email': typeof SocialVerifyEmailRoute
   '/members/calls/': typeof MembersCallsIndexRoute
   '/members/community/': typeof MembersCommunityIndexRoute
   '/members/plan/': typeof MembersPlanIndexRoute
   '/members/resources/': typeof MembersResourcesIndexRoute
   '/members/sessions/': typeof MembersSessionsIndexRoute
+  '/social/problems/': typeof SocialProblemsIndexRoute
+  '/social/review/': typeof SocialReviewIndexRoute
+  '/social/verify/': typeof SocialVerifyIndexRoute
   '/members/community/threads/$id': typeof MembersCommunityThreadsIdRoute
+  '/social/review/evidence/$claim': typeof SocialReviewEvidenceClaimRoute
 }
 export interface FileRoutesByTo {
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
   '/dev-seed-admin': typeof DevSeedAdminRoute
+  '/dev-seed-review': typeof DevSeedReviewRoute
   '/directory': typeof DirectoryRoute
   '/fees': typeof FeesRoute
   '/forgot': typeof ForgotRoute
@@ -386,12 +451,20 @@ export interface FileRoutesByTo {
   '/members/resources/$id': typeof MembersResourcesIdRoute
   '/members/resources/{$id}.md': typeof MembersResourcesChar123idChar125DotmdRoute
   '/members/sessions/{$id}.ics': typeof MembersSessionsChar123idChar125DoticsRoute
+  '/social/casebook/new': typeof SocialCasebookNewRoute
+  '/social/problems/$': typeof SocialProblemsSplatRoute
+  '/social/problems/new': typeof SocialProblemsNewRoute
+  '/social/verify/email': typeof SocialVerifyEmailRoute
   '/members/calls': typeof MembersCallsIndexRoute
   '/members/community': typeof MembersCommunityIndexRoute
   '/members/plan': typeof MembersPlanIndexRoute
   '/members/resources': typeof MembersResourcesIndexRoute
   '/members/sessions': typeof MembersSessionsIndexRoute
+  '/social/problems': typeof SocialProblemsIndexRoute
+  '/social/review': typeof SocialReviewIndexRoute
+  '/social/verify': typeof SocialVerifyIndexRoute
   '/members/community/threads/$id': typeof MembersCommunityThreadsIdRoute
+  '/social/review/evidence/$claim': typeof SocialReviewEvidenceClaimRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -400,6 +473,7 @@ export interface FileRoutesById {
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
   '/dev-seed-admin': typeof DevSeedAdminRoute
+  '/dev-seed-review': typeof DevSeedReviewRoute
   '/directory': typeof DirectoryRoute
   '/fees': typeof FeesRoute
   '/forgot': typeof ForgotRoute
@@ -436,12 +510,20 @@ export interface FileRoutesById {
   '/members/resources/$id': typeof MembersResourcesIdRoute
   '/members/resources/{$id}.md': typeof MembersResourcesChar123idChar125DotmdRoute
   '/members/sessions/{$id}.ics': typeof MembersSessionsChar123idChar125DoticsRoute
+  '/social/casebook/new': typeof SocialCasebookNewRoute
+  '/social/problems/$': typeof SocialProblemsSplatRoute
+  '/social/problems/new': typeof SocialProblemsNewRoute
+  '/social/verify/email': typeof SocialVerifyEmailRoute
   '/members/calls/': typeof MembersCallsIndexRoute
   '/members/community/': typeof MembersCommunityIndexRoute
   '/members/plan/': typeof MembersPlanIndexRoute
   '/members/resources/': typeof MembersResourcesIndexRoute
   '/members/sessions/': typeof MembersSessionsIndexRoute
+  '/social/problems/': typeof SocialProblemsIndexRoute
+  '/social/review/': typeof SocialReviewIndexRoute
+  '/social/verify/': typeof SocialVerifyIndexRoute
   '/members/community/threads/$id': typeof MembersCommunityThreadsIdRoute
+  '/social/review/evidence/$claim': typeof SocialReviewEvidenceClaimRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -451,6 +533,7 @@ export interface FileRouteTypes {
     | '/social'
     | '/dev-seed'
     | '/dev-seed-admin'
+    | '/dev-seed-review'
     | '/directory'
     | '/fees'
     | '/forgot'
@@ -487,17 +570,26 @@ export interface FileRouteTypes {
     | '/members/resources/$id'
     | '/members/resources/{$id}.md'
     | '/members/sessions/{$id}.ics'
+    | '/social/casebook/new'
+    | '/social/problems/$'
+    | '/social/problems/new'
+    | '/social/verify/email'
     | '/members/calls/'
     | '/members/community/'
     | '/members/plan/'
     | '/members/resources/'
     | '/members/sessions/'
+    | '/social/problems/'
+    | '/social/review/'
+    | '/social/verify/'
     | '/members/community/threads/$id'
+    | '/social/review/evidence/$claim'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/social'
     | '/dev-seed'
     | '/dev-seed-admin'
+    | '/dev-seed-review'
     | '/directory'
     | '/fees'
     | '/forgot'
@@ -534,12 +626,20 @@ export interface FileRouteTypes {
     | '/members/resources/$id'
     | '/members/resources/{$id}.md'
     | '/members/sessions/{$id}.ics'
+    | '/social/casebook/new'
+    | '/social/problems/$'
+    | '/social/problems/new'
+    | '/social/verify/email'
     | '/members/calls'
     | '/members/community'
     | '/members/plan'
     | '/members/resources'
     | '/members/sessions'
+    | '/social/problems'
+    | '/social/review'
+    | '/social/verify'
     | '/members/community/threads/$id'
+    | '/social/review/evidence/$claim'
   id:
     | '__root__'
     | '/admin'
@@ -547,6 +647,7 @@ export interface FileRouteTypes {
     | '/social'
     | '/dev-seed'
     | '/dev-seed-admin'
+    | '/dev-seed-review'
     | '/directory'
     | '/fees'
     | '/forgot'
@@ -583,12 +684,20 @@ export interface FileRouteTypes {
     | '/members/resources/$id'
     | '/members/resources/{$id}.md'
     | '/members/sessions/{$id}.ics'
+    | '/social/casebook/new'
+    | '/social/problems/$'
+    | '/social/problems/new'
+    | '/social/verify/email'
     | '/members/calls/'
     | '/members/community/'
     | '/members/plan/'
     | '/members/resources/'
     | '/members/sessions/'
+    | '/social/problems/'
+    | '/social/review/'
+    | '/social/verify/'
     | '/members/community/threads/$id'
+    | '/social/review/evidence/$claim'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -597,6 +706,7 @@ export interface RootRouteChildren {
   SocialRouteRoute: typeof SocialRouteRouteWithChildren
   DevSeedRoute: typeof DevSeedRoute
   DevSeedAdminRoute: typeof DevSeedAdminRoute
+  DevSeedReviewRoute: typeof DevSeedReviewRoute
   DirectoryRoute: typeof DirectoryRoute
   FeesRoute: typeof FeesRoute
   ForgotRoute: typeof ForgotRoute
@@ -630,6 +740,13 @@ declare module '@tanstack/react-router' {
       path: '/dev-seed-admin'
       fullPath: '/dev-seed-admin'
       preLoaderRoute: typeof DevSeedAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev-seed-review': {
+      id: '/dev-seed-review'
+      path: '/dev-seed-review'
+      fullPath: '/dev-seed-review'
+      preLoaderRoute: typeof DevSeedReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/directory': {
@@ -933,12 +1050,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MembersSessionsChar123idChar125DoticsRouteImport
       parentRoute: typeof MembersRouteRoute
     }
+    '/social/casebook/new': {
+      id: '/social/casebook/new'
+      path: '/casebook/new'
+      fullPath: '/social/casebook/new'
+      preLoaderRoute: typeof SocialCasebookNewRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/problems/': {
+      id: '/social/problems/'
+      path: '/problems'
+      fullPath: '/social/problems/'
+      preLoaderRoute: typeof SocialProblemsIndexRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/problems/$': {
+      id: '/social/problems/$'
+      path: '/problems/$'
+      fullPath: '/social/problems/$'
+      preLoaderRoute: typeof SocialProblemsSplatRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/problems/new': {
+      id: '/social/problems/new'
+      path: '/problems/new'
+      fullPath: '/social/problems/new'
+      preLoaderRoute: typeof SocialProblemsNewRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/review/': {
+      id: '/social/review/'
+      path: '/review'
+      fullPath: '/social/review/'
+      preLoaderRoute: typeof SocialReviewIndexRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/verify/': {
+      id: '/social/verify/'
+      path: '/verify'
+      fullPath: '/social/verify/'
+      preLoaderRoute: typeof SocialVerifyIndexRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/verify/email': {
+      id: '/social/verify/email'
+      path: '/verify/email'
+      fullPath: '/social/verify/email'
+      preLoaderRoute: typeof SocialVerifyEmailRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
     '/members/community/threads/$id': {
       id: '/members/community/threads/$id'
       path: '/community/threads/$id'
       fullPath: '/members/community/threads/$id'
       preLoaderRoute: typeof MembersCommunityThreadsIdRouteImport
       parentRoute: typeof MembersRouteRoute
+    }
+    '/social/review/evidence/$claim': {
+      id: '/social/review/evidence/$claim'
+      path: '/review/evidence/$claim'
+      fullPath: '/social/review/evidence/$claim'
+      preLoaderRoute: typeof SocialReviewEvidenceClaimRouteImport
+      parentRoute: typeof SocialRouteRoute
     }
   }
 }
@@ -1027,11 +1200,27 @@ const MembersRouteRouteWithChildren = MembersRouteRoute._addFileChildren(
 interface SocialRouteRouteChildren {
   SocialSplatRoute: typeof SocialSplatRoute
   SocialTicksRoute: typeof SocialTicksRoute
+  SocialCasebookNewRoute: typeof SocialCasebookNewRoute
+  SocialProblemsSplatRoute: typeof SocialProblemsSplatRoute
+  SocialProblemsNewRoute: typeof SocialProblemsNewRoute
+  SocialVerifyEmailRoute: typeof SocialVerifyEmailRoute
+  SocialProblemsIndexRoute: typeof SocialProblemsIndexRoute
+  SocialReviewIndexRoute: typeof SocialReviewIndexRoute
+  SocialVerifyIndexRoute: typeof SocialVerifyIndexRoute
+  SocialReviewEvidenceClaimRoute: typeof SocialReviewEvidenceClaimRoute
 }
 
 const SocialRouteRouteChildren: SocialRouteRouteChildren = {
   SocialSplatRoute: SocialSplatRoute,
   SocialTicksRoute: SocialTicksRoute,
+  SocialCasebookNewRoute: SocialCasebookNewRoute,
+  SocialProblemsSplatRoute: SocialProblemsSplatRoute,
+  SocialProblemsNewRoute: SocialProblemsNewRoute,
+  SocialVerifyEmailRoute: SocialVerifyEmailRoute,
+  SocialProblemsIndexRoute: SocialProblemsIndexRoute,
+  SocialReviewIndexRoute: SocialReviewIndexRoute,
+  SocialVerifyIndexRoute: SocialVerifyIndexRoute,
+  SocialReviewEvidenceClaimRoute: SocialReviewEvidenceClaimRoute,
 }
 
 const SocialRouteRouteWithChildren = SocialRouteRoute._addFileChildren(
@@ -1054,6 +1243,7 @@ const rootRouteChildren: RootRouteChildren = {
   SocialRouteRoute: SocialRouteRouteWithChildren,
   DevSeedRoute: DevSeedRoute,
   DevSeedAdminRoute: DevSeedAdminRoute,
+  DevSeedReviewRoute: DevSeedReviewRoute,
   DirectoryRoute: DirectoryRoute,
   FeesRoute: FeesRoute,
   ForgotRoute: ForgotRoute,
