@@ -184,19 +184,19 @@ test('follows: once each, never yourself, and counted only between people the pu
 
   assert.equal(value(w.social.follow(aina.id, 'priyataxes')).memberId, priya.id);
   value(w.social.follow(aina.id, '@PriyaTaxes'));
-  assert.equal(w.social.isFollowing(aina.id, priya.id), true);
-  assert.deepEqual(w.social.followCounts(priya.id), { followers: 1, following: 0 });
-  assert.deepEqual(w.social.followCounts(aina.id), { followers: 0, following: 1 });
+  assert.equal(w.social.page('priyataxes', aina.id)?.following, true);
+  assert.deepEqual(w.social.page('priyataxes', null)?.counts, { followers: 1, following: 0 });
+  assert.deepEqual(w.social.page('aina', null)?.counts, { followers: 0, following: 1 });
 
   assert.equal(reason(w.social.follow(aina.id, 'aina')), 'self');
   assert.equal(reason(w.social.follow(aina.id, 'notyet')), 'not-found', 'an unproven profile cannot be followed');
   assert.equal(reason(w.social.follow(aina.id, 'nobody')), 'not-found');
   w.db.prepare('INSERT INTO follows (follower_id, followee_id, created_at) VALUES (?, ?, ?)').run(pending.memberId, priya.id, '2026-11-26T02:00:00Z');
-  assert.deepEqual(w.social.followCounts(priya.id), { followers: 1, following: 0 }, 'an unproven follower is not counted');
+  assert.deepEqual(w.social.page('priyataxes', null)?.counts, { followers: 1, following: 0 }, 'an unproven follower is not counted');
 
   assert.equal(w.social.unfollow(aina.id, 'priyataxes'), true);
   assert.equal(w.social.unfollow(aina.id, 'priyataxes'), false);
-  assert.equal(w.social.isFollowing(aina.id, priya.id), false);
+  assert.equal(w.social.page('priyataxes', aina.id)?.following, false);
 });
 
 test('track and seal come from ticked claims: credentials outrank the creator flair', () => {
@@ -262,29 +262,6 @@ test('the setup checklist follows what the member has done', async () => {
   assert.equal(w.profiles.credential(aina.id), 'ACCA · Member');
 });
 
-function profilePage(w: ReturnType<typeof socialWorld>, handle: string, viewerId: number | null) {
-  const profile = w.profiles.profile(handle);
-  if (!profile) return null;
-  const own = viewerId !== null && profile.memberId === viewerId;
-  const viewer = viewerId === null ? null : w.profiles.ownProfile(viewerId);
-  return {
-    profile,
-    own,
-    canVouch: !own && (viewer?.sealed ?? false),
-    following: viewerId !== null && !own ? w.profiles.isFollowing(viewerId, profile.memberId) : false,
-    counts: w.profiles.followCounts(profile.memberId),
-    invitedBy: w.profiles.invitedBy(profile.memberId),
-    ledger: w.claims.ledger(profile.memberId, viewerId),
-    roles: w.casebook.roles(profile.memberId),
-    record: w.problems.record(profile.memberId),
-    heat: w.casebook.heatmap(profile.memberId),
-    posts: w.floor.recentPosts(viewerId, profile.memberId),
-    shelf: w.shelf.shelf(profile.memberId, viewerId),
-    saved: own ? w.shelf.saved(viewerId) : [],
-    checklist: own ? w.profiles.checklist(viewerId) : null,
-  };
-}
-
 test("a member's page shows the same profile to everyone, and what only the owner or a sealed reader may do", async () => {
   const w = socialWorld();
   const aina = await w.joined('Aina Rahman', 'aina@firm.my', 'aina');
@@ -301,10 +278,10 @@ test("a member's page shows the same profile to everyone, and what only the owne
   value(w.shelf.save(abu.id, ainasItem.id));
   value(w.shelf.save(aina.id, abusItem.id));
 
-  assert.equal(profilePage(w, 'nobody', abu.id), null);
+  assert.equal(w.profiles.page('nobody', abu.id), null);
 
   const seen = (viewerId: number | null) => {
-    const page = profilePage(w, 'AINA', viewerId);
+    const page = w.profiles.page('AINA', viewerId);
     assert.ok(page);
     return {
       handle: page.profile.handle,
