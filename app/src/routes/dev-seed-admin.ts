@@ -9,7 +9,7 @@ import { withStore } from '../lib/store.server.ts';
  */
 const PASSWORD = 'local test password 1';
 const DAY_MS = 86_400_000;
-const FEE_ANSWERS = 32;
+const FEE_ANSWERS = 55;
 
 export const Route = createFileRoute('/dev-seed-admin')({
   server: {
