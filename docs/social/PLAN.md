@@ -98,7 +98,7 @@ Lists that the code checks against (bodies, platforms, rooms, topics, sectors, s
 
 Tests from slice 6 on share `social-fixtures.ts`: the whole social site on node:sqlite with a clock the test moves.
 
-Each module is wired into `ClubStore.open()`, `src/env.d.ts` and the middleware's `locals`, and has a `.test.ts` beside it.
+Each module is wired into `createStore` in `src/server/store.ts`, and has a `.test.ts` beside it.
 
 ## Pages (`src/pages/social/`)
 

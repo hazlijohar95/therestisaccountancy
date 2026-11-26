@@ -10,7 +10,7 @@ import { unsubscribe } from '../../src/server/unsubscribe.ts';
 import { SOCIAL } from './lib/hosts.ts';
 import { withStore } from './lib/store.server.ts';
 
-export { ClubStore } from '../../src/server/store.ts';
+export { ClubStore } from '../../src/server/instance.ts';
 
 /**
  * The club's answer to "who is this?" for the CPE Worker, reachable only through its service binding: a named
