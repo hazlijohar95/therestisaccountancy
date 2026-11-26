@@ -17,8 +17,10 @@ The app opens on http://127.0.0.1:5180.
 CPE is its own Worker (`therestisaccountancy-cpe`), separate from the main site Worker. It serves the built app as static assets on `cpe.therestisaccountancy.com`. The configuration is in `cloudflare.config.ts`.
 
 ```bash
-pnpm deploy
+pnpm run deploy
 ```
+
+Use `pnpm run deploy`: a bare `pnpm deploy` runs pnpm's own built-in deploy command instead of this script.
 
 This typechecks, builds with Vite and the Cloudflare Vite plugin, and deploys with `cf`.
 
