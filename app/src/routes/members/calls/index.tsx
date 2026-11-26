@@ -2,8 +2,8 @@ import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent } from 'react';
 import { firstName, formatTime, formatWeekday } from '../../../../../src/lib/format.ts';
-import { Masthead } from '../../../components/members/Masthead.tsx';
-import { Notice } from '../../../components/members/Notice.tsx';
+import { Masthead } from '../../../components/club/Masthead.tsx';
+import { Notice } from '../../../components/club/Notice.tsx';
 import { bookCall, cancelCall, membersCalls } from '../../../functions/members-calls.ts';
 import type { Outcome } from '../../../lib/outcome.ts';
 import { flags } from '../../../components/members/flags.ts';

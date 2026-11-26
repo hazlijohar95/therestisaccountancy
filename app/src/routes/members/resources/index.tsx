@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { Masthead } from '../../../components/members/Masthead.tsx';
+import { Masthead } from '../../../components/club/Masthead.tsx';
 import { TemplateList } from '../../../components/members/TemplateList.tsx';
 import { membersResources } from '../../../functions/members-learning.ts';
 import { clubTitle } from '../../../lib/title.ts';

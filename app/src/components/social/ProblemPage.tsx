@@ -6,7 +6,7 @@ import { answerProblem, problemBoard, problemView, rateAnswer } from '../../func
 import { socialSignInHref } from '../../lib/links.ts';
 import { Avatar } from './Avatar.tsx';
 import { Flair } from './Flair.tsx';
-import { PostText } from './PostText.tsx';
+import { PostText } from '../PostText.tsx';
 import { SocialLink } from './PathLink.tsx';
 import { Tick } from './Tick.tsx';
 import { useAction } from './useFormAction.ts';

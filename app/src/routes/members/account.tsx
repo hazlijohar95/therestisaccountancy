@@ -3,7 +3,7 @@ import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent } from 'react';
 import { anyTerm, everyRate, TERMS, terms } from '../../../../src/data/membership.ts';
 import { formatDay } from '../../../../src/lib/format.ts';
-import { Masthead } from '../../components/members/Masthead.tsx';
+import { Masthead } from '../../components/club/Masthead.tsx';
 import { changePassword, membersAccount, setEmailPrefs } from '../../functions/members-account.ts';
 import { setRenews } from '../../functions/members-billing.ts';
 import type { Outcome } from '../../lib/outcome.ts';

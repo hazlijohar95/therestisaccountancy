@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { channelBySlug, channelPath } from '../../../../../src/data/community.ts';
 import { formatMoment } from '../../../../../src/lib/format.ts';
-import { Masthead } from '../../../components/members/Masthead.tsx';
-import { Notice } from '../../../components/members/Notice.tsx';
+import { Masthead } from '../../../components/club/Masthead.tsx';
+import { Notice } from '../../../components/club/Notice.tsx';
 import { ThreadList } from '../../../components/members/ThreadList.tsx';
 import { membersCommunity } from '../../../functions/members-community.ts';
 import { flags } from '../../../components/members/flags.ts';

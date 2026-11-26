@@ -4,7 +4,7 @@ import { services, states } from '../../../src/data/directory.ts';
 import { numberWord } from '../../../src/lib/format.ts';
 import { Page } from '../components/club/Page.tsx';
 import { PageHead } from '../components/club/PageHead.tsx';
-import { ListingEntry } from '../components/public/ListingEntry.tsx';
+import { ListingEntry } from '../components/club/ListingEntry.tsx';
 import { Section } from '../components/public/Section.tsx';
 import { textParam } from '../components/public/search.ts';
 import { directoryPage } from '../functions/public-directory.ts';

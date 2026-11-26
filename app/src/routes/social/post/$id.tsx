@@ -11,7 +11,7 @@ import { Flair } from '../../../components/social/Flair.tsx';
 import { useSignInHref } from '../../../components/social/here.ts';
 import { NoticeLine, NoticeProvider, useSay } from '../../../components/social/Notice.tsx';
 import { PostCard } from '../../../components/social/PostCard.tsx';
-import { PostText } from '../../../components/social/PostText.tsx';
+import { PostText } from '../../../components/PostText.tsx';
 import { ReportDialog } from '../../../components/social/ReportDialog.tsx';
 import { pageStatus } from '../../../components/social/status.ts';
 import { UsefulButton } from '../../../components/social/UsefulButton.tsx';
