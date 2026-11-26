@@ -1,0 +1,95 @@
+---
+import Avatar from '../../components/social/Avatar.astro';
+import Social from '../../layouts/Social.astro';
+import { SEARCH_MAX } from '../../lib/search.ts';
+import { socialPath } from '../../server/paths.ts';
+
+export const prerender = false;
+
+/*
+ * People and posts for the search dialog, as JSON when it asks for JSON. Without a script the header's search goes
+ * here as a page with the same results. Links are built here, so they suit the host the page is on.
+ */
+const to = (path: string) => socialPath(Astro.url, path);
+const { member, socialProfiles, socialFloor } = Astro.locals;
+const query = (Astro.url.searchParams.get('q') ?? '').slice(0, SEARCH_MAX);
+const people = query.trim() ? await socialProfiles.search(query) : [];
+const posts = query.trim() ? await socialFloor.searchPosts(member?.id ?? null, query) : [];
+const results = {
+  query,
+  people: people.map((p) => ({ href: to(`/@${p.handle}`), name: p.name, handle: p.handle, topics: p.topics, track: p.track, sealed: p.sealed })),
+  posts: posts.map((p) => ({ href: to(`/post/${p.id}`), title: p.title })),
+};
+
+const found = results.people.length + results.posts.length;
+
+if ((Astro.request.headers.get('accept') ?? '').includes('application/json')) {
+  return new Response(JSON.stringify(results), {
+    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'private, no-store', vary: 'Accept, Cookie' },
+  });
+}
+---
+
+<Social title={query ? `Search: ${query}` : 'Search'} noindex>
+  <div class="page narrow search-page">
+    <div class="page-head">
+      <div>
+        <p class="kicker">Search</p>
+        <h1 class="title">People and posts.</h1>
+      </div>
+    </div>
+    <form method="GET" action={to('/search')} role="search">
+      <label class="sr-only" for="search-page-q">Search people and posts</label>
+      <input class="input" id="search-page-q" name="q" type="search" maxlength={SEARCH_MAX} value={query} placeholder="A name, a handle, a topic, or words from a post" autocomplete="off" spellcheck="false" autofocus={query ? undefined : true} />
+      <button class="btn" type="submit">Search</button>
+    </form>
+    {
+      query.trim() && (
+        <div class="search-results">
+          <p class="small" role="status">
+            {found === 0 ? `No matches for “${query}”.` : `${found} ${found === 1 ? 'result' : 'results'}.`}
+          </p>
+          {results.people.length > 0 && (
+            <section aria-labelledby="people-title">
+              <h2 class="kicker" id="people-title">People</h2>
+              <ul>
+                {people.map((p) => (
+                  <li>
+                    <a href={to(`/@${p.handle}`)}>
+                      <Avatar name={p.name} track={p.track} sealed={p.sealed} size="sm" />
+                      <span>
+                        <b>{p.name}</b> <span class="small">@{p.handle}{p.topics.length > 0 && ` · ${p.topics.join(', ')}`}</span>
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {results.posts.length > 0 && (
+            <section aria-labelledby="posts-title">
+              <h2 class="kicker" id="posts-title">Posts</h2>
+              <ul>
+                {results.posts.map((p) => (
+                  <li>
+                    <a href={p.href}>
+                      <svg class="ic" aria-hidden="true" width="18" height="18">
+                        <use href="#i-reply" />
+                      </svg>
+                      <span>{p.title}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {found === 0 && (
+            <p>
+              Know someone who posts about it? <a href={to('/nominate')}>Nominate them</a>.
+            </p>
+          )}
+        </div>
+      )
+    }
+  </div>
+</Social>

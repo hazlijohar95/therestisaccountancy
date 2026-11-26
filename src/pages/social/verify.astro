@@ -1,0 +1,481 @@
+---
+import { actions, isInputError } from 'astro:actions';
+import Avatar from '../../components/social/Avatar.astro';
+import Tick from '../../components/social/Tick.astro';
+import { BODIES, bodyById, CLAIM_LIMITS, LICENCES, PLATFORMS } from '../../data/social.ts';
+import Social from '../../layouts/Social.astro';
+import { postedFields } from '../../lib/form.ts';
+import { formAction } from '../../lib/format.ts';
+import { claimWhen, renewsIn, tickState } from '../../lib/ticks.ts';
+import { addressed, signInPath, socialPath } from '../../server/paths.ts';
+import { monthOf, type Claim } from '../../server/social-claims.ts';
+
+export const prerender = false;
+
+const to = (path: string) => socialPath(Astro.url, path);
+const { member, profile, socialClaims } = Astro.locals;
+if (!member) return Astro.redirect(signInPath(Astro.url, '/verify'));
+if (!profile) return Astro.redirect(to('/edit'));
+
+const STEPS = [
+  { id: 'account', name: 'Prove your account', sub: 'A code in your bio' },
+  { id: 'body', name: 'Add your body', sub: 'Your exact status' },
+  { id: 'licence', name: 'Licence', sub: 'Optional' },
+  { id: 'work', name: 'Where you work', sub: 'Optional' },
+] as const;
+type Step = (typeof STEPS)[number]['id'];
+const step: Step = STEPS.find((s) => s.id === Astro.url.searchParams.get('step'))?.id ?? 'account';
+const stepIndex = STEPS.findIndex((s) => s.id === step);
+
+/* What each form did. A form that worked sends the member back here with a note, so a refresh never posts it twice. */
+const results = {
+  addAccount: Astro.getActionResult(actions.addAccount),
+  removeAccount: Astro.getActionResult(actions.removeAccount),
+  addBody: Astro.getActionResult(actions.addBody),
+  addLicence: Astro.getActionResult(actions.addLicence),
+  addAcademic: Astro.getActionResult(actions.addAcademic),
+  addExperience: Astro.getActionResult(actions.addExperience),
+  removeClaim: Astro.getActionResult(actions.removeClaim),
+  sendWorkEmail: Astro.getActionResult(actions.sendWorkEmail),
+};
+const DONE = {
+  addAccount: 'Account added. Put the code in its bio, then leave it there until we have looked.',
+  removeAccount: 'Account removed.',
+  addBody: 'Sent. Someone on the team checks it against the body’s register, or reads your certificate.',
+  addLicence: 'Sent. Someone on the team reads the document, then deletes it.',
+  addAcademic: 'Sent. Someone on the team checks the page.',
+  addExperience: 'Added to your profile as self-declared. Three members with the seal can vouch for it.',
+  removeClaim: 'Removed.',
+  sendWorkEmail: 'Link sent. Open it from your work inbox, signed in here, within seven days.',
+} as const;
+type Form = keyof typeof DONE;
+const FORMS = Object.keys(DONE).filter((key): key is Form => key in results);
+const succeeded = FORMS.find((form) => results[form]?.data);
+if (succeeded) return Astro.redirect(to(`/verify?step=${step}&done=${succeeded}`));
+const done = FORMS.find((form) => form === Astro.url.searchParams.get('done'));
+const emailConfirmed = Astro.url.searchParams.get('done') === 'confirmWorkEmail';
+
+const fieldErrors = (form: Form): Record<string, string[] | undefined> => {
+  const error = results[form]?.error;
+  return error && isInputError(error) ? error.fields : {};
+};
+/* A body over Astro's limit never reaches the action, so its refusal is put in the same words as the action's own. */
+const failure = (form: Form): string | null => {
+  const error = results[form]?.error;
+  if (!error || isInputError(error)) return null;
+  return error.code === 'CONTENT_TOO_LARGE' ? 'Upload a file under 5 MB.' : error.message;
+};
+const errorOf = (form: Form, field: string) => fieldErrors(form)[field]?.[0];
+const posted = await postedFields(Astro.request);
+const failed = FORMS.find((form) => results[form]?.error);
+const typed = (form: Form, name: string, fallback = '') => (failed === form ? posted(name) : fallback);
+
+const { accounts, claims } = await socialClaims.mine(member.id);
+const now = new Date();
+const ofKind = (...kinds: Claim['kind'][]) => claims.filter((c) => kinds.includes(c.kind));
+const pendingAccounts = accounts.filter((a) => a.review.state === 'pending');
+const stepDone: Record<Step, boolean> = {
+  account: accounts.some((a) => a.review.state === 'proven'),
+  body: ofKind('body').some((c) => c.review.state === 'ticked'),
+  licence: ofKind('licence').some((c) => c.review.state === 'ticked'),
+  work: ofKind('employer', 'academic', 'experience').some((c) => c.review.state === 'ticked'),
+};
+const stepOfKind: Record<Claim['kind'], Step> = { body: 'body', licence: 'licence', employer: 'work', academic: 'work', experience: 'work' };
+
+const chosenBody = step === 'body' ? bodyById(failed === 'addBody' ? posted('body') : (Astro.url.searchParams.get('body') ?? '')) : undefined;
+const chosenStatus = typed('addBody', 'status');
+const chosenLicence = typed('addLicence', 'licence');
+const chosenPlatform = typed('addAccount', 'platform') || 'LinkedIn';
+const thisMonth = monthOf(now);
+const action = (which: { toString(): string }) => formAction(addressed(Astro.url), which);
+const invalid = (form: Form, field: string) => (errorOf(form, field) ? 'true' : undefined);
+const describedBy = (form: Form, field: string, hint?: string) => [hint, errorOf(form, field) ? `${form}-${field}-error` : undefined].filter(Boolean).join(' ') || undefined;
+const firstInvalid = (form: Form, fields: readonly string[]) => (failed === form ? fields.find((f) => errorOf(form, f)) : undefined);
+const focusAccount = firstInvalid('addAccount', ['platform', 'handle']);
+const focusBody = firstInvalid('addBody', ['status', 'reference', 'otherName', 'evidence']);
+const focusLicence = firstInvalid('addLicence', ['licence', 'reference', 'until', 'evidence']);
+const focusWork = firstInvalid('sendWorkEmail', ['email']);
+const focusAcademic = firstInvalid('addAcademic', ['role', 'url']);
+const focusExperience = firstInvalid('addExperience', ['text']);
+const ticked = claims.filter((c) => c.review.state === 'ticked').length + accounts.filter((a) => a.review.state === 'proven').length;
+const waiting = claims.filter((c) => c.review.state === 'pending').length + pendingAccounts.length;
+---
+
+<Social title="Get ticked" section="verify" noindex>
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <p class="kicker">Get ticked</p>
+        <h1 class="title">Every claim, one tick at a time.</h1>
+        <p class="lead">People on the team check each claim by hand. It takes a few days, and we email you when it is done.</p>
+      </div>
+      <a class="small" href={to('/ticks')}>What a tick means</a>
+    </div>
+
+    {done && <p class="note" role="status">{DONE[done]}</p>}
+    {emailConfirmed && <p class="note" role="status">Work email confirmed. It shows on your profile now.</p>}
+
+    <div class="verify">
+      <nav aria-label="Steps">
+        <ol class="steps">
+          {
+            STEPS.map((s, i) => (
+              <li data-s={stepDone[s.id] ? 'done' : s.id === step ? 'now' : 'next'}>
+                <a href={to(`/verify?step=${s.id}`)} aria-current={s.id === step ? 'step' : undefined}>
+                  <span class="n">
+                    {stepDone[s.id] ? (
+                      <svg aria-hidden="true">
+                        <use href="#tk" />
+                      </svg>
+                    ) : (
+                      i + 1
+                    )}
+                  </span>
+                  <span>
+                    {s.name}
+                    {stepDone[s.id] && <span class="sr-only">, ticked</span>}
+                    <small>{s.sub}</small>
+                  </span>
+                </a>
+              </li>
+            ))
+          }
+        </ol>
+      </nav>
+
+      <section class="panel card" aria-labelledby="step-title">
+        <p class="kicker">Step {stepIndex + 1} of {STEPS.length}{stepIndex >= 2 && ' · Optional'}</p>
+        {
+          step === 'account' && (
+            <>
+              <h2 class="head" id="step-title">Prove the account is yours.</h2>
+              <p>Add the account you post from. We give you a code to put in its bio. Someone on the team opens your profile and looks for it.</p>
+              {pendingAccounts.map((a) => (
+                <>
+                  <div class="code-box">
+                    <div>
+                      <span class="kicker">Put this in your {a.platform} bio</span>
+                      <code>{a.code}</code>
+                    </div>
+                    <span class="hand-note">leave it until we email you</span>
+                  </div>
+                  <div class="bio-preview">
+                    <Avatar name={profile.name} track={profile.track} size="sm" />
+                    <span>
+                      <b>@{a.handle}</b> · {profile.headline || 'Your bio as it is now.'} <mark>{a.code}</mark>
+                    </span>
+                  </div>
+                </>
+              ))}
+              <form method="POST" action={action(actions.addAccount)} novalidate>
+                <fieldset class="plain-fieldset">
+                  <legend class="label-text">Platform</legend>
+                  <div class="chips">
+                    {PLATFORMS.map((p) => (
+                      <label class="chip">
+                        <input class="sr-only" type="radio" name="platform" value={p} checked={chosenPlatform === p} autofocus={focusAccount === 'platform' ? true : undefined} />
+                        {p}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                <div class="field">
+                  <label for="account-handle">Your handle there</label>
+                  <input class="input" id="account-handle" name="handle" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="aisyahaudits" value={typed('addAccount', 'handle')} aria-invalid={invalid('addAccount', 'handle')} aria-describedby={describedBy('addAccount', 'handle', 'account-handle-hint')} autofocus={focusAccount === 'handle' ? true : undefined} />
+                  <span class="hint" id="account-handle-hint">The handle, or paste your profile’s address.</span>
+                  {errorOf('addAccount', 'handle') && <span class="error" id="addAccount-handle-error">{errorOf('addAccount', 'handle')}</span>}
+                </div>
+                {failure('addAccount') && <p class="error" role="alert">{failure('addAccount')}</p>}
+                <div class="panel-foot">
+                  <span class="small">We only look at the public profile.</span>
+                  <button class="btn" type="submit">Get a code</button>
+                </div>
+              </form>
+            </>
+          )
+        }
+        {
+          step === 'body' && (
+            <>
+              <h2 class="head" id="step-title">Which body are you with?</h2>
+              <div class="bodies">
+                {BODIES.map((b) => (
+                  <a class="body-btn" href={to(`/verify?step=body&body=${b.id}`)} aria-current={chosenBody?.id === b.id ? 'true' : undefined}>
+                    {b.name}
+                    <small>{b.region}</small>
+                  </a>
+                ))}
+              </div>
+              {chosenBody && (
+                <form method="POST" action={action(actions.addBody)} enctype={chosenBody.id === 'other' ? 'multipart/form-data' : undefined} novalidate>
+                  <input type="hidden" name="body" value={chosenBody.id} />
+                  <fieldset class="plain-fieldset" aria-describedby={describedBy('addBody', 'status')}>
+                    <legend class="label-text">Your exact status</legend>
+                    <div class="status-pills">
+                      {chosenBody.statuses.map((s) => (
+                        <label class="chip">
+                          <input class="sr-only" type="radio" name="status" value={s.name} data-training={s.track === 'training' ? '' : undefined} checked={chosenStatus === s.name} autofocus={focusBody === 'status' ? true : undefined} />
+                          {s.name}
+                        </label>
+                      ))}
+                    </div>
+                    {errorOf('addBody', 'status') && <span class="error" id="addBody-status-error">{errorOf('addBody', 'status')}</span>}
+                  </fieldset>
+                  <div class="note tip plain when-picked exact">
+                    <Tick source="register" state="ticked" />
+                    <span>We show your status exactly. A student status is a real milestone, and it reads as one.</span>
+                  </div>
+                  {chosenBody.id === 'mia' && (
+                    <div class="note tip when-picked cam">
+                      <Tick source="register" state="ticked" />
+                      <span>CA(M) is a protected title. It shows only once the team has found you on the MIA register as a Chartered Accountant.</span>
+                    </div>
+                  )}
+                  {chosenBody.id === 'other' && (
+                    <div class="field">
+                      <label for="body-other">Name of the body</label>
+                      <input class="input" id="body-other" name="otherName" maxlength={CLAIM_LIMITS.otherBody} placeholder="AICPA" value={typed('addBody', 'otherName')} aria-invalid={invalid('addBody', 'otherName')} aria-describedby={describedBy('addBody', 'otherName')} autofocus={focusBody === 'otherName' ? true : undefined} />
+                      {errorOf('addBody', 'otherName') && <span class="error" id="addBody-otherName-error">{errorOf('addBody', 'otherName')}</span>}
+                    </div>
+                  )}
+                  <div class="row2">
+                    <div class="field">
+                      <label for="body-number">Member or student number</label>
+                      <input class="input" id="body-number" name="reference" maxlength={CLAIM_LIMITS.reference} autocomplete="off" value={typed('addBody', 'reference')} aria-invalid={invalid('addBody', 'reference')} aria-describedby={describedBy('addBody', 'reference', 'body-number-hint')} autofocus={focusBody === 'reference' ? true : undefined} />
+                      <span class="hint" id="body-number-hint">Only the team sees it.</span>
+                      {errorOf('addBody', 'reference') && <span class="error" id="addBody-reference-error">{errorOf('addBody', 'reference')}</span>}
+                    </div>
+                    <div class="field">
+                      <label for="body-name">Name on the register</label>
+                      <input class="input" id="body-name" value={member.name} disabled aria-describedby="body-name-hint" />
+                      <span class="hint" id="body-name-hint">Your account’s name. It must match.</span>
+                    </div>
+                  </div>
+                  {chosenBody.id === 'other' && (
+                    <>
+                      <p class="small">We have no register to look at for this body. Upload your certificate: someone on the team reads it, and it is deleted once they decide.</p>
+                      <label class="code-box upload" for="body-evidence">
+                        <svg class="ic" aria-hidden="true"><use href="#i-file" /></svg>
+                        <span>
+                          <b>Your certificate</b>
+                          <br />
+                          <span class="small">A PDF or a photo, up to 5 MB.</span>
+                        </span>
+                        <input id="body-evidence" type="file" name="evidence" accept="application/pdf,image/jpeg,image/png,image/webp" aria-invalid={invalid('addBody', 'evidence')} aria-describedby={describedBy('addBody', 'evidence')} autofocus={focusBody === 'evidence' ? true : undefined} />
+                      </label>
+                      {errorOf('addBody', 'evidence') && <span class="error" id="addBody-evidence-error">{errorOf('addBody', 'evidence')}</span>}
+                    </>
+                  )}
+                  {failure('addBody') && <p class="error" role="alert">{failure('addBody')}</p>}
+                  <div class="panel-foot">
+                    <span class="small">{chosenBody.id === 'other' ? 'A person reads it. It takes a few days.' : 'A person checks the register. It takes a few days.'}</span>
+                    <button class="btn" type="submit">Send to the team</button>
+                  </div>
+                </form>
+              )}
+              {!chosenBody && (
+                <div class="panel-foot">
+                  <span class="small">Pick the body you belong to. Add each one you are with.</span>
+                  <a class="btn ghost sm" href={to('/verify?step=licence')}>Not a member yet. Skip.</a>
+                </div>
+              )}
+            </>
+          )
+        }
+        {
+          step === 'licence' && (
+            <>
+              <h2 class="head" id="step-title">Do you hold a licence?</h2>
+              <form method="POST" action={action(actions.addLicence)} enctype="multipart/form-data" novalidate>
+                <fieldset class="plain-fieldset" aria-describedby={describedBy('addLicence', 'licence')}>
+                  <legend class="label-text">Licence</legend>
+                  <div class="bodies">
+                    {LICENCES.map((l) => (
+                      <label class="body-btn">
+                        <input class="sr-only" type="radio" name="licence" value={l} checked={chosenLicence === l} autofocus={focusLicence === 'licence' ? true : undefined} />
+                        {l}
+                      </label>
+                    ))}
+                  </div>
+                  {errorOf('addLicence', 'licence') && <span class="error" id="addLicence-licence-error">{errorOf('addLicence', 'licence')}</span>}
+                </fieldset>
+                <div class="row2">
+                  <div class="field">
+                    <label for="licence-number">Licence or certificate number</label>
+                    <input class="input" id="licence-number" name="reference" maxlength={CLAIM_LIMITS.reference} autocomplete="off" value={typed('addLicence', 'reference')} aria-invalid={invalid('addLicence', 'reference')} aria-describedby={describedBy('addLicence', 'reference')} autofocus={focusLicence === 'reference' ? true : undefined} />
+                    {errorOf('addLicence', 'reference') && <span class="error" id="addLicence-reference-error">{errorOf('addLicence', 'reference')}</span>}
+                  </div>
+                  <div class="field">
+                    <label for="licence-until">Valid until</label>
+                    <input class="input" id="licence-until" type="month" name="until" min={thisMonth} placeholder="2027-12" value={typed('addLicence', 'until')} aria-invalid={invalid('addLicence', 'until')} aria-describedby={describedBy('addLicence', 'until', 'licence-until-hint')} autofocus={focusLicence === 'until' ? true : undefined} />
+                    <span class="hint" id="licence-until-hint">The month on the licence. The tick lapses when it ends.</span>
+                    {errorOf('addLicence', 'until') && <span class="error" id="addLicence-until-error">{errorOf('addLicence', 'until')}</span>}
+                  </div>
+                </div>
+                <label class="code-box upload" for="licence-evidence">
+                  <svg class="ic" aria-hidden="true"><use href="#i-file" /></svg>
+                  <span>
+                    <b>Proof of the licence</b>
+                    <br />
+                    <span class="small">A PDF or a photo, up to 5 MB. Deleted once we decide.</span>
+                  </span>
+                  <input id="licence-evidence" type="file" name="evidence" accept="application/pdf,image/jpeg,image/png,image/webp" aria-invalid={invalid('addLicence', 'evidence')} aria-describedby={describedBy('addLicence', 'evidence')} autofocus={focusLicence === 'evidence' ? true : undefined} />
+                </label>
+                {errorOf('addLicence', 'evidence') && <span class="error" id="addLicence-evidence-error">{errorOf('addLicence', 'evidence')}</span>}
+                {failure('addLicence') && <p class="error" role="alert">{failure('addLicence')}</p>}
+                <div class="panel-foot">
+                  <a class="btn ghost sm" href={to('/verify?step=work')}>Skip</a>
+                  <button class="btn" type="submit">Send to the team</button>
+                </div>
+              </form>
+            </>
+          )
+        }
+        {
+          step === 'work' && (
+            <>
+              <h2 class="head" id="step-title">Where do you work?</h2>
+              <form method="POST" action={action(actions.sendWorkEmail)} novalidate>
+                <div class="field">
+                  <label for="work-email">Work email</label>
+                  <input class="input" id="work-email" name="email" type="text" inputmode="email" autocomplete="email" spellcheck="false" placeholder="you@yourfirm.com" value={typed('sendWorkEmail', 'email')} aria-invalid={invalid('sendWorkEmail', 'email') ?? (failure('sendWorkEmail') ? 'true' : undefined)} aria-describedby={[describedBy('sendWorkEmail', 'email', 'work-email-hint'), failure('sendWorkEmail') ? 'work-email-failure' : undefined].filter(Boolean).join(' ')} autofocus={focusWork === 'email' || failure('sendWorkEmail') ? true : undefined} />
+                  <span class="hint" id="work-email-hint">We send one link. Only the domain shows on your profile.</span>
+                  {errorOf('sendWorkEmail', 'email') && <span class="error" id="sendWorkEmail-email-error">{errorOf('sendWorkEmail', 'email')}</span>}
+                  {failure('sendWorkEmail') && <span class="error" id="work-email-failure">{failure('sendWorkEmail')}</span>}
+                </div>
+                <div class="panel-foot">
+                  <span class="small">Open the link signed in here. Nothing else is checked.</span>
+                  <button class="btn" type="submit">Send link</button>
+                </div>
+              </form>
+
+              <form class="sub" method="POST" action={action(actions.addAcademic)} novalidate>
+                <h3>Teach or research?</h3>
+                <div class="row2">
+                  <div class="field">
+                    <label for="academic-role">Your post</label>
+                    <input class="input" id="academic-role" name="role" maxlength={CLAIM_LIMITS.label} placeholder="Senior lecturer, Universiti Malaya" value={typed('addAcademic', 'role')} aria-invalid={invalid('addAcademic', 'role')} aria-describedby={describedBy('addAcademic', 'role')} autofocus={focusAcademic === 'role' ? true : undefined} />
+                    {errorOf('addAcademic', 'role') && <span class="error" id="addAcademic-role-error">{errorOf('addAcademic', 'role')}</span>}
+                  </div>
+                  <div class="field">
+                    <label for="academic-url">Staff page or ORCID</label>
+                    <input class="input" id="academic-url" name="url" type="url" inputmode="url" spellcheck="false" placeholder="https://orcid.org/…" value={typed('addAcademic', 'url')} aria-invalid={invalid('addAcademic', 'url')} aria-describedby={describedBy('addAcademic', 'url')} autofocus={focusAcademic === 'url' ? true : undefined} />
+                    {errorOf('addAcademic', 'url') && <span class="error" id="addAcademic-url-error">{errorOf('addAcademic', 'url')}</span>}
+                  </div>
+                </div>
+                {failure('addAcademic') && <p class="error" role="alert">{failure('addAcademic')}</p>}
+                <div class="panel-foot">
+                  <span class="small">Someone on the team opens the page and checks your name is on it.</span>
+                  <button class="btn ghost" type="submit">Send to the team</button>
+                </div>
+              </form>
+
+              <form class="sub" method="POST" action={action(actions.addExperience)} novalidate>
+                <h3>Experience</h3>
+                <div class="field">
+                  <label for="experience-text">In a line</label>
+                  <input class="input" id="experience-text" name="text" maxlength={CLAIM_LIMITS.label} placeholder="Six years in audit" value={typed('addExperience', 'text')} aria-invalid={invalid('addExperience', 'text')} aria-describedby={describedBy('addExperience', 'text', 'experience-hint')} autofocus={focusExperience === 'text' ? true : undefined} />
+                  <span class="hint" id="experience-hint">It shows as self-declared. Three members with the seal can vouch for it, and then it is ticked.</span>
+                  {errorOf('addExperience', 'text') && <span class="error" id="addExperience-text-error">{errorOf('addExperience', 'text')}</span>}
+                </div>
+                {failure('addExperience') && <p class="error" role="alert">{failure('addExperience')}</p>}
+                <div class="panel-foot">
+                  <a class="btn ghost sm" href={to(`/@${profile.handle}`)}>See your profile</a>
+                  <button class="btn ghost" type="submit">Add it</button>
+                </div>
+              </form>
+            </>
+          )
+        }
+      </section>
+    </div>
+
+    <section class="section card" aria-labelledby="mine-title">
+      <header>
+        <h2 class="head" id="mine-title">Your ticks</h2>
+        <span class="small">{ticked} ticked · {waiting} waiting</span>
+      </header>
+      {(failure('removeClaim') ?? failure('removeAccount')) && <p class="error" role="alert">{failure('removeClaim') ?? failure('removeAccount')}</p>}
+      <div class="claims-wrap">
+        {
+          accounts.length + claims.length === 0 ? (
+            <div class="empty">
+              <p>Nothing yet. Start by proving an account.</p>
+            </div>
+          ) : (
+            <table class="claims">
+              <caption class="sr-only">Your accounts and claims, and where each stands</caption>
+              <tbody>
+                {accounts.map((a) => (
+                  <tr data-state={a.review.state === 'proven' ? 'ticked' : a.review.state}>
+                    <td>
+                      <Tick source="account" state={a.review.state === 'proven' ? 'ticked' : a.review.state} />
+                    </td>
+                    <td class="what">
+                      {a.platform} · @{a.handle}
+                    </td>
+                    <td class="when">
+                      {a.review.state === 'proven' ? 'Proven' : a.review.state === 'rejected' ? `Not proven: ${a.review.reason}` : `Waiting for the team · ${a.code}`}
+                    </td>
+                    <td class="row-action">
+                      <details class="remove">
+                        <summary class="linkish">
+                          Remove<span class="sr-only"> {a.platform} @{a.handle}</span>
+                        </summary>
+                        <form method="POST" action={action(actions.removeAccount)}>
+                          <input type="hidden" name="account" value={a.id} />
+                          <span class="small">{a.review.state === 'proven' ? 'Your seal needs a proven account.' : 'You can add it again later.'}</span>
+                          <button class="btn sm danger" type="submit">Remove it</button>
+                        </form>
+                      </details>
+                    </td>
+                  </tr>
+                ))}
+                {claims.map((c) => {
+                  const due = renewsIn(c, now);
+                  return (
+                    <tr data-state={c.review.state}>
+                      <td>
+                        <Tick source={c.source} state={tickState(c)} vouches={c.vouches} />
+                      </td>
+                      <td class="what">{c.label}</td>
+                      <td class="when">
+                        {claimWhen(c)}
+                        {due !== null && (
+                          <>
+                            <br />
+                            <a class="due-chip" href={to(`/verify?step=${stepOfKind[c.kind]}${c.bodyId ? `&body=${c.bodyId}` : ''}`)}>
+                              Renews in {due} {due === 1 ? 'day' : 'days'}. Renew it
+                            </a>
+                          </>
+                        )}
+                        {c.review.state === 'lapsed' && (
+                          <>
+                            <br />
+                            <a class="due-chip" href={to(`/verify?step=${stepOfKind[c.kind]}${c.bodyId ? `&body=${c.bodyId}` : ''}`)}>Renew it</a>
+                          </>
+                        )}
+                      </td>
+                      <td class="row-action">
+                        <details class="remove">
+                          <summary class="linkish">
+                            Remove<span class="sr-only"> {c.label}</span>
+                          </summary>
+                          <form method="POST" action={action(actions.removeClaim)}>
+                            <input type="hidden" name="claim" value={c.id} />
+                            <span class="small">{c.review.state === 'ticked' ? 'Getting it back means a new check.' : 'You can send it again later.'}</span>
+                            <button class="btn sm danger" type="submit">Remove it</button>
+                          </form>
+                        </details>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )
+        }
+      </div>
+    </section>
+  </div>
+</Social>

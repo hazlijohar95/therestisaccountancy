@@ -8,6 +8,11 @@ export const formatMoment = (value: string) => moment.format(new Date(value));
 /** 24 Nov 2026, in Malaysian time. */
 export const formatDay = (value: string | Date) => day.format(typeof value === 'string' ? new Date(value) : value);
 
+const month = new Intl.DateTimeFormat('en-MY', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+
+/** Nov 2026, for a month stored as 2026-11. */
+export const formatMonth = (value: string) => month.format(new Date(`${value}-01T00:00:00Z`));
+
 const time = new Intl.DateTimeFormat('en-MY', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kuala_Lumpur' });
 
 /** 3:04 pm, in Malaysian time. */

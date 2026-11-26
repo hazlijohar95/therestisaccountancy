@@ -5,6 +5,7 @@ import { createBilling } from './billing.ts';
 import { checkout, renew, settle, type Gateway } from './charges.ts';
 import { ChipRefusal, type Purchase } from './chip.ts';
 import { createClub } from './club.ts';
+import { createSocialProfiles } from './social-profiles.ts';
 import { migrate } from './db.ts';
 import { openDatabase } from './node-db.ts';
 
@@ -64,8 +65,8 @@ const world = async (cards: readonly string[] = ['visa']) => {
   const club = createClub(db, now);
   club.recordJoinRequest({ name: 'Aina', email: 'aina@firm.com.my', stage: 'I run a practice' });
   const invited = club.inviteFromRequest(club.joinRequests()[0]?.id ?? 0);
-  assert.ok(invited.ok);
-  const accepted = await club.setPasswordFromLink(invited.value.token, 'correct horse battery');
+  assert.ok(invited.ok && invited.value.kind === 'link');
+  const accepted = await club.setPasswordFromLink(invited.value.link.token, 'correct horse battery');
   assert.ok(accepted);
   const billing = createBilling(db, now);
   const chip = fakeChip(cards);
@@ -83,7 +84,7 @@ const world = async (cards: readonly string[] = ['visa']) => {
 
 test('a checkout asks CHIP for the price of the term chosen, and a paid one adds that term', async () => {
   const w = await world();
-  assert.equal(await checkout(w.chip.gateway, w.billing, w.member, 'year', SITE), 'https://chip.test/p/1');
+  assert.deepEqual(await checkout(w.chip.gateway, w.billing, w.member, 'year', SITE), { ok: true, value: 'https://chip.test/p/1' });
   assert.deepEqual(w.chip.asked, [{ id: 'c1', product: 'The Rest Is Accountancy membership, one year', amount: 99000, saving: true }]);
   assert.equal(await settle(w.chip.gateway, w.billing, 'c1'), null, 'opened is not paid');
   assert.equal(w.billing.access(w.member.id), 'unpaid');
@@ -181,4 +182,64 @@ test('without cards on the brand nothing is saved, and nothing is ever charged',
   w.later(365 * DAY);
   assert.deepEqual(w.billing.dueRenewals(), []);
   assert.deepEqual(w.chip.charged, []);
+});
+
+/** Someone who signed up on the free social site and set a password, as the social site leaves them. */
+const fromSocial = async (email = 'priya@tax.my') => {
+  const clock = () => new Date('2026-01-31T10:00:00Z');
+  const db = openDatabase(':memory:');
+  const club = createClub(db, clock);
+  const social = createSocialProfiles(db, clock);
+  const signed = social.signUp({ name: 'Priya Nair', email, handle: 'priyataxes' });
+  assert.ok(signed.ok);
+  const link = club.newLink(signed.value.memberId);
+  assert.ok(link.ok);
+  const accepted = await club.setPasswordFromLink(link.value.token, 'correct horse battery');
+  assert.ok(accepted);
+  return { db, club, chip: fakeChip(['visa']), billing: createBilling(db, clock), member: accepted.member };
+};
+
+test('someone from the social site cannot pay for the club, and CHIP is never asked', async () => {
+  const w = await fromSocial();
+  assert.equal(w.member.clubApproved, false);
+  assert.deepEqual(await checkout(w.chip.gateway, w.billing, w.member, 'month', SITE), { ok: false, reason: 'not-approved' });
+  assert.deepEqual(w.chip.asked, []);
+});
+
+test('accepting their join request approves the account they have, with no new member and no password link', async () => {
+  const w = await fromSocial();
+  w.club.recordJoinRequest({ name: 'Priya N', email: 'PRIYA@tax.my', stage: 'I work in a firm' });
+  const invited = w.club.inviteFromRequest(w.club.joinRequests()[0]?.id ?? 0);
+  assert.ok(invited.ok && invited.value.kind === 'approved', 'approved, not sent a reset link');
+  assert.equal(invited.value.member.id, w.member.id);
+  assert.equal(invited.value.member.clubApproved, true);
+  assert.equal(invited.value.member.name, 'Priya Nair', 'a member with a password keeps their name');
+  assert.equal(w.club.members({ limit: 10, offset: 0 }).total, 1, 'no second member');
+  assert.equal(w.club.joinRequests()[0]?.status, 'invited');
+
+  const approved = w.club.member(w.member.id);
+  assert.ok(approved);
+  const opened = await checkout(w.chip.gateway, w.billing, approved, 'month', SITE);
+  assert.equal(opened.ok, true);
+});
+
+test('a social sign-up who never set a password is approved and gets the welcome link', async () => {
+  const clock = () => new Date('2026-01-31T10:00:00Z');
+  const db = openDatabase(':memory:');
+  const club = createClub(db, clock);
+  const signed = createSocialProfiles(db, clock).signUp({ name: 'Dan Tan', email: 'dan@firm.my', handle: 'dantan' });
+  assert.ok(signed.ok);
+  club.recordJoinRequest({ name: 'Dan Tan', email: 'dan@firm.my', stage: 'I run a practice' });
+  const invited = club.inviteFromRequest(club.joinRequests()[0]?.id ?? 0);
+  assert.ok(invited.ok && invited.value.kind === 'link');
+  assert.equal(invited.value.link.purpose, 'welcome');
+  assert.equal(invited.value.link.member.clubApproved, true);
+});
+
+test('club members are unaffected: approved from the start, and their checkout opens as before', async () => {
+  const w = await world();
+  assert.equal(w.member.joinedVia, 'club');
+  assert.equal(w.member.clubApproved, true);
+  const opened = await checkout(w.chip.gateway, w.billing, w.member, 'year', SITE);
+  assert.deepEqual(opened, { ok: true, value: 'https://chip.test/p/1' });
 });

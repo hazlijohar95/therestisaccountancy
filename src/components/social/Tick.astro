@@ -1,0 +1,16 @@
+---
+import { TICK_SOURCES, type TickSource } from '../../data/social.ts';
+
+interface Props {
+  source: TickSource;
+  /** Self-declared claims draw as their own dashed tick; pending ones are dimmed; lapsed ones are struck in red. */
+  state: 'pending' | 'ticked' | 'rejected' | 'lapsed' | 'self';
+  vouches?: number;
+}
+
+const { source, state, vouches = 0 } = Astro.props;
+const { glyph, name } = TICK_SOURCES[source];
+const label = `${name}${state === 'lapsed' ? ', lapsed' : state === 'pending' ? ', waiting' : state === 'rejected' ? ', not ticked' : ''}${vouches ? `, ${vouches} ${vouches === 1 ? 'peer' : 'peers'}` : ''}`;
+---
+
+<span class="tick" data-state={state} title={label} role="img" aria-label={label}><svg aria-hidden="true"><use href={`#${glyph}`} /></svg></span>

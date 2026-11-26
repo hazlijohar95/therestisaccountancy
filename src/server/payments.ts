@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:workers';
 import type { Term } from '../data/membership.ts';
 import type { Renewal } from './billing.ts';
+import type { Member } from './club.ts';
 import * as charges from './charges.ts';
 import { chip, type Chip } from './chip.ts';
 import type { Store } from './instance.ts';
@@ -15,8 +16,8 @@ export const chipSigningKey = () => (signingKey ??= club().publicKey().catch((er
   throw error;
 }));
 
-/** Opens CHIP's payment page for a term. Returns where to send the member. */
-export const checkout = (billing: Store['billing'], member: { id: number; email: string; name: string }, term: Term, siteUrl: string) => charges.checkout(club(), billing, member, term, siteUrl);
+/** Opens CHIP's payment page for a term. Returns where to send the member, or why it did not open one. */
+export const checkout = (billing: Store['billing'], member: Pick<Member, 'id' | 'email' | 'name' | 'clubApproved'>, term: Term, siteUrl: string) => charges.checkout(club(), billing, member, term, siteUrl);
 
 /** Asks CHIP for a purchase's state and records it if paid. */
 export const settle = (billing: Store['billing'], purchaseId: string) => charges.settle(club(), billing, purchaseId);

@@ -62,7 +62,15 @@ const waiting = pending.length === 1 ? 'One request waiting.' : pending.length =
     </p>
   </Masthead>
 
-  {invited?.data && <LinkNotice issued={invited.data} />}
+  {invited?.data?.kind === 'link' && <LinkNotice issued={invited.data.issued} />}
+  {
+    invited?.data?.kind === 'approved' && (
+      <Notice tone={invited.data.emailed ? 'ok' : 'error'}>
+        {invited.data.name} already has an account from Social, so nothing new was made. They can pay for the club now.{' '}
+        {invited.data.emailed ? `We emailed ${invited.data.email} to say so.` : `The email to ${invited.data.email} did not send. Tell them yourself.`}
+      </Notice>
+    )
+  }
   {declined?.data && <Notice>Request declined.</Notice>}
   {removed && <Notice>Member removed.</Notice>}
   {failure && <Notice tone="error">{failure}</Notice>}

@@ -3,7 +3,12 @@ import { z } from 'astro/zod';
 import { TERMS } from '../data/membership.ts';
 import { checkout } from '../server/payments.ts';
 import { report } from '../server/report.ts';
-import { absolute, signedIn, throttle } from './guards.ts';
+import type { CheckoutRefusal } from '../server/charges.ts';
+import { absolute, settle, signedIn, throttle, type Refusal } from './guards.ts';
+
+const checkoutRefusals: Record<CheckoutRefusal, Refusal> = {
+  'not-approved': { code: 'FORBIDDEN', message: 'Club membership needs an accepted request first. Ask to join and we reply by email.' },
+};
 
 export const billing = {
   /** Sends the member to CHIP to pay for the term they chose, and save a card where CHIP can. */
@@ -13,12 +18,11 @@ export const billing = {
     handler: async (input, context) => {
       const member = signedIn(context.locals);
       await throttle(context, 'checkout');
-      try {
-        return { url: await checkout(context.locals.billing, member, input.term, absolute(context, '/')) };
-      } catch (error) {
+      const opened = await checkout(context.locals.billing, member, input.term, absolute(context, '/')).catch(async (error: unknown) => {
         await report('payment', `CHIP could not open a payment page for ${member.email}`, error);
         throw new ActionError({ code: 'BAD_GATEWAY', message: 'The payment page did not open. Try again in a minute.' });
-      }
+      });
+      return { url: settle(opened, checkoutRefusals) };
     },
   }),
 

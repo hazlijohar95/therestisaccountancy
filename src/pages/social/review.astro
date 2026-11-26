@@ -1,0 +1,355 @@
+---
+import { actions, isInputError } from 'astro:actions';
+import Tick from '../../components/social/Tick.astro';
+import { bodyById, CLAIM_LIMITS } from '../../data/social.ts';
+import Social from '../../layouts/Social.astro';
+import { postedFields } from '../../lib/form.ts';
+import { formAction, formatDay, formatMonth } from '../../lib/format.ts';
+import { addressed, signInPath, socialPath } from '../../server/paths.ts';
+import type { Account, Claim, Queued } from '../../server/social-claims.ts';
+
+export const prerender = false;
+
+const to = (path: string) => socialPath(Astro.url, path);
+const { member, socialClaims, socialNominations, socialFloor } = Astro.locals;
+if (!member) return Astro.redirect(signInPath(Astro.url, '/review'));
+const team = member.role === 'admin';
+if (!team) Astro.response.status = 404;
+
+const TABS = [
+  { id: 'accounts', label: 'Accounts' },
+  { id: 'credentials', label: 'Credentials' },
+  { id: 'documents', label: 'Documents' },
+  { id: 'nominations', label: 'Nominations' },
+  { id: 'reports', label: 'Reports' },
+] as const;
+type Tab = (typeof TABS)[number]['id'];
+const tab: Tab = TABS.find((t) => t.id === Astro.url.searchParams.get('tab'))?.id ?? 'accounts';
+
+const results = {
+  approveAccount: Astro.getActionResult(actions.approveAccount),
+  rejectAccount: Astro.getActionResult(actions.rejectAccount),
+  approveClaim: Astro.getActionResult(actions.approveClaim),
+  rejectClaim: Astro.getActionResult(actions.rejectClaim),
+};
+const decided = Object.values(results).find((r) => r?.data)?.data;
+if (decided) return Astro.redirect(to(`/review?tab=${tab}&done=${decided.decided}`));
+const nominationResults = {
+  invite: Astro.getActionResult(actions.inviteNomination),
+  relink: Astro.getActionResult(actions.relinkNomination),
+  reject: Astro.getActionResult(actions.rejectNomination),
+};
+if (nominationResults.reject?.data) return Astro.redirect(to(`/review?tab=nominations&done=${nominationResults.reject.data.decided}`));
+const reportResults = { hide: Astro.getActionResult(actions.hideReported), dismiss: Astro.getActionResult(actions.dismissReported) };
+const reportDecided = reportResults.hide?.data ?? reportResults.dismiss?.data;
+if (reportDecided) return Astro.redirect(to(`/review?tab=reports&done=${reportDecided.decided}`));
+/* The invite link exists only in this response: its hash is all we keep, so it is never put in a redirect. */
+const invited = nominationResults.invite?.data ?? nominationResults.relink?.data ?? null;
+const done = Astro.url.searchParams.get('done');
+
+const failure = [...Object.values(results), ...Object.values(nominationResults), ...Object.values(reportResults)].map((r) => (r?.error && !isInputError(r.error) ? r.error.message : null)).find(Boolean) ?? null;
+const rejected = results.rejectAccount ?? results.rejectClaim;
+const reasonError = rejected?.error && isInputError(rejected.error) ? (rejected.error.fields.reason?.[0] ?? null) : null;
+const posted = await postedFields(Astro.request);
+const retrying = reasonError ? Number(posted(results.rejectAccount ? 'account' : 'claim')) : null;
+
+const queue = team ? await socialClaims.queue() : { accounts: [], credentials: [], documents: [] };
+const nominations = team ? await socialNominations.queue() : { pending: [], invited: [] };
+const reports = team ? await socialFloor.reports() : [];
+const counts: Record<Tab, number> = {
+  accounts: queue.accounts.length,
+  credentials: queue.credentials.length,
+  documents: queue.documents.length,
+  nominations: nominations.pending.length,
+  reports: reports.length,
+};
+const items: readonly (Queued<Account> | Queued<Claim>)[] = tab === 'nominations' || tab === 'reports' ? [] : queue[tab];
+const HIDE = { post: 'Hide post', reply: 'Hide reply', profile: 'Take off The List' } as const;
+const WHAT = { post: 'Post', reply: 'Reply', profile: 'Profile' } as const;
+const isAccount = (entry: Queued<Account> | Queued<Claim>): entry is Queued<Account> => 'code' in entry.item;
+/* Forms post back to this tab, without the note from an earlier decision. */
+const here = addressed(Astro.url);
+here.search = new URLSearchParams({ tab }).toString();
+const action = (which: { toString(): string }) => formAction(here, which);
+const guidance: Record<Tab, string> = {
+  accounts: 'Open the profile and look for the code in its bio. Approve only if you see it there, on that exact handle.',
+  credentials: 'Find the member on the body’s public register, or open the staff page. The name and number must match.',
+  documents: 'Download the document and read it. It is deleted once you decide, so decide only when you are sure.',
+  nominations: 'Open the profile. Invite people who post things worth learning from, then send them the link by direct message. Once only, no chasing.',
+  reports: 'Read it where it is. Hide removes a post or reply, or takes a profile off The List. Dismiss leaves it. Nobody is told either way.',
+};
+const people = (n: number) => `${n} ${n === 1 ? 'nominator' : 'nominators'}`;
+---
+
+<Social title={team ? 'Review queue' : 'Not found'} noindex>
+  {
+    !team ? (
+      <div class="page">
+        <div class="card empty">
+          <h1 class="head">Not found.</h1>
+          <a class="btn sm" href={to('/')}>Back to the Floor</a>
+        </div>
+      </div>
+    ) : (
+      <div class="page narrow">
+        <p class="note tip plain">
+          <svg aria-hidden="true">
+            <use href="#i-shield" />
+          </svg>
+          <span>Team view. Members never see this page.</span>
+        </p>
+        <div class="page-head">
+          <div>
+            <p class="kicker">Review queue</p>
+            <h1 class="title">Check before it goes public.</h1>
+            <p class="lead">{guidance[tab]}</p>
+          </div>
+        </div>
+        <nav class="chips" aria-label="Queue">
+          {TABS.map((t) => (
+            <a class="chip" href={to(`/review?tab=${t.id}`)} aria-current={t.id === tab ? 'page' : undefined}>
+              {t.label} · {counts[t.id]}
+            </a>
+          ))}
+        </nav>
+        {done === 'approved' && <p class="note" role="status">Approved. The member has been emailed.</p>}
+        {done === 'rejected' && <p class="note" role="status">Rejected. The member has your reason by email.</p>}
+        {done === 'nomination-rejected' && <p class="note" role="status">Not invited. Nobody is told.</p>}
+        {done === 'hidden' && <p class="note" role="status">Hidden. The reports on it are closed.</p>}
+        {done === 'dismissed' && <p class="note" role="status">Dismissed. The reports on it are closed.</p>}
+        {failure && <p class="error" role="alert">{failure}</p>}
+        {invited && (
+          <div class="invite-link">
+            <p>
+              <b>Invite link for @{invited.handle} on {invited.platform}.</b> Send it to them by direct message. It shows only now: make a new one if you lose it.
+            </p>
+            <label class="label-text" for="invite-link">Invite link</label>
+            <input class="input" id="invite-link" readonly value={invited.link} autofocus />
+            <div class="actions">
+              <button class="btn sm" type="button" data-copy="invite-link" hidden>Copy link</button>
+              <a class="btn sm ghost" href={invited.url} target="_blank" rel="noopener noreferrer">
+                Open {invited.platform} profile<span class="sr-only"> (new tab)</span>
+              </a>
+            </div>
+            <p class="small" data-copy-status aria-live="polite"></p>
+          </div>
+        )}
+        {tab === 'nominations' && (
+          <ul class="queue">
+            {nominations.pending.length + nominations.invited.length === 0 && (
+              <li class="empty card">
+                <p>Queue clear.</p>
+              </li>
+            )}
+            {[...nominations.pending, ...nominations.invited].map((n) => (
+              <li class="queue-item card">
+                <div class="facts">
+                  <p>
+                    <b>
+                      {n.platform} · @{n.handle}
+                    </b>{' '}
+                    · {people(n.nominators)}
+                    {n.invitedAt && ` · invited ${formatDay(n.invitedAt)}`}
+                  </p>
+                  {n.topics.length > 0 && <p>Posts about {n.topics.join(', ')}</p>}
+                  <p>
+                    <a href={n.url} target="_blank" rel="noopener noreferrer">
+                      Open {n.platform} profile<span class="sr-only"> (new tab)</span>
+                    </a>
+                  </p>
+                  {n.links.length > 0 && (
+                    <ul>
+                      {n.links.map((link) => (
+                        <li>
+                          <a href={link} target="_blank" rel="noopener noreferrer nofollow">
+                            {link}
+                            <span class="sr-only"> (new tab)</span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <span class="ago">{formatDay(n.createdAt)}</span>
+                <div class="actions">
+                  <form method="POST" action={action(n.invitedAt ? actions.relinkNomination : actions.inviteNomination)}>
+                    <input type="hidden" name="nomination" value={n.id} />
+                    <button class="btn sm" type="submit">
+                      {n.invitedAt ? 'Make a new link' : 'Invite'}
+                      <span class="sr-only">: @{n.handle}</span>
+                    </button>
+                  </form>
+                  <form method="POST" action={action(actions.rejectNomination)}>
+                    <input type="hidden" name="nomination" value={n.id} />
+                    <button class="btn sm ghost" type="submit">
+                      {n.invitedAt ? 'Withdraw invite' : 'Don’t invite'}
+                      <span class="sr-only">: @{n.handle}</span>
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {tab === 'reports' && (
+          <ul class="queue">
+            {reports.length === 0 && (
+              <li class="empty card">
+                <p>Queue clear.</p>
+              </li>
+            )}
+            {reports.map((item) => (
+              <li class="queue-item card">
+                <div class="facts">
+                  <p>
+                    <b>{WHAT[item.target]}</b> by {item.member.handle ? <a href={to(`/@${item.member.handle}`)}>{item.member.name} (@{item.member.handle})</a> : item.member.name}
+                    {item.gone && ' · already off the Floor or The List'}
+                  </p>
+                  {item.summary && <p>“{item.summary}”</p>}
+                  <p>
+                    <a href={to(item.path)}>Open it where it is</a>
+                  </p>
+                  <ul>
+                    {item.reports.map((r) => (
+                      <li>
+                        {r.reason}
+                        {r.note && `: ${r.note}`} · {r.reporter ? `@${r.reporter}` : 'a removed member'} · {formatDay(r.createdAt)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <span class="ago">{item.reports.length === 1 ? '1 report' : `${item.reports.length} reports`}</span>
+                <div class="actions">
+                  <form method="POST" action={action(actions.hideReported)}>
+                    <input type="hidden" name="target" value={item.target} />
+                    <input type="hidden" name="id" value={item.targetId} />
+                    <button class="btn sm danger" type="submit">
+                      {HIDE[item.target]}
+                      <span class="sr-only">: {item.summary || item.member.name}</span>
+                    </button>
+                  </form>
+                  <form method="POST" action={action(actions.dismissReported)}>
+                    <input type="hidden" name="target" value={item.target} />
+                    <input type="hidden" name="id" value={item.targetId} />
+                    <button class="btn sm ghost" type="submit">
+                      Dismiss<span class="sr-only">: {item.summary || item.member.name}</span>
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {tab !== 'nominations' && tab !== 'reports' && (
+        <ul class="queue">
+          {items.length === 0 && (
+            <li class="empty card">
+              <p>Queue clear.</p>
+            </li>
+          )}
+          {items.map((entry) => {
+            const { member: who } = entry;
+            const field = isAccount(entry) ? 'account' : 'claim';
+            const id = entry.item.id;
+            const what = isAccount(entry) ? `${entry.item.platform} · @${entry.item.handle}` : entry.item.label;
+            const body = !isAccount(entry) && entry.item.bodyId ? bodyById(entry.item.bodyId) : undefined;
+            const showError = retrying === id && reasonError;
+            return (
+              <li class="queue-item card">
+                <div class="facts">
+                  <p>
+                    {isAccount(entry) ? <Tick source="account" state="pending" /> : <Tick source={entry.item.source} state="pending" />} <b>{what}</b>
+                  </p>
+                  <p>
+                    {who.handle ? <a href={to(`/@${who.handle}`)}>{who.name} (@{who.handle})</a> : who.name} · {who.email}
+                  </p>
+                  {isAccount(entry) ? (
+                    <>
+                      <p>
+                        Code to look for: <code>{entry.item.code}</code>
+                      </p>
+                      <p>
+                        <a href={entry.item.url} target="_blank" rel="noopener noreferrer">
+                          Open {entry.item.platform} profile<span class="sr-only"> (new tab)</span>
+                        </a>
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      {entry.item.status && <p>Exact status: {entry.item.status}. Show it as written, never rounded up.</p>}
+                      {entry.item.kind === 'academic' && entry.item.reference ? (
+                        <p>
+                          <a href={entry.item.reference} target="_blank" rel="noopener noreferrer">
+                            Open the page they gave<span class="sr-only"> (new tab)</span>
+                          </a>{' '}
+                          · {entry.item.reference}
+                        </p>
+                      ) : (
+                        entry.item.reference && <p>Number they gave: {entry.item.reference}</p>
+                      )}
+                      {entry.item.until && <p>Runs to: {formatMonth(entry.item.until)}</p>}
+                      {body?.site && (
+                        <p>
+                          <a href={body.site} target="_blank" rel="noopener noreferrer">
+                            Open the {body.name} site<span class="sr-only"> (new tab)</span>
+                          </a>
+                        </p>
+                      )}
+                      {entry.item.hasEvidence && (
+                        <p>
+                          <a href={to(`/review/evidence/${id}`)}>Download the document</a>
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+                <span class="ago">{formatDay(entry.item.createdAt)}</span>
+                <div class="actions">
+                  <form method="POST" action={action(isAccount(entry) ? actions.approveAccount : actions.approveClaim)}>
+                    <input type="hidden" name={field} value={id} />
+                    <button class="btn sm" type="submit">
+                      {isAccount(entry) ? 'Proven' : 'Approve tick'}
+                      <span class="sr-only">: {what}</span>
+                    </button>
+                  </form>
+                  <form class="reject" method="POST" action={action(isAccount(entry) ? actions.rejectAccount : actions.rejectClaim)} novalidate>
+                    <input type="hidden" name={field} value={id} />
+                    <label class="label-text" for={`reason-${field}-${id}`}>
+                      Reason, emailed to {who.name}
+                    </label>
+                    <textarea class="input" id={`reason-${field}-${id}`} name="reason" rows="2" maxlength={CLAIM_LIMITS.reason} placeholder={isAccount(entry) ? 'The code was not in the bio.' : 'We could not find you on the register.'} aria-invalid={showError ? 'true' : undefined} aria-describedby={showError ? `reason-${field}-${id}-error` : undefined} autofocus={showError ? true : undefined}>{showError ? posted('reason') : ''}</textarea>
+                    {showError && <span class="error" id={`reason-${field}-${id}-error`}>{reasonError}</span>}
+                    <button class="btn sm ghost" type="submit">
+                      Reject<span class="sr-only">: {what}</span>
+                    </button>
+                  </form>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        )}
+      </div>
+    )
+  }
+</Social>
+
+<script>
+  /* Copies the invite link. Without a clipboard the link is selected, so the team copies it by hand. */
+  for (const button of document.querySelectorAll('[data-copy]')) {
+    const input = document.getElementById(button.getAttribute('data-copy') ?? '');
+    const status = document.querySelector('[data-copy-status]');
+    if (!(button instanceof HTMLButtonElement) || !(input instanceof HTMLInputElement)) continue;
+    button.hidden = false;
+    button.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(input.value);
+        if (status) status.textContent = 'Copied.';
+      } catch {
+        input.focus();
+        input.select();
+        if (status) status.textContent = 'Selected. Press Ctrl+C or ⌘C to copy.';
+      }
+    });
+  }
+</script>

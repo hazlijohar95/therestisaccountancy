@@ -1,0 +1,11 @@
+---
+import { trackNames, type Track } from '../../data/social.ts';
+
+interface Props {
+  track: Track;
+}
+
+const { track } = Astro.props;
+---
+
+<span class="flair" data-track={track}>{trackNames[track]}</span>

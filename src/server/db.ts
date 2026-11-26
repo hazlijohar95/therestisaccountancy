@@ -276,6 +276,274 @@ const MIGRATIONS: readonly string[] = [
   ALTER TABLE members ADD COLUMN onboarding_last_at TEXT;
   UPDATE members SET onboarding_sent = 3 WHERE EXISTS (SELECT 1 FROM payments p WHERE p.member_id = members.id AND p.status = 'paid');
   `,
+  `
+  ALTER TABLE members ADD COLUMN joined_via TEXT NOT NULL DEFAULT 'club' CHECK (joined_via IN ('club', 'social'));
+
+  CREATE TABLE profiles (
+    member_id INTEGER PRIMARY KEY REFERENCES members (id) ON DELETE CASCADE,
+    handle TEXT NOT NULL UNIQUE CHECK (length(handle) BETWEEN 3 AND 30 AND handle NOT GLOB '*[^a-z0-9_]*'),
+    headline TEXT NOT NULL DEFAULT '',
+    sector TEXT,
+    city TEXT NOT NULL DEFAULT '',
+    jurisdictions TEXT NOT NULL DEFAULT '[]',
+    topics TEXT NOT NULL DEFAULT '[]',
+    creator INTEGER NOT NULL DEFAULT 0 CHECK (creator IN (0, 1)),
+    listed INTEGER NOT NULL DEFAULT 1 CHECK (listed IN (0, 1)),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE follows (
+    follower_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    followee_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (follower_id, followee_id),
+    CHECK (follower_id != followee_id)
+  );
+  CREATE INDEX follows_by_followee ON follows (followee_id);
+  `,
+  `
+  ALTER TABLE members ADD COLUMN club_approved_at TEXT;
+
+  CREATE TABLE social_accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    platform TEXT NOT NULL,
+    handle TEXT NOT NULL,
+    code TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'pending' CHECK (state IN ('pending', 'proven', 'rejected')),
+    note TEXT,
+    created_at TEXT NOT NULL,
+    decided_at TEXT,
+    decided_by INTEGER REFERENCES members (id) ON DELETE SET NULL
+  );
+  CREATE UNIQUE INDEX one_live_account_per_platform ON social_accounts (member_id, platform) WHERE state != 'rejected';
+  CREATE UNIQUE INDEX one_owner_per_proven_account ON social_accounts (platform, handle) WHERE state = 'proven';
+  CREATE INDEX social_accounts_by_state ON social_accounts (state, created_at);
+
+  CREATE TABLE claims (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('body', 'licence', 'employer', 'academic', 'experience')),
+    body_id TEXT,
+    label TEXT NOT NULL,
+    status_level TEXT,
+    reference TEXT,
+    source TEXT NOT NULL CHECK (source IN ('register', 'document', 'email', 'vouch', 'self')),
+    state TEXT NOT NULL DEFAULT 'pending' CHECK (state IN ('pending', 'ticked', 'rejected', 'lapsed')),
+    evidence_key TEXT,
+    until TEXT CHECK (until IS NULL OR until GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]'),
+    reminded INTEGER NOT NULL DEFAULT 0 CHECK (reminded BETWEEN 0 AND 2),
+    note TEXT,
+    created_at TEXT NOT NULL,
+    decided_at TEXT,
+    decided_by INTEGER REFERENCES members (id) ON DELETE SET NULL
+  );
+  CREATE INDEX claims_by_member ON claims (member_id, created_at);
+  CREATE INDEX claims_by_state ON claims (state, created_at);
+  CREATE INDEX claims_with_evidence ON claims (id) WHERE evidence_key IS NOT NULL;
+
+  CREATE TABLE email_checks (
+    token_hash TEXT PRIMARY KEY,
+    claim_id INTEGER NOT NULL REFERENCES claims (id) ON DELETE CASCADE,
+    address TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used_at TEXT
+  );
+  CREATE INDEX email_checks_by_claim ON email_checks (claim_id, created_at);
+
+  CREATE TABLE vouches (
+    claim_id INTEGER NOT NULL REFERENCES claims (id) ON DELETE CASCADE,
+    voucher_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (claim_id, voucher_id)
+  );
+  CREATE INDEX vouches_by_voucher ON vouches (voucher_id);
+  `,
+  `
+  CREATE TABLE nominations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    platform TEXT NOT NULL,
+    handle TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'pending' CHECK (state IN ('pending', 'invited', 'claimed', 'removed', 'rejected')),
+    invite_token_hash TEXT UNIQUE,
+    created_at TEXT NOT NULL,
+    decided_at TEXT,
+    decided_by INTEGER REFERENCES members (id) ON DELETE SET NULL,
+    UNIQUE (platform, handle)
+  );
+  CREATE INDEX nominations_by_state ON nominations (state, created_at);
+
+  CREATE TABLE nominators (
+    nomination_id INTEGER NOT NULL REFERENCES nominations (id) ON DELETE CASCADE,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    topics TEXT NOT NULL DEFAULT '[]',
+    why_url TEXT,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (nomination_id, member_id)
+  );
+  CREATE INDEX nominators_by_member ON nominators (member_id);
+  `,
+  `
+  CREATE TABLE floor_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    room TEXT NOT NULL,
+    jurisdiction TEXT NOT NULL CHECK (jurisdiction IN ('MY', 'SG', 'AU', 'UK', 'Any')),
+    title TEXT NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    edited_at TEXT,
+    removed_at TEXT,
+    removed_by INTEGER REFERENCES members (id) ON DELETE SET NULL
+  );
+  CREATE INDEX floor_posts_by_time ON floor_posts (created_at, id);
+  CREATE INDEX floor_posts_by_member ON floor_posts (member_id, created_at);
+
+  CREATE TABLE floor_replies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL REFERENCES floor_posts (id) ON DELETE CASCADE,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    body TEXT NOT NULL,
+    accepted INTEGER NOT NULL DEFAULT 0 CHECK (accepted IN (0, 1)),
+    correction INTEGER NOT NULL DEFAULT 0 CHECK (correction IN (0, 1)),
+    created_at TEXT NOT NULL,
+    edited_at TEXT,
+    removed_at TEXT,
+    removed_by INTEGER REFERENCES members (id) ON DELETE SET NULL
+  );
+  CREATE INDEX floor_replies_by_post ON floor_replies (post_id, created_at);
+  CREATE UNIQUE INDEX one_accepted_reply_per_post ON floor_replies (post_id) WHERE accepted = 1;
+
+  CREATE TABLE useful (
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    target TEXT NOT NULL CHECK (target IN ('post', 'reply', 'item')),
+    target_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (member_id, target, target_id)
+  );
+  CREATE INDEX useful_by_target ON useful (target, target_id);
+
+  CREATE TABLE reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reporter_id INTEGER REFERENCES members (id) ON DELETE SET NULL,
+    target TEXT NOT NULL CHECK (target IN ('post', 'reply', 'profile')),
+    target_id INTEGER NOT NULL,
+    target_member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    reason TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    state TEXT NOT NULL DEFAULT 'open' CHECK (state IN ('open', 'actioned', 'dismissed')),
+    created_at TEXT NOT NULL,
+    decided_at TEXT,
+    decided_by INTEGER REFERENCES members (id) ON DELETE SET NULL
+  );
+  CREATE INDEX reports_by_state ON reports (state, created_at);
+  CREATE UNIQUE INDEX one_open_report_per_reporter ON reports (reporter_id, target, target_id) WHERE state = 'open';
+  `,
+  `
+  CREATE TABLE problems (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    number INTEGER NOT NULL UNIQUE CHECK (number > 0),
+    tag TEXT NOT NULL,
+    jurisdiction TEXT NOT NULL CHECK (jurisdiction IN ('MY', 'SG', 'AU', 'UK', 'Any')),
+    title TEXT NOT NULL,
+    scenario TEXT NOT NULL,
+    ask TEXT NOT NULL,
+    options TEXT NOT NULL,
+    opens_at TEXT NOT NULL,
+    closes_at TEXT NOT NULL CHECK (closes_at > opens_at),
+    created_by INTEGER REFERENCES members (id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX problems_by_window ON problems (opens_at, closes_at);
+
+  CREATE TABLE answers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    problem_id INTEGER NOT NULL REFERENCES problems (id) ON DELETE CASCADE,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    pick TEXT NOT NULL CHECK (pick IN ('A', 'B', 'C', 'D')),
+    reasoning TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    UNIQUE (problem_id, member_id)
+  );
+  CREATE INDEX answers_by_member ON answers (member_id, created_at);
+
+  CREATE TABLE ratings (
+    answer_id INTEGER NOT NULL REFERENCES answers (id) ON DELETE CASCADE,
+    rater_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    verdict TEXT NOT NULL CHECK (verdict IN ('sound', 'partly', 'unsound')),
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (answer_id, rater_id)
+  );
+  CREATE INDEX ratings_by_rater ON ratings (rater_id);
+  `,
+  `
+  ALTER TABLE profiles ADD COLUMN badge_copied_at TEXT;
+
+  CREATE TABLE casebook (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    service TEXT NOT NULL,
+    industry TEXT NOT NULL,
+    band TEXT NOT NULL,
+    framework TEXT NOT NULL,
+    year TEXT NOT NULL,
+    role TEXT NOT NULL,
+    areas TEXT NOT NULL DEFAULT '[]',
+    note TEXT NOT NULL DEFAULT '',
+    cosigner_id INTEGER REFERENCES members (id) ON DELETE SET NULL,
+    cosign TEXT CHECK (cosign IN ('pending', 'signed', 'declined')),
+    cosigned_at TEXT,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX casebook_by_member ON casebook (member_id, created_at);
+  CREATE INDEX casebook_by_cosigner ON casebook (cosigner_id, cosign);
+
+  CREATE TABLE roles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    from_year INTEGER NOT NULL,
+    to_year INTEGER CHECK (to_year IS NULL OR to_year >= from_year),
+    title TEXT NOT NULL,
+    employer TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX roles_by_member ON roles (member_id, from_year);
+
+  CREATE TABLE shelf_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL CHECK (url LIKE 'https://%'),
+    created_at TEXT NOT NULL,
+    removed_at TEXT
+  );
+  CREATE INDEX shelf_items_by_member ON shelf_items (member_id, created_at);
+
+  CREATE TABLE saves (
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    item_id INTEGER NOT NULL REFERENCES shelf_items (id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (member_id, item_id)
+  );
+  CREATE INDEX saves_by_item ON saves (item_id, created_at);
+
+  CREATE TABLE notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    key TEXT NOT NULL,
+    actor_id INTEGER REFERENCES members (id) ON DELETE CASCADE,
+    subject_id INTEGER,
+    detail TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    read_at TEXT,
+    UNIQUE (member_id, key)
+  );
+  CREATE INDEX notifications_by_member ON notifications (member_id, created_at);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

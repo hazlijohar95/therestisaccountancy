@@ -1,0 +1,158 @@
+---
+import Avatar from '../../components/social/Avatar.astro';
+import Tick from '../../components/social/Tick.astro';
+import { socialHost } from '../../data/social.ts';
+import Social from '../../layouts/Social.astro';
+import { signInPath, socialPath, socialPathOf } from '../../server/paths.ts';
+
+export const prerender = false;
+
+const to = (path: string) => socialPath(Astro.url, path);
+const { member, profile, socialProfiles, socialClaims } = Astro.locals;
+const ready = member !== null && profile !== null && profile.sealed;
+const credential = ready ? await socialProfiles.credential(member.id) : '';
+const ledger = ready ? await socialClaims.ledger(member.id, member.id) : { claims: [], accounts: [] };
+/* The link people tap goes to the social host whichever host this page is on. */
+const link = profile ? `https://${socialHost}/@${profile.handle}` : '';
+/* A seal resting on a workplace or experience has no credential to name, as on the Floor. */
+const named = credential !== 'member';
+const bio = named ? `Ticked: ${credential}. ${link}` : `Ticked on TRIA. ${link}`;
+const shown = [...ledger.accounts.map((a) => ({ key: `a${a.id}`, source: 'account' as const, state: 'ticked' as const, label: `${a.platform} · @${a.handle}` })), ...ledger.claims.filter((c) => c.review.state === 'ticked').map((c) => ({ key: `c${c.id}`, source: c.source, state: 'ticked' as const, label: c.label }))].slice(0, 4);
+---
+
+<Social title="Your badge" noindex>
+  <div class="page narrow">
+    {
+      !ready || !profile ? (
+        <section class="claim card">
+          <p class="kicker">Your badge</p>
+          <h1 class="title">Get ticked first.</h1>
+          <p class="lead">The badge links to your ticked claims, so it needs the seal: one account proven and one credential ticked.</p>
+          {member ? (
+            <a class="btn" href={to('/verify')}>
+              Get ticked
+            </a>
+          ) : (
+            <a class="btn" href={signInPath(Astro.url, socialPathOf(Astro.url))}>
+              Sign in
+            </a>
+          )}
+        </section>
+      ) : (
+        <>
+          <div class="page-head">
+            <div>
+              <p class="kicker">Your badge</p>
+              <h1 class="title">Put your ticks in your bio.</h1>
+              <p class="lead">Anyone who taps it sees your ticked claims and how each one was checked.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <section class="panel card" aria-label="Badge">
+              <div class="badge-stage">
+                <span class="badge-pill">
+                  <svg class="seal" aria-hidden="true">
+                    <use href="#seal" />
+                  </svg>
+                  <span>
+                    <b>Ticked on TRIA</b> · {named ? credential : 'Member'}
+                  </span>
+                </span>
+              </div>
+              <fieldset class="chips plain-fieldset">
+                <legend class="sr-only">Badge style</legend>
+                <label class="chip">
+                  <input class="sr-only" type="radio" name="badge-style" value="light" checked />
+                  Light
+                </label>
+                <label class="chip">
+                  <input class="sr-only" type="radio" name="badge-style" value="dark" />
+                  Dark
+                </label>
+              </fieldset>
+              <div class="field">
+                <label for="b-link">Profile link</label>
+                <div class="copy-row">
+                  <input class="input" id="b-link" readonly value={link} />
+                  <button class="btn sm" type="button" data-copy="b-link" aria-label="Copy profile link" hidden>
+                    <svg aria-hidden="true">
+                      <use href="#i-copy" />
+                    </svg>
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <div class="field">
+                <label for="b-bio">Line for your bio</label>
+                <div class="copy-row">
+                  <input class="input" id="b-bio" readonly value={bio} />
+                  <button class="btn sm" type="button" data-copy="b-bio" aria-label="Copy line for your bio" hidden>
+                    <svg aria-hidden="true">
+                      <use href="#i-copy" />
+                    </svg>
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <p class="small" role="status" data-copy-status></p>
+            </section>
+            <aside class="aside-stack" aria-labelledby="preview-title">
+              <p class="kicker" id="preview-title">
+                What people see when they tap it
+              </p>
+              <article class="card mini-profile">
+                <div class="by">
+                  <Avatar name={profile.name} track={profile.track} sealed={profile.sealed} />
+                  <div>
+                    <p class="name-line">
+                      {profile.name}
+                      <svg class="seal" role="img" aria-label="Ticked">
+                        <use href="#seal" />
+                      </svg>
+                    </p>
+                    <p class="small">@{profile.handle}</p>
+                  </div>
+                </div>
+                <ul class="links">
+                  {shown.map((claim) => (
+                    <li>
+                      <Tick source={claim.source} state={claim.state} />
+                      <span>{claim.label}</span>
+                    </li>
+                  ))}
+                </ul>
+                <a class="btn sm ghost" href={to(`/@${profile.handle}`)}>
+                  Open your profile
+                </a>
+              </article>
+            </aside>
+          </div>
+        </>
+      )
+    }
+  </div>
+</Social>
+
+<script>
+  import { actions } from 'astro:actions';
+
+  /* Copy buttons need a script, so they show only with one. Without it the fields are still there to select. */
+  const status = document.querySelector<HTMLElement>('[data-copy-status]');
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+    const input = document.getElementById(button.dataset.copy ?? '');
+    if (!(input instanceof HTMLInputElement)) continue;
+    button.hidden = false;
+    button.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(input.value);
+        if (status) status.textContent = 'Copied.';
+      } catch {
+        input.focus();
+        input.select();
+        if (status) status.textContent = 'Selected. Press Ctrl+C or ⌘C to copy.';
+      }
+      /* The setup checklist ticks this off. If it fails, the next copy tries again. */
+      await actions.badgeCopied().catch(() => undefined);
+    });
+  }
+</script>

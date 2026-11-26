@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
-import { createClub, JOIN_ALERTS_PER_HOUR, type Club } from './club.ts';
+import { createClub, JOIN_ALERTS_PER_HOUR, type Club, type Invitation, type PasswordLink } from './club.ts';
 import { SCHEMA_VERSION } from './db.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
@@ -19,12 +19,19 @@ const value = <T, R extends string>(result: Result<T, R>): T => {
 };
 const reason = <T, R extends string>(result: Result<T, R>): R | null => (result.ok ? null : result.reason);
 
+/** The password link an accepted join request sent. */
+const sentLink = (result: Result<Invitation, string>): PasswordLink => {
+  const invitation = value(result);
+  assert.ok(invitation.kind === 'link', 'expected a password link');
+  return invitation.link;
+};
+
 /** A member who has accepted an invitation and set PASSWORD. */
 const activeMember = async (club: Club, email = 'aina@firm.com.my', name = 'Aina Rahman') => {
   club.recordJoinRequest({ name, email, stage: 'I run a practice' });
   const request = club.joinRequests().find((r) => r.email === email && r.status === 'pending');
   assert.ok(request);
-  const link = value(club.inviteFromRequest(request.id));
+  const link = sentLink(club.inviteFromRequest(request.id));
   const accepted = await club.setPasswordFromLink(link.token, PASSWORD);
   assert.ok(accepted);
   return accepted.member;
@@ -62,7 +69,7 @@ test('an invited request becomes a member who can set a password once, then sign
   club.recordJoinRequest({ name: 'Aina', email: 'aina@firm.com.my', stage: 'I run a practice' });
   const request = club.joinRequests()[0];
   assert.ok(request);
-  const invitation = value(club.inviteFromRequest(request.id));
+  const invitation = sentLink(club.inviteFromRequest(request.id));
   assert.equal(invitation.purpose, 'welcome');
   assert.equal(invitation.member.status, 'invited');
   assert.equal(club.joinRequests()[0]?.status, 'invited');
@@ -83,7 +90,7 @@ test('an invitation expires, and a new one replaces the old', async () => {
   let clock = new Date('2026-11-24T10:00:00Z');
   const club = fresh(() => clock);
   club.recordJoinRequest({ name: 'Abu', email: 'abu@firm.com.my', stage: 'I work in a firm' });
-  const first = value(club.inviteFromRequest(club.joinRequests()[0]?.id ?? 0));
+  const first = sentLink(club.inviteFromRequest(club.joinRequests()[0]?.id ?? 0));
   const second = value(club.newLink(first.member.id));
   assert.equal(second.purpose, 'welcome');
   assert.equal(club.linkMember(first.token), null, 'a new link retires the earlier one');
@@ -126,7 +133,7 @@ test('a reset link sets a new password once, lasts three days, and ends older se
 test('setting a password any other way retires open links', async () => {
   const club = fresh();
   club.recordJoinRequest({ name: 'Aina', email: 'aina@firm.com.my', stage: 'I run a practice' });
-  const invitation = value(club.inviteFromRequest(club.joinRequests()[0]?.id ?? 0));
+  const invitation = sentLink(club.inviteFromRequest(club.joinRequests()[0]?.id ?? 0));
   await admin(club, 'aina@firm.com.my', 'Aina');
   assert.equal(club.linkMember(invitation.token), null, 'running the admin script retires an open invitation');
 
@@ -150,7 +157,7 @@ test('changing a password needs the current one and ends older sessions', async 
 test('a session for a member who has not set a password, or from another epoch, is refused', async () => {
   const club = fresh();
   club.recordJoinRequest({ name: 'Abu', email: 'abu@firm.com.my', stage: 'I work in a firm' });
-  const invitation = value(club.inviteFromRequest(club.joinRequests()[0]?.id ?? 0));
+  const invitation = sentLink(club.inviteFromRequest(club.joinRequests()[0]?.id ?? 0));
   assert.equal(club.sessionMember({ memberId: invitation.member.id, epoch: 0 }), null);
   const me = await admin(club);
   const { key } = value(await club.authenticate('admin@club.test', PASSWORD));
@@ -161,7 +168,7 @@ test('a join request cannot rename an active member', async () => {
   const club = fresh();
   const me = await admin(club);
   club.recordJoinRequest({ name: 'Not The Admin', email: 'admin@club.test', stage: 'I run a practice' });
-  const link = value(club.inviteFromRequest(club.joinRequests()[0]?.id ?? 0));
+  const link = sentLink(club.inviteFromRequest(club.joinRequests()[0]?.id ?? 0));
   assert.equal(link.purpose, 'reset');
   assert.equal(link.member.id, me.id);
   assert.equal(link.member.name, 'Admin');
@@ -283,7 +290,7 @@ test('the member list searches names and emails literally, filters by status and
   await activeMember(club, 'aina@firm.com.my', 'Aina Rahman');
   await activeMember(club, 'abu_musa@firm.com.my', 'Abu Musa');
   club.recordJoinRequest({ name: 'Siti 100%', email: 'siti@firm.com.my', stage: 'I run a practice' });
-  value(club.inviteFromRequest(club.joinRequests().find((r) => r.status === 'pending')?.id ?? 0));
+  sentLink(club.inviteFromRequest(club.joinRequests().find((r) => r.status === 'pending')?.id ?? 0));
 
   const page = (filter: { query?: string; status?: 'invited' | 'active' | 'suspended' }, limit = 10, offset = 0) =>
     club.members({ ...filter, limit, offset });
@@ -369,7 +376,7 @@ test('an invited member who lost their invitation can ask for a fresh one', () =
   club.recordJoinRequest({ name: 'Abu', email: 'abu@firm.com.my', stage: 'I work in a firm' });
   const request = club.joinRequests()[0];
   assert.ok(request);
-  value(club.inviteFromRequest(request.id));
+  sentLink(club.inviteFromRequest(request.id));
   assert.equal(club.requestLink('abu@firm.com.my'), null, 'not while the invitation is minutes old');
 });
 

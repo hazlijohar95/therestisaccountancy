@@ -1,0 +1,134 @@
+---
+import { actions, isInputError } from 'astro:actions';
+import Tick from '../../components/social/Tick.astro';
+import { accountHandle, CLAIM_LIMITS, PLATFORMS, TOPICS } from '../../data/social.ts';
+import Social from '../../layouts/Social.astro';
+import { postedValues } from '../../lib/form.ts';
+import { formAction } from '../../lib/format.ts';
+import { addressed, signInPath, socialPath } from '../../server/paths.ts';
+
+export const prerender = false;
+
+const to = (path: string) => socialPath(Astro.url, path);
+const { member, socialNominations } = Astro.locals;
+
+const result = Astro.getActionResult(actions.nominate);
+/* A new nomination and a counted one read the same, so the address never tells a member that someone else nominated. */
+if (result?.data) return Astro.redirect(to(`/list?nominated=${result.data.outcome === 'already' ? 'already' : 'yes'}`));
+
+const { one: posted, all: postedAll } = await postedValues(Astro.request);
+const fieldErrors = result?.error && isInputError(result.error) ? result.error.fields : {};
+const refusal = result?.error && !isInputError(result.error) ? result.error : null;
+/* Refusals about the handle belong beside it. */
+const handleRefused = refusal && (refusal.code === 'CONFLICT' || refusal.code === 'BAD_REQUEST');
+const errors = {
+  platform: fieldErrors.platform?.[0],
+  handle: fieldErrors.handle?.[0] ?? (handleRefused ? refusal.message : undefined),
+  whyUrl: fieldErrors.whyUrl?.[0],
+};
+const failure = refusal && !handleRefused ? refusal.message : null;
+const platform = PLATFORMS.find((p) => p === posted('platform')) ?? 'LinkedIn';
+const typedHandle = posted('handle');
+const chosenTopics = new Set(postedAll('topics'));
+/* Already on The List: point to the profile that proved the account. */
+const listed = refusal?.code === 'CONFLICT' && typedHandle ? await socialNominations.onList(platform, accountHandle(typedHandle)) : null;
+const first = (['platform', 'handle', 'whyUrl'] as const).find((field) => errors[field]);
+const describedBy = (field: keyof typeof errors, hint?: string) => [hint, errors[field] ? `nominate-${field}-error` : undefined].filter(Boolean).join(' ') || undefined;
+const shownHandle = accountHandle(typedHandle) || 'handle';
+---
+
+<Social title="Nominate someone" description="Nominate someone in accountancy who posts things worth learning from." section="list">
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <p class="kicker">Nominate</p>
+        <h1 class="title">Who should be on the List?</h1>
+        <p class="lead">Someone who posts things worth learning from. Or yourself.</p>
+      </div>
+    </div>
+    <div class="form-grid">
+      {
+        member ? (
+          <form class="panel card" method="POST" action={formAction(addressed(Astro.url), actions.nominate)} novalidate>
+            <fieldset class="plain-fieldset">
+              <legend class="label-text">Platform</legend>
+              <div class="chips">
+                {PLATFORMS.map((p) => (
+                  <label class="chip">
+                    <input class="sr-only" type="radio" name="platform" value={p} checked={platform === p} autofocus={first === 'platform' && p === platform ? true : undefined} />
+                    {p}
+                  </label>
+                ))}
+              </div>
+              {errors.platform && <span class="error" id="nominate-platform-error">{errors.platform}</span>}
+            </fieldset>
+            <div class="field">
+              <label for="nominate-handle">Their handle</label>
+              <input class="input" id="nominate-handle" name="handle" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="@taxwithtan" value={typedHandle} aria-invalid={errors.handle ? 'true' : undefined} aria-describedby={describedBy('handle', 'nominate-handle-hint')} autofocus={first === 'handle' ? true : undefined} />
+              <span class="hint" id="nominate-handle-hint">The handle, or paste their profile’s address.</span>
+              {errors.handle && (
+                <span class="error" id="nominate-handle-error">
+                  {errors.handle}
+                  {listed && (
+                    <>
+                      {' '}
+                      <a href={to(`/@${listed}`)}>See their profile</a>
+                    </>
+                  )}
+                </span>
+              )}
+            </div>
+            <fieldset class="plain-fieldset">
+              <legend class="label-text">What they post about</legend>
+              <div class="chips">
+                {TOPICS.map((t) => (
+                  <label class="chip">
+                    <input class="sr-only" type="checkbox" name="topics" value={t} checked={chosenTopics.has(t)} />
+                    {t}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <div class="field">
+              <label for="nominate-why">One post that convinced you · optional</label>
+              <input class="input" id="nominate-why" name="whyUrl" type="url" inputmode="url" maxlength={CLAIM_LIMITS.url} placeholder="Paste a link" value={posted('whyUrl')} aria-invalid={errors.whyUrl ? 'true' : undefined} aria-describedby={describedBy('whyUrl')} autofocus={first === 'whyUrl' ? true : undefined} />
+              {errors.whyUrl && <span class="error" id="nominate-whyUrl-error">{errors.whyUrl}</span>}
+            </div>
+            {failure && <p class="error" role="alert">{failure}</p>}
+            <div class="panel-foot">
+              <a class="small" href={to('/verify')}>It’s me. Get ticked instead.</a>
+              <button class="btn" type="submit">Nominate</button>
+            </div>
+          </form>
+        ) : (
+          <section class="panel card" aria-labelledby="signin-title">
+            <h2 class="head" id="signin-title">Sign in to nominate.</h2>
+            <p>Nominations come from members, so we know who to ask if something looks wrong. Signing up is free.</p>
+            <div class="panel-foot">
+              <a class="small" href={to('/sign-up')}>Sign up free</a>
+              <a class="btn" href={signInPath(Astro.url, '/nominate')}>Sign in</a>
+            </div>
+          </section>
+        )
+      }
+      <aside class="aside-stack" aria-labelledby="created-title">
+        <p class="kicker" id="created-title">What gets created</p>
+        <div class="preview-card card">
+          <span class="stamp">Not public</span>
+          <span class="avatar" data-track="field" aria-hidden="true">@</span>
+          <b>@{shownHandle}</b>
+          <div class="chips">
+            <span class="flair" data-track="field">Unclaimed</span>
+            <span class="tag">{platform}</span>
+          </div>
+          <p class="small">Only their public handle. Nothing else.</p>
+        </div>
+        <ul class="links">
+          <li><Tick source="self" state="self" /><span>Private until they claim it.</span></li>
+          <li><Tick source="self" state="self" /><span>We invite them once. No chasing.</span></li>
+          <li><Tick source="self" state="self" /><span>They can delete it in one click.</span></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</Social>

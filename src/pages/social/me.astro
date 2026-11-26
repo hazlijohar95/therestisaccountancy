@@ -1,0 +1,11 @@
+---
+import { signInPath, socialPath } from '../../server/paths.ts';
+
+export const prerender = false;
+
+/* Your own profile, wherever it lives: sign in first, and claim a handle if you have none. */
+const { member, socialProfiles } = Astro.locals;
+if (!member) return Astro.redirect(signInPath(Astro.url, '/me'));
+const profile = await socialProfiles.ownProfile(member.id);
+return Astro.redirect(socialPath(Astro.url, profile ? `/@${profile.handle}` : '/edit'));
+---

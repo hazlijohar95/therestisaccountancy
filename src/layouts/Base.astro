@@ -7,21 +7,24 @@ import { site } from '../data/club.ts';
 
 interface Props {
   /** The page's own name. The site name follows it in the tab. */
-  title?: string;
+  title?: string | undefined;
   description?: string;
   /** Keep private pages out of search engines. */
   noindex?: boolean;
+  /** The brand scope for the whole page. Social pages set their own name in the tab. */
+  brand?: 'club' | 'social';
 }
 
-const { title, description = site.description, noindex = false } = Astro.props;
+const { title, description = site.description, noindex = false, brand = 'club' } = Astro.props;
+const name = brand === 'social' ? `${site.name} Social` : site.name;
 ---
 
 <!doctype html>
-<html lang="en-GB" data-brand="club" data-theme="light">
+<html lang="en-GB" data-brand={brand} data-theme="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title ? `${title} · ${site.name}` : site.title}</title>
+    <title>{title ? `${title} · ${name}` : brand === 'social' ? name : site.title}</title>
     <meta name="description" content={description} />
     {noindex && <meta name="robots" content="noindex" />}
     <meta name="theme-color" content="#000000" />

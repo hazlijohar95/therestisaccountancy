@@ -11,6 +11,9 @@ export type Role = (typeof ROLES)[number];
 /** Invited: has no password yet. Active: can sign in. Suspended: kept on record, but cannot sign in or get a link. */
 export const MEMBER_STATUSES = ['invited', 'active', 'suspended'] as const;
 export type MemberStatus = (typeof MEMBER_STATUSES)[number];
+/** Where someone first joined: the paid club, or the free social site. It decides where they land and what they are told. */
+export const JOINED_VIA = ['club', 'social'] as const;
+export type JoinedVia = (typeof JOINED_VIA)[number];
 
 export interface JoinRequest {
   readonly id: number;
@@ -28,7 +31,19 @@ export interface Member {
   readonly role: Role;
   readonly status: MemberStatus;
   readonly joinedAt: string;
+  readonly joinedVia: JoinedVia;
+  /**
+   * May pay for the club. Everyone who joined through the club may; someone from the free social site may once an
+   * admin accepts a join request from them.
+   */
+  readonly clubApproved: boolean;
 }
+
+/**
+ * What accepting a join request did: a password link to send, or, for someone who already signs in on the social
+ * site, approval to pay with nothing new to set up.
+ */
+export type Invitation = { readonly kind: 'link'; readonly link: PasswordLink } | { readonly kind: 'approved'; readonly member: Member };
 
 export { LINK_DAYS, type LinkPurpose };
 
@@ -94,6 +109,8 @@ const toMember = (row: Row): Member => ({
   role: oneOf(row, 'role', ROLES),
   status: statusOf(row),
   joinedAt: text(row, 'joined_at'),
+  joinedVia: oneOf(row, 'joined_via', JOINED_VIA),
+  clubApproved: text(row, 'joined_via') === 'club' || optionalText(row, 'club_approved_at') !== null,
 });
 
 const toAccess = (row: Row): Access => {
@@ -202,9 +219,11 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
     /**
      * Accepts a pending request: the person becomes a member and gets a link to set a password. If the email already
      * belongs to a member, that member gets the link instead, and only a member who has not set a password is renamed.
+     * Someone from the social site is approved to pay, and keeps their account: with a password already set, they
+     * need no link at all.
      */
-    inviteFromRequest(requestId: number): Result<PasswordLink, InviteRefusal> {
-      return attempt<PasswordLink, InviteRefusal>(db, (refuse) => {
+    inviteFromRequest(requestId: number): Result<Invitation, InviteRefusal> {
+      return attempt<Invitation, InviteRefusal>(db, (refuse) => {
         const row = db.prepare(`SELECT * FROM join_requests WHERE id = ? AND status = 'pending'`).get(requestId);
         if (!row) return refuse('decided');
         const request = toRequest(row);
@@ -212,11 +231,15 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
           request.email,
           request.name,
         );
+        db.prepare(`UPDATE members SET club_approved_at = ? WHERE email = ? AND joined_via = 'social' AND club_approved_at IS NULL`).run(iso(now()), request.email);
         const saved = memberByEmail(request.email);
         if (!saved) throw new Error(`Member ${request.email} was not saved`);
         const member = toMember(saved);
+        if (member.status === 'suspended') return refuse('suspended');
         db.prepare(`UPDATE join_requests SET status = 'invited', decided_at = ?, member_id = ? WHERE id = ?`).run(iso(now()), member.id, request.id);
-        return issueLink(member) ?? refuse('suspended');
+        if (member.joinedVia === 'social' && member.status === 'active') return { kind: 'approved', member };
+        const link = issueLink(member) ?? refuse('suspended');
+        return { kind: 'link', link };
       });
     },
 

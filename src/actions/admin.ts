@@ -1,8 +1,18 @@
 import { ActionError, defineAction, type ActionAPIContext } from 'astro:actions';
 import { z } from 'astro/zod';
 import { ROLES, type EditRefusal, type InviteRefusal, type LinkRefusal } from '../server/club.ts';
+import { everyRate } from '../data/membership.ts';
 import { callLetters } from '../server/calls.ts';
+import { deleteMemberEvidence } from '../server/evidence.ts';
+import { clubApprovedLetter } from '../server/letters.ts';
+import { report } from '../server/report.ts';
+import { send } from '../server/mail.ts';
 import { absolute, admin, deliver, email, id, memberName, sendLater, settle, type Refusal } from './guards.ts';
+
+/** What the admin sees after accepting a request: the link that was sent, or that an existing account was approved. */
+type Invited =
+  | { readonly kind: 'link'; readonly issued: Awaited<ReturnType<typeof deliver>> }
+  | { readonly kind: 'approved'; readonly name: string; readonly email: string; readonly emailed: boolean };
 
 const memberRefusals: Record<EditRefusal, Refusal> = {
   'not-found': { code: 'NOT_FOUND', message: 'There is no such member.' },
@@ -40,7 +50,11 @@ export const adminActions = {
     input: z.object({ request: id }),
     handler: async (input, context) => {
       admin(context.locals);
-      return deliver(settle(await context.locals.club.inviteFromRequest(input.request), inviteRefusals), context);
+      const invitation = settle(await context.locals.club.inviteFromRequest(input.request), inviteRefusals);
+      if (invitation.kind === 'link') return { kind: 'link', issued: await deliver(invitation.link, context) } satisfies Invited;
+      const { name, email: address } = invitation.member;
+      const emailed = await send(clubApprovedLetter({ name, email: address, rate: everyRate, payUrl: absolute(context, '/members/pay') }));
+      return { kind: 'approved', name, email: address, emailed } satisfies Invited;
     },
   }),
 
@@ -104,6 +118,8 @@ export const adminActions = {
       const actor = admin(context.locals);
       const booked = await bookedWith(context, input.member);
       settle(await context.locals.club.removeMember(actor.id, input.member), memberRefusals);
+      /* Their claims go with them, so documents still waiting for the team would be left in R2 with nothing pointing at them. */
+      await deleteMemberEvidence(input.member).catch((error: unknown) => report('evidence', `Documents of removed member ${input.member} were not deleted`, error));
       tellCalledOff(context, booked);
       return { removed: true };
     },

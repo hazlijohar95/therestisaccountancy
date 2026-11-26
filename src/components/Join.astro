@@ -74,6 +74,10 @@ const Heading = level === 1 ? 'h1' : 'h2';
   const [nameField, emailField] = fields;
   const fallback = new Map(fields.map((f) => [f.key, f.error.textContent ?? '']));
 
+  /* A signed-in Social member sent here from the payment page arrives with their email after the #, never sent to us. */
+  const prefill = new URLSearchParams(location.hash.slice(1)).get('email');
+  if (prefill && !emailField.input.value) emailField.input.value = prefill;
+
   const show = (field: (typeof fields)[number], message: string | null) => {
     field.error.hidden = message === null;
     field.error.textContent = message ?? fallback.get(field.key) ?? '';

@@ -59,7 +59,7 @@ export const account = {
       if (!result.ok) await context.locals.limits.allow(key);
       const access = settle(result, signInRefusals);
       await startSession(context, access.key);
-      return { role: access.member.role };
+      return { role: access.member.role, clubApproved: access.member.clubApproved };
     },
   }),
 
@@ -78,7 +78,7 @@ export const account = {
       const result = await context.locals.club.setPasswordFromLink(input.token, input.password);
       if (!result) throw new ActionError({ code: 'NOT_FOUND', message: 'This link has been used or has expired. Get a new one from the sign-in page.' });
       await startSession(context, result.key);
-      return { purpose: result.purpose };
+      return { purpose: result.purpose, clubApproved: result.member.clubApproved };
     },
   }),
 

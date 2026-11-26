@@ -14,6 +14,9 @@ const me = Astro.locals.member;
 if (!me) return Astro.redirect('/sign-in');
 if (me.role === 'admin') return Astro.redirect('/members');
 
+/* Someone from the social site pays only once the club accepts a request from them. The form opens with their email in. */
+const joinFirst = me.clubApproved ? null : `/join#email=${encodeURIComponent(me.email)}`;
+
 const started = Astro.getActionResult(actions.checkout);
 if (started?.data) return Astro.redirect(started.data.url);
 
@@ -38,6 +41,20 @@ const renewsByCard = standing.cardOnFile && standing.renews;
 ---
 
 <Members title="Membership">
+  {
+    joinFirst ? (
+      <>
+      <Masthead label="Membership" title="Ask to join first.">
+        <p>
+          The club takes members by request. Your Social account stays free. To join the club, send a request: we read
+          each one and reply by email, and once we accept it you pay here with the same account.
+        </p>
+        <p><a class="btn" href={joinFirst}>Ask to join</a></p>
+      </Masthead>
+      {started?.error && <Notice tone="error">{started.error.message}</Notice>}
+      </>
+    ) : (
+      <>
   <Masthead label="Membership" title={lapsed ? 'Your membership needs a payment.' : current ? 'Pay ahead.' : `Welcome, ${me.name}. One step left.`}>
     <p>
       {
@@ -76,6 +93,9 @@ const renewsByCard = standing.cardOnFile && standing.renews;
       Stop any time: you keep access to the end of the time you paid for.
     </p>
   </section>
+      </>
+    )
+  }
 </Members>
 
 <style>

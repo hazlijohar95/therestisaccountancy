@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createClub } from './club.ts';
 import { createCommunity } from './community.ts';
-import { migrate, SCHEMA_VERSION } from './db.ts';
+import { migrate } from './db.ts';
 import { createBilling } from './billing.ts';
 import { createMailings, digestWeek, onboardingStep, REPLY_NOTICE_GAP_MS } from './mailings.ts';
 import { openDatabase } from './node-db.ts';
@@ -21,8 +21,8 @@ const world = () => {
     club.recordJoinRequest({ name, email, stage: 'I run a practice' });
     const request = club.joinRequests({ decided: false }).find((r) => r.email === email);
     const invited = club.inviteFromRequest(request?.id ?? 0);
-    assert.ok(invited.ok);
-    const accepted = await club.setPasswordFromLink(invited.value.token, PASSWORD);
+    assert.ok(invited.ok && invited.value.kind === 'link');
+    const accepted = await club.setPasswordFromLink(invited.value.link.token, PASSWORD);
     assert.ok(accepted);
     return accepted.member;
   };
@@ -176,9 +176,15 @@ test('the migration leaves out members who had already paid, but not members sti
   const later = await w.join('later@firm.com.my', 'Later');
   billing.opened('p-paid', paid.id, 'checkout', 'month');
   assert.ok(billing.paid('p-paid', false));
-  /* Back to the schema before the getting-started emails, then upgrade again. */
+  /* Back to the schema before the getting-started emails (migration 16), undoing the social ones after it, then upgrade again. */
+  w.db.exec('DROP TABLE notifications; DROP TABLE saves; DROP TABLE shelf_items; DROP TABLE roles; DROP TABLE casebook;');
+  w.db.exec('DROP TABLE ratings; DROP TABLE answers; DROP TABLE problems;');
+  w.db.exec('DROP TABLE reports; DROP TABLE useful; DROP TABLE floor_replies; DROP TABLE floor_posts;');
+  w.db.exec('DROP TABLE nominators; DROP TABLE nominations;');
+  w.db.exec('DROP TABLE vouches; DROP TABLE email_checks; DROP TABLE claims; DROP TABLE social_accounts; ALTER TABLE members DROP COLUMN club_approved_at;');
+  w.db.exec('DROP TABLE follows; DROP TABLE profiles; ALTER TABLE members DROP COLUMN joined_via;');
   w.db.exec('ALTER TABLE members DROP COLUMN email_onboarding; ALTER TABLE members DROP COLUMN onboarding_sent; ALTER TABLE members DROP COLUMN onboarding_last_at;');
-  w.db.prepare('DELETE FROM schema_version WHERE version = ?').run(SCHEMA_VERSION);
+  w.db.prepare('DELETE FROM schema_version WHERE version >= 16').run();
   migrate(w.db);
   const sent = (id: number) => w.db.prepare('SELECT onboarding_sent AS n FROM members WHERE id = ?').get(id)?.['n'];
   assert.equal(sent(paid.id), 3, 'a member who paid before the emails existed is not told they joined recently');
