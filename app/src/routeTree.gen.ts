@@ -9,14 +9,35 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as DevSeedRouteImport } from './routes/dev-seed'
+import { Route as DevSeedAdminRouteImport } from './routes/dev-seed-admin'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SocialRouteRouteImport } from './routes/social/route'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminCallsRouteImport } from './routes/admin/calls'
+import { Route as AdminFeesRouteImport } from './routes/admin/fees'
+import { Route as AdminFeesDotcsvRouteImport } from './routes/admin/fees[.]csv'
+import { Route as AdminListingsRouteImport } from './routes/admin/listings'
+import { Route as AdminMembersDotcsvRouteImport } from './routes/admin/members[.]csv'
+import { Route as AdminPlansRouteImport } from './routes/admin/plans'
+import { Route as AdminSessionsRouteImport } from './routes/admin/sessions'
 import { Route as SocialTicksRouteImport } from './routes/social/ticks'
+import { Route as AdminMembersIdRouteImport } from './routes/admin/members/$id'
 
+const AdminRouteRoute = AdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DevSeedRoute = DevSeedRouteImport.update({
   id: '/dev-seed',
   path: '/dev-seed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevSeedAdminRoute = DevSeedAdminRouteImport.update({
+  id: '/dev-seed-admin',
+  path: '/dev-seed-admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInRoute = SignInRouteImport.update({
@@ -29,52 +50,190 @@ const SocialRouteRoute = SocialRouteRouteImport.update({
   path: '/social',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCallsRoute = AdminCallsRouteImport.update({
+  id: '/calls',
+  path: '/calls',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminFeesRoute = AdminFeesRouteImport.update({
+  id: '/fees',
+  path: '/fees',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminFeesDotcsvRoute = AdminFeesDotcsvRouteImport.update({
+  id: '/fees.csv',
+  path: '/fees.csv',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminListingsRoute = AdminListingsRouteImport.update({
+  id: '/listings',
+  path: '/listings',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminMembersDotcsvRoute = AdminMembersDotcsvRouteImport.update({
+  id: '/members.csv',
+  path: '/members.csv',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminPlansRoute = AdminPlansRouteImport.update({
+  id: '/plans',
+  path: '/plans',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminSessionsRoute = AdminSessionsRouteImport.update({
+  id: '/sessions',
+  path: '/sessions',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const SocialTicksRoute = SocialTicksRouteImport.update({
   id: '/ticks',
   path: '/ticks',
   getParentRoute: () => SocialRouteRoute,
 } as any)
+const AdminMembersIdRoute = AdminMembersIdRouteImport.update({
+  id: '/members/$id',
+  path: '/members/$id',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
+  '/admin': typeof AdminRouteRouteWithChildren
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
+  '/dev-seed-admin': typeof DevSeedAdminRoute
   '/sign-in': typeof SignInRoute
+  '/admin/calls': typeof AdminCallsRoute
+  '/admin/fees': typeof AdminFeesRoute
+  '/admin/fees.csv': typeof AdminFeesDotcsvRoute
+  '/admin/listings': typeof AdminListingsRoute
+  '/admin/members.csv': typeof AdminMembersDotcsvRoute
+  '/admin/plans': typeof AdminPlansRoute
+  '/admin/sessions': typeof AdminSessionsRoute
   '/social/ticks': typeof SocialTicksRoute
+  '/admin/': typeof AdminIndexRoute
+  '/admin/members/$id': typeof AdminMembersIdRoute
 }
 export interface FileRoutesByTo {
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
+  '/dev-seed-admin': typeof DevSeedAdminRoute
   '/sign-in': typeof SignInRoute
+  '/admin/calls': typeof AdminCallsRoute
+  '/admin/fees': typeof AdminFeesRoute
+  '/admin/fees.csv': typeof AdminFeesDotcsvRoute
+  '/admin/listings': typeof AdminListingsRoute
+  '/admin/members.csv': typeof AdminMembersDotcsvRoute
+  '/admin/plans': typeof AdminPlansRoute
+  '/admin/sessions': typeof AdminSessionsRoute
   '/social/ticks': typeof SocialTicksRoute
+  '/admin': typeof AdminIndexRoute
+  '/admin/members/$id': typeof AdminMembersIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/admin': typeof AdminRouteRouteWithChildren
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
+  '/dev-seed-admin': typeof DevSeedAdminRoute
   '/sign-in': typeof SignInRoute
+  '/admin/calls': typeof AdminCallsRoute
+  '/admin/fees': typeof AdminFeesRoute
+  '/admin/fees.csv': typeof AdminFeesDotcsvRoute
+  '/admin/listings': typeof AdminListingsRoute
+  '/admin/members.csv': typeof AdminMembersDotcsvRoute
+  '/admin/plans': typeof AdminPlansRoute
+  '/admin/sessions': typeof AdminSessionsRoute
   '/social/ticks': typeof SocialTicksRoute
+  '/admin/': typeof AdminIndexRoute
+  '/admin/members/$id': typeof AdminMembersIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/social' | '/dev-seed' | '/sign-in' | '/social/ticks'
+  fullPaths:
+    | '/admin'
+    | '/social'
+    | '/dev-seed'
+    | '/dev-seed-admin'
+    | '/sign-in'
+    | '/admin/calls'
+    | '/admin/fees'
+    | '/admin/fees.csv'
+    | '/admin/listings'
+    | '/admin/members.csv'
+    | '/admin/plans'
+    | '/admin/sessions'
+    | '/social/ticks'
+    | '/admin/'
+    | '/admin/members/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/social' | '/dev-seed' | '/sign-in' | '/social/ticks'
-  id: '__root__' | '/social' | '/dev-seed' | '/sign-in' | '/social/ticks'
+  to:
+    | '/social'
+    | '/dev-seed'
+    | '/dev-seed-admin'
+    | '/sign-in'
+    | '/admin/calls'
+    | '/admin/fees'
+    | '/admin/fees.csv'
+    | '/admin/listings'
+    | '/admin/members.csv'
+    | '/admin/plans'
+    | '/admin/sessions'
+    | '/social/ticks'
+    | '/admin'
+    | '/admin/members/$id'
+  id:
+    | '__root__'
+    | '/admin'
+    | '/social'
+    | '/dev-seed'
+    | '/dev-seed-admin'
+    | '/sign-in'
+    | '/admin/calls'
+    | '/admin/fees'
+    | '/admin/fees.csv'
+    | '/admin/listings'
+    | '/admin/members.csv'
+    | '/admin/plans'
+    | '/admin/sessions'
+    | '/social/ticks'
+    | '/admin/'
+    | '/admin/members/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
   SocialRouteRoute: typeof SocialRouteRouteWithChildren
   DevSeedRoute: typeof DevSeedRoute
+  DevSeedAdminRoute: typeof DevSeedAdminRoute
   SignInRoute: typeof SignInRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dev-seed': {
       id: '/dev-seed'
       path: '/dev-seed'
       fullPath: '/dev-seed'
       preLoaderRoute: typeof DevSeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev-seed-admin': {
+      id: '/dev-seed-admin'
+      path: '/dev-seed-admin'
+      fullPath: '/dev-seed-admin'
+      preLoaderRoute: typeof DevSeedAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sign-in': {
@@ -91,6 +250,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SocialRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/calls': {
+      id: '/admin/calls'
+      path: '/calls'
+      fullPath: '/admin/calls'
+      preLoaderRoute: typeof AdminCallsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/fees': {
+      id: '/admin/fees'
+      path: '/fees'
+      fullPath: '/admin/fees'
+      preLoaderRoute: typeof AdminFeesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/fees.csv': {
+      id: '/admin/fees.csv'
+      path: '/fees.csv'
+      fullPath: '/admin/fees.csv'
+      preLoaderRoute: typeof AdminFeesDotcsvRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/listings': {
+      id: '/admin/listings'
+      path: '/listings'
+      fullPath: '/admin/listings'
+      preLoaderRoute: typeof AdminListingsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/members.csv': {
+      id: '/admin/members.csv'
+      path: '/members.csv'
+      fullPath: '/admin/members.csv'
+      preLoaderRoute: typeof AdminMembersDotcsvRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/plans': {
+      id: '/admin/plans'
+      path: '/plans'
+      fullPath: '/admin/plans'
+      preLoaderRoute: typeof AdminPlansRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/sessions': {
+      id: '/admin/sessions'
+      path: '/sessions'
+      fullPath: '/admin/sessions'
+      preLoaderRoute: typeof AdminSessionsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/social/ticks': {
       id: '/social/ticks'
       path: '/ticks'
@@ -98,8 +313,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SocialTicksRouteImport
       parentRoute: typeof SocialRouteRoute
     }
+    '/admin/members/$id': {
+      id: '/admin/members/$id'
+      path: '/members/$id'
+      fullPath: '/admin/members/$id'
+      preLoaderRoute: typeof AdminMembersIdRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
   }
 }
+
+interface AdminRouteRouteChildren {
+  AdminCallsRoute: typeof AdminCallsRoute
+  AdminFeesRoute: typeof AdminFeesRoute
+  AdminFeesDotcsvRoute: typeof AdminFeesDotcsvRoute
+  AdminListingsRoute: typeof AdminListingsRoute
+  AdminMembersDotcsvRoute: typeof AdminMembersDotcsvRoute
+  AdminPlansRoute: typeof AdminPlansRoute
+  AdminSessionsRoute: typeof AdminSessionsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+  AdminMembersIdRoute: typeof AdminMembersIdRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminCallsRoute: AdminCallsRoute,
+  AdminFeesRoute: AdminFeesRoute,
+  AdminFeesDotcsvRoute: AdminFeesDotcsvRoute,
+  AdminListingsRoute: AdminListingsRoute,
+  AdminMembersDotcsvRoute: AdminMembersDotcsvRoute,
+  AdminPlansRoute: AdminPlansRoute,
+  AdminSessionsRoute: AdminSessionsRoute,
+  AdminIndexRoute: AdminIndexRoute,
+  AdminMembersIdRoute: AdminMembersIdRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
 
 interface SocialRouteRouteChildren {
   SocialTicksRoute: typeof SocialTicksRoute
@@ -114,8 +364,10 @@ const SocialRouteRouteWithChildren = SocialRouteRoute._addFileChildren(
 )
 
 const rootRouteChildren: RootRouteChildren = {
+  AdminRouteRoute: AdminRouteRouteWithChildren,
   SocialRouteRoute: SocialRouteRouteWithChildren,
   DevSeedRoute: DevSeedRoute,
+  DevSeedAdminRoute: DevSeedAdminRoute,
   SignInRoute: SignInRoute,
 }
 export const routeTree = rootRouteImport
