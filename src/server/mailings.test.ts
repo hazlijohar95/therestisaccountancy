@@ -21,8 +21,8 @@ const world = () => {
     club.recordJoinRequest({ name, email, stage: 'I run a practice' });
     const request = club.joinRequests({ decided: false }).find((r) => r.email === email);
     const invited = club.inviteFromRequest(request?.id ?? 0);
-    assert.ok(invited.ok);
-    const accepted = await club.setPasswordFromLink(invited.value.token, PASSWORD);
+    assert.ok(invited.ok && invited.value.kind === 'link');
+    const accepted = await club.setPasswordFromLink(invited.value.link.token, PASSWORD);
     assert.ok(accepted);
     return accepted.member;
   };
@@ -176,7 +176,8 @@ test('the migration leaves out members who had already paid, but not members sti
   const later = await w.join('later@firm.com.my', 'Later');
   billing.opened('p-paid', paid.id, 'checkout', 'month');
   assert.ok(billing.paid('p-paid', false));
-  /* Back to the schema before the getting-started emails (migration 16), undoing the social one after it, then upgrade again. */
+  /* Back to the schema before the getting-started emails (migration 16), undoing the social ones after it, then upgrade again. */
+  w.db.exec('DROP TABLE vouches; DROP TABLE email_checks; DROP TABLE claims; DROP TABLE social_accounts; ALTER TABLE members DROP COLUMN club_approved_at;');
   w.db.exec('DROP TABLE follows; DROP TABLE profiles; ALTER TABLE members DROP COLUMN joined_via;');
   w.db.exec('ALTER TABLE members DROP COLUMN email_onboarding; ALTER TABLE members DROP COLUMN onboarding_sent; ALTER TABLE members DROP COLUMN onboarding_last_at;');
   w.db.prepare('DELETE FROM schema_version WHERE version >= 16').run();

@@ -49,6 +49,12 @@ export function addressed(url: URL): URL {
   return seen;
 }
 
+/** A page under /social, where the Worker has already moved a request on the social host. */
+export const isSocialPage = (pathname: string) => pathname === '/social' || pathname.startsWith('/social/');
+
+/** A full address for a social page, for links that leave in an email. siteUrl is the club's configured address. */
+export const socialUrl = (siteUrl: string, path: string) => new URL(socialPath(new URL(siteUrl), path), siteUrl).href;
+
 /** Which social page a page under /social is, as socialPath takes it: /social/edit is /edit. */
 export const socialPathOf = (url: URL) => url.pathname.replace(/^\/social(?=\/|$)/, '') || '/';
 

@@ -2,6 +2,8 @@ import { terms, type Term } from '../data/membership.ts';
 import { site } from '../data/site.ts';
 import type { createBilling, Renewal } from './billing.ts';
 import { ChipRefusal, isPaid, type Chip } from './chip.ts';
+import type { Member } from './club.ts';
+import { fail, ok, type Result } from './result.ts';
 
 /*
  * How money moves between CHIP and the billing store, with the gateway passed in so the flows run against a fake in
@@ -16,8 +18,18 @@ export type Gateway = Pick<Chip, 'purchase' | 'savableMethods' | 'charge' | 'get
 /** What CHIP shows on its payment page and its receipt. */
 const product = (term: Term) => `${site.name} membership, one ${term}`;
 
+/** Why a checkout was not opened: someone from the social site pays only once a join request is accepted. */
+export type CheckoutRefusal = 'not-approved';
+
 /** Opens CHIP's payment page for a term. Returns where to send the member. */
-export async function checkout(gateway: Gateway, billing: Ledger, member: { id: number; email: string; name: string }, term: Term, siteUrl: string): Promise<string> {
+export async function checkout(
+  gateway: Gateway,
+  billing: Ledger,
+  member: Pick<Member, 'id' | 'email' | 'name' | 'clubApproved'>,
+  term: Term,
+  siteUrl: string,
+): Promise<Result<string, CheckoutRefusal>> {
+  if (!member.clubApproved) return fail('not-approved');
   const url = (path: string) => new URL(path, siteUrl).href;
   const amount = terms[term].sen;
   /* Cards, once CHIP enables them on the brand, are saved for automatic renewal. Until then members pay each term. */
@@ -34,7 +46,7 @@ export async function checkout(gateway: Gateway, billing: Ledger, member: { id: 
   });
   if (!purchase.checkout_url) throw new Error(`CHIP gave no payment page for purchase ${purchase.id}`);
   await billing.opened(purchase.id, member.id, 'checkout', term);
-  return purchase.checkout_url;
+  return ok(purchase.checkout_url);
 }
 
 /** Asks CHIP for a purchase's state and records it if paid. Callbacks and returns from the payment page both land here. */

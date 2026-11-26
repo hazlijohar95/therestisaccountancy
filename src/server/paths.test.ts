@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { addressed, clubPath, paidAccess, requiredRole, safeNext, signInPath, socialPath, socialPathOf, socialRoute } from './paths.ts';
+import { addressed, clubPath, isSocialPage, paidAccess, requiredRole, safeNext, signInPath, socialPath, socialPathOf, socialRoute, socialUrl } from './paths.ts';
 
 test('member and admin areas are guarded, and nothing else is', () => {
   assert.equal(requiredRole('/members'), 'member');
@@ -74,4 +74,12 @@ test('members-only reading needs a paid or grace membership; admins never pay', 
   assert.equal(paidAccess('member', 'grace'), true);
   assert.equal(paidAccess('member', 'unpaid'), false);
   assert.equal(paidAccess('admin', 'unpaid'), true);
+});
+
+test('emailed social links go to the social host from the configured site, and stay local in development', () => {
+  assert.equal(socialUrl('https://therestisaccountancy.com', '/verify/email?token=abc'), 'https://social.therestisaccountancy.com/verify/email?token=abc');
+  assert.equal(socialUrl('http://localhost:4174/', '/@priya'), 'http://localhost:4174/social/@priya');
+  assert.equal(isSocialPage('/social/review'), true);
+  assert.equal(isSocialPage('/social'), true);
+  assert.equal(isSocialPage('/socially'), false);
 });

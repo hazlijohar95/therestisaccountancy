@@ -14,7 +14,9 @@ The visual and interaction spec is the static design in `../social/` at the work
 - **Evidence files.** Uploaded certificates and licences go to an R2 bucket bound as `EVIDENCE`, and are deleted as soon as the claim is decided. Only the decision is kept.
 - **Seal.** A member shows the seal when one social account is proven and at least one other claim is ticked.
 - **Track.** Worked out from claims: `qualified` (a ticked body claim at member or fellow level), `training` (a ticked student, affiliate or provisional claim), `field` (anything else), `creator` (chosen by the member in their profile).
-- **Lapsing.** A claim with an expiry date lapses at the end of that month. The hourly job marks lapses and notifies 60 days and 14 days before.
+- **Lapsing.** A claim with an expiry date lapses at the end of that month, in Malaysian time. The hourly job marks lapses and emails 60 days and 14 days before, once each. Body ticks run a year from the tick; licences run to the month on them. Renewing is a new claim; its tick replaces the older one.
+- **Claims are never edited.** Changing one means removing it and sending it again, under a new id that is never reused, so a reviewer's decision always lands on what they read.
+- **Work email needs the member.** Opening the emailed link confirms nothing (mail scanners open links). The member who asked confirms with a button, signed in.
 - **Notifications** are rows in a table, written when the event happens.
 - **Drafts** stay in the browser (`localStorage`), never on the server.
 - **Peer points** for The List: answers rated sound by ticked members plus saves of shelf items, in the current quarter.
@@ -29,16 +31,18 @@ The visual and interaction spec is the static design in `../social/` at the work
 ## Data (new migrations, appended after whatever is on main)
 
 ```
-members            + joined_via TEXT NOT NULL DEFAULT 'club'
+members            + joined_via TEXT NOT NULL DEFAULT 'club', + club_approved_at TEXT (a social member may pay for
+                   the club once a join request from them is accepted; club members always may)
 profiles           member_id PK, handle UNIQUE (lowercase, 3-30, [a-z0-9_]), headline, sector, city,
                    jurisdictions JSON, topics JSON, creator INTEGER, listed INTEGER, created_at, updated_at
-social_accounts    id, member_id, platform, handle, code, state pending|proven|rejected, note,
-                   created_at, decided_at, decided_by
-claims             id, member_id, kind body|licence|employer|academic|experience, body_id NULL,
-                   label, status_level NULL (Student|Affiliate|Member|Fellow|…), number NULL,
-                   source register|document|email|vouch|self, state pending|ticked|rejected|lapsed,
-                   evidence_key NULL, until NULL ('YYYY-MM'), note, created_at, decided_at, decided_by
-email_checks       token_hash PK, claim_id, address, expires_at, used_at
+social_accounts    id AUTOINCREMENT, member_id, platform, handle, code, state pending|proven|rejected, note,
+                   created_at, decided_at, decided_by  (one live account per platform; one owner per proven account)
+claims             id AUTOINCREMENT, member_id, kind body|licence|employer|academic|experience, body_id NULL,
+                   label, status_level NULL (the body's exact status), reference NULL (member or licence number,
+                   or the staff page / ORCID URL; team-only), source register|document|email|vouch|self,
+                   state pending|ticked|rejected|lapsed, evidence_key NULL, until NULL ('YYYY-MM'),
+                   reminded 0|1|2, note (the team's reason), created_at, decided_at, decided_by
+email_checks       token_hash PK, claim_id, address, created_at, expires_at, used_at
 vouches            claim_id, voucher_id, created_at  (PK claim_id+voucher_id)
 nominations        id, platform, handle, topics JSON, why_url, nominated_by, created_at,
                    state pending|invited|claimed|removed|rejected, invite_token_hash NULL

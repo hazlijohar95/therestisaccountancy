@@ -1,0 +1,182 @@
+---
+import { actions, isInputError } from 'astro:actions';
+import Tick from '../../components/social/Tick.astro';
+import { bodyById, CLAIM_LIMITS } from '../../data/social.ts';
+import Social from '../../layouts/Social.astro';
+import { postedFields } from '../../lib/form.ts';
+import { formAction, formatDay, formatMonth } from '../../lib/format.ts';
+import { addressed, signInPath, socialPath } from '../../server/paths.ts';
+import type { Account, Claim, Queued } from '../../server/social-claims.ts';
+
+export const prerender = false;
+
+const to = (path: string) => socialPath(Astro.url, path);
+const { member, socialClaims } = Astro.locals;
+if (!member) return Astro.redirect(signInPath(Astro.url, '/review'));
+const team = member.role === 'admin';
+if (!team) Astro.response.status = 404;
+
+const TABS = [
+  { id: 'accounts', label: 'Accounts' },
+  { id: 'credentials', label: 'Credentials' },
+  { id: 'documents', label: 'Documents' },
+] as const;
+type Tab = (typeof TABS)[number]['id'];
+const tab: Tab = TABS.find((t) => t.id === Astro.url.searchParams.get('tab'))?.id ?? 'accounts';
+
+const results = {
+  approveAccount: Astro.getActionResult(actions.approveAccount),
+  rejectAccount: Astro.getActionResult(actions.rejectAccount),
+  approveClaim: Astro.getActionResult(actions.approveClaim),
+  rejectClaim: Astro.getActionResult(actions.rejectClaim),
+};
+const decided = Object.values(results).find((r) => r?.data)?.data;
+if (decided) return Astro.redirect(to(`/review?tab=${tab}&done=${decided.decided}`));
+const done = Astro.url.searchParams.get('done');
+
+const failure = Object.values(results).map((r) => (r?.error && !isInputError(r.error) ? r.error.message : null)).find(Boolean) ?? null;
+const rejected = results.rejectAccount ?? results.rejectClaim;
+const reasonError = rejected?.error && isInputError(rejected.error) ? (rejected.error.fields.reason?.[0] ?? null) : null;
+const posted = await postedFields(Astro.request);
+const retrying = reasonError ? Number(posted(results.rejectAccount ? 'account' : 'claim')) : null;
+
+const queue = team ? await socialClaims.queue() : { accounts: [], credentials: [], documents: [] };
+const counts: Record<Tab, number> = { accounts: queue.accounts.length, credentials: queue.credentials.length, documents: queue.documents.length };
+const items: readonly (Queued<Account> | Queued<Claim>)[] = queue[tab];
+const isAccount = (entry: Queued<Account> | Queued<Claim>): entry is Queued<Account> => 'code' in entry.item;
+/* Forms post back to this tab, without the note from an earlier decision. */
+const here = addressed(Astro.url);
+here.search = new URLSearchParams({ tab }).toString();
+const action = (which: { toString(): string }) => formAction(here, which);
+const guidance: Record<Tab, string> = {
+  accounts: 'Open the profile and look for the code in its bio. Approve only if you see it there, on that exact handle.',
+  credentials: 'Find the member on the body’s public register, or open the staff page. The name and number must match.',
+  documents: 'Download the document and read it. It is deleted once you decide, so decide only when you are sure.',
+};
+---
+
+<Social title="Review queue" noindex>
+  {
+    !team ? (
+      <div class="page">
+        <div class="card empty">
+          <h1 class="head">Not found.</h1>
+          <a class="btn sm" href={to('/')}>Back to the Floor</a>
+        </div>
+      </div>
+    ) : (
+      <div class="page narrow">
+        <p class="note tip plain">
+          <svg aria-hidden="true">
+            <use href="#i-shield" />
+          </svg>
+          <span>Team view. Members never see this page.</span>
+        </p>
+        <div class="page-head">
+          <div>
+            <p class="kicker">Review queue</p>
+            <h1 class="title">Check before it goes public.</h1>
+            <p class="lead">{guidance[tab]}</p>
+          </div>
+        </div>
+        <nav class="chips" aria-label="Queue">
+          {TABS.map((t) => (
+            <a class="chip" href={to(`/review?tab=${t.id}`)} aria-current={t.id === tab ? 'page' : undefined}>
+              {t.label} · {counts[t.id]}
+            </a>
+          ))}
+        </nav>
+        {done === 'approved' && <p class="note" role="status">Approved. The member has been emailed.</p>}
+        {done === 'rejected' && <p class="note" role="status">Rejected. The member has your reason by email.</p>}
+        {failure && <p class="error" role="alert">{failure}</p>}
+        <ul class="queue">
+          {items.length === 0 && (
+            <li class="empty card">
+              <p>Queue clear.</p>
+            </li>
+          )}
+          {items.map((entry) => {
+            const { member: who } = entry;
+            const field = isAccount(entry) ? 'account' : 'claim';
+            const id = entry.item.id;
+            const what = isAccount(entry) ? `${entry.item.platform} · @${entry.item.handle}` : entry.item.label;
+            const body = !isAccount(entry) && entry.item.bodyId ? bodyById(entry.item.bodyId) : undefined;
+            const showError = retrying === id && reasonError;
+            return (
+              <li class="queue-item card">
+                <div class="facts">
+                  <p>
+                    {isAccount(entry) ? <Tick source="account" state="pending" /> : <Tick source={entry.item.source} state="pending" />} <b>{what}</b>
+                  </p>
+                  <p>
+                    {who.handle ? <a href={to(`/@${who.handle}`)}>{who.name} (@{who.handle})</a> : who.name} · {who.email}
+                  </p>
+                  {isAccount(entry) ? (
+                    <>
+                      <p>
+                        Code to look for: <code>{entry.item.code}</code>
+                      </p>
+                      <p>
+                        <a href={entry.item.url} target="_blank" rel="noopener noreferrer">
+                          Open {entry.item.platform} profile<span class="sr-only"> (new tab)</span>
+                        </a>
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      {entry.item.status && <p>Exact status: {entry.item.status}. Show it as written, never rounded up.</p>}
+                      {entry.item.kind === 'academic' && entry.item.reference ? (
+                        <p>
+                          <a href={entry.item.reference} target="_blank" rel="noopener noreferrer">
+                            Open the page they gave<span class="sr-only"> (new tab)</span>
+                          </a>{' '}
+                          · {entry.item.reference}
+                        </p>
+                      ) : (
+                        entry.item.reference && <p>Number they gave: {entry.item.reference}</p>
+                      )}
+                      {entry.item.until && <p>Runs to: {formatMonth(entry.item.until)}</p>}
+                      {body?.site && (
+                        <p>
+                          <a href={body.site} target="_blank" rel="noopener noreferrer">
+                            Open the {body.name} site<span class="sr-only"> (new tab)</span>
+                          </a>
+                        </p>
+                      )}
+                      {entry.item.hasEvidence && (
+                        <p>
+                          <a href={to(`/review/evidence/${id}`)}>Download the document</a>
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+                <span class="ago">{formatDay(entry.item.createdAt)}</span>
+                <div class="actions">
+                  <form method="POST" action={action(isAccount(entry) ? actions.approveAccount : actions.approveClaim)}>
+                    <input type="hidden" name={field} value={id} />
+                    <button class="btn sm" type="submit">
+                      {isAccount(entry) ? 'Proven' : 'Approve tick'}
+                      <span class="sr-only">: {what}</span>
+                    </button>
+                  </form>
+                  <form class="reject" method="POST" action={action(isAccount(entry) ? actions.rejectAccount : actions.rejectClaim)} novalidate>
+                    <input type="hidden" name={field} value={id} />
+                    <label class="label-text" for={`reason-${field}-${id}`}>
+                      Reason, emailed to {who.name}
+                    </label>
+                    <textarea class="input" id={`reason-${field}-${id}`} name="reason" rows="2" maxlength={CLAIM_LIMITS.reason} placeholder={isAccount(entry) ? 'The code was not in the bio.' : 'We could not find you on the register.'} aria-invalid={showError ? 'true' : undefined} aria-describedby={showError ? `reason-${field}-${id}-error` : undefined} autofocus={showError ? true : undefined}>{showError ? posted('reason') : ''}</textarea>
+                    {showError && <span class="error" id={`reason-${field}-${id}-error`}>{reasonError}</span>}
+                    <button class="btn sm ghost" type="submit">
+                      Reject<span class="sr-only">: {what}</span>
+                    </button>
+                  </form>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    )
+  }
+</Social>

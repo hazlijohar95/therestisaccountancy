@@ -2,16 +2,20 @@
 import { actions } from 'astro:actions';
 import Avatar from '../../components/social/Avatar.astro';
 import Flair from '../../components/social/Flair.astro';
+import Tick from '../../components/social/Tick.astro';
+import { TICK_SOURCES, VOUCHES_TO_TICK, type TickSource } from '../../data/social.ts';
 import Social from '../../layouts/Social.astro';
 import { formAction } from '../../lib/format.ts';
+import { claimWhen, renewsIn, tickState } from '../../lib/ticks.ts';
 import { addressed, signInPath, socialPath, socialPathOf } from '../../server/paths.ts';
 
 export const prerender = false;
 
 const handle = Astro.params.handle ?? '';
-const { member, socialProfiles } = Astro.locals;
+const { member, socialProfiles, socialClaims } = Astro.locals;
 const profile = await socialProfiles.profile(handle);
 const followed = Astro.getActionResult(actions.follow) ?? Astro.getActionResult(actions.unfollow);
+const vouched = Astro.getActionResult(actions.vouch);
 const to = (path: string) => socialPath(Astro.url, path);
 
 if (profile && profile.handle !== handle) return Astro.redirect(to(`/@${profile.handle}`));
@@ -20,7 +24,12 @@ if (!profile) Astro.response.status = 404;
 const own = member !== null && profile?.memberId === member.id;
 const following = member && profile && !own ? await socialProfiles.isFollowing(member.id, profile.memberId) : false;
 const counts = profile ? await socialProfiles.followCounts(profile.memberId) : null;
-const action = (which: typeof actions.follow) => formAction(addressed(Astro.url), which);
+const ledger = profile ? await socialClaims.ledger(profile.memberId, member?.id ?? null) : { claims: [], accounts: [] };
+/* Only members with the seal vouch, and never for themselves. Others see the count. */
+const canVouch = !own && (Astro.locals.profile?.sealed ?? false);
+const sources = [...new Set<TickSource>([...(ledger.accounts.length ? ['account' as const] : []), ...ledger.claims.map((c) => c.source)])];
+const now = new Date();
+const action = (which: { toString(): string }) => formAction(addressed(Astro.url), which);
 const followError = followed?.error?.message ?? null;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 ---
@@ -88,15 +97,95 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
               <h2 class="head" id="claims-title">Ticked claims</h2>
               <span class="small"><a href={to('/ticks')}>What a tick means</a></span>
             </header>
+            {vouched?.error && <p class="error" role="alert">{vouched.error.message}</p>}
+            {vouched?.data && <p class="sr-only" role="status">{vouched.data.ticked ? 'Vouched. That was the third: it is ticked.' : 'Vouched.'}</p>}
             <div class="claims-wrap">
-              <div class="empty">
-                <p>{own ? 'No claims yet. Ticks for accounts and credentials open soon.' : 'No claims yet.'}</p>
-              </div>
+              {ledger.claims.length + ledger.accounts.length === 0 ? (
+                <div class="empty">
+                  <p>No claims yet.</p>
+                  {own && <a class="btn sm" href={to('/verify')}>Get ticked</a>}
+                </div>
+              ) : (
+                <>
+                  <table class="claims">
+                    <caption class="sr-only">Claims about {profile.name}, and how each was checked</caption>
+                    <tbody>
+                      {ledger.accounts.map((a) => (
+                        <tr data-state="ticked">
+                          <td><Tick source="account" state="ticked" /></td>
+                          <td class="what">{a.platform} · @{a.handle}</td>
+                          <td class="src">{TICK_SOURCES.account.name}</td>
+                          <td class="when">Proven</td>
+                        </tr>
+                      ))}
+                      {ledger.claims.map((c) => {
+                        const due = renewsIn(c, now);
+                        const vouchable = canVouch && c.kind === 'experience' && !c.vouchedByViewer;
+                        return (
+                          <tr data-state={c.review.state}>
+                            <td><Tick source={c.source} state={tickState(c)} vouches={c.vouches} /></td>
+                            <td class="what">{c.label}</td>
+                            <td class="src">
+                              {TICK_SOURCES[c.source].name}
+                              {c.kind === 'experience' && c.vouches > 0 && ` · ${c.vouches}`}
+                            </td>
+                            <td class="when">
+                              {c.kind === 'experience' && c.review.state === 'ticked' ? `Vouched by ${c.vouches}` : claimWhen(c)}
+                              {due !== null && (
+                                <>
+                                  <br />
+                                  <span class="due-chip">Renews in {due} {due === 1 ? 'day' : 'days'}</span>
+                                </>
+                              )}
+                              {vouchable && (
+                                <form method="POST" action={action(actions.vouch)}>
+                                  <input type="hidden" name="claim" value={c.id} />
+                                  <button class="btn sm ghost" type="submit">
+                                    Vouch<span class="sr-only"> for {c.label}</span>
+                                  </button>
+                                </form>
+                              )}
+                              {canVouch && c.kind === 'experience' && c.vouchedByViewer && (
+                                <>
+                                  <br />
+                                  You vouched
+                                </>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <div class="claims-foot">
+                    {sources.map((source) => (
+                      <span>
+                        <Tick source={source} state={source === 'self' ? 'self' : 'ticked'} />
+                        {TICK_SOURCES[source].name}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
+            {own && <p class="small">Self-declared claims are ticked once {VOUCHES_TO_TICK} members with the seal vouch for them. <a href={to('/verify')}>Add or renew claims</a>.</p>}
           </section>
         </div>
 
         <aside class="side" aria-label="About ticks">
+          <div class="card">
+            <p class="kicker">Find them on</p>
+            <ul class="links">
+              {ledger.accounts.length === 0 && <li>No accounts proven yet.</li>}
+              {ledger.accounts.map((a) => (
+                <li>
+                  <Tick source="account" state="ticked" />
+                  <a href={a.url} rel="noopener noreferrer me">{a.platform} · @{a.handle}</a>
+                  <span class="pixel">proven</span>
+                </li>
+              ))}
+            </ul>
+          </div>
           <div class="card disclaim">
             <p class="kicker">Read this</p>
             <p>Ticks confirm credentials. They never vouch for advice.</p>

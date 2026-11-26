@@ -16,6 +16,11 @@ export default defineConfig({
       ASSETS: bindings.assets(),
       EMAIL: bindings.sendEmail({ allowedSenderAddresses: [sender] }),
       MAIL_FROM: bindings.text(sender),
+      /**
+       * Certificates and licences members upload for the team to check. Each is deleted once its claim is decided; only
+       * the decision is kept. Create the bucket before the first deploy rather than relying on cf to make it.
+       */
+      EVIDENCE: bindings.r2({ name: 'better-accountant-evidence' }),
       /** The admin appointed on start. They set a password with a link from the forgot-password page. */
       ADMIN_EMAIL: bindings.secret(),
       /** CHIP Collect: the secret key and brand from portal.chip-in.asia. Test keys take only test cards. */

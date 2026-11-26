@@ -29,6 +29,8 @@ export default defineConfig({
   vite: { build: { cssTarget: ['chrome123', 'edge123', 'firefox120', 'safari17.5'] } },
   session: { cookie: { name: 'session', ...(cookieDomain ? { domain: cookieDomain } : {}) } },
   security: {
+    /* Room for a 5 MB certificate or licence and the form around it. The action checks the file itself. */
+    actionBodySizeLimit: 6 * 1024 * 1024,
     allowedDomains: [{ hostname: 'localhost' }, { hostname: siteHost }, { hostname: socialHost }],
   },
 });

@@ -1,4 +1,4 @@
-import { HANDLE, JURISDICTIONS, RESERVED_HANDLES, SECTORS, TOPICS, type Jurisdiction, type Sector, type Topic, type Track } from '../data/social.ts';
+import { HANDLE, JURISDICTIONS, RESERVED_HANDLES, SECTORS, statusTrack, TOPICS, type Jurisdiction, type Sector, type Topic, type Track } from '../data/social.ts';
 import { STATUS_SQL } from './club.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import { fail, ok, type Result } from './result.ts';
@@ -74,6 +74,32 @@ export function sealOf(claims: readonly ClaimFact[]): boolean {
   return ticked.some((claim) => claim.kind === 'account') && ticked.some((claim) => claim.kind !== 'account');
 }
 
+const FACT_KINDS = ['account', 'body', 'licence', 'employer', 'academic', 'experience'] as const;
+const FACT_STATES = ['pending', 'ticked', 'rejected', 'lapsed'] as const;
+
+/**
+ * What track and seal read for a member: their claims, and their social accounts as claims of kind 'account', ticked
+ * once proven. A body claim carries the track its exact status puts someone on.
+ */
+export function claimFacts(db: Db, memberId: number): ClaimFact[] {
+  return db
+    .prepare(
+      `SELECT kind, state, body_id, status_level FROM claims WHERE member_id = ?
+       UNION ALL
+       SELECT 'account', CASE state WHEN 'proven' THEN 'ticked' ELSE state END, NULL, NULL FROM social_accounts WHERE member_id = ?`,
+    )
+    .all(memberId, memberId)
+    .map((row) => {
+      const bodyId = optionalText(row, 'body_id');
+      const status = optionalText(row, 'status_level');
+      return {
+        kind: oneOf(row, 'kind', FACT_KINDS),
+        state: oneOf(row, 'state', FACT_STATES),
+        track: bodyId !== null && status !== null ? statusTrack(bodyId, status) : null,
+      };
+    });
+}
+
 const iso = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 /** The registry's entries that were stored, in the registry's order. Anything the registry no longer has is dropped. */
@@ -89,14 +115,13 @@ const PROFILES = 'SELECT p.*, m.name FROM profiles p JOIN members m ON m.id = p.
 
 /** Handles, profiles, follows and The List. */
 export function createSocialProfiles(db: Db, now: () => Date = () => new Date()) {
-  /* Claims and peer points arrive in later slices. Until then nobody has either, so every profile reads as field. */
-  const claimsOf = (_memberId: number): readonly ClaimFact[] => [];
+  /* Peer points arrive with Problems and the shelf. Until then everyone has none. */
   const peerPoints = (_memberId: number): number => 0;
 
   const toProfile = (row: Row): Profile => {
     const memberId = integer(row, 'member_id');
     const creator = integer(row, 'creator') === 1;
-    const claims = claimsOf(memberId);
+    const claims = claimFacts(db, memberId);
     return {
       memberId,
       handle: text(row, 'handle'),

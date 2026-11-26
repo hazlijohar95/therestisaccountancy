@@ -8,21 +8,21 @@ const aina = { email: 'aina@firm.com.my', name: 'Aina Rahman' };
 const payUrl = 'https://club.test/members/pay';
 
 test('the invitation names both rates', async () => {
-  const letter = passwordLetter({ ...aina, purpose: 'welcome', link: 'https://club.test/welcome?token=t', expiresAt: '2026-12-01T00:00:00Z', rate: everyRate, joinedVia: 'club' });
+  const letter = passwordLetter({ ...aina, purpose: 'welcome', link: 'https://club.test/welcome?token=t', expiresAt: '2026-12-01T00:00:00Z', rate: everyRate, welcomeTo: 'club' });
   const { text } = await renderLetter(letter);
   assert.ok(text.includes('Membership is RM 99 a month or RM 990 a year.'));
   assert.ok(!text.includes('first month'));
 });
 
 test('a social sign-up is asked to finish signing up, and told it is free', async () => {
-  const letter = passwordLetter({ ...aina, purpose: 'welcome', link: 'https://club.test/welcome?token=t', expiresAt: '2026-12-01T00:00:00Z', rate: null, joinedVia: 'social' });
+  const letter = passwordLetter({ ...aina, purpose: 'welcome', link: 'https://club.test/welcome?token=t', expiresAt: '2026-12-01T00:00:00Z', rate: null, welcomeTo: 'social' });
   assert.equal(letter.subject, 'Set a password to finish signing up');
   const { text, html } = await renderLetter(letter);
   assert.ok(text.includes('There is nothing to pay.'));
   assert.ok(html.includes('>Set your password<'));
   assert.ok(!text.includes('Membership') && !text.includes('admin'), 'no club membership or admin copy');
 
-  const reset = passwordLetter({ ...aina, purpose: 'reset', link: 'https://club.test/welcome?token=t', expiresAt: '2026-12-01T00:00:00Z', rate: null, joinedVia: 'social' });
+  const reset = passwordLetter({ ...aina, purpose: 'reset', link: 'https://club.test/welcome?token=t', expiresAt: '2026-12-01T00:00:00Z', rate: null, welcomeTo: 'social' });
   assert.equal(reset.subject, 'Reset your password', 'a reset reads the same for everyone');
 });
 

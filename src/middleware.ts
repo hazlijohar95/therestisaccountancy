@@ -1,9 +1,10 @@
 import { defineMiddleware } from 'astro:middleware';
 import { openStore } from './server/instance.ts';
-import { needsPayment, paidAccess, requiredRole } from './server/paths.ts';
+import { isSocialPage, needsPayment, paidAccess, requiredRole } from './server/paths.ts';
 
 export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.member = null;
+  context.locals.profile = null;
   if (context.isPrerendered) return next();
 
   const store = await openStore();
@@ -20,8 +21,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
     context.locals.fees = store.fees;
     context.locals.newsletter = store.newsletter;
     context.locals.socialProfiles = store.socialProfiles;
+    context.locals.socialClaims = store.socialClaims;
     const key = await context.session?.get('signedIn');
     context.locals.member = key ? await store.club.sessionMember(key) : null;
+    if (context.locals.member && isSocialPage(context.url.pathname)) context.locals.profile = await store.socialProfiles.ownProfile(context.locals.member.id);
 
     const role = requiredRole(context.url.pathname);
     if (role && !context.locals.member) {

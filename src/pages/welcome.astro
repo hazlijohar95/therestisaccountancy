@@ -9,8 +9,8 @@ import { socialPath } from '../server/paths.ts';
 export const prerender = false;
 
 const result = Astro.getActionResult(actions.setPassword);
-/* Someone who signed up on the social site goes back there, not to the club's members' area and its payment page. */
-if (result?.data) return Astro.redirect(result.data.joinedVia === 'social' ? socialPath(Astro.url, '/me') : `/members?${result.data.purpose}`);
+/* Someone only on the social site goes back there, not to the club's members' area and its payment page. */
+if (result?.data) return Astro.redirect(!result.data.clubApproved ? socialPath(Astro.url, '/me') : `/members?${result.data.purpose}`);
 
 const token = Astro.url.searchParams.get('token') ?? '';
 const holder = token ? await Astro.locals.club.linkMember(token) : null;

@@ -10,10 +10,10 @@ const next = safeNext(Astro.url.searchParams.get('next'));
 const signedOut = Astro.getActionResult(actions.signOut);
 const result = Astro.getActionResult(actions.signIn);
 
-/* With nowhere asked for, a member goes home: admins to the admin page, social sign-ups to their profile. */
+/* With nowhere asked for, a member goes home: admins to the admin page, people only on Social to their profile. */
 const socialHome = socialPath(Astro.url, '/me');
-if (result?.data) return Astro.redirect(next !== '/members' ? next : result.data.joinedVia === 'social' ? socialHome : result.data.role === 'admin' ? '/admin' : next);
-if (Astro.locals.member && !signedOut) return Astro.redirect(next === '/members' && Astro.locals.member.joinedVia === 'social' ? socialHome : next);
+if (result?.data) return Astro.redirect(next !== '/members' ? next : !result.data.clubApproved ? socialHome : result.data.role === 'admin' ? '/admin' : next);
+if (Astro.locals.member && !signedOut) return Astro.redirect(next === '/members' && !Astro.locals.member.clubApproved ? socialHome : next);
 
 /* One account signs in to the club and to Social. Coming from Social, the page says so. */
 const forSocial = next.startsWith('/social') || next.startsWith('http');

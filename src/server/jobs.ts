@@ -4,11 +4,14 @@ import { GRACE_MS } from './billing.ts';
 import { callLetters } from './calls.ts';
 import { summaryDue } from './incidents.ts';
 import { digestLetter, incidentsLetter, onboardingLetter, paymentDueLetter, renewalLetter, renewalNoticeLetter, sessionLetters, type Letter } from './letters.ts';
+import { deleteEvidence } from './evidence.ts';
 import { send } from './mail.ts';
 import { digestWeek, type OnboardingStep } from './mailings.ts';
 import { renew } from './payments.ts';
 import { report } from './report.ts';
+import { socialUrl } from './paths.ts';
 import { REMINDER_LEAD_MS } from './schedule.ts';
+import { tickRenewalLetter } from './social-letters.ts';
 
 const WEEK_MS = 7 * 86_400_000;
 /** Getting-started emails name sessions this far ahead, and at most this many. */
@@ -17,7 +20,11 @@ const ONBOARDING_SESSIONS = 3;
 /** Letters go a few at a time, so a long list never trips the sending limits all at once. */
 const SENDING_AT_ONCE = 5;
 
-/** Runs every hour: renewals that are due, reminders to pay by hand, reminders for sessions and one-to-one calls within a day, and on Monday mornings the week's digest. Safe to rerun. */
+/**
+ * Runs every hour: renewals that are due, reminders to pay by hand, reminders for sessions and one-to-one calls within a
+ * day, ticks that lapse or are due for renewal, documents left from decided claims, and on Monday mornings the week's
+ * digest. Safe to rerun.
+ */
 export async function hourly(at: Date, siteUrl: string): Promise<void> {
   const url = (path: string) => new URL(path, siteUrl).href;
   const store = await openStore();
@@ -53,6 +60,17 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
     });
     await step('call reminders', async () => {
       for (const call of await store.calls.dueReminders()) letters.push(...callLetters('reminder', call, siteUrl));
+    });
+    await step('ticks', async () => {
+      await store.socialClaims.lapse();
+      for (const renewal of await store.socialClaims.dueRenewals()) letters.push(tickRenewalLetter(renewal, socialUrl(siteUrl, '/verify')));
+    });
+    /* A document the review could not delete straight away (R2 was down) is tried again here, until it goes. */
+    await step('evidence', async () => {
+      for (const { claimId, key } of await store.socialClaims.staleEvidence()) {
+        await deleteEvidence(key);
+        await store.socialClaims.evidenceDeleted(claimId);
+      }
     });
     /*
      * With no session to name, the emails wait rather than go: an invitation to nothing is worse than none. Sessions

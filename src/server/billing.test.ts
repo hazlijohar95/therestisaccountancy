@@ -17,8 +17,8 @@ const world = async () => {
   const club = createClub(db, now);
   club.recordJoinRequest({ name: 'Aina', email: 'aina@firm.com.my', stage: 'I run a practice' });
   const invited = club.inviteFromRequest(club.joinRequests()[0]?.id ?? 0);
-  assert.ok(invited.ok);
-  const accepted = await club.setPasswordFromLink(invited.value.token, 'correct horse battery');
+  assert.ok(invited.ok && invited.value.kind === 'link');
+  const accepted = await club.setPasswordFromLink(invited.value.link.token, 'correct horse battery');
   assert.ok(accepted);
   return { billing: createBilling(db, now), member: accepted.member, later: (ms: number) => (clock = new Date(clock.getTime() + ms)), now };
 };

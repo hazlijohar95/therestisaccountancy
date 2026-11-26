@@ -39,11 +39,12 @@ const flat = (value: string) => value.replace(/\s+/g, ' ').trim();
 
 /**
  * An invitation for someone without a password, or a reset for a member who has one. Someone who signed up on the
- * social site is finishing their own sign-up, so their first link says that and nothing about paying.
+ * social site, and has not been accepted into the club, is finishing their own sign-up: their first link says that and
+ * nothing about paying.
  */
-export function passwordLetter(link: { email: string; name: string; purpose: LinkPurpose; link: string; expiresAt: string; rate: string | null; joinedVia: JoinedVia }): Letter {
+export function passwordLetter(link: { email: string; name: string; purpose: LinkPurpose; link: string; expiresAt: string; rate: string | null; welcomeTo: JoinedVia }): Letter {
   const until = formatDay(link.expiresAt);
-  if (link.purpose === 'welcome' && link.joinedVia === 'social') {
+  if (link.purpose === 'welcome' && link.welcomeTo === 'social') {
     return {
       to: link.email,
       subject: 'Set a password to finish signing up',
@@ -85,6 +86,27 @@ export function passwordLetter(link: { email: string; name: string; purpose: Lin
       { href: link.link, label: 'Choose a new password' },
       `The link works once, until ${until}. A new password signs you out on your other devices.`,
       "Didn't ask for this? Ignore this email and nothing changes.",
+    ],
+  };
+}
+
+/**
+ * Tells someone who already uses the social site that the club accepted their request. Their account is the club
+ * account too, so the letter asks only for the payment.
+ */
+export function clubApprovedLetter(to: { email: string; name: string; rate: string; payUrl: string }): Letter {
+  return {
+    to: to.email,
+    from: fromHost,
+    subject: 'You can join the club now',
+    lines: [
+      hi(to.name),
+      'We read your request, and you are in. You sign in to the club with the account you use on Social, so there is nothing new to set up.',
+      `Membership is ${to.rate}. Pay, and the members' area opens straight after.`,
+      { href: to.payUrl, label: 'Pay for membership' },
+      'Social stays free whatever you decide.',
+      'Questions? Reply to this email. It comes straight to me.',
+      site.host,
     ],
   };
 }

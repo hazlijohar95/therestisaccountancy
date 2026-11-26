@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { renderLetter } from '../emails/render.tsx';
 import { createBilling, GRACE_MS } from './billing.ts';
-import { createClub, type Member } from './club.ts';
+import { createClub, type Invitation, type Member, type PasswordLink } from './club.ts';
 import { createListings, directorySummary, listingApprovedLetter, listingQueuedLetter, listingReturnedLetter, type ListingContent } from './listings.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
@@ -14,6 +14,13 @@ const value = <T, R extends string>(result: Result<T, R>): T => {
   return result.value;
 };
 const reason = <T, R extends string>(result: Result<T, R>): R | null => (result.ok ? null : result.reason);
+
+/** The password link an accepted join request sent. */
+const sentLink = (result: Result<Invitation, string>): PasswordLink => {
+  const invitation = value(result);
+  assert.ok(invitation.kind === 'link', 'expected a password link');
+  return invitation.link;
+};
 
 const practice = (changes: Partial<ListingContent> = {}): ListingContent => ({
   practice: 'Rahman & Co',
@@ -43,7 +50,7 @@ const world = async () => {
     club.recordJoinRequest({ name, email, stage: 'I run a practice' });
     const request = club.joinRequests({ decided: false }).find((r) => r.email === email);
     assert.ok(request);
-    const accepted = await club.setPasswordFromLink(value(club.inviteFromRequest(request.id)).token, PASSWORD);
+    const accepted = await club.setPasswordFromLink(sentLink(club.inviteFromRequest(request.id)).token, PASSWORD);
     assert.ok(accepted);
     billing.opened(`checkout-${accepted.member.id}`, accepted.member.id, 'checkout', 'month');
     billing.paid(`checkout-${accepted.member.id}`, false);
@@ -219,7 +226,7 @@ test('an admin is shown without paying, and a member who never paid is not', asy
   w.club.recordJoinRequest({ name: 'Chen Wei', email: 'chen@firm.com.my', stage: 'I run a practice' });
   const request = w.club.joinRequests({ decided: false })[0];
   assert.ok(request);
-  const chen = await w.club.setPasswordFromLink(value(w.club.inviteFromRequest(request.id)).token, PASSWORD);
+  const chen = await w.club.setPasswordFromLink(sentLink(w.club.inviteFromRequest(request.id)).token, PASSWORD);
   assert.ok(chen);
   w.listed(chen.member.id, practice({ practice: 'Chen & Co' }));
   assert.deepEqual(w.inDirectory(), ['Johar Partners']);

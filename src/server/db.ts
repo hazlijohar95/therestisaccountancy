@@ -302,6 +302,65 @@ const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX follows_by_followee ON follows (followee_id);
   `,
+  `
+  ALTER TABLE members ADD COLUMN club_approved_at TEXT;
+
+  CREATE TABLE social_accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    platform TEXT NOT NULL,
+    handle TEXT NOT NULL,
+    code TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'pending' CHECK (state IN ('pending', 'proven', 'rejected')),
+    note TEXT,
+    created_at TEXT NOT NULL,
+    decided_at TEXT,
+    decided_by INTEGER REFERENCES members (id) ON DELETE SET NULL
+  );
+  CREATE UNIQUE INDEX one_live_account_per_platform ON social_accounts (member_id, platform) WHERE state != 'rejected';
+  CREATE UNIQUE INDEX one_owner_per_proven_account ON social_accounts (platform, handle) WHERE state = 'proven';
+  CREATE INDEX social_accounts_by_state ON social_accounts (state, created_at);
+
+  CREATE TABLE claims (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('body', 'licence', 'employer', 'academic', 'experience')),
+    body_id TEXT,
+    label TEXT NOT NULL,
+    status_level TEXT,
+    reference TEXT,
+    source TEXT NOT NULL CHECK (source IN ('register', 'document', 'email', 'vouch', 'self')),
+    state TEXT NOT NULL DEFAULT 'pending' CHECK (state IN ('pending', 'ticked', 'rejected', 'lapsed')),
+    evidence_key TEXT,
+    until TEXT CHECK (until IS NULL OR until GLOB '[0-9][0-9][0-9][0-9]-[01][0-9]'),
+    reminded INTEGER NOT NULL DEFAULT 0 CHECK (reminded BETWEEN 0 AND 2),
+    note TEXT,
+    created_at TEXT NOT NULL,
+    decided_at TEXT,
+    decided_by INTEGER REFERENCES members (id) ON DELETE SET NULL
+  );
+  CREATE INDEX claims_by_member ON claims (member_id, created_at);
+  CREATE INDEX claims_by_state ON claims (state, created_at);
+  CREATE INDEX claims_with_evidence ON claims (id) WHERE evidence_key IS NOT NULL;
+
+  CREATE TABLE email_checks (
+    token_hash TEXT PRIMARY KEY,
+    claim_id INTEGER NOT NULL REFERENCES claims (id) ON DELETE CASCADE,
+    address TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used_at TEXT
+  );
+  CREATE INDEX email_checks_by_claim ON email_checks (claim_id, created_at);
+
+  CREATE TABLE vouches (
+    claim_id INTEGER NOT NULL REFERENCES claims (id) ON DELETE CASCADE,
+    voucher_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (claim_id, voucher_id)
+  );
+  CREATE INDEX vouches_by_voucher ON vouches (voucher_id);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

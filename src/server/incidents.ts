@@ -1,7 +1,7 @@
 import { integer, text, type Db } from './db.ts';
 
-/** What went wrong without anyone watching: an email, a payment check, a renewal, the hourly job. */
-export const INCIDENT_KINDS = ['email', 'payment', 'renewal', 'job'] as const;
+/** What went wrong without anyone watching: an email, a payment check, a renewal, the hourly job, a document left in R2. */
+export const INCIDENT_KINDS = ['email', 'payment', 'renewal', 'job', 'evidence'] as const;
 export type IncidentKind = (typeof INCIDENT_KINDS)[number];
 
 export interface Incident {
