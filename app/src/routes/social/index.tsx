@@ -1,4 +1,5 @@
 import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router';
+import { ChipLink } from '../../components/social/ChipLink.tsx';
 import { useEffect, useRef, useState, type FormEvent, type RefObject } from 'react';
 import { z } from 'zod';
 import { FEED_FILTERS, FLOOR_LIMITS, POST_JURISDICTIONS, ROOM_IDS, ROOMS, type FeedFilter, type PostJurisdiction, type RoomId } from '../../../../src/data/social.ts';
@@ -65,13 +66,13 @@ function Floor() {
         </p>
         <ul>
           <li>
-            <Link className="room" to="/social" search={link({ room: null })} aria-current={room === null ? 'page' : undefined}>
+            <ChipLink className="room" to="/social" search={link({ room: null })} current={room === null}>
               <span>All rooms</span>
-            </Link>
+            </ChipLink>
           </li>
           {feed.rooms.map((r) => (
             <li key={r.id}>
-              <Link className="room" to="/social" search={link({ room: r.id })} aria-current={r.id === room ? 'page' : undefined}>
+              <ChipLink className="room" to="/social" search={link({ room: r.id })} current={r.id === room}>
                 <span>{r.name}</span>
                 {r.locked ? (
                   <svg role="img" aria-label="Needs a practising tick">
@@ -83,7 +84,7 @@ function Floor() {
                     <span className="sr-only"> posts</span>
                   </span>
                 )}
-              </Link>
+              </ChipLink>
             </li>
           ))}
         </ul>
@@ -122,14 +123,14 @@ function Floor() {
         )}
         <nav className="filters chips" aria-label="Filter posts">
           {FEED_FILTERS.map((f) => (
-            <Link key={f.id} className="chip" to="/social" search={link({ filter: f.id })} aria-current={f.id === filter ? 'page' : undefined}>
+            <ChipLink key={f.id} className="chip" to="/social" search={link({ filter: f.id })} current={f.id === filter}>
               {f.id === 'ticked' && (
                 <svg aria-hidden="true">
                   <use href="#tk" />
                 </svg>
               )}
               {f.label}
-            </Link>
+            </ChipLink>
           ))}
         </nav>
         <NoticeLine />
@@ -294,7 +295,10 @@ function Compose({ dialog, rooms, room }: { dialog: RefObject<HTMLDialogElement 
   const post = useAction(floorPost, { refresh: false });
   const navigate = useNavigate();
 
+  const restored = useRef(false);
   useEffect(() => {
+    if (restored.current) return;
+    restored.current = true;
     const stored = storedDraft(rooms);
     setDraft((current) => ({ ...current, ...stored }));
     if (stored.title || stored.body) setStatus('Draft restored.');

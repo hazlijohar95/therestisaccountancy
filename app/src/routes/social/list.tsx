@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { ChipLink } from '../../components/social/ChipLink.tsx';
 import { z } from 'zod';
 import { TOPICS, TRACKS, trackNames, type Topic, type Track } from '../../../../src/data/social.ts';
 import { Avatar } from '../../components/social/Avatar.tsx';
@@ -51,16 +52,16 @@ function List() {
       <div className="list-tools">
         <nav className="chips" aria-label="Topic">
           {topicChips.map((chip) => (
-            <Link key={chip.label} className="chip" to="/social/list" search={filter({ topic: chip.topic })} aria-current={chip.topic === topic ? 'page' : undefined}>
+            <ChipLink key={chip.label} className="chip" to="/social/list" search={filter({ topic: chip.topic })} current={chip.topic === topic}>
               {chip.label}
-            </Link>
+            </ChipLink>
           ))}
         </nav>
         <nav className="chips" aria-label="Track">
           {trackChips.map((chip) => (
-            <Link key={chip.label} className="chip" to="/social/list" search={filter({ track: chip.track })} aria-current={chip.track === track ? 'page' : undefined}>
+            <ChipLink key={chip.label} className="chip" to="/social/list" search={filter({ track: chip.track })} current={chip.track === track}>
               {chip.label}
-            </Link>
+            </ChipLink>
           ))}
         </nav>
       </div>

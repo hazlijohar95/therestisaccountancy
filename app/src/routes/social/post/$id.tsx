@@ -1,4 +1,5 @@
-import { createFileRoute, Link, notFound, useNavigate, useRouter } from '@tanstack/react-router';
+import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router';
+import { ChipLink } from '../../../components/social/ChipLink.tsx';
 import { useEffect, useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import { FLOOR_LIMITS, POST_JURISDICTIONS, ROOMS } from '../../../../../src/data/social.ts';
@@ -153,12 +154,12 @@ function Thread() {
             {plural(replies.length, 'reply', 'replies')}
           </h2>
           <nav className="chips" aria-label="Sort replies">
-            <Link className="chip" to="/social/post/$id" params={{ id: String(post.id) }} search={{}} hash="replies" aria-current={sort === 'top' ? 'page' : undefined}>
+            <ChipLink className="chip" to="/social/post/$id" params={{ id: String(post.id) }} search={{}} hash="replies" current={sort === 'top'}>
               Top
-            </Link>
-            <Link className="chip" to="/social/post/$id" params={{ id: String(post.id) }} search={{ sort: 'new' }} hash="replies" aria-current={sort === 'new' ? 'page' : undefined}>
+            </ChipLink>
+            <ChipLink className="chip" to="/social/post/$id" params={{ id: String(post.id) }} search={{ sort: 'new' }} hash="replies" current={sort === 'new'}>
               Newest
-            </Link>
+            </ChipLink>
           </nav>
         </header>
         {replies.length === 0 && (
@@ -299,9 +300,8 @@ function Reply({ reply, post, viewer, signedIn, editing }: { reply: ReplyCard; p
   const say = useSay();
   const accept = useAction(acceptReply);
   const unaccept = useAction(unacceptReply);
-  const remove = useAction(removeFloorReply, { refresh: false });
+  const remove = useAction(removeFloorReply);
   const navigate = useNavigate();
-  const router = useRouter();
   const canAccept = post.mine && !reply.mine;
 
   const toggleAccept = async () => {
@@ -315,7 +315,6 @@ function Reply({ reply, post, viewer, signedIn, editing }: { reply: ReplyCard; p
     if (!outcome.ok) return say({ tone: 'error', text: outcome.message });
     say(null);
     await navigate({ to: '/social/post/$id', params: { id: String(post.id) }, search: { sort: search.sort, done: 'reply-deleted' }, hash: 'replies' });
-    await router.invalidate();
   };
 
   return (
@@ -434,9 +433,8 @@ function EditReply({ reply, postId }: { reply: ReplyCard; postId: number }) {
 function ReplyForm({ post, sealed }: { post: Post; sealed: boolean }) {
   const [body, setBody] = useState('');
   const [correction, setCorrection] = useState(false);
-  const send = useAction(floorReply, { refresh: false });
+  const send = useAction(floorReply);
   const navigate = useNavigate();
-  const router = useRouter();
   const say = useSay();
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -451,7 +449,6 @@ function ReplyForm({ post, sealed }: { post: Post; sealed: boolean }) {
     setCorrection(false);
     /* Newest first, so the reply just sent is at the top of the list, and the page scrolls to it. */
     await navigate({ to: '/social/post/$id', params: { id: String(post.id) }, search: { sort: 'new' }, hash: `reply-${outcome.value.id}` });
-    await router.invalidate();
     document.getElementById(`reply-${outcome.value.id}`)?.scrollIntoView({ block: 'center' });
   };
   const field = fieldError(send.refusal, 'body', { id: 'reply-body-error' });
