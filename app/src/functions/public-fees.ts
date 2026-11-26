@@ -3,17 +3,16 @@ import { z } from 'zod';
 import { states } from '../../../src/data/directory.ts';
 import { confidence, FEE_FIGURES, feeChoices, feeFigures, type FeeFigure } from '../../../src/data/fees.ts';
 import type { AnswerRefusal, Edition, Report } from '../../../src/server/fees.ts';
+import { check } from '../lib/access.server.ts';
 import { action } from '../lib/action.server.ts';
 import { done } from '../lib/outcome.ts';
-import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
 
 /** The survey's state, the results to show and the other published years. */
 export const feesPage = createServerFn({ method: 'GET' })
   .validator((input: { edition: number | undefined }) => input)
   .handler(async ({ data }): Promise<{ current: Edition; report: Report | null; otherYears: number[] }> => {
-    const member = await currentMember();
-    const host = member?.role === 'admin';
+    const host = (await check('admin')).ok;
     return withStore(async (store) => {
       const current = await store.fees.current();
       const editions = await store.fees.editions();
