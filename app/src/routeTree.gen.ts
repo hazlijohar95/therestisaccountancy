@@ -10,13 +10,25 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DevSeedRouteImport } from './routes/dev-seed'
+import { Route as MembersRouteRouteImport } from './routes/members/route'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SocialRouteRouteImport } from './routes/social/route'
+import { Route as MembersIndexRouteImport } from './routes/members/index'
+import { Route as MembersAccountRouteImport } from './routes/members/account'
+import { Route as MembersPayRouteImport } from './routes/members/pay'
 import { Route as SocialTicksRouteImport } from './routes/social/ticks'
+import { Route as MembersResourcesIndexRouteImport } from './routes/members/resources/index'
+import { Route as MembersResourcesIdRouteImport } from './routes/members/resources/$id'
+import { Route as MembersResourcesChar123idChar125DotmdRouteImport } from './routes/members/resources/{$id}[.]md'
 
 const DevSeedRoute = DevSeedRouteImport.update({
   id: '/dev-seed',
   path: '/dev-seed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MembersRouteRoute = MembersRouteRouteImport.update({
+  id: '/members',
+  path: '/members',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInRoute = SignInRouteImport.update({
@@ -29,40 +41,125 @@ const SocialRouteRoute = SocialRouteRouteImport.update({
   path: '/social',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MembersIndexRoute = MembersIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => MembersRouteRoute,
+} as any)
+const MembersAccountRoute = MembersAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => MembersRouteRoute,
+} as any)
+const MembersPayRoute = MembersPayRouteImport.update({
+  id: '/pay',
+  path: '/pay',
+  getParentRoute: () => MembersRouteRoute,
+} as any)
 const SocialTicksRoute = SocialTicksRouteImport.update({
   id: '/ticks',
   path: '/ticks',
   getParentRoute: () => SocialRouteRoute,
 } as any)
+const MembersResourcesIndexRoute = MembersResourcesIndexRouteImport.update({
+  id: '/resources/',
+  path: '/resources/',
+  getParentRoute: () => MembersRouteRoute,
+} as any)
+const MembersResourcesIdRoute = MembersResourcesIdRouteImport.update({
+  id: '/resources/$id',
+  path: '/resources/$id',
+  getParentRoute: () => MembersRouteRoute,
+} as any)
+const MembersResourcesChar123idChar125DotmdRoute =
+  MembersResourcesChar123idChar125DotmdRouteImport.update({
+    id: '/resources/{$id}.md',
+    path: '/resources/{$id}.md',
+    getParentRoute: () => MembersRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
+  '/members': typeof MembersRouteRouteWithChildren
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
   '/sign-in': typeof SignInRoute
+  '/members/account': typeof MembersAccountRoute
+  '/members/pay': typeof MembersPayRoute
   '/social/ticks': typeof SocialTicksRoute
+  '/members/': typeof MembersIndexRoute
+  '/members/resources/$id': typeof MembersResourcesIdRoute
+  '/members/resources/{$id}.md': typeof MembersResourcesChar123idChar125DotmdRoute
+  '/members/resources/': typeof MembersResourcesIndexRoute
 }
 export interface FileRoutesByTo {
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
   '/sign-in': typeof SignInRoute
+  '/members/account': typeof MembersAccountRoute
+  '/members/pay': typeof MembersPayRoute
   '/social/ticks': typeof SocialTicksRoute
+  '/members': typeof MembersIndexRoute
+  '/members/resources/$id': typeof MembersResourcesIdRoute
+  '/members/resources/{$id}.md': typeof MembersResourcesChar123idChar125DotmdRoute
+  '/members/resources': typeof MembersResourcesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/members': typeof MembersRouteRouteWithChildren
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
   '/sign-in': typeof SignInRoute
+  '/members/account': typeof MembersAccountRoute
+  '/members/pay': typeof MembersPayRoute
   '/social/ticks': typeof SocialTicksRoute
+  '/members/': typeof MembersIndexRoute
+  '/members/resources/$id': typeof MembersResourcesIdRoute
+  '/members/resources/{$id}.md': typeof MembersResourcesChar123idChar125DotmdRoute
+  '/members/resources/': typeof MembersResourcesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/social' | '/dev-seed' | '/sign-in' | '/social/ticks'
+  fullPaths:
+    | '/members'
+    | '/social'
+    | '/dev-seed'
+    | '/sign-in'
+    | '/members/account'
+    | '/members/pay'
+    | '/social/ticks'
+    | '/members/'
+    | '/members/resources/$id'
+    | '/members/resources/{$id}.md'
+    | '/members/resources/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/social' | '/dev-seed' | '/sign-in' | '/social/ticks'
-  id: '__root__' | '/social' | '/dev-seed' | '/sign-in' | '/social/ticks'
+  to:
+    | '/social'
+    | '/dev-seed'
+    | '/sign-in'
+    | '/members/account'
+    | '/members/pay'
+    | '/social/ticks'
+    | '/members'
+    | '/members/resources/$id'
+    | '/members/resources/{$id}.md'
+    | '/members/resources'
+  id:
+    | '__root__'
+    | '/members'
+    | '/social'
+    | '/dev-seed'
+    | '/sign-in'
+    | '/members/account'
+    | '/members/pay'
+    | '/social/ticks'
+    | '/members/'
+    | '/members/resources/$id'
+    | '/members/resources/{$id}.md'
+    | '/members/resources/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  MembersRouteRoute: typeof MembersRouteRouteWithChildren
   SocialRouteRoute: typeof SocialRouteRouteWithChildren
   DevSeedRoute: typeof DevSeedRoute
   SignInRoute: typeof SignInRoute
@@ -75,6 +172,13 @@ declare module '@tanstack/react-router' {
       path: '/dev-seed'
       fullPath: '/dev-seed'
       preLoaderRoute: typeof DevSeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/members': {
+      id: '/members'
+      path: '/members'
+      fullPath: '/members'
+      preLoaderRoute: typeof MembersRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sign-in': {
@@ -91,6 +195,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SocialRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/members/': {
+      id: '/members/'
+      path: '/'
+      fullPath: '/members/'
+      preLoaderRoute: typeof MembersIndexRouteImport
+      parentRoute: typeof MembersRouteRoute
+    }
+    '/members/account': {
+      id: '/members/account'
+      path: '/account'
+      fullPath: '/members/account'
+      preLoaderRoute: typeof MembersAccountRouteImport
+      parentRoute: typeof MembersRouteRoute
+    }
+    '/members/pay': {
+      id: '/members/pay'
+      path: '/pay'
+      fullPath: '/members/pay'
+      preLoaderRoute: typeof MembersPayRouteImport
+      parentRoute: typeof MembersRouteRoute
+    }
     '/social/ticks': {
       id: '/social/ticks'
       path: '/ticks'
@@ -98,8 +223,52 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SocialTicksRouteImport
       parentRoute: typeof SocialRouteRoute
     }
+    '/members/resources/': {
+      id: '/members/resources/'
+      path: '/resources'
+      fullPath: '/members/resources/'
+      preLoaderRoute: typeof MembersResourcesIndexRouteImport
+      parentRoute: typeof MembersRouteRoute
+    }
+    '/members/resources/$id': {
+      id: '/members/resources/$id'
+      path: '/resources/$id'
+      fullPath: '/members/resources/$id'
+      preLoaderRoute: typeof MembersResourcesIdRouteImport
+      parentRoute: typeof MembersRouteRoute
+    }
+    '/members/resources/{$id}.md': {
+      id: '/members/resources/{$id}.md'
+      path: '/resources/{$id}.md'
+      fullPath: '/members/resources/{$id}.md'
+      preLoaderRoute: typeof MembersResourcesChar123idChar125DotmdRouteImport
+      parentRoute: typeof MembersRouteRoute
+    }
   }
 }
+
+interface MembersRouteRouteChildren {
+  MembersAccountRoute: typeof MembersAccountRoute
+  MembersPayRoute: typeof MembersPayRoute
+  MembersIndexRoute: typeof MembersIndexRoute
+  MembersResourcesIdRoute: typeof MembersResourcesIdRoute
+  MembersResourcesChar123idChar125DotmdRoute: typeof MembersResourcesChar123idChar125DotmdRoute
+  MembersResourcesIndexRoute: typeof MembersResourcesIndexRoute
+}
+
+const MembersRouteRouteChildren: MembersRouteRouteChildren = {
+  MembersAccountRoute: MembersAccountRoute,
+  MembersPayRoute: MembersPayRoute,
+  MembersIndexRoute: MembersIndexRoute,
+  MembersResourcesIdRoute: MembersResourcesIdRoute,
+  MembersResourcesChar123idChar125DotmdRoute:
+    MembersResourcesChar123idChar125DotmdRoute,
+  MembersResourcesIndexRoute: MembersResourcesIndexRoute,
+}
+
+const MembersRouteRouteWithChildren = MembersRouteRoute._addFileChildren(
+  MembersRouteRouteChildren,
+)
 
 interface SocialRouteRouteChildren {
   SocialTicksRoute: typeof SocialTicksRoute
@@ -114,6 +283,7 @@ const SocialRouteRouteWithChildren = SocialRouteRoute._addFileChildren(
 )
 
 const rootRouteChildren: RootRouteChildren = {
+  MembersRouteRoute: MembersRouteRouteWithChildren,
   SocialRouteRoute: SocialRouteRouteWithChildren,
   DevSeedRoute: DevSeedRoute,
   SignInRoute: SignInRoute,
