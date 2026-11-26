@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createClub } from './club.ts';
+import { migrate, SCHEMA_VERSION } from './db.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
 import { at, DAY, socialWorld } from './social-fixtures.ts';
@@ -33,7 +34,7 @@ const world = () => {
 
   /** Signs up on the social site and sets a password from the emailed link, as a person would. */
   const joined = async (name: string, email: string, handle: string) => {
-    const { memberId } = value(social.signUp({ name, email, handle }));
+    const { memberId } = value(social.signUp({ name, email, handle }, { via: 'team' }));
     const accepted = await club.setPasswordFromLink(value(club.newLink(memberId)).token, PASSWORD);
     assert.ok(accepted);
     return accepted.member;
@@ -43,7 +44,7 @@ const world = () => {
 
 test('signing up makes an invited social member with a handle, public only once they set a password', async () => {
   const w = world();
-  const { memberId } = value(w.social.signUp({ name: 'Priya Nair', email: 'priya@tax.my', handle: '@PriyaTaxes' }));
+  const { memberId } = value(w.social.signUp({ name: 'Priya Nair', email: 'priya@tax.my', handle: '@PriyaTaxes' }, { via: 'team' }));
 
   const member = w.club.member(memberId);
   assert.equal(member?.status, 'invited');
@@ -74,10 +75,55 @@ test('a club member keeps joined_via club and claims a handle from the social si
   assert.equal(reason(w.social.claimHandle(admin.id, 'another')), 'already-claimed');
 });
 
+test('Social is invite-only: only the club, or something that let them in, lets a member claim a handle', async () => {
+  const w = world();
+  const admin = await w.club.ensureAdmin({ email: 'host@club.test', name: 'Host', password: PASSWORD });
+  value(w.social.claimHandle(admin.id, 'thehost'));
+  assert.deepEqual(w.social.entry(admin.id), { via: 'club', inviterId: null }, 'a club member is let in as they claim a handle');
+
+  const { lastInsertRowid: stranger } = w.db.prepare(`INSERT INTO members (email, name, joined_via) VALUES ('stranger@firm.my', 'Stranger', 'social')`).run();
+  assert.equal(w.social.mayClaim(stranger), false);
+  assert.equal(reason(w.social.claimHandle(stranger, 'stranger')), 'not-invited');
+  assert.equal(w.social.entry(stranger), null, 'a refused claim lets nobody in');
+  w.db.prepare(`UPDATE members SET club_approved_at = '2026-11-01T00:00:00Z' WHERE id = ?`).run(stranger);
+  assert.equal(w.social.mayClaim(stranger), true, 'a member the club approved needs no invite');
+  value(w.social.claimHandle(stranger, 'stranger'));
+  assert.deepEqual(w.social.entry(stranger), { via: 'club', inviterId: null });
+});
+
+test('the schema refuses a profile nobody let in, and an inviter on anything but a member invite', async () => {
+  const w = world();
+  const { lastInsertRowid: id } = w.db.prepare(`INSERT INTO members (email, name, joined_via) VALUES ('x@firm.my', 'X', 'social')`).run();
+  assert.throws(() => w.db.prepare(`INSERT INTO profiles (member_id, handle, created_at, updated_at) VALUES (?, 'sneaky', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`).run(id), /needs an entry/);
+  assert.throws(() => w.db.prepare(`INSERT INTO social_entries (member_id, joined_via, inviter_id, created_at) VALUES (?, 'team', ?, '2026-01-01T00:00:00Z')`).run(id, id));
+  assert.throws(() => w.db.prepare(`INSERT INTO social_entries (member_id, joined_via, created_at) VALUES (?, 'walked-in', '2026-01-01T00:00:00Z')`).run(id));
+});
+
+test('accounts that joined before invites keep working and are recorded as open', async () => {
+  const w = socialWorld();
+  const owner = await w.host;
+  const aina = await w.joined('Aina', 'aina@firm.my', 'aina');
+  value(w.profiles.claimHandle(owner.id, 'owner'));
+  /* Back to the schema before invites, with profiles made the old way, then upgrade again. */
+  w.db.exec('DROP TABLE social_requests; DROP TABLE social_invites; DROP TRIGGER profiles_need_an_entry; DROP TABLE social_entries;');
+  w.db.prepare('DELETE FROM schema_version WHERE version = ?').run(SCHEMA_VERSION);
+  w.db.prepare(`INSERT INTO members (email, name, joined_via, password_hash) VALUES ('old@firm.my', 'Old Timer', 'social', 'x')`).run();
+  w.db.prepare(`INSERT INTO profiles (member_id, handle, created_at, updated_at) SELECT id, 'oldtimer', '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z' FROM members WHERE email = 'old@firm.my'`).run();
+  migrate(w.db);
+
+  const old = w.profiles.profile('oldtimer');
+  assert.ok(old);
+  for (const id of [owner.id, aina.id, old.memberId]) assert.deepEqual(w.profiles.entry(id), { via: 'open', inviterId: null }, `member ${id} joined openly`);
+  assert.equal(w.profiles.ownProfile(owner.id)?.handle, 'owner', "the owner's profile is untouched");
+  assert.equal(w.profiles.profile('aina')?.name, 'Aina');
+  const followed = w.profiles.follow(aina.id, 'oldtimer');
+  assert.ok(followed.ok, 'old accounts still act as before');
+});
+
 test('handles are 3 to 30 of a-z, 0-9 and _, unique, and never a reserved word', async () => {
   const w = world();
   await w.joined('Aina Rahman', 'aina@firm.my', 'aina');
-  const signUp = (handle: string, email = 'new@firm.my') => reason(w.social.signUp({ name: 'New Person', email, handle }));
+  const signUp = (handle: string, email = 'new@firm.my') => reason(w.social.signUp({ name: 'New Person', email, handle }, { via: 'team' }));
 
   assert.equal(signUp('AINA'), 'handle-taken', 'case does not make a handle new');
   assert.equal(signUp('ab'), 'handle-invalid');
@@ -94,10 +140,10 @@ test('a refused sign-up saves nothing, and an email that has an account is turne
   const w = world();
   await w.joined('Aina Rahman', 'aina@firm.my', 'aina');
 
-  assert.equal(reason(w.social.signUp({ name: 'Aina Again', email: 'AINA@firm.my', handle: 'aina2' })), 'email-taken');
-  assert.equal(reason(w.social.signUp({ name: 'Someone', email: 'someone@firm.my', handle: 'aina' })), 'handle-taken');
+  assert.equal(reason(w.social.signUp({ name: 'Aina Again', email: 'AINA@firm.my', handle: 'aina2' }, { via: 'team' })), 'email-taken');
+  assert.equal(reason(w.social.signUp({ name: 'Someone', email: 'someone@firm.my', handle: 'aina' }, { via: 'team' })), 'handle-taken');
   assert.equal(w.club.members({ limit: 10, offset: 0 }).total, 1, 'no member was left behind without a profile');
-  assert.equal(reason(w.social.signUp({ name: 'Someone', email: 'someone@firm.my', handle: 'someone' })), null, 'the email is free to try again');
+  assert.equal(reason(w.social.signUp({ name: 'Someone', email: 'someone@firm.my', handle: 'someone' }, { via: 'team' })), null, 'the email is free to try again');
 });
 
 test('the member edits their profile, and The List shows only listed profiles that match', async () => {
@@ -134,7 +180,7 @@ test('follows: once each, never yourself, and counted only between people the pu
   const w = world();
   const priya = await w.joined('Priya Nair', 'priya@tax.my', 'priyataxes');
   const aina = await w.joined('Aina Rahman', 'aina@firm.my', 'aina');
-  const pending = value(w.social.signUp({ name: 'Not Yet', email: 'notyet@firm.my', handle: 'notyet' }));
+  const pending = value(w.social.signUp({ name: 'Not Yet', email: 'notyet@firm.my', handle: 'notyet' }, { via: 'team' }));
 
   assert.equal(value(w.social.follow(aina.id, 'priyataxes')).memberId, priya.id);
   value(w.social.follow(aina.id, '@PriyaTaxes'));
@@ -174,9 +220,9 @@ test('sign-ups that never set a password go after 14 days, handle and all; nobod
   const w = socialWorld();
   const host = await w.host;
   const set = await w.joined('Aina', 'aina@firm.my', 'aina');
-  const { memberId: gone } = value(w.profiles.signUp({ name: 'Gone', email: 'gone@firm.my', handle: 'gone' }));
-  const { memberId: accepted } = value(w.profiles.signUp({ name: 'Accepted', email: 'accepted@firm.my', handle: 'accepted' }));
-  const { memberId: paused } = value(w.profiles.signUp({ name: 'Paused', email: 'paused@firm.my', handle: 'paused' }));
+  const { memberId: gone } = value(w.profiles.signUp({ name: 'Gone', email: 'gone@firm.my', handle: 'gone' }, { via: 'team' }));
+  const { memberId: accepted } = value(w.profiles.signUp({ name: 'Accepted', email: 'accepted@firm.my', handle: 'accepted' }, { via: 'team' }));
+  const { memberId: paused } = value(w.profiles.signUp({ name: 'Paused', email: 'paused@firm.my', handle: 'paused' }, { via: 'team' }));
   value(w.club.suspendMember(host.id, paused));
   w.club.recordJoinRequest({ name: 'Accepted', email: 'accepted@firm.my', stage: 'I run a practice' });
   value(w.club.inviteFromRequest(w.club.joinRequests()[0]?.id ?? 0));
@@ -185,9 +231,7 @@ test('sign-ups that never set a password go after 14 days, handle and all; nobod
   const clubInvite = invitation.kind === 'link' ? invitation.link.member.id : invitation.member.id;
   value(w.nominations.nominate(set.id, { platform: 'YouTube', handle: 'taxwithtan', topics: ['Tax'], whyUrl: null }));
   const { token } = value(w.nominations.invite(w.nominations.queue().pending[0]?.id ?? 0, host.id));
-  const { memberId: nominee } = value(w.profiles.signUp({ name: 'Tan', email: 'tan@tax.my', handle: 'taxwithtan' }));
-  value(w.claims.addAccount(nominee, 'YouTube', 'taxwithtan'));
-  value(w.nominations.claim(token));
+  const { memberId: nominee } = value(w.nominations.join(token, { name: 'Tan', email: 'tan@tax.my', handle: 'taxwithtan' }));
 
   w.later(13 * DAY);
   assert.equal(w.profiles.pruneAbandoned(), 0, 'thirteen days is not enough');
@@ -197,7 +241,7 @@ test('sign-ups that never set a password go after 14 days, handle and all; nobod
   assert.equal(w.club.member(gone), null);
   assert.equal(w.club.member(nominee), null);
   for (const kept of [set.id, accepted, paused, clubInvite, host.id]) assert.ok(w.club.member(kept), `member ${kept} stays`);
-  value(w.profiles.signUp({ name: 'Someone else', email: 'else@firm.my', handle: 'gone' }));
+  value(w.profiles.signUp({ name: 'Someone else', email: 'else@firm.my', handle: 'gone' }, { via: 'team' }));
   assert.equal(w.nominations.queue().pending[0]?.handle, 'taxwithtan', 'the claimed invite goes back to the team to send again');
 });
 

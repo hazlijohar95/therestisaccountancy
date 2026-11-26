@@ -25,7 +25,7 @@ const world = () => {
   const claims = createSocialClaims(db, now);
   const nominations = createSocialNominations(db, now);
   const joined = async (name: string, email: string, handle: string) => {
-    const { memberId } = value(profiles.signUp({ name, email, handle }));
+    const { memberId } = value(profiles.signUp({ name, email, handle }, { via: 'team' }));
     const accepted = await club.setPasswordFromLink(value(club.newLink(memberId)).token, PASSWORD);
     assert.ok(accepted);
     return accepted.member;
@@ -96,9 +96,9 @@ test('the team invites with a link shown once; the nominee claims it and it stop
 
   const fresh = value(w.nominations.relink(id, host.id)).token;
   assert.equal(w.nominations.invitation(token), null, 'a new link retires the old one');
-  value(w.nominations.claim(fresh));
+  assert.equal(value(w.nominations.claim(abu.id, fresh)).platform, 'YouTube');
   assert.equal(w.nominations.invitation(fresh), null);
-  assert.equal(reason(w.nominations.claim(fresh)), 'not-found');
+  assert.equal(reason(w.nominations.claim(aina.id, fresh)), 'not-found');
   assert.deepEqual(w.nominations.mine(aina.id), []);
   assert.equal(reason(w.nominations.nominate(abu.id, draft())), 'closed');
 });

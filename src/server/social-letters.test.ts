@@ -18,7 +18,7 @@ const world = async () => {
   const db = openDatabase(':memory:');
   const club = createClub(db, now);
   const reviewer = await club.ensureAdmin({ email: 'host@club.test', name: 'Hazli Johar', password: 'correct horse battery' });
-  const { memberId } = value(createSocialProfiles(db, now).signUp({ name: 'Priya Nair', email: 'priya@tax.my', handle: 'priyataxes' }));
+  const { memberId } = value(createSocialProfiles(db, now).signUp({ name: 'Priya Nair', email: 'priya@tax.my', handle: 'priyataxes' }, { via: 'team' }));
   return { claims: createSocialClaims(db, now), reviewer, memberId };
 };
 

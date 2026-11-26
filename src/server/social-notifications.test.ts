@@ -124,7 +124,7 @@ test('the team’s decisions, renewals and a claimed nomination notify without a
   value(w.nominations.nominate(priya.id, { platform: 'YouTube', handle: 'taxwithtan', topics: ['Tax'], whyUrl: null }));
   const nomination = w.nominations.queue().pending[0]?.id ?? 0;
   const { token } = value(w.nominations.invite(nomination, host.id));
-  value(w.nominations.claim(token));
+  value(w.nominations.join(token, { name: 'Tan', email: 'tan@tax.my', handle: 'taxwithtan' }));
   const joined = w.notifications.list(priya.id)[0];
   assert.ok(joined?.kind === 'nominee-joined');
   assert.equal(joined.account, 'YouTube · @taxwithtan');

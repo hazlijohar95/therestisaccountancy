@@ -2,8 +2,10 @@ import { createHash, randomBytes } from 'node:crypto';
 import { PLATFORM_PROFILES, PLATFORMS, TOPICS, type Platform, type Topic } from '../data/social.ts';
 import { STATUS_SQL } from './club.ts';
 import { attempt, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
-import { fail, ok, type Result } from './result.ts';
+import type { Result } from './result.ts';
+import { insertAccount, type AccountRefusal } from './social-claims.ts';
 import { notify } from './social-notify.ts';
+import { openAccount, type SignUpRefusal } from './social-profiles.ts';
 
 /*
  * Nominations: a member names someone on a platform who should be on The List. Only a handle is known, never an email,
@@ -60,6 +62,9 @@ export type NominateOutcome = 'nominated' | 'counted' | 'already';
 /** 'on-list': a member has proven that account. 'closed': the nominee claimed, declined, or the team said no. */
 export type NominateRefusal = 'handle-invalid' | 'on-list' | 'closed';
 export type InviteRefusal = 'not-found' | 'already';
+/** Claiming adds the account for proof, so its refusals come back too. 'not-found': the link is used, replaced or withdrawn. */
+export type ClaimRefusal = AccountRefusal | 'not-found';
+export type JoinRefusal = SignUpRefusal | ClaimRefusal;
 
 const iso = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
 const tokenHash = (token: string) => createHash('sha256').update(token).digest('hex');
@@ -105,6 +110,22 @@ export function createSocialNominations(db: Db, now: () => Date = () => new Date
   };
 
   const invited = (token: string): Row | undefined => db.prepare(`SELECT * FROM nominations WHERE invite_token_hash = ? AND state = 'invited'`).get(tokenHash(token));
+
+  /**
+   * Inside a transaction: the nominee's account goes to Get ticked for proof, the invite is spent, and every nominator
+   * hears they joined. Refused, nothing is kept and the link still works.
+   */
+  const claimFor = (memberId: number, row: Row, refuse: (reason: ClaimRefusal) => never): Platform => {
+    const id = integer(row, 'id');
+    const platform = oneOf(row, 'platform', PLATFORMS);
+    const handle = text(row, 'handle');
+    insertAccount(db, now(), memberId, platform, handle, refuse);
+    db.prepare(`UPDATE nominations SET state = 'claimed', invite_token_hash = NULL WHERE id = ?`).run(id);
+    for (const nominator of db.prepare('SELECT member_id FROM nominators WHERE nomination_id = ?').all(id)) {
+      notify(db, now(), integer(nominator, 'member_id'), { kind: 'nominee-joined', key: String(id), detail: `${platform} · @${handle}` });
+    }
+    return platform;
+  };
 
   /** A fresh link for an invited nomination. The old one stops working. */
   const issueLink = (id: number, reviewerId: number) => {
@@ -201,18 +222,20 @@ export function createSocialNominations(db: Db, now: () => Date = () => new Date
       return { platform: oneOf(row, 'platform', PLATFORMS), handle: text(row, 'handle'), nominators: nominators.length, topics: topicsOf(nominators) };
     },
 
-    /** Marks the invite claimed by the member who now holds the account. The caller adds the account for proof first. */
-    claim(token: string): Result<null, 'not-found'> {
-      return db.transaction(() => {
-        const row = invited(token);
-        if (!row) return fail('not-found');
-        const id = integer(row, 'id');
-        db.prepare(`UPDATE nominations SET state = 'claimed', invite_token_hash = NULL WHERE id = ?`).run(id);
-        const account = `${text(row, 'platform')} · @${text(row, 'handle')}`;
-        for (const nominator of db.prepare('SELECT member_id FROM nominators WHERE nomination_id = ?').all(id)) {
-          notify(db, now(), integer(nominator, 'member_id'), { kind: 'nominee-joined', key: String(id), detail: account });
-        }
-        return ok(null);
+    /** A signed-in member claims the invite: the account goes to Get ticked for proof, and the link is spent. */
+    claim(memberId: number, token: string): Result<{ readonly platform: Platform }, ClaimRefusal> {
+      return attempt<{ readonly platform: Platform }, ClaimRefusal>(db, (refuse) => ({ platform: claimFor(memberId, invited(token) ?? refuse('not-found'), refuse) }));
+    },
+
+    /**
+     * The nominee joins Social from the link: a new account, let in by the nomination, with the nominated account
+     * waiting for proof. One transaction, so a link lets in one person.
+     */
+    join(token: string, input: { name: string; email: string; handle: string }): Result<{ readonly memberId: number; readonly platform: Platform }, JoinRefusal> {
+      return attempt<{ readonly memberId: number; readonly platform: Platform }, JoinRefusal>(db, (refuse) => {
+        const row = invited(token) ?? refuse('not-found');
+        const memberId = openAccount(db, now(), input, { via: 'nomination' }, refuse);
+        return { memberId, platform: claimFor(memberId, row, refuse) };
       });
     },
 
