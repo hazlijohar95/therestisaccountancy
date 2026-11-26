@@ -11,7 +11,7 @@ import { podcast } from '../data/club.ts';
 import { products } from '../data/products.ts';
 import { programmePath, programmes } from '../data/programmes.ts';
 import Page from '../layouts/Page.astro';
-import { allPosts, postsAbout, postsBy, postsInColumn } from '../server/posts.ts';
+import { allPosts } from '../server/posts.ts';
 
 /*
  * Every's home page, in its order: the lead stack, recent posts, what we build, topics, one host, the podcast and the
@@ -21,15 +21,18 @@ const posts = await allPosts();
 const [lead, ...rest] = posts;
 const secondary = rest.slice(0, 2);
 const recent = rest.slice(2, 6);
-const topics = (await Promise.all(programmes.map(async (programme) => ({ programme, posts: (await postsAbout(programme.slug)).slice(0, 4) }))))
+const topics = programmes
+  .map((programme) => ({ programme, posts: posts.filter((p) => p.data.topics.includes(programme.slug)).slice(0, 4) }))
   .filter((topic) => topic.posts.length > 0)
   .slice(0, 4);
-const featured = (await Promise.all(authors.map(async (author) => ({ author, posts: (await postsBy(author.handle)).slice(0, 3) })))).find((a) => a.posts.length > 0);
+const featured = authors
+  .map((author) => ({ author, posts: posts.filter((p) => p.data.authors.includes(author.handle)).slice(0, 3) }))
+  .find((a) => a.posts.length > 0);
 const featuredPhoto = featured && photos[featured.author.handle];
-const episodes = (await postsInColumn('podcast')).slice(0, 3);
+const episodes = posts.filter((p) => p.data.column === 'podcast').slice(0, 3);
 ---
 
-<Page signup={false}>
+<Page signup={false} description="Ideas, tools and training for accountants who run a practice: the newsletter, the Stick to Accounting podcast, free tools and the club’s programmes.">
   <section class="night" aria-labelledby="page-title">
     <div class="wrap intro">
       <h1 class="headline serif" id="page-title">Ideas, tools and training for accountants who run a practice.</h1>
@@ -56,12 +59,12 @@ const episodes = (await postsInColumn('podcast')).slice(0, 3);
     )
   }
 
-  <Module id="products" label="Built by us" href="/products" intro="Free tools for the questions every practice asks.">
+  <Module id="products" label="Built by us" href="/products" intro="Software for the questions every practice asks.">
     <ul class="grid three cards">
       {
         products.map((product) => (
           <li>
-            <a class="card" href={product.href} rel={product.href.startsWith('https://') ? 'noopener' : undefined}>
+            <a class="card" href={product.href}>
               <span class="label">{product.name}</span>
               <span class="serif q">{product.question}</span>
               <span class="small">{product.summary}</span>
@@ -145,7 +148,7 @@ const episodes = (await postsInColumn('podcast')).slice(0, 3);
     .four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (min-width: 1000px) {
-    .stack { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); column-gap: var(--space-8); }
+    .stack:has(> :nth-child(2)) { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); column-gap: var(--space-8); }
     .four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .host, .pod:has(> :nth-child(2)) { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); column-gap: var(--space-8); }
   }
