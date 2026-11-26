@@ -16,7 +16,7 @@ import { STATUS_SQL } from './club.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import type { Result } from './result.ts';
 import { notify } from './social-notify.ts';
-import { claimFacts, sealOf } from './social-profiles.ts';
+import { claimFacts, hasHandle, sealOf } from './social-profiles.ts';
 
 /*
  * Ticks: social accounts a member proves, and claims about their credentials. The team checks accounts, bodies,
@@ -135,8 +135,8 @@ export interface ReviewQueue {
 export type Verdict = { readonly verdict: 'approve' } | { readonly verdict: 'reject'; readonly reason: string };
 
 export type AccountRefusal = 'handle-invalid' | 'platform-taken' | 'proven-elsewhere';
-export type ClaimRefusal = 'duplicate' | 'too-many';
-export type WorkEmailRefusal = 'address-invalid' | 'personal-domain' | 'already-ticked' | 'too-soon' | 'too-many';
+export type ClaimRefusal = 'no-handle' | 'duplicate' | 'too-many';
+export type WorkEmailRefusal = 'no-handle' | 'address-invalid' | 'personal-domain' | 'already-ticked' | 'too-soon' | 'too-many';
 export type ConfirmRefusal = 'not-found' | 'not-yours';
 export type VouchRefusal = 'not-found' | 'self' | 'no-seal' | 'already';
 export type DecisionRefusal = 'not-found' | 'already' | 'proven-elsewhere';
@@ -399,9 +399,13 @@ export function createSocialClaims(db: Db, now: () => Date = () => new Date()) {
       return { claims, accounts };
     },
 
-    /** Adds an account with a fresh code for its bio. One live account per platform; a proven account has one owner. */
-    addAccount(memberId: number, platform: Platform, handle: string): Result<Account, AccountRefusal> {
-      return attempt<Account, AccountRefusal>(db, (refuse) => {
+    /**
+     * Adds an account with a fresh code for its bio. Accounts show on a profile, so the member needs a handle. One live
+     * account per platform; a proven account has one owner.
+     */
+    addAccount(memberId: number, platform: Platform, handle: string): Result<Account, AccountRefusal | 'no-handle'> {
+      return attempt<Account, AccountRefusal | 'no-handle'>(db, (refuse) => {
+        if (!hasHandle(db, memberId)) refuse('no-handle');
         return account(insertAccount(db, now(), memberId, platform, handle, refuse)) ?? refuse('handle-invalid');
       });
     },
@@ -411,9 +415,10 @@ export function createSocialClaims(db: Db, now: () => Date = () => new Date()) {
       return db.prepare('DELETE FROM social_accounts WHERE id = ? AND member_id = ?').run(accountId, memberId).changes > 0;
     },
 
-    /** Sends a claim to whoever checks its kind. The same claim waiting twice is refused. */
+    /** Sends a claim to whoever checks its kind. Ticks show on a profile, so the member needs a handle. The same claim waiting twice is refused. */
     addClaim(memberId: number, draft: ClaimDraft): Result<Claim, ClaimRefusal> {
       return attempt<Claim, ClaimRefusal>(db, (refuse) => {
+        if (!hasHandle(db, memberId)) refuse('no-handle');
         const fields = (() => {
           switch (draft.kind) {
             case 'body': {
@@ -461,6 +466,7 @@ export function createSocialClaims(db: Db, now: () => Date = () => new Date()) {
      */
     startWorkEmail(memberId: number, address: string): Result<WorkEmailCheck, WorkEmailRefusal> {
       return attempt<WorkEmailCheck, WorkEmailRefusal>(db, (refuse) => {
+        if (!hasHandle(db, memberId)) refuse('no-handle');
         const domain = emailDomain(address) ?? refuse('address-invalid');
         if (isPersonalDomain(domain)) refuse('personal-domain');
         const label = `Works at ${domain}`;

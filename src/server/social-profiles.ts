@@ -76,6 +76,9 @@ export function admit(db: Db, at: Date, memberId: number, entry: Entry): boolean
 /** True when something has let the member into Social already. */
 export const admitted = (db: Db, memberId: number) => db.prepare('SELECT 1 FROM social_entries WHERE member_id = ?').get(memberId) !== undefined;
 
+/** True when the member has claimed a handle. What they do on Social shows on their profile, so most of it needs one. */
+export const hasHandle = (db: Db, memberId: number) => db.prepare('SELECT 1 FROM profiles WHERE member_id = ?').get(memberId) !== undefined;
+
 /** Inside a transaction: checks the handle and writes the profile, or refuses. The member must have been let in. */
 export function insertProfile(db: Db, at: Date, memberId: number, handle: string, refuse: (reason: HandleRefusal) => never): void {
   const problem = handleProblem(handle);

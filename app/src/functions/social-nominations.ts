@@ -25,6 +25,8 @@ export const claimRefusals: Record<ClaimRefusal, string> = {
   'proven-elsewhere': 'Someone has already proven that account. If it is yours, write to the team.',
 };
 
+const claimInviteRefusals: Record<ClaimRefusal | 'no-handle', string> = { ...claimRefusals, 'no-handle': 'Claim your handle first.' };
+
 const nominateSchema = z
   .object({
     platform: z.enum(PLATFORMS, 'Pick the platform.'),
@@ -91,12 +93,8 @@ export const claimNomination = createServerFn({ method: 'POST' })
     if (!member.ok) return member;
     const input = parsed(z.object({ token: token }), data);
     if (!input.ok) return input;
-    return withStore(async (store): Promise<Outcome<null>> => {
-      const profile = await store.socialProfiles.ownProfile(member.value.id);
-      if (!profile) return refused('Claim your handle first.');
-      const result = await store.socialNominations.claim(profile.memberId, input.value.token);
-      return result.ok ? done(null) : refused(claimRefusals[result.reason]);
-    });
+    const result = await withStore(async (store) => await store.socialNominations.claim(member.value.id, input.value.token));
+    return result.ok ? done(null) : refused(claimInviteRefusals[result.reason]);
   });
 
 /** The nominee says no. Anyone with the link may, signed in or not, and the handle is never invited again. */

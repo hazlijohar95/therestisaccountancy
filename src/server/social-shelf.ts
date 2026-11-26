@@ -1,7 +1,7 @@
 import { SHELF_KINDS, SHELF_LIMITS, type ShelfKind } from '../data/social.ts';
 import { count, integer, oneOf, text, type Db, type Row } from './db.ts';
 import { fail, ok, type Result } from './result.ts';
-import { activeSql } from './social-profiles.ts';
+import { activeSql, hasHandle } from './social-profiles.ts';
 
 /*
  * The shelf: public work a member links to, by kind, and saves from other members. A saved item sits in the saver's
@@ -60,7 +60,7 @@ export function createSocialShelf(db: Db, now: () => Date = () => new Date()) {
   return {
     /** Adds a link to the member's shelf. */
     add(memberId: number, draft: ShelfDraft): Result<{ readonly id: number }, ShelfRefusal> {
-      if (!db.prepare('SELECT 1 FROM profiles WHERE member_id = ?').get(memberId)) return fail('no-handle');
+      if (!hasHandle(db, memberId)) return fail('no-handle');
       const url = publicLink(draft.url);
       if (!url) return fail('url');
       if (count(db.prepare('SELECT count(*) AS n FROM shelf_items WHERE member_id = ? AND removed_at IS NULL').get(memberId)) >= SHELF_LIMITS.items) return fail('full');

@@ -5,7 +5,7 @@ import { attempt, integer, oneOf, optionalText, text, type Db, type Row } from '
 import type { Result } from './result.ts';
 import { insertAccount, type AccountRefusal } from './social-claims.ts';
 import { notify } from './social-notify.ts';
-import { openAccount, type SignUpRefusal } from './social-profiles.ts';
+import { hasHandle, openAccount, type SignUpRefusal } from './social-profiles.ts';
 
 /*
  * Nominations: a member names someone on a platform who should be on The List. Only a handle is known, never an email,
@@ -222,9 +222,12 @@ export function createSocialNominations(db: Db, now: () => Date = () => new Date
       return { platform: oneOf(row, 'platform', PLATFORMS), handle: text(row, 'handle'), nominators: nominators.length, topics: topicsOf(nominators) };
     },
 
-    /** A signed-in member claims the invite: the account goes to Get ticked for proof, and the link is spent. */
-    claim(memberId: number, token: string): Result<{ readonly platform: Platform }, ClaimRefusal> {
-      return attempt<{ readonly platform: Platform }, ClaimRefusal>(db, (refuse) => ({ platform: claimFor(memberId, invited(token) ?? refuse('not-found'), refuse) }));
+    /** A signed-in member with a handle claims the invite: the account goes to Get ticked for proof, and the link is spent. */
+    claim(memberId: number, token: string): Result<{ readonly platform: Platform }, ClaimRefusal | 'no-handle'> {
+      return attempt<{ readonly platform: Platform }, ClaimRefusal | 'no-handle'>(db, (refuse) => {
+        if (!hasHandle(db, memberId)) refuse('no-handle');
+        return { platform: claimFor(memberId, invited(token) ?? refuse('not-found'), refuse) };
+      });
     },
 
     /**
