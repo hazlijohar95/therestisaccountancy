@@ -1,0 +1,6 @@
+.in { display: grid; gap: var(--space-7); align-items: end; padding-block: clamp(72px, 10vw, 144px); }
+.headline { margin: 0; max-width: 13ch; font-size: var(--size-title); line-height: 1; text-wrap: balance; }
+.side { display: grid; gap: var(--space-5); }
+.lead { margin: 0; max-width: 44ch; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+@media (min-width: 1000px) { .in { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); column-gap: var(--space-9); } }

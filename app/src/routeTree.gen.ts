@@ -13,13 +13,26 @@ import { Route as DevSeedRouteImport } from './routes/dev-seed'
 import { Route as MembersRouteRouteImport } from './routes/members/route'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SocialRouteRouteImport } from './routes/social/route'
+import { Route as ColumnSlugRouteImport } from './routes/$column/$slug'
 import { Route as MembersIndexRouteImport } from './routes/members/index'
 import { Route as MembersAccountRouteImport } from './routes/members/account'
+import { Route as MembersListingRouteImport } from './routes/members/listing'
 import { Route as MembersPayRouteImport } from './routes/members/pay'
 import { Route as SocialTicksRouteImport } from './routes/social/ticks'
+import { Route as MembersCallsIndexRouteImport } from './routes/members/calls/index'
+import { Route as MembersCallsChar123idChar125DoticsRouteImport } from './routes/members/calls/{$id}[.]ics'
+import { Route as MembersCommunityIndexRouteImport } from './routes/members/community/index'
+import { Route as MembersCommunityChannelRouteImport } from './routes/members/community/$channel'
+import { Route as MembersLessonsSplatRouteImport } from './routes/members/lessons/$'
+import { Route as MembersPlanIndexRouteImport } from './routes/members/plan/index'
+import { Route as MembersPlanIdRouteImport } from './routes/members/plan/$id'
+import { Route as MembersProgrammesSlugRouteImport } from './routes/members/programmes/$slug'
 import { Route as MembersResourcesIndexRouteImport } from './routes/members/resources/index'
 import { Route as MembersResourcesIdRouteImport } from './routes/members/resources/$id'
 import { Route as MembersResourcesChar123idChar125DotmdRouteImport } from './routes/members/resources/{$id}[.]md'
+import { Route as MembersSessionsIndexRouteImport } from './routes/members/sessions/index'
+import { Route as MembersSessionsChar123idChar125DoticsRouteImport } from './routes/members/sessions/{$id}[.]ics'
+import { Route as MembersCommunityThreadsIdRouteImport } from './routes/members/community/threads/$id'
 
 const DevSeedRoute = DevSeedRouteImport.update({
   id: '/dev-seed',
@@ -41,6 +54,11 @@ const SocialRouteRoute = SocialRouteRouteImport.update({
   path: '/social',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ColumnSlugRoute = ColumnSlugRouteImport.update({
+  id: '/$column/$slug',
+  path: '/$column/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MembersIndexRoute = MembersIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -49,6 +67,11 @@ const MembersIndexRoute = MembersIndexRouteImport.update({
 const MembersAccountRoute = MembersAccountRouteImport.update({
   id: '/account',
   path: '/account',
+  getParentRoute: () => MembersRouteRoute,
+} as any)
+const MembersListingRoute = MembersListingRouteImport.update({
+  id: '/listing',
+  path: '/listing',
   getParentRoute: () => MembersRouteRoute,
 } as any)
 const MembersPayRoute = MembersPayRouteImport.update({
@@ -60,6 +83,47 @@ const SocialTicksRoute = SocialTicksRouteImport.update({
   id: '/ticks',
   path: '/ticks',
   getParentRoute: () => SocialRouteRoute,
+} as any)
+const MembersCallsIndexRoute = MembersCallsIndexRouteImport.update({
+  id: '/calls/',
+  path: '/calls/',
+  getParentRoute: () => MembersRouteRoute,
+} as any)
+const MembersCallsChar123idChar125DoticsRoute =
+  MembersCallsChar123idChar125DoticsRouteImport.update({
+    id: '/calls/{$id}.ics',
+    path: '/calls/{$id}.ics',
+    getParentRoute: () => MembersRouteRoute,
+  } as any)
+const MembersCommunityIndexRoute = MembersCommunityIndexRouteImport.update({
+  id: '/community/',
+  path: '/community/',
+  getParentRoute: () => MembersRouteRoute,
+} as any)
+const MembersCommunityChannelRoute = MembersCommunityChannelRouteImport.update({
+  id: '/community/$channel',
+  path: '/community/$channel',
+  getParentRoute: () => MembersRouteRoute,
+} as any)
+const MembersLessonsSplatRoute = MembersLessonsSplatRouteImport.update({
+  id: '/lessons/$',
+  path: '/lessons/$',
+  getParentRoute: () => MembersRouteRoute,
+} as any)
+const MembersPlanIndexRoute = MembersPlanIndexRouteImport.update({
+  id: '/plan/',
+  path: '/plan/',
+  getParentRoute: () => MembersRouteRoute,
+} as any)
+const MembersPlanIdRoute = MembersPlanIdRouteImport.update({
+  id: '/plan/$id',
+  path: '/plan/$id',
+  getParentRoute: () => MembersRouteRoute,
+} as any)
+const MembersProgrammesSlugRoute = MembersProgrammesSlugRouteImport.update({
+  id: '/programmes/$slug',
+  path: '/programmes/$slug',
+  getParentRoute: () => MembersRouteRoute,
 } as any)
 const MembersResourcesIndexRoute = MembersResourcesIndexRouteImport.update({
   id: '/resources/',
@@ -77,31 +141,74 @@ const MembersResourcesChar123idChar125DotmdRoute =
     path: '/resources/{$id}.md',
     getParentRoute: () => MembersRouteRoute,
   } as any)
+const MembersSessionsIndexRoute = MembersSessionsIndexRouteImport.update({
+  id: '/sessions/',
+  path: '/sessions/',
+  getParentRoute: () => MembersRouteRoute,
+} as any)
+const MembersSessionsChar123idChar125DoticsRoute =
+  MembersSessionsChar123idChar125DoticsRouteImport.update({
+    id: '/sessions/{$id}.ics',
+    path: '/sessions/{$id}.ics',
+    getParentRoute: () => MembersRouteRoute,
+  } as any)
+const MembersCommunityThreadsIdRoute =
+  MembersCommunityThreadsIdRouteImport.update({
+    id: '/community/threads/$id',
+    path: '/community/threads/$id',
+    getParentRoute: () => MembersRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/members': typeof MembersRouteRouteWithChildren
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
   '/sign-in': typeof SignInRoute
+  '/$column/$slug': typeof ColumnSlugRoute
   '/members/account': typeof MembersAccountRoute
+  '/members/listing': typeof MembersListingRoute
   '/members/pay': typeof MembersPayRoute
   '/social/ticks': typeof SocialTicksRoute
   '/members/': typeof MembersIndexRoute
+  '/members/calls/{$id}.ics': typeof MembersCallsChar123idChar125DoticsRoute
+  '/members/community/$channel': typeof MembersCommunityChannelRoute
+  '/members/lessons/$': typeof MembersLessonsSplatRoute
+  '/members/plan/$id': typeof MembersPlanIdRoute
+  '/members/programmes/$slug': typeof MembersProgrammesSlugRoute
   '/members/resources/$id': typeof MembersResourcesIdRoute
   '/members/resources/{$id}.md': typeof MembersResourcesChar123idChar125DotmdRoute
+  '/members/sessions/{$id}.ics': typeof MembersSessionsChar123idChar125DoticsRoute
+  '/members/calls/': typeof MembersCallsIndexRoute
+  '/members/community/': typeof MembersCommunityIndexRoute
+  '/members/plan/': typeof MembersPlanIndexRoute
   '/members/resources/': typeof MembersResourcesIndexRoute
+  '/members/sessions/': typeof MembersSessionsIndexRoute
+  '/members/community/threads/$id': typeof MembersCommunityThreadsIdRoute
 }
 export interface FileRoutesByTo {
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
   '/sign-in': typeof SignInRoute
+  '/$column/$slug': typeof ColumnSlugRoute
   '/members/account': typeof MembersAccountRoute
+  '/members/listing': typeof MembersListingRoute
   '/members/pay': typeof MembersPayRoute
   '/social/ticks': typeof SocialTicksRoute
   '/members': typeof MembersIndexRoute
+  '/members/calls/{$id}.ics': typeof MembersCallsChar123idChar125DoticsRoute
+  '/members/community/$channel': typeof MembersCommunityChannelRoute
+  '/members/lessons/$': typeof MembersLessonsSplatRoute
+  '/members/plan/$id': typeof MembersPlanIdRoute
+  '/members/programmes/$slug': typeof MembersProgrammesSlugRoute
   '/members/resources/$id': typeof MembersResourcesIdRoute
   '/members/resources/{$id}.md': typeof MembersResourcesChar123idChar125DotmdRoute
+  '/members/sessions/{$id}.ics': typeof MembersSessionsChar123idChar125DoticsRoute
+  '/members/calls': typeof MembersCallsIndexRoute
+  '/members/community': typeof MembersCommunityIndexRoute
+  '/members/plan': typeof MembersPlanIndexRoute
   '/members/resources': typeof MembersResourcesIndexRoute
+  '/members/sessions': typeof MembersSessionsIndexRoute
+  '/members/community/threads/$id': typeof MembersCommunityThreadsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -109,13 +216,26 @@ export interface FileRoutesById {
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
   '/sign-in': typeof SignInRoute
+  '/$column/$slug': typeof ColumnSlugRoute
   '/members/account': typeof MembersAccountRoute
+  '/members/listing': typeof MembersListingRoute
   '/members/pay': typeof MembersPayRoute
   '/social/ticks': typeof SocialTicksRoute
   '/members/': typeof MembersIndexRoute
+  '/members/calls/{$id}.ics': typeof MembersCallsChar123idChar125DoticsRoute
+  '/members/community/$channel': typeof MembersCommunityChannelRoute
+  '/members/lessons/$': typeof MembersLessonsSplatRoute
+  '/members/plan/$id': typeof MembersPlanIdRoute
+  '/members/programmes/$slug': typeof MembersProgrammesSlugRoute
   '/members/resources/$id': typeof MembersResourcesIdRoute
   '/members/resources/{$id}.md': typeof MembersResourcesChar123idChar125DotmdRoute
+  '/members/sessions/{$id}.ics': typeof MembersSessionsChar123idChar125DoticsRoute
+  '/members/calls/': typeof MembersCallsIndexRoute
+  '/members/community/': typeof MembersCommunityIndexRoute
+  '/members/plan/': typeof MembersPlanIndexRoute
   '/members/resources/': typeof MembersResourcesIndexRoute
+  '/members/sessions/': typeof MembersSessionsIndexRoute
+  '/members/community/threads/$id': typeof MembersCommunityThreadsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -124,38 +244,77 @@ export interface FileRouteTypes {
     | '/social'
     | '/dev-seed'
     | '/sign-in'
+    | '/$column/$slug'
     | '/members/account'
+    | '/members/listing'
     | '/members/pay'
     | '/social/ticks'
     | '/members/'
+    | '/members/calls/{$id}.ics'
+    | '/members/community/$channel'
+    | '/members/lessons/$'
+    | '/members/plan/$id'
+    | '/members/programmes/$slug'
     | '/members/resources/$id'
     | '/members/resources/{$id}.md'
+    | '/members/sessions/{$id}.ics'
+    | '/members/calls/'
+    | '/members/community/'
+    | '/members/plan/'
     | '/members/resources/'
+    | '/members/sessions/'
+    | '/members/community/threads/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/social'
     | '/dev-seed'
     | '/sign-in'
+    | '/$column/$slug'
     | '/members/account'
+    | '/members/listing'
     | '/members/pay'
     | '/social/ticks'
     | '/members'
+    | '/members/calls/{$id}.ics'
+    | '/members/community/$channel'
+    | '/members/lessons/$'
+    | '/members/plan/$id'
+    | '/members/programmes/$slug'
     | '/members/resources/$id'
     | '/members/resources/{$id}.md'
+    | '/members/sessions/{$id}.ics'
+    | '/members/calls'
+    | '/members/community'
+    | '/members/plan'
     | '/members/resources'
+    | '/members/sessions'
+    | '/members/community/threads/$id'
   id:
     | '__root__'
     | '/members'
     | '/social'
     | '/dev-seed'
     | '/sign-in'
+    | '/$column/$slug'
     | '/members/account'
+    | '/members/listing'
     | '/members/pay'
     | '/social/ticks'
     | '/members/'
+    | '/members/calls/{$id}.ics'
+    | '/members/community/$channel'
+    | '/members/lessons/$'
+    | '/members/plan/$id'
+    | '/members/programmes/$slug'
     | '/members/resources/$id'
     | '/members/resources/{$id}.md'
+    | '/members/sessions/{$id}.ics'
+    | '/members/calls/'
+    | '/members/community/'
+    | '/members/plan/'
     | '/members/resources/'
+    | '/members/sessions/'
+    | '/members/community/threads/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -163,6 +322,7 @@ export interface RootRouteChildren {
   SocialRouteRoute: typeof SocialRouteRouteWithChildren
   DevSeedRoute: typeof DevSeedRoute
   SignInRoute: typeof SignInRoute
+  ColumnSlugRoute: typeof ColumnSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -195,6 +355,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SocialRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$column/$slug': {
+      id: '/$column/$slug'
+      path: '/$column/$slug'
+      fullPath: '/$column/$slug'
+      preLoaderRoute: typeof ColumnSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/members/': {
       id: '/members/'
       path: '/'
@@ -207,6 +374,13 @@ declare module '@tanstack/react-router' {
       path: '/account'
       fullPath: '/members/account'
       preLoaderRoute: typeof MembersAccountRouteImport
+      parentRoute: typeof MembersRouteRoute
+    }
+    '/members/listing': {
+      id: '/members/listing'
+      path: '/listing'
+      fullPath: '/members/listing'
+      preLoaderRoute: typeof MembersListingRouteImport
       parentRoute: typeof MembersRouteRoute
     }
     '/members/pay': {
@@ -222,6 +396,62 @@ declare module '@tanstack/react-router' {
       fullPath: '/social/ticks'
       preLoaderRoute: typeof SocialTicksRouteImport
       parentRoute: typeof SocialRouteRoute
+    }
+    '/members/calls/': {
+      id: '/members/calls/'
+      path: '/calls'
+      fullPath: '/members/calls/'
+      preLoaderRoute: typeof MembersCallsIndexRouteImport
+      parentRoute: typeof MembersRouteRoute
+    }
+    '/members/calls/{$id}.ics': {
+      id: '/members/calls/{$id}.ics'
+      path: '/calls/{$id}.ics'
+      fullPath: '/members/calls/{$id}.ics'
+      preLoaderRoute: typeof MembersCallsChar123idChar125DoticsRouteImport
+      parentRoute: typeof MembersRouteRoute
+    }
+    '/members/community/': {
+      id: '/members/community/'
+      path: '/community'
+      fullPath: '/members/community/'
+      preLoaderRoute: typeof MembersCommunityIndexRouteImport
+      parentRoute: typeof MembersRouteRoute
+    }
+    '/members/community/$channel': {
+      id: '/members/community/$channel'
+      path: '/community/$channel'
+      fullPath: '/members/community/$channel'
+      preLoaderRoute: typeof MembersCommunityChannelRouteImport
+      parentRoute: typeof MembersRouteRoute
+    }
+    '/members/lessons/$': {
+      id: '/members/lessons/$'
+      path: '/lessons/$'
+      fullPath: '/members/lessons/$'
+      preLoaderRoute: typeof MembersLessonsSplatRouteImport
+      parentRoute: typeof MembersRouteRoute
+    }
+    '/members/plan/': {
+      id: '/members/plan/'
+      path: '/plan'
+      fullPath: '/members/plan/'
+      preLoaderRoute: typeof MembersPlanIndexRouteImport
+      parentRoute: typeof MembersRouteRoute
+    }
+    '/members/plan/$id': {
+      id: '/members/plan/$id'
+      path: '/plan/$id'
+      fullPath: '/members/plan/$id'
+      preLoaderRoute: typeof MembersPlanIdRouteImport
+      parentRoute: typeof MembersRouteRoute
+    }
+    '/members/programmes/$slug': {
+      id: '/members/programmes/$slug'
+      path: '/programmes/$slug'
+      fullPath: '/members/programmes/$slug'
+      preLoaderRoute: typeof MembersProgrammesSlugRouteImport
+      parentRoute: typeof MembersRouteRoute
     }
     '/members/resources/': {
       id: '/members/resources/'
@@ -244,26 +474,73 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MembersResourcesChar123idChar125DotmdRouteImport
       parentRoute: typeof MembersRouteRoute
     }
+    '/members/sessions/': {
+      id: '/members/sessions/'
+      path: '/sessions'
+      fullPath: '/members/sessions/'
+      preLoaderRoute: typeof MembersSessionsIndexRouteImport
+      parentRoute: typeof MembersRouteRoute
+    }
+    '/members/sessions/{$id}.ics': {
+      id: '/members/sessions/{$id}.ics'
+      path: '/sessions/{$id}.ics'
+      fullPath: '/members/sessions/{$id}.ics'
+      preLoaderRoute: typeof MembersSessionsChar123idChar125DoticsRouteImport
+      parentRoute: typeof MembersRouteRoute
+    }
+    '/members/community/threads/$id': {
+      id: '/members/community/threads/$id'
+      path: '/community/threads/$id'
+      fullPath: '/members/community/threads/$id'
+      preLoaderRoute: typeof MembersCommunityThreadsIdRouteImport
+      parentRoute: typeof MembersRouteRoute
+    }
   }
 }
 
 interface MembersRouteRouteChildren {
   MembersAccountRoute: typeof MembersAccountRoute
+  MembersListingRoute: typeof MembersListingRoute
   MembersPayRoute: typeof MembersPayRoute
   MembersIndexRoute: typeof MembersIndexRoute
+  MembersCallsChar123idChar125DoticsRoute: typeof MembersCallsChar123idChar125DoticsRoute
+  MembersCommunityChannelRoute: typeof MembersCommunityChannelRoute
+  MembersLessonsSplatRoute: typeof MembersLessonsSplatRoute
+  MembersPlanIdRoute: typeof MembersPlanIdRoute
+  MembersProgrammesSlugRoute: typeof MembersProgrammesSlugRoute
   MembersResourcesIdRoute: typeof MembersResourcesIdRoute
   MembersResourcesChar123idChar125DotmdRoute: typeof MembersResourcesChar123idChar125DotmdRoute
+  MembersSessionsChar123idChar125DoticsRoute: typeof MembersSessionsChar123idChar125DoticsRoute
+  MembersCallsIndexRoute: typeof MembersCallsIndexRoute
+  MembersCommunityIndexRoute: typeof MembersCommunityIndexRoute
+  MembersPlanIndexRoute: typeof MembersPlanIndexRoute
   MembersResourcesIndexRoute: typeof MembersResourcesIndexRoute
+  MembersSessionsIndexRoute: typeof MembersSessionsIndexRoute
+  MembersCommunityThreadsIdRoute: typeof MembersCommunityThreadsIdRoute
 }
 
 const MembersRouteRouteChildren: MembersRouteRouteChildren = {
   MembersAccountRoute: MembersAccountRoute,
+  MembersListingRoute: MembersListingRoute,
   MembersPayRoute: MembersPayRoute,
   MembersIndexRoute: MembersIndexRoute,
+  MembersCallsChar123idChar125DoticsRoute:
+    MembersCallsChar123idChar125DoticsRoute,
+  MembersCommunityChannelRoute: MembersCommunityChannelRoute,
+  MembersLessonsSplatRoute: MembersLessonsSplatRoute,
+  MembersPlanIdRoute: MembersPlanIdRoute,
+  MembersProgrammesSlugRoute: MembersProgrammesSlugRoute,
   MembersResourcesIdRoute: MembersResourcesIdRoute,
   MembersResourcesChar123idChar125DotmdRoute:
     MembersResourcesChar123idChar125DotmdRoute,
+  MembersSessionsChar123idChar125DoticsRoute:
+    MembersSessionsChar123idChar125DoticsRoute,
+  MembersCallsIndexRoute: MembersCallsIndexRoute,
+  MembersCommunityIndexRoute: MembersCommunityIndexRoute,
+  MembersPlanIndexRoute: MembersPlanIndexRoute,
   MembersResourcesIndexRoute: MembersResourcesIndexRoute,
+  MembersSessionsIndexRoute: MembersSessionsIndexRoute,
+  MembersCommunityThreadsIdRoute: MembersCommunityThreadsIdRoute,
 }
 
 const MembersRouteRouteWithChildren = MembersRouteRoute._addFileChildren(
@@ -287,6 +564,7 @@ const rootRouteChildren: RootRouteChildren = {
   SocialRouteRoute: SocialRouteRouteWithChildren,
   DevSeedRoute: DevSeedRoute,
   SignInRoute: SignInRoute,
+  ColumnSlugRoute: ColumnSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

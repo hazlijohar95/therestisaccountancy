@@ -8,7 +8,7 @@ export function Masthead({ label, title, narrow = false, children }: { label: Re
       <div className={`wrap ${s.masthead}`}>
         <p className={`label ${s.top}`}>{label}</p>
         <h1 className={`headline serif ${s.headline}${narrow ? ` ${s.narrow}` : ''}`}>{title}</h1>
-        {children && <div className={s.lead}>{children}</div>}
+        {children && <div className={`lead ${s.lead}`}>{children}</div>}
       </div>
     </section>
   );

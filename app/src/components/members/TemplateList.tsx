@@ -19,7 +19,7 @@ export function TemplateList({ items, withModule = false }: { items: readonly Te
           <a href={r.href}>
             <span className={`label ${s.kind}`}>{r.kind}</span>
             <span className={s.what}>
-              <span className={s.title}>{r.title}</span>
+              <span className={`title ${s.title}`}>{r.title}</span>
               <span className="small">{r.summary}</span>
               {withModule && <span className={`small ${s.where}`}>{r.module}</span>}
             </span>

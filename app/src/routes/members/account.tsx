@@ -101,7 +101,7 @@ function Account() {
           </h2>
           <p>{plan}</p>
           {standing.access === 'grace' && (
-            <p className={s.error} role="alert">
+            <p className={`error ${s.error}`} role="alert">
               Your paid {standing.term} has ended. Pay within a few days to keep your access.
             </p>
           )}
@@ -152,7 +152,7 @@ function Account() {
             </p>
           )}
           {saved && !saved.ok && (
-            <p className={s.error} role="alert">
+            <p className={`error ${s.error}`} role="alert">
               {saved.message}
             </p>
           )}
@@ -189,7 +189,7 @@ function Account() {
               At least {MIN_PASSWORD_LENGTH} characters.
             </span>
             {fieldErrors['password'] && (
-              <span className={s.error} id="password-error">
+              <span className={`error ${s.error}`} id="password-error">
                 {fieldErrors['password']}
               </span>
             )}
@@ -207,13 +207,13 @@ function Account() {
               aria-describedby={fieldErrors['confirm'] ? 'confirm-error' : undefined}
             />
             {fieldErrors['confirm'] && (
-              <span className={s.error} id="confirm-error">
+              <span className={`error ${s.error}`} id="confirm-error">
                 {fieldErrors['confirm']}
               </span>
             )}
           </div>
           {passwordError && (
-            <p className={s.error} role="alert">
+            <p className={`error ${s.error}`} role="alert">
               {passwordError}
             </p>
           )}
