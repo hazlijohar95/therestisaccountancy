@@ -27,7 +27,7 @@ export function Home() {
         <h1 className="hello__title">{greeting(new Date())}{state.learner ? `, ${state.learner.split(" ")[0]}` : ""}</h1>
         <Link href="/ledger" className="hello__ring">
           <Ring slices={[{ value: s.total, tone: "var(--cpe)" }]} total={state.requirement.target} size={64} stroke={7}>
-            <span className="mono">{Math.round((s.total / (state.requirement.target || 1)) * 100)}%</span>
+            <span className="tnum">{Math.round((s.total / (state.requirement.target || 1)) * 100)}%</span>
           </Ring>
           <span>
             <strong>{formatHours(s.total)} of {formatHours(state.requirement.target)}h</strong>

@@ -39,7 +39,7 @@ export function ShowPage({ id }: { id: string }) {
             <li key={c.id}>
               <div className="track">
                 <Stretch href={`/course/${c.id}`} label={c.title} />
-                <span className="track__n mono">{i + 1}</span>
+                <span className="track__n tnum">{i + 1}</span>
                 <Cover course={c} size="sm" />
                 <span className="track__text">
                   <span className="track__title">{c.title}</span>
@@ -52,7 +52,7 @@ export function ShowPage({ id }: { id: string }) {
                   {phase.kind === "certified" ? <Check width={16} height={16} /> : null}
                   {phase.kind === "new" ? `${formatHours(c.credits)} CPE` : statusLabel(phase)}
                 </span>
-                <span className="track__time mono">{formatTime(c.duration)}</span>
+                <span className="track__time tnum">{formatTime(c.duration)}</span>
                 <PlayButton course={c} size="sm" />
               </div>
             </li>

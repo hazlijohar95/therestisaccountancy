@@ -45,16 +45,16 @@ export function PlayerBar() {
           </Tip>
         </div>
         <div className="pbar__scrub">
-          <span className="mono">{formatTime(player.time)}</span>
+          <span className="tnum">{formatTime(player.time)}</span>
           <Scrubber course={course} time={player.time} ranges={p.ranges} answered={p.checkpoints} onSeek={player.seek} compact />
-          <span className="mono">{formatTime(course.duration)}</span>
+          <span className="tnum">{formatTime(course.duration)}</span>
         </div>
       </div>
       <div className="pbar__right">
         <SpeedSelect />
         <span className="pbar__heard" title="Share of the episode you have heard">
           <Ring slices={[{ value: heard, tone: "var(--cpe)" }]} total={1} size={28} stroke={4} />
-          <span className="mono">{Math.floor(heard * 100)}%</span>
+          <span className="tnum">{Math.floor(heard * 100)}%</span>
         </span>
       </div>
       <div className="pbar__mobileplay">

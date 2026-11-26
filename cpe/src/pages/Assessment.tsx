@@ -130,10 +130,10 @@ function AssessmentView({ course }: { course: Course }) {
           Prove it.
         </h1>
         <ul className="ledgerlist">
-          <li><span>Questions</span><span className="mono">{course.quiz.length}</span></li>
-          <li><span>To pass</span><span className="mono">{needed} of {course.quiz.length} · 70%</span></li>
-          <li><span>Time limit</span><span className="mono">None</span></li>
-          <li><span>Retakes</span><span className="mono">Unlimited</span></li>
+          <li><span>Questions</span><span className="tnum">{course.quiz.length}</span></li>
+          <li><span>To pass</span><span className="tnum">{needed} of {course.quiz.length} · 70%</span></li>
+          <li><span>Time limit</span><span className="tnum">None</span></li>
+          <li><span>Retakes</span><span className="tnum">Unlimited</span></li>
         </ul>
         {course.quiz.length === 3 && (
           <p className="notice">Three questions, so 70% means all three.</p>
@@ -191,7 +191,7 @@ function AssessmentView({ course }: { course: Course }) {
           <Button className="pill pill--ghost" disabled={stage.index === 0} onClick={() => setStage({ ...stage, index: stage.index - 1 })}>
             Back
           </Button>
-          <span className="muted mono kbd-hint">A–D to answer · Enter to continue</span>
+          <span className="muted tnum kbd-hint">A–D to answer · Enter to continue</span>
           <Button className="pill pill--cpe" disabled={pick === null} onClick={next} data-test="next">
             {stage.index === stage.items.length - 1 ? "Submit" : "Next"} <Arrow />
           </Button>

@@ -89,9 +89,10 @@ svg[viewBox="0 0 24 24"] :is(path, circle, rect) {
 .hello__ring {
   font-variant-numeric: tabular-nums;
 }
-.mono {
-  font-family: var(--font-mono);
+/* Times, counts and small values: the sans with even-width digits, so figures line up. */
+.tnum {
   font-size: var(--size-label);
+  font-variant-numeric: tabular-nums;
 }
 .muted {
   color: var(--muted);
@@ -100,9 +101,7 @@ svg[viewBox="0 0 24 24"] :is(path, circle, rect) {
 .label,
 .field > .eyebrow,
 .field legend {
-  font: 500 0.75rem/1.2 var(--font-mono);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font: 500 var(--size-label) / 1.3 var(--font-sans);
   color: var(--muted);
   padding: 0;
 }
@@ -114,8 +113,8 @@ svg[viewBox="0 0 24 24"] :is(path, circle, rect) {
 .display,
 .pagetitle,
 .title {
-  font-family: var(--font-serif);
-  font-weight: 400;
+  font-family: var(--font-display);
+  font-weight: 300;
   letter-spacing: var(--display-tracking);
   text-wrap: balance;
 }
@@ -229,7 +228,7 @@ svg[viewBox="0 0 24 24"] :is(path, circle, rect) {
   padding: 0 var(--space-5);
   border-radius: var(--radius-round);
   border: var(--stroke-rule) solid var(--ink);
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   transition: transform var(--motion-quick) var(--motion-ease), background var(--motion-quick);
 }
@@ -277,7 +276,7 @@ svg[viewBox="0 0 24 24"] :is(path, circle, rect) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 4px;
@@ -493,7 +492,7 @@ html:has(.pbar) {
   gap: var(--space-3);
   padding: 10px var(--space-3);
   border-radius: var(--radius-round);
-  font-weight: 600;
+  font-weight: 500;
   color: var(--muted);
   transition: color var(--motion-quick), background var(--motion-quick);
 }
@@ -536,7 +535,7 @@ html:has(.pbar) {
   min-width: 0;
 }
 .librow__title {
-  font-weight: 600;
+  font-weight: 500;
   font-size: var(--size-small);
   line-height: 1.25;
   display: -webkit-box;
@@ -618,7 +617,7 @@ html:has(.pbar) {
   min-width: 0;
 }
 .pbar__title {
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -649,7 +648,7 @@ html:has(.pbar) {
   width: 100%;
   color: var(--muted);
 }
-.pbar__scrub .mono {
+.pbar__scrub .tnum {
   font-size: var(--size-caption);
   text-align: center;
 }
@@ -665,8 +664,9 @@ html:has(.pbar) {
   border-radius: var(--radius-round);
   background: var(--bg);
   padding: 6px 12px;
-  font: 500 var(--size-label) var(--font-mono);
+  font: 500 var(--size-label) var(--font-sans);
   cursor: pointer;
+  font-variant-numeric: tabular-nums;
 }
 .speed[data-popup-open] {
   border-color: var(--ink);
@@ -753,7 +753,7 @@ html:has(.pbar) {
   margin-bottom: var(--space-6);
 }
 .hello__title {
-  font: 400 var(--size-title) / 1 var(--font-serif);
+  font: 300 var(--size-title) / 1 var(--font-display);
   letter-spacing: var(--display-tracking);
 }
 .hello__ring {
@@ -799,7 +799,7 @@ html:has(.pbar) {
   flex-direction: column;
 }
 .tile__title {
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.25;
 }
 .tile__meta {
@@ -812,7 +812,7 @@ html:has(.pbar) {
 /* After every meta style it decorates, so the earned green wins. */
 .is-earned {
   color: var(--cpe-deep);
-  font-weight: 600;
+  font-weight: 500;
 }
 .tile__progress {
   position: absolute;
@@ -862,7 +862,7 @@ html:has(.pbar) {
   margin-top: var(--space-7);
 }
 .shelf__title {
-  font: 400 var(--size-head) / 1.1 var(--font-serif);
+  font: 300 var(--size-head) / 1.1 var(--font-display);
   letter-spacing: var(--display-tracking);
   margin-bottom: var(--space-4);
 }
@@ -899,7 +899,7 @@ html:has(.pbar) {
   bottom: calc(var(--space-3) + var(--space-2));
 }
 .card__title {
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.25;
 }
 .card__meta {
@@ -922,7 +922,7 @@ html:has(.pbar) {
   background: var(--field);
   color: var(--on-field);
   border-radius: var(--radius-sm);
-  font: 600 1.15rem/1.15 var(--font-sans);
+  font: 500 1.15rem/1.15 var(--font-sans);
   text-align: left;
   transition: transform var(--motion-quick) var(--motion-ease);
 }
@@ -947,7 +947,8 @@ html:has(.pbar) {
   z-index: 1;
 }
 .fieldtile__count {
-  font: 500 var(--size-label) var(--font-mono);
+  font: 500 var(--size-label) var(--font-sans);
+  font-variant-numeric: tabular-nums;
 }
 .fields--big .fieldtile {
   min-height: 150px;
@@ -1004,7 +1005,7 @@ html:has(.pbar) {
   padding: 8px 16px;
   border-radius: var(--radius-round);
   background: var(--surface);
-  font-weight: 600;
+  font-weight: 500;
   font-size: var(--size-small);
   transition: background var(--motion-quick), color var(--motion-quick);
 }
@@ -1033,7 +1034,7 @@ html:has(.pbar) {
   margin: var(--space-2) 0;
 }
 .top__title {
-  font: 400 var(--size-head) / 1.05 var(--font-serif);
+  font: 300 var(--size-head) / 1.05 var(--font-display);
   letter-spacing: var(--display-tracking);
 }
 .top__meta {
@@ -1070,7 +1071,7 @@ html:has(.pbar) {
   min-width: 0;
 }
 .hit__title {
-  font-weight: 600;
+  font-weight: 500;
 }
 .hit__meta,
 .hit__time,
@@ -1122,7 +1123,7 @@ html:has(.pbar) {
   hyphens: auto;
 }
 .hero-head__title {
-  font: 400 clamp(2.2rem, 1.4rem + 3.4vw, 4.6rem) / 0.98 var(--font-serif);
+  font: 300 clamp(2.2rem, 1.4rem + 3.4vw, 4.6rem) / 0.98 var(--font-display);
   letter-spacing: -0.03em;
   text-wrap: balance;
 }
@@ -1132,7 +1133,7 @@ html:has(.pbar) {
 }
 .hero-head__meta a {
   color: var(--ink);
-  font-weight: 600;
+  font-weight: 500;
 }
 @media (hover: hover) {
   .hero-head__meta a:hover {
@@ -1179,7 +1180,7 @@ html:has(.pbar) {
   min-width: 0;
 }
 .track__title {
-  font-weight: 600;
+  font-weight: 500;
 }
 .track__meta {
   display: flex;
@@ -1235,7 +1236,7 @@ html:has(.pbar) {
   align-items: center;
   gap: 5px;
   font-size: var(--size-small);
-  font-weight: 600;
+  font-weight: 500;
 }
 .step__value {
   font-size: 0.75rem;
@@ -1325,9 +1326,7 @@ html:has(.pbar) {
   mask-image: linear-gradient(to bottom, transparent, #000 var(--space-5), #000 80%, transparent);
 }
 .lyrics__chapter {
-  font: 500 0.75rem/1 var(--font-mono);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font: 500 0.75rem/1 var(--font-sans);
   color: var(--muted);
   margin: var(--space-5) 0 var(--space-2);
 }
@@ -1336,7 +1335,7 @@ html:has(.pbar) {
   width: 100%;
   text-align: left;
   padding: 6px 0;
-  font: 600 clamp(1.15rem, 1rem + 0.5vw, 1.4rem) / 1.4 var(--font-sans);
+  font: 500 clamp(1.15rem, 1rem + 0.5vw, 1.4rem) / 1.4 var(--font-sans);
   letter-spacing: -0.01em;
   color: var(--muted);
   transition: color 0.35s var(--motion-ease);
@@ -1373,7 +1372,7 @@ html:has(.pbar) {
   gap: var(--space-3);
 }
 .terms dt {
-  font: 400 1.1rem/1.2 var(--font-serif);
+  font: 500 1rem/1.3 var(--font-sans);
 }
 .terms dd {
   font-size: var(--size-small);
@@ -1443,7 +1442,7 @@ html:has(.pbar) {
   translate: -50% 0;
 }
 .checkpoint__prompt {
-  font: 400 var(--size-head) / 1.12 var(--font-serif);
+  font: 400 var(--size-head) / 1.12 var(--font-display);
   letter-spacing: var(--display-tracking);
   margin: var(--space-2) 0 var(--space-5);
   text-wrap: balance;
@@ -1494,7 +1493,8 @@ label.option:not(:has([data-readonly])) {
   height: 28px;
   border-radius: var(--radius-round);
   background: var(--surface);
-  font: 500 var(--size-label) var(--font-mono);
+  font: 500 var(--size-label) var(--font-sans);
+  font-variant-numeric: tabular-nums;
 }
 .option--picked,
 .option--right {
@@ -1607,7 +1607,7 @@ label.option:not(:has([data-readonly])) {
   background: color-mix(in srgb, var(--cpe) 45%, var(--bg));
 }
 .assess__q {
-  font: 400 clamp(1.75rem, 1.3rem + 1.8vw, 2.6rem) / 1.08 var(--font-serif);
+  font: 300 clamp(1.75rem, 1.3rem + 1.8vw, 2.6rem) / 1.08 var(--font-display);
   letter-spacing: var(--display-tracking);
   margin: var(--space-2) 0 var(--space-5);
   text-wrap: balance;
@@ -1637,7 +1637,7 @@ label.option:not(:has([data-readonly])) {
   border-bottom: var(--stroke-hair) solid var(--line);
 }
 .result__score {
-  font: 400 clamp(5rem, 3rem + 8vw, 8.5rem) / 0.9 var(--font-serif);
+  font: 300 clamp(5rem, 3rem + 8vw, 8.5rem) / 0.9 var(--font-display);
   letter-spacing: -0.04em;
 }
 .result__score span {
@@ -1653,7 +1653,7 @@ label.option:not(:has([data-readonly])) {
   border-radius: var(--radius-md);
   background: var(--cpe-tint);
   color: var(--cpe-deep);
-  font-weight: 600;
+  font-weight: 500;
 }
 .review li {
   display: flex;
@@ -1667,7 +1667,7 @@ label.option:not(:has([data-readonly])) {
   border-left-color: var(--alert);
 }
 .review__q {
-  font-weight: 600;
+  font-weight: 500;
 }
 .review__pick {
   display: flex;
@@ -1714,9 +1714,10 @@ label.option:not(:has([data-readonly])) {
   z-index: -1;
   display: grid;
   place-items: center;
-  font: 400 clamp(5rem, 18vw, 14rem) var(--font-serif);
+  font: 300 clamp(5rem, 18vw, 14rem) var(--font-display);
   color: var(--surface);
   rotate: -12deg;
+  letter-spacing: -0.02em;
 }
 .cert__head {
   display: flex;
@@ -1729,20 +1730,19 @@ label.option:not(:has([data-readonly])) {
   border-bottom: var(--stroke-hair) solid var(--ink);
 }
 .cert__certify {
-  font: 500 var(--size-label) var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font: 500 var(--size-label) var(--font-sans);
   color: var(--muted);
 }
 .cert__name {
-  font: 400 clamp(2.4rem, 1.6rem + 4vw, 4.5rem) / 1 var(--font-serif);
+  font: 300 clamp(2.4rem, 1.6rem + 4vw, 4.5rem) / 1 var(--font-display);
   letter-spacing: -0.03em;
   margin: var(--space-3) 0 var(--space-5);
   overflow-wrap: anywhere;
 }
 .cert__course {
-  font: 400 clamp(1.5rem, 1.2rem + 1.4vw, 2.2rem) / 1.15 var(--font-serif);
+  font: 300 clamp(1.5rem, 1.2rem + 1.4vw, 2.2rem) / 1.15 var(--font-display);
   margin: var(--space-2) 0 var(--space-6);
+  letter-spacing: -0.02em;
 }
 .cert__grid {
   display: grid;
@@ -1760,13 +1760,11 @@ label.option:not(:has([data-readonly])) {
   background: var(--bg);
 }
 .cert__grid dt {
-  font: 500 var(--size-caption) var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font: 500 var(--size-caption) var(--font-sans);
   color: var(--muted);
 }
 .cert__grid dd {
-  font-weight: 600;
+  font-weight: 500;
 }
 .cert__foot {
   display: grid;
@@ -1792,7 +1790,7 @@ label.option:not(:has([data-readonly])) {
   line-height: 1.75rem;
 }
 .cert__sig {
-  font: 400 1.4rem/1.75rem var(--font-serif);
+  font: 400 1.4rem/1.75rem var(--font-display);
 }
 .cert__stamp {
   display: flex;
@@ -1846,7 +1844,7 @@ label.option:not(:has([data-readonly])) {
   gap: var(--space-3);
 }
 .standing__total {
-  font: 400 3.4rem/1 var(--font-serif);
+  font: 300 3.4rem/1 var(--font-display);
   letter-spacing: -0.03em;
 }
 .standing__side {
@@ -1867,7 +1865,8 @@ label.option:not(:has([data-readonly])) {
   border-bottom: 0;
 }
 .kv__v {
-  font: 400 1.9rem/1 var(--font-serif);
+  font: 300 1.9rem/1 var(--font-display);
+  letter-spacing: -0.02em;
 }
 .legend {
   display: flex;
@@ -1897,7 +1896,7 @@ label.option:not(:has([data-readonly])) {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-weight: 600;
+  font-weight: 500;
   font-size: var(--size-small);
 }
 .meter {
@@ -1974,9 +1973,7 @@ label.option:not(:has([data-readonly])) {
 .ledger th {
   padding: var(--space-3);
   text-align: left;
-  font: 500 var(--size-caption) var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font: 500 var(--size-caption) var(--font-sans);
   color: var(--muted);
   border-bottom: var(--stroke-hair) solid var(--line-strong);
 }
@@ -1994,19 +1991,19 @@ label.option:not(:has([data-readonly])) {
 }
 .ledger__title {
   display: block;
-  font-weight: 600;
+  font-weight: 500;
 }
 .ledger td .muted {
   font-size: var(--size-label);
 }
 .outside {
   display: block;
-  font: 500 var(--size-caption) var(--font-mono);
+  font: 500 var(--size-caption) var(--font-sans);
   color: var(--muted);
 }
 .ledger tfoot td {
   border-bottom: 0;
-  font-weight: 600;
+  font-weight: 500;
 }
 .ledger .total {
   text-decoration: underline double;
@@ -2019,9 +2016,7 @@ label.option:not(:has([data-readonly])) {
   padding: 4px 10px;
   border-radius: var(--radius-round);
   background: var(--surface);
-  font: 500 var(--size-caption) var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font: 500 var(--size-caption) var(--font-sans);
   white-space: nowrap;
 }
 .logged {
@@ -2108,7 +2103,7 @@ label.option:not(:has([data-readonly])) {
     justify-content: center;
     gap: 2px;
     font-size: var(--size-caption);
-    font-weight: 600;
+    font-weight: 500;
     color: var(--muted);
   }
   .tab--on {
@@ -2420,7 +2415,7 @@ label.option:not(:has([data-readonly])) {
   padding: 8px 10px;
   border-radius: var(--radius-sm);
   font-size: var(--size-small);
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   outline: 0;
 }
@@ -2486,7 +2481,8 @@ label.option:not(:has([data-readonly])) {
   outline: 0;
   background: none;
   text-align: center;
-  font: 500 1rem var(--font-mono);
+  font: 500 1rem var(--font-sans);
+  font-variant-numeric: tabular-nums;
 }
 .numfield__btn {
   height: 100%;
@@ -2506,7 +2502,7 @@ label.option:not(:has([data-readonly])) {
 }
 .minput__label {
   font-size: var(--size-small);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* Base UI: sheets (ledger dialogs) */
@@ -2535,7 +2531,7 @@ label.option:not(:has([data-readonly])) {
   margin-bottom: var(--space-5);
 }
 .sheet__title {
-  font: 400 var(--size-head) / 1.1 var(--font-serif);
+  font: 300 var(--size-head) / 1.1 var(--font-display);
   letter-spacing: var(--display-tracking);
 }
 .sheet__form {
@@ -2623,7 +2619,7 @@ label.option:not(:has([data-readonly])) {
   min-width: 0;
 }
 .toast__title {
-  font-weight: 600;
+  font-weight: 500;
   font-size: var(--size-small);
   margin: 0;
 }
@@ -2640,7 +2636,7 @@ label.option:not(:has([data-readonly])) {
   border-radius: var(--radius-round);
   background: var(--cpe);
   color: var(--color-paper);
-  font-weight: 600;
+  font-weight: 500;
   font-size: var(--size-small);
 }
 .toast__close {
@@ -2663,7 +2659,7 @@ label.option:not(:has([data-readonly])) {
   background: var(--ink);
   color: var(--color-paper);
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 500;
   transform-origin: var(--transform-origin);
   transition: opacity var(--motion-quick), scale var(--motion-quick);
 }

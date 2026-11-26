@@ -130,7 +130,7 @@ export function Search() {
                     <span className="hit__title">{course.title}</span>
                     {line ? <Snippet text={line.text} q={q.trim()} /> : <span className="hit__meta">{course.field}</span>}
                   </span>
-                  <span className="hit__time mono">{line ? `at ${formatTime(line.start)}` : formatTime(course.duration)}</span>
+                  <span className="hit__time tnum">{line ? `at ${formatTime(line.start)}` : formatTime(course.duration)}</span>
                   <PlayButton course={course} size="sm" at={line?.start} />
                 </div>
               </li>

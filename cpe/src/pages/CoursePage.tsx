@@ -44,7 +44,7 @@ function Steps({ course, phase, heard, answered }: { course: Course; phase: Phas
             {s.state === "done" ? <Check width={14} height={14} /> : s.state === "locked" ? <Lock width={12} height={12} /> : null}
             {s.label}
           </span>
-          <span className="step__value mono">{s.value}</span>
+          <span className="step__value tnum">{s.value}</span>
         </li>
       ))}
     </ol>
@@ -111,13 +111,13 @@ function CourseView({ course }: { course: Course }) {
       <section className="wavecard" aria-label="Progress through the episode">
         <Scrubber course={course} time={time} ranges={p.ranges} answered={p.checkpoints} onSeek={seek} />
         <div className="wavecard__foot">
-          <span className="mono">{formatTime(time)}</span>
+          <span className="tnum">{formatTime(time)}</span>
           <ul className="key">
             <li><i className="key__heard" />Heard</li>
             {skipped && <li><i className="key__skipped" />Skipped</li>}
             <li><i className="key__cp" />Review question</li>
           </ul>
-          <span className="mono">{formatTime(course.duration)}</span>
+          <span className="tnum">{formatTime(course.duration)}</span>
         </div>
         {missed.length > 0 && (
           <div className="notice" data-test="missed">

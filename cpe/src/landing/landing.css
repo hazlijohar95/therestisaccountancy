@@ -1,13 +1,6 @@
 /* The CPE landing page, in the ElevenLabs system: a warm off-white page, light display type, black and white
    pill buttons with hairline rings, warm grey panels, and content held between two hairline rails.
    Scoped under .landing so the app keeps its own look. Green keeps its one job: play, progress, earned credit. */
-@font-face {
-  font-family: "Geist";
-  src: url("../../node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2") format("woff2");
-  font-weight: 100 900;
-  font-display: swap;
-}
-
 .landing {
   --l-bg: #fdfcfc;
   --l-panel: #f5f3f1;
@@ -16,7 +9,7 @@
   --l-muted: #6b6b6b;
   --l-rule: #e5e5e5;
   --l-ring: 0 0 0 0.5px rgb(0 0 0 / 0.14), 0 1px 1px rgb(0 0 0 / 0.04), 0 2px 4px rgb(0 0 0 / 0.04);
-  --l-display: "Geist", var(--font-sans);
+  --l-display: var(--font-display);
   --l-max: 1180px;
   --l-pad: 32px;
 
@@ -762,10 +755,11 @@
 }
 .hstage .hs-title {
   margin-top: 4px;
-  font-size: 28px;
-  font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: -0.025em;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 300;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 .hstage .hs-meta {
   margin-top: 4px;

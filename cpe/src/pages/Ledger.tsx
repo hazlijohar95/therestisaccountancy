@@ -64,7 +64,7 @@ export function Ledger() {
             <span className="standing__total" data-test="ledger-total">
               {formatHours(s.total)}
             </span>
-            <span className="mono muted">of {formatHours(req.target)}h</span>
+            <span className="tnum muted">of {formatHours(req.target)}h</span>
           </Ring>
           <div className="standing__info">
             <p className="eyebrow">
@@ -106,7 +106,7 @@ export function Ledger() {
               <Meter.Root key={m.field} value={Math.min(m.have, m.required)} max={m.required} className="minimum">
                 <Meter.Label className="minimum__label">
                   {m.field} minimum{" "}
-                  <span className="mono muted">
+                  <span className="tnum muted">
                     {formatHours(m.have)} / {formatHours(m.required)}h
                   </span>
                 </Meter.Label>
@@ -161,7 +161,7 @@ export function Ledger() {
                   const outside = l.date < req.start || l.date > req.end;
                   return (
                     <tr key={l.id}>
-                      <td className="mono">
+                      <td className="tnum">
                         {l.date}
                         {outside && <span className="outside">Outside cycle</span>}
                       </td>
@@ -206,10 +206,10 @@ export function Ledger() {
                           </span>
                         )}
                       </td>
-                      <td className="num mono" data-label="Hours">
+                      <td className="num tnum" data-label="Hours">
                         {formatHours(l.hours)}
                       </td>
-                      <td className="num mono" data-label="Balance">
+                      <td className="num tnum" data-label="Balance">
                         {formatHours(running)}
                       </td>
                     </tr>
@@ -219,7 +219,7 @@ export function Ledger() {
               <tfoot>
                 <tr>
                   <td colSpan={4}>In this cycle</td>
-                  <td className="num mono total">{formatHours(s.total)}</td>
+                  <td className="num tnum total">{formatHours(s.total)}</td>
                   <td />
                 </tr>
               </tfoot>

@@ -29,7 +29,7 @@ export function CertificatePage({ id }: { id: string }) {
         </div>
         <header className="cert__head">
           <Logo />
-          <span className="mono">Certificate of completion</span>
+          <span className="tnum">Certificate of completion</span>
         </header>
         <p className="cert__certify">This certifies that</p>
         <h1 className="cert__name">{cert.name || state.learner || "Learner"}</h1>
@@ -46,14 +46,14 @@ export function CertificatePage({ id }: { id: string }) {
         <footer className="cert__foot">
           <div>
             <span className="cert__sig">{course.show.title}</span>
-            <span className="mono">Programme</span>
+            <span className="tnum">Programme</span>
           </div>
           <div className="cert__stamp" aria-hidden>
             <span>Passed</span>
           </div>
           <div className="cert__id">
-            <span className="mono">{cert.id}</span>
-            <span className="mono">Certificate ID</span>
+            <span className="tnum">{cert.id}</span>
+            <span className="tnum">Certificate ID</span>
           </div>
         </footer>
         <p className="cert__fine">
