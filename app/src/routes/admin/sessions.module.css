@@ -1,0 +1,14 @@
+.block { display: grid; gap: var(--space-5); padding-block: clamp(48px, 6vw, 80px) 0; }
+.sessions { display: grid; margin: 0; padding: 0; list-style: none; border-top: var(--stroke-rule) solid var(--ink); }
+.session { display: grid; gap: var(--space-2); padding-block: var(--space-5); border-bottom: var(--stroke-hair) solid var(--ink); }
+.session :global(.small), .title { margin: 0; }
+.title { font-size: var(--size-head); line-height: 1.2; }
+.confirm summary { cursor: pointer; text-decoration: underline; text-underline-offset: .2em; width: fit-content; }
+.confirm form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin: var(--space-3) 0 0; }
+.confirm :global(.btn) { min-height: 36px; padding: .4em .8em; font-size: var(--size-small); }
+.form { display: grid; gap: var(--space-5); max-width: 560px; }
+.form :global(.btn) { justify-self: start; }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-5); }
+.form textarea:global(.input) { resize: vertical; line-height: 1.5; }
+.error { color: var(--alert); font-weight: 600; }
+.empty { margin: 0; padding-block: var(--space-5); border-block: var(--stroke-hair) solid var(--ink); }

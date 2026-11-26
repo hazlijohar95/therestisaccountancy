@@ -1,0 +1,11 @@
+.block { display: grid; gap: var(--space-5); padding-block: clamp(48px, 6vw, 80px) 0; }
+.block > * { max-width: 720px; }
+.facts dd { overflow-wrap: anywhere; }
+.form { display: grid; gap: var(--space-5); max-width: 480px; }
+.form :global(.btn) { justify-self: start; }
+.note, .small { margin: 0; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.actions form { margin: 0; }
+.check { display: flex; gap: var(--space-3); align-items: start; font-weight: 600; }
+.check input { width: 20px; height: 20px; margin: .1em 0 0; accent-color: var(--ink); flex: none; }
+.error { color: var(--alert); font-weight: 600; font-size: var(--size-small); }
