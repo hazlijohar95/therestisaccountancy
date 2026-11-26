@@ -1,4 +1,5 @@
-import { createFileRoute, Link, notFound, redirect } from '@tanstack/react-router';
+import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
+import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { useRef, useState, type FormEvent } from 'react';
 import { SERVICES, SHELF_KINDS, SHELF_LIMITS, TICK_SOURCES, VOUCHES_TO_TICK, type TickSource } from '../../../../src/data/social.ts';
 import { Avatar } from '../../components/social/Avatar.tsx';
@@ -41,9 +42,9 @@ function Missing() {
       <div className="card empty">
         <h1 className="head">Not on the List.</h1>
         <p>No one here goes by @{handle}.</p>
-        <Link className="btn sm" to="/social/list">
+        <SocialLink className="btn sm" to="/social/list">
           See The List
-        </Link>
+        </SocialLink>
       </div>
     </div>
   );
@@ -99,29 +100,29 @@ function Profile() {
                 {invitedBy && (
                   <span>
                     Invited by{' '}
-                    <Link to="/social/@{$handle}" params={{ handle: invitedBy.handle }}>
+                    <SocialLink to="/social/@{$handle}" params={{ handle: invitedBy.handle }}>
                       {invitedBy.name}
-                    </Link>
+                    </SocialLink>
                   </span>
                 )}
               </p>
               <div className="actions">
                 {own ? (
                   <>
-                    <Link className="btn sm" to="/social/edit">
+                    <SocialLink className="btn sm" to="/social/edit">
                       <svg aria-hidden="true">
                         <use href="#i-edit" />
                       </svg>
                       Edit profile
-                    </Link>
+                    </SocialLink>
                     {profile.sealed && (
-                      <Link className="btn sm ghost" to="/social/badge">
+                      <SocialLink className="btn sm ghost" to="/social/badge">
                         Get your badge
-                      </Link>
+                      </SocialLink>
                     )}
-                    <Link className="btn sm ghost" to="/social/invites">
+                    <SocialLink className="btn sm ghost" to="/social/invites">
                       Invites
-                    </Link>
+                    </SocialLink>
                     <a className="btn sm ghost" href={socialHref('/casebook/new')}>
                       <svg aria-hidden="true">
                         <use href="#i-plus" />
@@ -171,9 +172,9 @@ function Profile() {
               <div className="empty">
                 <p>{own ? 'You have not posted yet.' : 'No posts yet.'}</p>
                 {own && (
-                  <Link className="btn sm" to="/social">
+                  <SocialLink className="btn sm" to="/social">
                     Ask the Floor
-                  </Link>
+                  </SocialLink>
                 )}
               </div>
             )}
@@ -227,7 +228,7 @@ function Claims({ page }: { page: Page }) {
           Ticked claims
         </h2>
         <span className="small">
-          <Link to="/social/ticks">What a tick means</Link>
+          <SocialLink to="/social/ticks">What a tick means</SocialLink>
         </span>
       </header>
       <NoticeLine />
@@ -487,9 +488,9 @@ function Saved({ page }: { page: Page }) {
                   <b>{item.title}</b>
                 </a>
                 <br />
-                <Link to="/social/@{$handle}" params={{ handle: item.owner.handle }}>
+                <SocialLink to="/social/@{$handle}" params={{ handle: item.owner.handle }}>
                   {item.owner.name}
-                </Link>{' '}
+                </SocialLink>{' '}
                 · {item.kind}
               </span>
               <form method="POST" onSubmit={(event) => unsave(event, item.id)}>
@@ -503,9 +504,9 @@ function Saved({ page }: { page: Page }) {
       ) : (
         <div className="empty">
           <p>Nothing saved yet. Save templates and explainers from anyone’s shelf.</p>
-          <Link className="btn sm ghost" to="/social/list">
+          <SocialLink className="btn sm ghost" to="/social/list">
             Browse The List
-          </Link>
+          </SocialLink>
         </div>
       )}
     </section>

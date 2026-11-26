@@ -1,4 +1,5 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { useState, type FormEvent } from 'react';
 import { accountHandle, CLAIM_LIMITS, PLATFORMS, TOPICS, type Platform, type Topic } from '../../../../src/data/social.ts';
 import { Tick } from '../../components/social/Tick.tsx';
@@ -79,9 +80,9 @@ function Nominate() {
                   {listed && (
                     <>
                       {' '}
-                      <Link to="/social/@{$handle}" params={{ handle: listed }}>
+                      <SocialLink to="/social/@{$handle}" params={{ handle: listed }}>
                         See their profile
-                      </Link>
+                      </SocialLink>
                     </>
                   )}
                 </span>
@@ -128,9 +129,9 @@ function Nominate() {
             </h2>
             <p>Nominations come from members, so we know who to ask if something looks wrong. Social is free and invite-only.</p>
             <div className="panel-foot">
-              <Link className="small" to="/social/request">
+              <SocialLink className="small" to="/social/request">
                 Request to join
-              </Link>
+              </SocialLink>
               <a className="btn" href={socialSignInHref('/nominate')}>
                 Sign in
               </a>

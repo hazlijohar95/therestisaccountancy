@@ -15,7 +15,7 @@ import { absolute, sendLater } from '../lib/mail.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
-import { email, memberName, oneLine } from './social-fields.ts';
+import { email, id, memberName, oneLine, token } from './social-fields.ts';
 import { claimRefusals as nominationRefusals } from './social-nominations.ts';
 import { handleField, handleRefusals } from './social-profiles.ts';
 
@@ -137,7 +137,9 @@ export const revokeInvite = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const result = await withStore(async (store) => await store.socialInvites.revoke(member.value.id, data.invite));
+    const input = parsed(z.object({ invite: id }), data);
+    if (!input.ok) return input;
+    const result = await withStore(async (store) => await store.socialInvites.revoke(member.value.id, input.value.invite));
     return result.ok ? done(null) : refused(revokeRefusals[result.reason]);
   });
 
@@ -147,8 +149,10 @@ export const useInvite = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    if (!data.token) return refused(redeemRefusals.dead);
-    const result = await withStore(async (store) => await store.socialInvites.redeem(member.value.id, data.token));
+    const input = parsed(z.object({ token: token }), data);
+    if (!input.ok) return input;
+    if (!input.value.token) return refused(redeemRefusals.dead);
+    const result = await withStore(async (store) => await store.socialInvites.redeem(member.value.id, input.value.token));
     return result.ok ? done(null) : refused(redeemRefusals[result.reason]);
   });
 

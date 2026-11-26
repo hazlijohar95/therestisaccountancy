@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { ChipLink } from '../../components/social/ChipLink.tsx';
+import { createFileRoute } from '@tanstack/react-router';
+import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { z } from 'zod';
 import { TOPICS, TRACKS, trackNames, type Topic, type Track } from '../../../../src/data/social.ts';
 import { Avatar } from '../../components/social/Avatar.tsx';
@@ -37,12 +37,12 @@ function List() {
           <h1 className="title">People worth following.</h1>
           <p className="lead">Ranked by peers who rated their answers. Never by followers.</p>
         </div>
-        <Link className="btn" to="/social/nominate">
+        <SocialLink className="btn" to="/social/nominate">
           <svg aria-hidden="true">
             <use href="#i-plus" />
           </svg>
           Nominate someone
-        </Link>
+        </SocialLink>
       </div>
       {outcome && (
         <p className="note" role="status">
@@ -52,16 +52,16 @@ function List() {
       <div className="list-tools">
         <nav className="chips" aria-label="Topic">
           {topicChips.map((chip) => (
-            <ChipLink key={chip.label} className="chip" to="/social/list" search={filter({ topic: chip.topic })} current={chip.topic === topic}>
+            <SocialLink key={chip.label} className="chip" to="/social/list" search={filter({ topic: chip.topic })} current={chip.topic === topic}>
               {chip.label}
-            </ChipLink>
+            </SocialLink>
           ))}
         </nav>
         <nav className="chips" aria-label="Track">
           {trackChips.map((chip) => (
-            <ChipLink key={chip.label} className="chip" to="/social/list" search={filter({ track: chip.track })} current={chip.track === track}>
+            <SocialLink key={chip.label} className="chip" to="/social/list" search={filter({ track: chip.track })} current={chip.track === track}>
               {chip.label}
-            </ChipLink>
+            </SocialLink>
           ))}
         </nav>
       </div>
@@ -69,7 +69,7 @@ function List() {
         <ol className="list card">
           {entries.map(({ profile, points }, i) => (
             <li key={profile.handle}>
-              <Link className="row" to="/social/@{$handle}" params={{ handle: profile.handle }}>
+              <SocialLink className="row" to="/social/@{$handle}" params={{ handle: profile.handle }}>
                 <span className="no" aria-hidden="true">
                   {i + 1}
                 </span>
@@ -102,7 +102,7 @@ function List() {
                     <use href="#i-arrow" />
                   </svg>
                 </span>
-              </Link>
+              </SocialLink>
             </li>
           ))}
           {nominated.map((n) => (
@@ -146,13 +146,13 @@ function List() {
           <p className="head">{filtered ? 'No one matches yet.' : 'No one is on The List yet.'}</p>
           <p>{filtered ? 'Try another topic or track.' : 'It fills with real people as they join. Know someone who posts things worth learning from?'}</p>
           {filtered ? (
-            <Link className="btn sm ghost" to="/social/list">
+            <SocialLink className="btn sm ghost" to="/social/list">
               Show everyone
-            </Link>
+            </SocialLink>
           ) : (
-            <Link className="btn sm" to="/social/nominate">
+            <SocialLink className="btn sm" to="/social/nominate">
               Nominate them
-            </Link>
+            </SocialLink>
           )}
         </div>
       )}

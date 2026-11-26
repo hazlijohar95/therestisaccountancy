@@ -1,5 +1,5 @@
-import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router';
-import { ChipLink } from '../../../components/social/ChipLink.tsx';
+import { createFileRoute, notFound, useNavigate } from '@tanstack/react-router';
+import { SocialLink } from '../../../components/social/SocialLink.tsx';
 import { useEffect, useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import { FLOOR_LIMITS, POST_JURISDICTIONS, ROOMS } from '../../../../../src/data/social.ts';
@@ -51,12 +51,12 @@ export const Route = createFileRoute('/social/post/$id')({
 
 function Back() {
   return (
-    <Link className="back" to="/social">
+    <SocialLink className="back" to="/social">
       <svg aria-hidden="true">
         <use href="#i-back" />
       </svg>
       Floor
-    </Link>
+    </SocialLink>
   );
 }
 
@@ -66,9 +66,9 @@ function Gone() {
       <Back />
       <div className="card empty">
         <h1 className="head">That post isn’t here any more.</h1>
-        <Link className="btn sm" to="/social">
+        <SocialLink className="btn sm" to="/social">
           Back to the Floor
-        </Link>
+        </SocialLink>
       </div>
     </div>
   );
@@ -134,12 +134,12 @@ function Thread() {
           {(post.editable || post.mine || viewer.admin) && (
             <div className="owner-actions">
               {post.editable && (
-                <Link className="act" to="/social/post/$id" params={{ id: String(post.id) }} search={{ sort: search.sort, edit: 'post' }}>
+                <SocialLink className="act" to="/social/post/$id" params={{ id: String(post.id) }} search={{ sort: search.sort, edit: 'post' }}>
                   <svg aria-hidden="true">
                     <use href="#i-edit" />
                   </svg>
                   Edit
-                </Link>
+                </SocialLink>
               )}
               <RemovePost post={post} />
             </div>
@@ -154,12 +154,12 @@ function Thread() {
             {plural(replies.length, 'reply', 'replies')}
           </h2>
           <nav className="chips" aria-label="Sort replies">
-            <ChipLink className="chip" to="/social/post/$id" params={{ id: String(post.id) }} search={{}} hash="replies" current={sort === 'top'}>
+            <SocialLink className="chip" to="/social/post/$id" params={{ id: String(post.id) }} search={{}} hash="replies" current={sort === 'top'}>
               Top
-            </ChipLink>
-            <ChipLink className="chip" to="/social/post/$id" params={{ id: String(post.id) }} search={{ sort: 'new' }} hash="replies" current={sort === 'new'}>
+            </SocialLink>
+            <SocialLink className="chip" to="/social/post/$id" params={{ id: String(post.id) }} search={{ sort: 'new' }} hash="replies" current={sort === 'new'}>
               Newest
-            </ChipLink>
+            </SocialLink>
           </nav>
         </header>
         {replies.length === 0 && (
@@ -177,11 +177,11 @@ function Thread() {
             <p className="small">
               {signedIn ? (
                 <>
-                  <Link to="/social/edit">Claim your handle</Link> to reply.
+                  <SocialLink to="/social/edit">Claim your handle</SocialLink> to reply.
                 </>
               ) : (
                 <>
-                  <a href={signIn}>Sign in</a> to reply. New here? <Link to="/social/request">Request to join</Link>.
+                  <a href={signIn}>Sign in</a> to reply. New here? <SocialLink to="/social/request">Request to join</SocialLink>.
                 </>
               )}
             </p>
@@ -259,9 +259,9 @@ function EditPost({ post, viewer }: { post: Post; viewer: Viewer }) {
       <div className="row-end">
         <span className="small">Edits close {FLOOR_LIMITS.editMinutes} minutes after posting.</span>
         <span className="actions">
-          <Link className="btn ghost" to="/social/post/$id" params={{ id: String(post.id) }} search={{ sort: search.sort }}>
+          <SocialLink className="btn ghost" to="/social/post/$id" params={{ id: String(post.id) }} search={{ sort: search.sort }}>
             Cancel
-          </Link>
+          </SocialLink>
           <button className="btn" type="submit">
             Save
           </button>
@@ -328,7 +328,7 @@ function Reply({ reply, post, viewer, signedIn, editing }: { reply: ReplyCard; p
         </p>
       )}
       <div className="by">
-        <Link className="author" to="/social/@{$handle}" params={{ handle: reply.author.handle }}>
+        <SocialLink className="author" to="/social/@{$handle}" params={{ handle: reply.author.handle }}>
           <Avatar name={reply.author.name} track={reply.author.track} sealed={reply.author.sealed} size="sm" />
           <span className="name-line">
             {reply.author.name}
@@ -338,7 +338,7 @@ function Reply({ reply, post, viewer, signedIn, editing }: { reply: ReplyCard; p
               </svg>
             )}
           </span>
-        </Link>
+        </SocialLink>
         <Flair track={reply.author.track} />
         <span className="ago">
           <time dateTime={reply.createdAt}>{formatMoment(reply.createdAt)}</time>
@@ -366,9 +366,9 @@ function Reply({ reply, post, viewer, signedIn, editing }: { reply: ReplyCard; p
         )}
         <span className="spacer" />
         {reply.editable && (
-          <Link className="act" to="/social/post/$id" params={{ id: String(post.id) }} search={{ sort: search.sort, edit: `reply-${reply.id}` }} hash={`reply-${reply.id}`}>
+          <SocialLink className="act" to="/social/post/$id" params={{ id: String(post.id) }} search={{ sort: search.sort, edit: `reply-${reply.id}` }} hash={`reply-${reply.id}`}>
             Edit<span className="sr-only"> your reply</span>
-          </Link>
+          </SocialLink>
         )}
         {(reply.mine || viewer.admin) && (
           <details className="remove">
@@ -419,9 +419,9 @@ function EditReply({ reply, postId }: { reply: ReplyCard; postId: number }) {
         </span>
       )}
       <div className="actions">
-        <Link className="btn sm ghost" to="/social/post/$id" params={{ id: String(postId) }} search={{ sort: search.sort }} hash={`reply-${reply.id}`}>
+        <SocialLink className="btn sm ghost" to="/social/post/$id" params={{ id: String(postId) }} search={{ sort: search.sort }} hash={`reply-${reply.id}`}>
           Cancel
-        </Link>
+        </SocialLink>
         <button className="btn sm" type="submit">
           Save
         </button>

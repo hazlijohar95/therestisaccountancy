@@ -1,4 +1,5 @@
-import { createFileRoute, Link, redirect } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
+import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { useState, type ReactNode } from 'react';
 import { RATINGS } from '../../../../src/data/social.ts';
 import { formatMoment, formatMonth, tally } from '../../../../src/lib/format.ts';
@@ -36,15 +37,15 @@ function NoticeLink({ notice, children }: { notice: Notice; children: ReactNode 
     case 'accepted':
     case 'useful':
       return (
-        <Link to="/social/post/$id" params={{ id: String(notice.postId) }}>
+        <SocialLink to="/social/post/$id" params={{ id: String(notice.postId) }}>
           {children}
-        </Link>
+        </SocialLink>
       );
     case 'follow':
       return (
-        <Link to="/social/@{$handle}" params={{ handle: notice.actor.handle }}>
+        <SocialLink to="/social/@{$handle}" params={{ handle: notice.actor.handle }}>
           {children}
-        </Link>
+        </SocialLink>
       );
     case 'rating':
       return <a href={socialHref(`/problems/${notice.number}#answers`)}>{children}</a>;
@@ -56,7 +57,7 @@ function NoticeLink({ notice, children }: { notice: Notice; children: ReactNode 
     case 'renewal':
       return <a href={socialHref('/verify')}>{children}</a>;
     case 'nominee-joined':
-      return <Link to="/social/nominate">{children}</Link>;
+      return <SocialLink to="/social/nominate">{children}</SocialLink>;
   }
 }
 
@@ -164,9 +165,9 @@ function Notifications() {
             <div className="by">
               <Avatar name={author.name} track={author.track} sealed={author.sealed} size="sm" />
               <p id={`cosign-${entry.id}`}>
-                <Link to="/social/@{$handle}" params={{ handle: author.handle }}>
+                <SocialLink to="/social/@{$handle}" params={{ handle: author.handle }}>
                   <b>{author.name}</b>
-                </Link>{' '}
+                </SocialLink>{' '}
                 asked you to co-sign a casebook entry.
               </p>
               <span className="ago">

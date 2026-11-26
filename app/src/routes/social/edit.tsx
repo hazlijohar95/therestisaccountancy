@@ -1,4 +1,5 @@
-import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
+import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent } from 'react';
 import { HANDLE, JURISDICTIONS, PROFILE_LIMITS, SECTORS, socialHost, TOPICS } from '../../../../src/data/social.ts';
@@ -48,9 +49,9 @@ function Edit() {
             Social is invite-only.
           </h2>
           <p>Every account here is one we know. Open the invite link someone sent you, signed in as you are now, or ask to join and the team reads your request.</p>
-          <Link className="btn sm" to="/social/request">
+          <SocialLink className="btn sm" to="/social/request">
             Request to join
-          </Link>
+          </SocialLink>
         </section>
       ) : (
         <ProfileForm profile={profile} />
@@ -200,13 +201,13 @@ function ProfileForm({ profile }: { profile: Loaded['profile'] }) {
       )}
       <div className="panel-foot">
         {profile ? (
-          <Link className="btn ghost" to="/social/@{$handle}" params={{ handle: profile.handle }}>
+          <SocialLink className="btn ghost" to="/social/@{$handle}" params={{ handle: profile.handle }}>
             Cancel
-          </Link>
+          </SocialLink>
         ) : (
-          <Link className="btn ghost" to="/social">
+          <SocialLink className="btn ghost" to="/social">
             Cancel
-          </Link>
+          </SocialLink>
         )}
         <button className="btn" type="submit">
           {profile ? 'Save profile' : 'Claim handle'}

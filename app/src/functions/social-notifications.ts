@@ -1,10 +1,12 @@
 import { createServerFn } from '@tanstack/react-start';
+import { z } from 'zod';
 import { renewsIn } from '../../../src/lib/ticks.ts';
 import type { CosignRefusal } from '../../../src/server/social-casebook.ts';
 import { memberOrRefusal } from '../lib/guards.server.ts';
-import { done, refused, type Outcome } from '../lib/outcome.ts';
+import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
+import { id } from './social-fields.ts';
 
 const cosignRefusals: Record<CosignRefusal, string> = {
   'not-found': 'That request is gone. Its author may have removed the entry.',
@@ -47,7 +49,9 @@ export const decideCosign = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ outcome: 'signed' | 'declined' }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    if (data.outcome !== 'signed' && data.outcome !== 'declined') return refused(cosignRefusals['not-found']);
-    const result = await withStore(async (store) => await store.socialCasebook.decide(member.value.id, data.entry, data.outcome));
+    const input = parsed(z.object({ entry: id, outcome: z.enum(['signed', 'declined']) }), data);
+    if (!input.ok) return input;
+    const { entry, outcome } = input.value;
+    const result = await withStore(async (store) => await store.socialCasebook.decide(member.value.id, entry, outcome));
     return result.ok ? done({ outcome: result.value.outcome }) : refused(cosignRefusals[result.reason]);
   });

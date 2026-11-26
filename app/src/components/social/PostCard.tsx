@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router';
+import { SocialLink } from './SocialLink.tsx';
 import type { ReactNode } from 'react';
 import { ROOMS } from '../../../../src/data/social.ts';
 import { formatMoment } from '../../../../src/lib/format.ts';
@@ -19,7 +19,7 @@ export function PostCard({ post, full = false, signedIn, children }: { post: Pos
   return (
     <article className="post" aria-labelledby={`post-${post.id}-title`}>
       <div className="by">
-        <Link className="author" to="/social/@{$handle}" params={{ handle: post.author.handle }}>
+        <SocialLink className="author" to="/social/@{$handle}" params={{ handle: post.author.handle }}>
           <Avatar name={post.author.name} track={post.author.track} sealed={post.author.sealed} size="sm" />
           <span className="name-line">
             {post.author.name}
@@ -29,7 +29,7 @@ export function PostCard({ post, full = false, signedIn, children }: { post: Pos
               </svg>
             )}
           </span>
-        </Link>
+        </SocialLink>
         <Flair track={post.author.track} />
         <span className="jur" title="Jurisdiction">
           {post.jurisdiction}
@@ -45,9 +45,9 @@ export function PostCard({ post, full = false, signedIn, children }: { post: Pos
         </h1>
       ) : (
         <h2 id={`post-${post.id}-title`}>
-          <Link className="post-link" {...to}>
+          <SocialLink className="post-link" {...to}>
             {post.title}
-          </Link>
+          </SocialLink>
         </h2>
       )}
       {post.body && (full ? <PostText text={post.body} /> : <p className="excerpt">{excerpt}</p>)}
@@ -58,21 +58,21 @@ export function PostCard({ post, full = false, signedIn, children }: { post: Pos
           </svg>
           <span>
             Corrected. A member with the seal flagged a mistake.{' '}
-            <Link {...to} hash={`reply-${post.correction.replyId}`}>
+            <SocialLink {...to} hash={`reply-${post.correction.replyId}`}>
               Read the correction
-            </Link>
+            </SocialLink>
             .
           </span>
         </p>
       )}
       <div className="foot-row">
         {post.answer && (
-          <Link className="answered" {...to} hash={`reply-${post.answer.replyId}`}>
+          <SocialLink className="answered" {...to} hash={`reply-${post.answer.replyId}`}>
             <svg className="tick" aria-hidden="true">
               <use href="#tk" />
             </svg>
             Answered by a ticked {post.answer.credential}
-          </Link>
+          </SocialLink>
         )}
         <span className="spacer" />
         <UsefulButton target="post" id={post.id} useful={post.useful} pressed={post.usefulByViewer} canMark={signedIn && !post.mine} />
@@ -84,12 +84,12 @@ export function PostCard({ post, full = false, signedIn, children }: { post: Pos
             {replies}
           </span>
         ) : (
-          <Link className="act" {...to} hash="replies">
+          <SocialLink className="act" {...to} hash="replies">
             <svg aria-hidden="true">
               <use href="#i-reply" />
             </svg>
             {replies}
-          </Link>
+          </SocialLink>
         )}
         {children}
       </div>

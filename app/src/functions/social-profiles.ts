@@ -8,7 +8,7 @@ import { memberOrRefusal } from '../lib/guards.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
-import { oneLine } from './social-fields.ts';
+import { id, oneLine, token } from './social-fields.ts';
 
 /* Profiles: The List, a member's page, following, vouching, and editing your own. */
 
@@ -161,7 +161,9 @@ export const follow = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const result = await withStore(async (store) => await store.socialProfiles.follow(member.value.id, data.handle));
+    const input = parsed(z.object({ handle: token }), data);
+    if (!input.ok) return input;
+    const result = await withStore(async (store) => await store.socialProfiles.follow(member.value.id, input.value.handle));
     return result.ok ? done(null) : refused(followRefusals[result.reason]);
   });
 
@@ -170,7 +172,9 @@ export const unfollow = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    await withStore(async (store) => await store.socialProfiles.unfollow(member.value.id, data.handle));
+    const input = parsed(z.object({ handle: token }), data);
+    if (!input.ok) return input;
+    await withStore(async (store) => await store.socialProfiles.unfollow(member.value.id, input.value.handle));
     return done(null);
   });
 
@@ -180,7 +184,9 @@ export const vouch = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ ticked: boolean }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const result = await withStore(async (store) => await store.socialClaims.vouch(member.value.id, data.claim));
+    const input = parsed(z.object({ claim: id }), data);
+    if (!input.ok) return input;
+    const result = await withStore(async (store) => await store.socialClaims.vouch(member.value.id, input.value.claim));
     return result.ok ? done({ ticked: result.value.review.state === 'ticked' }) : refused(vouchRefusals[result.reason]);
   });
 

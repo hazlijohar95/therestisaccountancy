@@ -1,4 +1,5 @@
-import { createFileRoute, Link, redirect } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
+import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { useState, type FormEvent } from 'react';
 import { REQUEST_LIMITS } from '../../../../src/data/social.ts';
 import { fieldError, useAction } from '../../components/social/useAction.ts';
@@ -57,9 +58,9 @@ function Request() {
             Someone on the team reads every request. We email <b>{sent}</b> either way.
           </p>
           <p className="small">If a member sends you an invite in the meantime, it works straight away.</p>
-          <Link className="btn sm ghost" to="/social">
+          <SocialLink className="btn sm ghost" to="/social">
             Read the Floor
-          </Link>
+          </SocialLink>
         </section>
       </div>
     );

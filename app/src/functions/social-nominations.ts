@@ -7,6 +7,7 @@ import { allowed, tooManyTries } from '../lib/limits.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
+import { token } from './social-fields.ts';
 
 /* Nominations stay private: only the nominator sees theirs, and only the nominee sees their invite. */
 
@@ -88,10 +89,12 @@ export const claimNomination = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
+    const input = parsed(z.object({ token: token }), data);
+    if (!input.ok) return input;
     return withStore(async (store): Promise<Outcome<null>> => {
       const profile = await store.socialProfiles.ownProfile(member.value.id);
       if (!profile) return refused('Claim your handle first.');
-      const result = await store.socialNominations.claim(profile.memberId, data.token);
+      const result = await store.socialNominations.claim(profile.memberId, input.value.token);
       return result.ok ? done(null) : refused(claimRefusals[result.reason]);
     });
   });
@@ -100,7 +103,9 @@ export const claimNomination = createServerFn({ method: 'POST' })
 export const declineNomination = createServerFn({ method: 'POST' })
   .validator((input: { token: string }) => input)
   .handler(async ({ data }): Promise<Outcome<null>> => {
+    const input = parsed(z.object({ token: token }), data);
+    if (!input.ok) return input;
     if (!(await allowed('decline'))) return refused(tooManyTries);
-    const declined = await withStore(async (store) => await store.socialNominations.decline(data.token));
+    const declined = await withStore(async (store) => await store.socialNominations.decline(input.value.token));
     return declined ? done(null) : refused(claimRefusals['not-found']);
   });

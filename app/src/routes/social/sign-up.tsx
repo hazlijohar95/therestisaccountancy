@@ -1,4 +1,5 @@
-import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
+import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import { LINK_DAYS } from '../../../../src/data/links.ts';
@@ -57,12 +58,12 @@ function SignUp() {
           </h1>
           <p>Invite links work once, for a limited time. Ask whoever sent it for a new one, or ask to join and the team reads your request.</p>
           <div className="actions">
-            <Link className="btn sm" to="/social/request">
+            <SocialLink className="btn sm" to="/social/request">
               Request to join
-            </Link>
-            <Link className="btn sm ghost" to="/social">
+            </SocialLink>
+            <SocialLink className="btn sm ghost" to="/social">
               Read the Floor
-            </Link>
+            </SocialLink>
           </div>
         </section>
       </div>
@@ -79,9 +80,9 @@ function SignUp() {
                 You are on Social already.
               </h1>
               <p>This invite is for someone new. Pass it on, or leave it: it runs out by itself.</p>
-              <Link className="btn sm" to="/social/@{$handle}" params={{ handle: page.handle }}>
+              <SocialLink className="btn sm" to="/social/@{$handle}" params={{ handle: page.handle }}>
                 Go to your profile
-              </Link>
+              </SocialLink>
             </>
           ) : page.inAlready ? (
             <>
@@ -89,9 +90,9 @@ function SignUp() {
                 You can pick your handle now.
               </h1>
               <p>Signed in as {member.name}, you need no invite. Leave this one for someone new.</p>
-              <Link className="btn sm" to="/social/edit">
+              <SocialLink className="btn sm" to="/social/edit">
                 Pick your handle
-              </Link>
+              </SocialLink>
             </>
           ) : (
             <UseInvite name={member.name} invite={invite} />

@@ -1,4 +1,5 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { SocialLink } from '../../../components/social/SocialLink.tsx';
 import { z } from 'zod';
 import { listOf } from '../../../../../src/lib/format.ts';
 import { pageStatus } from '../../../components/social/status.ts';
@@ -51,9 +52,9 @@ function Claim() {
             Deleted.
           </h1>
           <p className="lead">We removed the nomination and won’t invite you again.</p>
-          <Link className="btn" to="/social">
+          <SocialLink className="btn" to="/social">
             Go to the Floor
-          </Link>
+          </SocialLink>
         </section>
       </div>
     );
@@ -65,12 +66,12 @@ function Claim() {
           <h1 className="head">This invite has been used or withdrawn.</h1>
           <p>If you were sent it and it never worked, write to the team, or ask to join and the team reads your request.</p>
           <div className="actions">
-            <Link className="btn sm" to="/social/request">
+            <SocialLink className="btn sm" to="/social/request">
               Request to join
-            </Link>
-            <Link className="btn sm ghost" to="/social">
+            </SocialLink>
+            <SocialLink className="btn sm ghost" to="/social">
               Go to the Floor
-            </Link>
+            </SocialLink>
           </div>
         </div>
       </div>
@@ -119,29 +120,29 @@ function Claim() {
               <button className="btn sm danger" type="button" onClick={declineIt} autoFocus>
                 Delete nomination
               </button>
-              <Link className="btn sm ghost" {...here} search={{}}>
+              <SocialLink className="btn sm ghost" {...here} search={{}}>
                 Keep it
-              </Link>
+              </SocialLink>
             </div>
           </div>
         ) : (
           <div className="actions">
             {!signedIn ? (
-              <Link className="btn" to="/social/sign-up" search={{ nomination: token }}>
+              <SocialLink className="btn" to="/social/sign-up" search={{ nomination: token }}>
                 Claim and get ticked
-              </Link>
+              </SocialLink>
             ) : hasProfile ? (
               <button className="btn" type="button" onClick={claimIt}>
                 Claim and get ticked
               </button>
             ) : (
-              <Link className="btn" to="/social/edit">
+              <SocialLink className="btn" to="/social/edit">
                 Claim your handle first
-              </Link>
+              </SocialLink>
             )}
-            <Link className="btn ghost" {...here} search={{ confirm: 'decline' }}>
+            <SocialLink className="btn ghost" {...here} search={{ confirm: 'decline' }}>
               Not for me
-            </Link>
+            </SocialLink>
           </div>
         )}
         {signedIn && !hasProfile && <p className="small">Pick your handle, then open this link again to claim the invite.</p>}

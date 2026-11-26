@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
+import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { useServerFn } from '@tanstack/react-start';
 import { useState } from 'react';
 import { Avatar } from '../../components/social/Avatar.tsx';
@@ -132,9 +133,9 @@ function Badge() {
                 </li>
               ))}
             </ul>
-            <Link className="btn sm ghost" to="/social/@{$handle}" params={{ handle: profile.handle }}>
+            <SocialLink className="btn sm ghost" to="/social/@{$handle}" params={{ handle: profile.handle }}>
               Open your profile
-            </Link>
+            </SocialLink>
           </article>
         </aside>
       </div>

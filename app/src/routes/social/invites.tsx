@@ -1,4 +1,5 @@
-import { createFileRoute, Link, redirect } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
+import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { useState, type FormEvent } from 'react';
 import { INVITE_DAYS, MEMBER_INVITES } from '../../../../src/data/social.ts';
 import { formatDay } from '../../../../src/lib/format.ts';
@@ -124,9 +125,9 @@ function Invites() {
                       <>
                         {' '}
                         by{' '}
-                        <Link to="/social/@{$handle}" params={{ handle: invite.usedBy }}>
+                        <SocialLink to="/social/@{$handle}" params={{ handle: invite.usedBy }}>
                           @{invite.usedBy}
-                        </Link>
+                        </SocialLink>
                       </>
                     )}
                     {invite.state === 'live' && ` · works until ${formatDay(invite.expiresAt)}`}

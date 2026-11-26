@@ -1,4 +1,5 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { type FormEvent } from 'react';
 import { z } from 'zod';
 import { SEARCH_MAX } from '../../../../src/lib/search.ts';
@@ -70,7 +71,7 @@ function Search() {
               <ul>
                 {people.map((p) => (
                   <li key={p.handle}>
-                    <Link to="/social/@{$handle}" params={{ handle: p.handle }}>
+                    <SocialLink to="/social/@{$handle}" params={{ handle: p.handle }}>
                       <Avatar name={p.name} track={p.track} sealed={p.sealed} size="sm" />
                       <span>
                         <b>{p.name}</b>{' '}
@@ -79,7 +80,7 @@ function Search() {
                           {p.topics.length > 0 && ` · ${p.topics.join(', ')}`}
                         </span>
                       </span>
-                    </Link>
+                    </SocialLink>
                   </li>
                 ))}
               </ul>
@@ -106,7 +107,7 @@ function Search() {
           )}
           {found === 0 && (
             <p>
-              Know someone who posts about it? <Link to="/social/nominate">Nominate them</Link>.
+              Know someone who posts about it? <SocialLink to="/social/nominate">Nominate them</SocialLink>.
             </p>
           )}
         </div>

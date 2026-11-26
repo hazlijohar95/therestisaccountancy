@@ -1,5 +1,5 @@
-import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router';
-import { ChipLink } from '../../components/social/ChipLink.tsx';
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
+import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { useEffect, useRef, useState, type FormEvent, type RefObject } from 'react';
 import { z } from 'zod';
 import { FEED_FILTERS, FLOOR_LIMITS, POST_JURISDICTIONS, ROOM_IDS, ROOMS, type FeedFilter, type PostJurisdiction, type RoomId } from '../../../../src/data/social.ts';
@@ -21,7 +21,8 @@ export const Route = createFileRoute('/social/')({
   validateSearch: z.object({
     room: z.enum(ROOM_IDS).optional().catch(undefined),
     filter: z.enum(FILTER_IDS).optional().catch(undefined),
-    page: z.number().int().positive().optional().catch(undefined),
+    /* Anything past the last page goes to the last page; huge numbers stop at a page SQLite can still offset to. */
+    page: z.number().int().positive().transform((n) => Math.min(n, 1_000_000)).optional().catch(undefined),
     done: z.literal('deleted').optional().catch(undefined),
   }),
   loaderDeps: ({ search }) => ({ room: search.room ?? null, filter: search.filter ?? ('all' as const), page: search.page ?? 1 }),
@@ -66,13 +67,13 @@ function Floor() {
         </p>
         <ul>
           <li>
-            <ChipLink className="room" to="/social" search={link({ room: null })} current={room === null}>
+            <SocialLink className="room" to="/social" search={link({ room: null })} current={room === null}>
               <span>All rooms</span>
-            </ChipLink>
+            </SocialLink>
           </li>
           {feed.rooms.map((r) => (
             <li key={r.id}>
-              <ChipLink className="room" to="/social" search={link({ room: r.id })} current={r.id === room}>
+              <SocialLink className="room" to="/social" search={link({ room: r.id })} current={r.id === room}>
                 <span>{r.name}</span>
                 {r.locked ? (
                   <svg role="img" aria-label="Needs a practising tick">
@@ -84,7 +85,7 @@ function Floor() {
                     <span className="sr-only"> posts</span>
                   </span>
                 )}
-              </ChipLink>
+              </SocialLink>
             </li>
           ))}
         </ul>
@@ -111,11 +112,11 @@ function Floor() {
             <p className="small">
               {signedIn ? (
                 <>
-                  <Link to="/social/edit">Claim your handle</Link> to post and reply.
+                  <SocialLink to="/social/edit">Claim your handle</SocialLink> to post and reply.
                 </>
               ) : (
                 <>
-                  <a href={signIn}>Sign in</a> to post and reply. New here? <Link to="/social/request">Request to join</Link>.
+                  <a href={signIn}>Sign in</a> to post and reply. New here? <SocialLink to="/social/request">Request to join</SocialLink>.
                 </>
               )}
             </p>
@@ -123,14 +124,14 @@ function Floor() {
         )}
         <nav className="filters chips" aria-label="Filter posts">
           {FEED_FILTERS.map((f) => (
-            <ChipLink key={f.id} className="chip" to="/social" search={link({ filter: f.id })} current={f.id === filter}>
+            <SocialLink key={f.id} className="chip" to="/social" search={link({ filter: f.id })} current={f.id === filter}>
               {f.id === 'ticked' && (
                 <svg aria-hidden="true">
                   <use href="#tk" />
                 </svg>
               )}
               {f.label}
-            </ChipLink>
+            </SocialLink>
           ))}
         </nav>
         <NoticeLine />
@@ -166,9 +167,9 @@ function Floor() {
             <div className="empty">
               <p className="head">Nothing from people you follow yet.</p>
               <p>Follow people from The List and their posts show here.</p>
-              <Link className="btn sm" to="/social/list">
+              <SocialLink className="btn sm" to="/social/list">
                 Open The List
-              </Link>
+              </SocialLink>
             </div>
           ) : room === null && filter === 'all' ? (
             <div className="empty">
@@ -176,31 +177,31 @@ function Floor() {
               <p>Ask the first question. People who know answer here, and ticked answers show it.</p>
               {!own &&
                 (signedIn ? (
-                  <Link className="btn sm" to="/social/edit">
+                  <SocialLink className="btn sm" to="/social/edit">
                     Claim your handle
-                  </Link>
+                  </SocialLink>
                 ) : (
-                  <Link className="btn sm" to="/social/request">
+                  <SocialLink className="btn sm" to="/social/request">
                     Request to join
-                  </Link>
+                  </SocialLink>
                 ))}
             </div>
           ) : (
             <div className="empty">
               <p className="head">Quiet in here.</p>
               <p>Nothing matches this room and filter yet.</p>
-              <Link className="btn sm ghost" to="/social" search={{}}>
+              <SocialLink className="btn sm ghost" to="/social" search={{}}>
                 Show everything
-              </Link>
+              </SocialLink>
             </div>
           )}
         </div>
         {pages > 1 && (
           <nav className="pager" aria-label="Pages">
             {page > 1 ? (
-              <Link className="btn sm ghost" to="/social" search={(prev) => ({ ...prev, page: page - 1 > 1 ? page - 1 : undefined, done: undefined })}>
+              <SocialLink className="btn sm ghost" to="/social" search={(prev) => ({ ...prev, page: page - 1 > 1 ? page - 1 : undefined, done: undefined })}>
                 Newer
-              </Link>
+              </SocialLink>
             ) : (
               <span />
             )}
@@ -208,9 +209,9 @@ function Floor() {
               Page {page} of {pages}
             </span>
             {page < pages ? (
-              <Link className="btn sm ghost" to="/social" search={(prev) => ({ ...prev, page: page + 1, done: undefined })}>
+              <SocialLink className="btn sm ghost" to="/social" search={(prev) => ({ ...prev, page: page + 1, done: undefined })}>
                 Older
-              </Link>
+              </SocialLink>
             ) : (
               <span />
             )}
@@ -249,9 +250,9 @@ function Floor() {
         <div className="rail-card card">
           <p className="kicker">The List</p>
           <p className="small">People worth following, ranked by peers. Never by followers.</p>
-          <Link className="small" to="/social/list">
+          <SocialLink className="small" to="/social/list">
             See The List
-          </Link>
+          </SocialLink>
         </div>
       </aside>
       {own && <Compose dialog={compose} rooms={postRooms} room={room && postRooms.some((r) => r.id === room) ? room : 'open'} />}

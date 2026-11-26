@@ -7,7 +7,7 @@ import { allowed, tooManyTries } from '../lib/limits.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
-import { oneLine } from './social-fields.ts';
+import { id, oneLine } from './social-fields.ts';
 
 /* A member's shelf of links to public work, saving other people's, and the badge for their bio. */
 
@@ -45,7 +45,9 @@ export const removeShelfItem = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    await withStore(async (store) => await store.socialShelf.remove(member.value.id, data.item));
+    const input = parsed(z.object({ item: id }), data);
+    if (!input.ok) return input;
+    await withStore(async (store) => await store.socialShelf.remove(member.value.id, input.value.item));
     return done(null);
   });
 
@@ -54,7 +56,9 @@ export const saveItem = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const result = await withStore(async (store) => await store.socialShelf.save(member.value.id, data.item));
+    const input = parsed(z.object({ item: id }), data);
+    if (!input.ok) return input;
+    const result = await withStore(async (store) => await store.socialShelf.save(member.value.id, input.value.item));
     return result.ok ? done(null) : refused(saveRefusals[result.reason]);
   });
 
@@ -63,7 +67,9 @@ export const unsaveItem = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    await withStore(async (store) => await store.socialShelf.unsave(member.value.id, data.item));
+    const input = parsed(z.object({ item: id }), data);
+    if (!input.ok) return input;
+    await withStore(async (store) => await store.socialShelf.unsave(member.value.id, input.value.item));
     return done(null);
   });
 
