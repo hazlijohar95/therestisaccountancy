@@ -23,7 +23,8 @@ const SENDING_AT_ONCE = 5;
 /**
  * Runs every hour: renewals that are due, reminders to pay by hand, reminders for sessions and one-to-one calls within a
  * day, ticks that lapse or are due for renewal (by email and in notifications), social sign-ups abandoned before a
- * password, documents left from decided claims, and on Monday mornings the week's digest. Safe to rerun.
+ * password, dead invite links and old declined requests, documents left from decided claims, and on Monday mornings the
+ * week's digest. Safe to rerun.
  */
 export async function hourly(at: Date, siteUrl: string): Promise<void> {
   const url = (path: string) => new URL(path, siteUrl).href;
@@ -69,6 +70,12 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
     await step('abandoned sign-ups', async () => {
       const removed = await store.socialProfiles.pruneAbandoned();
       if (removed) console.log(`Hourly job removed ${removed} abandoned social sign-ups`);
+    });
+    /* Invite links dead for a month, and requests declined three months ago. Pending requests and live links stay. */
+    await step('invites and requests', async () => {
+      const links = await store.socialInvites.prune();
+      const requests = await store.socialRequests.prune();
+      if (links || requests) console.log(`Hourly job removed ${links} dead invite links and ${requests} declined requests`);
     });
     /* A document the review could not delete straight away (R2 was down) is tried again here, until it goes. */
     await step('evidence', async () => {

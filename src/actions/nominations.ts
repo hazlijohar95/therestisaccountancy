@@ -2,8 +2,7 @@ import { ActionError, defineAction, type ActionAPIContext } from 'astro:actions'
 import { z } from 'astro/zod';
 import { accountHandle, CLAIM_LIMITS, PLATFORM_PROFILES, PLATFORMS, TOPICS } from '../data/social.ts';
 import { socialUrl } from '../server/paths.ts';
-import type { AccountRefusal } from '../server/social-claims.ts';
-import type { InviteRefusal, NominateRefusal } from '../server/social-nominations.ts';
+import type { ClaimRefusal, InviteRefusal, NominateRefusal } from '../server/social-nominations.ts';
 import { admin, id, settle, signedIn, throttle, type Refusal } from './guards.ts';
 
 const nominateRefusals: Record<NominateRefusal, Refusal> = {
@@ -18,7 +17,7 @@ const inviteRefusals: Record<InviteRefusal, Refusal> = {
 };
 
 /** Claiming adds the account for proof, so the account step's refusals can come back here, said for a claim. */
-const claimRefusals: Record<AccountRefusal | 'not-found', Refusal> = {
+export const claimRefusals: Record<ClaimRefusal, Refusal> = {
   'not-found': { code: 'NOT_FOUND', message: 'This invite has been used or withdrawn.' },
   'handle-invalid': { code: 'BAD_REQUEST', message: 'That handle cannot be proven on that platform. Write to the team.' },
   'platform-taken': { code: 'CONFLICT', message: 'You already have an account on that platform here. Remove it on Get ticked, then claim again.' },
@@ -93,12 +92,7 @@ export const nominations = {
       signedIn(context.locals);
       const profile = context.locals.profile;
       if (!profile) throw new ActionError({ code: 'BAD_REQUEST', message: 'Claim your handle first.' });
-      const { socialNominations, socialClaims } = context.locals;
-      const invitation = await socialNominations.invitation(input.token);
-      if (!invitation) throw new ActionError(claimRefusals['not-found']);
-      settle(await socialClaims.addAccount(profile.memberId, invitation.platform, invitation.handle), claimRefusals);
-      settle(await socialNominations.claim(input.token), claimRefusals);
-      return { platform: invitation.platform };
+      return settle(await context.locals.socialNominations.claim(profile.memberId, input.token), claimRefusals);
     },
   }),
 

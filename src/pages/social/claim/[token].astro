@@ -28,7 +28,7 @@ const action = (which: { toString(): string }) => {
 };
 const topics = invitation?.topics.length ? listOf(invitation.topics) : 'accountancy';
 const people = (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`;
-const signUp = `/sign-up?invite=${encodeURIComponent(token)}`;
+const signUp = `/sign-up?nomination=${encodeURIComponent(token)}`;
 ---
 
 <Social title="Your invite" description="People in accountancy want to follow you on The Rest Is Accountancy Social." noindex>
@@ -91,13 +91,16 @@ const signUp = `/sign-up?invite=${encodeURIComponent(token)}`;
             </div>
           )}
           {member && !profile && <p class="small">Pick your handle, then open this link again to claim the invite.</p>}
-          {!member && <p class="small">You sign up with your name and email. We never see your {invitation.platform} password.</p>}
+          {!member && <p class="small">You join with your name and email. We never see your {invitation.platform} password.</p>}
         </section>
       ) : (
         <div class="card empty">
           <h1 class="head">This invite has been used or withdrawn.</h1>
-          <p>If you were sent it and it never worked, write to the team.</p>
-          <a class="btn sm" href={to('/')}>Go to the Floor</a>
+          <p>If you were sent it and it never worked, write to the team, or ask to join and the team reads your request.</p>
+          <div class="actions">
+            <a class="btn sm" href={to('/request')}>Request to join</a>
+            <a class="btn sm ghost" href={to('/')}>Go to the Floor</a>
+          </div>
         </div>
       )
     }

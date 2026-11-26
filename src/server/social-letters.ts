@@ -113,3 +113,61 @@ export function tickRenewalLetter({ claim, member, daysLeft }: Renewal, verifyUr
     ],
   };
 }
+
+/** The team invites someone by email. The link is theirs alone and works once. */
+export function teamInviteLetter(to: { email: string; name: string | null }, from: { readonly name: string }, invite: { link: string; expiresAt: string }): Letter {
+  return {
+    to: to.email,
+    from: fromReviewer(from),
+    subject: `An invite to ${social}`,
+    lines: [
+      to.name ? hi(to.name) : 'Hi,',
+      `${social} is a free room for people in accountancy, where every account is one we know. I would like you in it.`,
+      { href: invite.link, label: 'Accept the invite' },
+      `The link works once, until ${formatDay(invite.expiresAt)}. You pick a handle and set a password; that is all.`,
+      'Not for you? Ignore this email and nothing happens.',
+      firstName(from.name),
+    ],
+  };
+}
+
+/**
+ * The team approved a request. Someone new gets the link to set a password, and picks their handle after it; someone
+ * who already signs in is told to, never sent a reset.
+ */
+export function requestApprovedLetter(
+  to: { email: string; name: string },
+  next: { readonly link: string; readonly expiresAt: string } | { readonly signIn: string; readonly hasProfile: boolean },
+): Letter {
+  return {
+    to: to.email,
+    subject: `You're in: ${social}`,
+    lines: [
+      hi(to.name),
+      'We read your request to join, and you are in.',
+      ...('link' in next
+        ? [
+            { href: next.link, label: 'Set your password' },
+            `Then pick your handle. The link works once and runs out on ${formatDay(next.expiresAt)}. If it does, ask for a new one on the sign-in page.`,
+          ]
+        : [
+            next.hasProfile ? 'You already sign in here, so there is nothing new to set up.' : 'You already have an account with us. Sign in with it and pick your handle.',
+            { href: next.signIn, label: 'Sign in' },
+          ]),
+      'Social is free. There is nothing to pay.',
+    ],
+  };
+}
+
+/** The team declined a request. Short and kind; it leaves the door open. */
+export function requestDeclinedLetter(to: { email: string; name: string }): Letter {
+  return {
+    to: to.email,
+    subject: `Your request to join ${social}`,
+    lines: [
+      hi(to.name),
+      'Thank you for asking to join. We read every request, and we are not adding you for now.',
+      'Social is small on purpose while it grows. If a member invites you, the invite works straight away.',
+    ],
+  };
+}

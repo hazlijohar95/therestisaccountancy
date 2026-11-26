@@ -42,7 +42,7 @@ const error = result?.error && !isInputError(result.error) ? result.error.messag
         {error && <p class="error" id="form-error" role="alert">{error}</p>}
         <button class="btn" type="submit">Sign in</button>
         <p class="small">Forgot your password, or lost your invitation? <a href="/forgot">Get a new link by email</a>.</p>
-        {forSocial ? <p class="small">New here? <a href={socialPath(Astro.url, '/sign-up')}>Sign up for Social</a>. It is free.</p> : <p class="small">Not a member yet? <a href="/join">Request membership</a>.</p>}
+        {forSocial ? <p class="small">New here? Social is invite-only. Use the link you were sent, or <a href={socialPath(Astro.url, '/request')}>request to join</a>.</p> : <p class="small">Not a member yet? <a href="/join">Request membership</a>.</p>}
       </form>
     </div>
   </section>

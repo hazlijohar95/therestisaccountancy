@@ -16,6 +16,8 @@ const saved = Astro.getActionResult(actions.saveProfile);
 if (saved?.data) return Astro.redirect(to(`/@${saved.data.handle}`));
 
 const profile = await socialProfiles.ownProfile(member.id);
+/* Social is invite-only: a member without a profile needs a way in, or the club's approval, before a handle. */
+const mayClaim = profile !== null || (await socialProfiles.mayClaim(member.id));
 const fieldErrors = saved?.error && isInputError(saved.error) ? saved.error.fields : {};
 const refusal = saved?.error && !isInputError(saved.error) ? saved.error.message : null;
 /* Before a handle is claimed, every refusal is about the handle, so it shows beside it. */
@@ -53,6 +55,14 @@ const topics = chosen('topics', profile?.topics ?? []);
         {!profile && <p class="lead">Signed in as {member.name}. Pick the handle people find you by.</p>}
       </div>
     </div>
+    {
+      !mayClaim ? (
+        <section class="panel card" aria-labelledby="closed-title">
+          <h2 class="head" id="closed-title">Social is invite-only.</h2>
+          <p>Every account here is one we know. Open the invite link someone sent you, signed in as you are now, or ask to join and the team reads your request.</p>
+          <a class="btn sm" href={to('/request')}>Request to join</a>
+        </section>
+      ) : (
     <form class="panel card" method="POST" action={formAction(addressed(Astro.url), actions.saveProfile)} novalidate>
       {
         !profile && (
@@ -127,6 +137,8 @@ const topics = chosen('topics', profile?.topics ?? []);
         <button class="btn" type="submit">{profile ? 'Save profile' : 'Claim handle'}</button>
       </div>
     </form>
+      )
+    }
     <form class="signout" method="POST" action={formAction(addressed(Astro.url), actions.signOut)}>
       <p class="small">Signed in as {member.email}. <button class="linkish" type="submit">Sign out</button></p>
     </form>

@@ -103,9 +103,9 @@ const shownHandle = accountHandle(typedHandle) || 'handle';
         ) : (
           <section class="panel card" aria-labelledby="signin-title">
             <h2 class="head" id="signin-title">Sign in to nominate.</h2>
-            <p>Nominations come from members, so we know who to ask if something looks wrong. Signing up is free.</p>
+            <p>Nominations come from members, so we know who to ask if something looks wrong. Social is free and invite-only.</p>
             <div class="panel-foot">
-              <a class="small" href={to('/sign-up')}>Sign up free</a>
+              <a class="small" href={to('/request')}>Request to join</a>
               <a class="btn" href={signInPath(Astro.url, '/nominate')}>Sign in</a>
             </div>
           </section>

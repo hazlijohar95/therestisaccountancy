@@ -353,7 +353,7 @@ const sortHref = (next: ThreadSort) => `${here}${next === 'new' ? '?sort=new' : 
                     </>
                   ) : (
                     <>
-                      <a href={signInPath(Astro.url, socialPathOf(Astro.url))}>Sign in</a> or <a href={to('/sign-up')}>sign up free</a> to reply.
+                      <a href={signInPath(Astro.url, socialPathOf(Astro.url))}>Sign in</a> to reply. New here? <a href={to('/request')}>Request to join</a>.
                     </>
                   )}
                 </p>

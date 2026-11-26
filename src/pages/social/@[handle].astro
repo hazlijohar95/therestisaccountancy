@@ -34,6 +34,8 @@ const own = member !== null && profile?.memberId === member.id;
 const now = new Date();
 const following = member && profile && !own ? await socialProfiles.isFollowing(member.id, profile.memberId) : false;
 const counts = profile ? await socialProfiles.followCounts(profile.memberId) : null;
+/* Shown only for a member's invite, and only while the inviter's own profile is public. */
+const invitedBy = profile ? await socialProfiles.invitedBy(profile.memberId) : null;
 const ledger = profile ? await socialClaims.ledger(profile.memberId, member?.id ?? null) : { claims: [], accounts: [] };
 const posts = profile ? await socialFloor.recentPosts(member?.id ?? null, profile.memberId) : [];
 const record = profile ? await socialProblems.record(profile.memberId) : null;
@@ -102,6 +104,11 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
               <p class="counts">
                 <span><b>{plural(counts.followers, 'follower', 'followers')}</b></span>
                 <span>Following <b>{counts.following}</b></span>
+                {invitedBy && (
+                  <span>
+                    Invited by <a href={to(`/@${invitedBy.handle}`)}>{invitedBy.name}</a>
+                  </span>
+                )}
               </p>
               <div class="actions">
                 {own ? (
@@ -111,6 +118,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
                       Edit profile
                     </a>
                     {profile.sealed && <a class="btn sm ghost" href={to('/badge')}>Get your badge</a>}
+                    <a class="btn sm ghost" href={to('/invites')}>Invites</a>
                     <a class="btn sm ghost" href={to('/casebook/new')}>
                       <svg aria-hidden="true"><use href="#i-plus" /></svg>
                       Add to casebook
