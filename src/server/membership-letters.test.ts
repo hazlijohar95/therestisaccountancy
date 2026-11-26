@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { TERMS, everyRate } from '../data/membership.ts';
 import { renderLetter } from '../emails/render.tsx';
-import { passwordLetter, paymentDueLetter, renewalLetter, renewalNoticeLetter } from './letters.ts';
+import type { Member, PasswordLink } from './club.ts';
+import { passwordLetter, passwordLetterFor, paymentDueLetter, renewalLetter, renewalNoticeLetter } from './letters.ts';
 
 const aina = { email: 'aina@firm.com.my', name: 'Aina Rahman' };
 const payUrl = 'https://club.test/members/pay';
@@ -24,6 +25,26 @@ test('someone joining Social is asked to finish joining, and told it is free', a
 
   const reset = passwordLetter({ ...aina, purpose: 'reset', link: 'https://club.test/welcome?token=t', expiresAt: '2026-12-01T00:00:00Z', rate: null, welcomeTo: 'social' });
   assert.equal(reset.subject, 'Reset your password', 'a reset reads the same for everyone');
+});
+
+test('a link the club issues tells only a club member who may pay the rate, and lands on /welcome', async () => {
+  const issued = (role: Member['role'], clubApproved: boolean): PasswordLink => ({
+    member: { id: 1, ...aina, role, status: 'invited', joinedAt: '2026-11-01T00:00:00Z', joinedVia: clubApproved ? 'club' : 'social', clubApproved },
+    purpose: 'welcome',
+    token: 'a b',
+    expiresAt: '2026-12-01T00:00:00Z',
+  });
+
+  const club = passwordLetterFor(issued('member', true), 'https://club.test');
+  const clubText = (await renderLetter(club)).text;
+  assert.ok(clubText.includes('Membership is RM 99 a month or RM 990 a year.'));
+  assert.ok(clubText.includes('https://club.test/welcome?token=a%20b'));
+
+  const social = passwordLetterFor(issued('member', false), 'https://club.test');
+  assert.equal(social.subject, 'Set a password to finish joining');
+
+  const admin = (await renderLetter(passwordLetterFor(issued('admin', true), 'https://club.test'))).text;
+  assert.ok(!admin.includes('Membership is'), 'admins are never told a rate');
 });
 
 test('the payment-due letter names the term the member paid for, and its rate', async () => {

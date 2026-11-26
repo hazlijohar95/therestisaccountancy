@@ -1,6 +1,6 @@
-import { everyRate } from '../../../src/data/membership.ts';
 import type { PasswordLink } from '../../../src/server/club.ts';
-import { passwordLetter } from '../../../src/server/letters.ts';
+import { passwordLetterFor } from '../../../src/server/letters.ts';
+import { welcomeUrl } from '../../../src/server/paths.ts';
 import { send } from '../../../src/server/mail.ts';
 import { formatDay } from '../../../src/lib/format.ts';
 import { pagingOf } from '../../../src/lib/paging.ts';
@@ -24,17 +24,8 @@ export interface Issued {
 }
 
 /** Emails a link an admin issued, and waits for it, so the admin sees whether it went. */
-export async function deliver({ member, purpose, token, expiresAt }: PasswordLink): Promise<Issued> {
-  const shared = {
-    name: member.name,
-    email: member.email,
-    purpose,
-    link: absolute(`/welcome?token=${encodeURIComponent(token)}`),
-    expiresAt,
-    /** What they can pay, told with the invitation. Admins do not pay, and the social site is free until the club accepts them. */
-    rate: member.role === 'admin' || !member.clubApproved ? null : everyRate,
-    welcomeTo: member.clubApproved ? ('club' as const) : ('social' as const),
-  };
-  const emailed = await send(passwordLetter(shared));
-  return { name: shared.name, email: shared.email, purpose, link: shared.link, expires: formatDay(expiresAt), emailed };
+export async function deliver(issued: PasswordLink): Promise<Issued> {
+  const { member, purpose, token, expiresAt } = issued;
+  const emailed = await send(passwordLetterFor(issued, absolute('/')));
+  return { name: member.name, email: member.email, purpose, link: welcomeUrl(absolute('/'), token), expires: formatDay(expiresAt), emailed };
 }
