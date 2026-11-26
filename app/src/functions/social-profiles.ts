@@ -5,8 +5,8 @@ import { claimWhen, renewsIn } from '../../../src/lib/ticks.ts';
 import type { VouchRefusal } from '../../../src/server/social-claims.ts';
 import { handleProblem, normaliseHandle, type FollowRefusal, type HandleRefusal, type SaveRefusal } from '../../../src/server/social-profiles.ts';
 import { numberId, oneLine, token } from '../lib/fields.ts';
-import { memberOrRefusal } from '../lib/guards.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { action } from '../lib/action.server.ts';
+import { done, refused } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
 
@@ -130,37 +130,31 @@ export const profilePage = createServerFn({ method: 'GET' })
 
 export const follow = createServerFn({ method: 'POST' })
   .validator((input: { handle: string }) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(z.object({ handle: token }), data);
-    if (!input.ok) return input;
-    const result = await withStore(async (store) => await store.socialProfiles.follow(member.value.id, input.value.handle));
-    return result.ok ? done(null) : refused(followRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: z.object({ handle: token }), refusals: followRefusals }, async ({ actor, input, store }) => {
+      const followed = await store.socialProfiles.follow(actor.id, input.handle);
+      return followed.ok ? done(null) : followed;
+    }),
+  );
 
 export const unfollow = createServerFn({ method: 'POST' })
   .validator((input: { handle: string }) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(z.object({ handle: token }), data);
-    if (!input.ok) return input;
-    await withStore(async (store) => await store.socialProfiles.unfollow(member.value.id, input.value.handle));
-    return done(null);
-  });
+  .handler(
+    action({ access: 'member', input: z.object({ handle: token }) }, async ({ actor, input, store }) => {
+      await store.socialProfiles.unfollow(actor.id, input.handle);
+      return done(null);
+    }),
+  );
 
 /** A member with the seal vouches for someone's self-declared experience. The third vouch ticks it. */
 export const vouch = createServerFn({ method: 'POST' })
   .validator((input: { claim: number }) => input)
-  .handler(async ({ data }): Promise<Outcome<{ ticked: boolean }>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(z.object({ claim: numberId }), data);
-    if (!input.ok) return input;
-    const result = await withStore(async (store) => await store.socialClaims.vouch(member.value.id, input.value.claim));
-    return result.ok ? done({ ticked: result.value.review.state === 'ticked' }) : refused(vouchRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: z.object({ claim: numberId }), refusals: vouchRefusals }, async ({ actor, input, store }) => {
+      const vouched = await store.socialClaims.vouch(actor.id, input.claim);
+      return vouched.ok ? done({ ticked: vouched.value.review.state === 'ticked' }) : vouched;
+    }),
+  );
 
 /** The signed-in member's profile to edit, or whether they may claim a handle. Null when signed out. */
 export const editPage = createServerFn({ method: 'GET' }).handler(async () => {
@@ -177,14 +171,12 @@ export const editPage = createServerFn({ method: 'GET' }).handler(async () => {
 /** Saves the signed-in member's profile, claiming the handle first when they have none. */
 export const saveProfile = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof profileSchema>) => input)
-  .handler(async ({ data }): Promise<Outcome<{ handle: string }>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(profileSchema, data);
-    if (!input.ok) return input;
-    const { handle, ...fields } = input.value;
-    const saved = await withStore(async (store) => await store.socialProfiles.save(member.value.id, handle ?? null, fields));
-    if (saved.ok) return done({ handle: saved.value.handle });
-    /* Every refusal comes before a handle is claimed, and is about the handle, so it shows beside it. */
-    return refused(saveRefusals[saved.reason], { handle: saveRefusals[saved.reason] });
-  });
+  .handler(
+    action({ access: 'member', input: profileSchema }, async ({ actor, input, store }) => {
+      const { handle, ...fields } = input;
+      const saved = await store.socialProfiles.save(actor.id, handle ?? null, fields);
+      if (saved.ok) return done({ handle: saved.value.handle });
+      /* Every refusal comes before a handle is claimed, and is about the handle, so it shows beside it. */
+      return refused(saveRefusals[saved.reason], { handle: saveRefusals[saved.reason] });
+    }),
+  );

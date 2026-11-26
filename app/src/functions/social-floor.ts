@@ -5,11 +5,9 @@ import { pageCount } from '../../../src/lib/paging.ts';
 import { SEARCH_MAX } from '../../../src/lib/search.ts';
 import type { AcceptRefusal, EditRefusal, PostRefusal, RemoveRefusal, ReplyRefusal, ReportRefusal, ThreadSort, UsefulRefusal } from '../../../src/server/social-floor.ts';
 import { numberId, oneLine } from '../lib/fields.ts';
-import { memberOrRefusal } from '../lib/guards.server.ts';
-import { tooManyTries } from '../lib/action.ts';
-import { allowed } from '../lib/limits.server.ts';
+import { action } from '../lib/action.server.ts';
 import { socialHref } from '../lib/links.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { done } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
 
@@ -131,131 +129,106 @@ export const threadPage = createServerFn({ method: 'GET' })
 
 export const floorPost = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof postSchema>) => input)
-  .handler(async ({ data }): Promise<Outcome<{ id: number }>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(postSchema, data);
-    if (!input.ok) return input;
-    if (!(await allowed('floor'))) return refused(tooManyTries);
-    const result = await withStore(async (store) => await store.socialFloor.post(member.value.id, input.value));
-    return result.ok ? done({ id: result.value.id }) : refused(postRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: postSchema, limit: 'floor', refusals: postRefusals }, async ({ actor, input, store }) => {
+      const result = await store.socialFloor.post(actor.id, input);
+      return result.ok ? done({ id: result.value.id }) : result;
+    }),
+  );
 
 export const editFloorPost = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof editPostSchema>) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(editPostSchema, data);
-    if (!input.ok) return input;
-    const { post, ...draft } = input.value;
-    const result = await withStore(async (store) => await store.socialFloor.editPost(member.value.id, post, draft));
-    return result.ok ? done(null) : refused(editRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: editPostSchema, refusals: editRefusals }, async ({ actor, input, store }) => {
+      const { post, ...draft } = input;
+      const result = await store.socialFloor.editPost(actor.id, post, draft);
+      return result.ok ? done(null) : result;
+    }),
+  );
 
 export const removeFloorPost = createServerFn({ method: 'POST' })
   .validator((input: { post: number }) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(z.object({ post: numberId }), data);
-    if (!input.ok) return input;
-    const result = await withStore(async (store) => await store.socialFloor.removePost(member.value.id, input.value.post));
-    return result.ok ? done(null) : refused(removeRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: z.object({ post: numberId }), refusals: removeRefusals }, async ({ actor, input, store }) => {
+      const result = await store.socialFloor.removePost(actor.id, input.post);
+      return result.ok ? done(null) : result;
+    }),
+  );
 
 export const floorReply = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof replySchema>) => input)
-  .handler(async ({ data }): Promise<Outcome<{ id: number }>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(replySchema, data);
-    if (!input.ok) return input;
-    if (!(await allowed('floor'))) return refused(tooManyTries);
-    const result = await withStore(async (store) => await store.socialFloor.reply(member.value.id, input.value.post, input.value));
-    return result.ok ? done({ id: result.value.id }) : refused(replyRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: replySchema, limit: 'floor', refusals: replyRefusals }, async ({ actor, input, store }) => {
+      const result = await store.socialFloor.reply(actor.id, input.post, input);
+      return result.ok ? done({ id: result.value.id }) : result;
+    }),
+  );
 
 export const editFloorReply = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof editReplySchema>) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(editReplySchema, data);
-    if (!input.ok) return input;
-    const result = await withStore(async (store) => await store.socialFloor.editReply(member.value.id, input.value.reply, input.value.body));
-    return result.ok ? done(null) : refused(editRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: editReplySchema, refusals: editRefusals }, async ({ actor, input, store }) => {
+      const result = await store.socialFloor.editReply(actor.id, input.reply, input.body);
+      return result.ok ? done(null) : result;
+    }),
+  );
 
 export const removeFloorReply = createServerFn({ method: 'POST' })
   .validator((input: { reply: number }) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(z.object({ reply: numberId }), data);
-    if (!input.ok) return input;
-    const result = await withStore(async (store) => await store.socialFloor.removeReply(member.value.id, input.value.reply));
-    return result.ok ? done(null) : refused(removeRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: z.object({ reply: numberId }), refusals: removeRefusals }, async ({ actor, input, store }) => {
+      const result = await store.socialFloor.removeReply(actor.id, input.reply);
+      return result.ok ? done(null) : result;
+    }),
+  );
 
 export const acceptReply = createServerFn({ method: 'POST' })
   .validator((input: { reply: number }) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(z.object({ reply: numberId }), data);
-    if (!input.ok) return input;
-    const result = await withStore(async (store) => await store.socialFloor.accept(member.value.id, input.value.reply));
-    return result.ok ? done(null) : refused(acceptRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: z.object({ reply: numberId }), refusals: acceptRefusals }, async ({ actor, input, store }) => {
+      const result = await store.socialFloor.accept(actor.id, input.reply);
+      return result.ok ? done(null) : result;
+    }),
+  );
 
 export const unacceptReply = createServerFn({ method: 'POST' })
   .validator((input: { reply: number }) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(z.object({ reply: numberId }), data);
-    if (!input.ok) return input;
-    const result = await withStore(async (store) => await store.socialFloor.unaccept(member.value.id, input.value.reply));
-    return result.ok ? done(null) : refused(acceptRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: z.object({ reply: numberId }), refusals: acceptRefusals }, async ({ actor, input, store }) => {
+      const result = await store.socialFloor.unaccept(actor.id, input.reply);
+      return result.ok ? done(null) : result;
+    }),
+  );
 
 export const markUseful = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof usefulSchema>) => input)
-  .handler(async ({ data }): Promise<Outcome<{ useful: number }>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(usefulSchema, data);
-    if (!input.ok) return input;
-    const result = await withStore(async (store) => await store.socialFloor.markUseful(member.value.id, input.value.target, input.value.id));
-    return result.ok ? done({ useful: result.value.useful }) : refused(usefulRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: usefulSchema, refusals: usefulRefusals }, async ({ actor, input, store }) => {
+      const result = await store.socialFloor.markUseful(actor.id, input.target, input.id);
+      return result.ok ? done({ useful: result.value.useful }) : result;
+    }),
+  );
 
 export const unmarkUseful = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof usefulSchema>) => input)
-  .handler(async ({ data }): Promise<Outcome<{ useful: number }>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(usefulSchema, data);
-    if (!input.ok) return input;
-    const { useful } = await withStore(async (store) => await store.socialFloor.unmarkUseful(member.value.id, input.value.target, input.value.id));
-    return done({ useful });
-  });
+  .handler(
+    action({ access: 'member', input: usefulSchema }, async ({ actor, input, store }) => {
+      const { useful } = await store.socialFloor.unmarkUseful(actor.id, input.target, input.id);
+      return done({ useful });
+    }),
+  );
 
 /** A report on a post, a reply or a profile. A person on the team reads every one. */
 export const report = createServerFn({ method: 'POST' })
   .validator((input: { target: z.input<typeof reportSchema>['target']; id?: number | undefined; handle?: string | undefined; reason: string; note: string }) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(reportSchema, data);
-    if (!input.ok) return input;
-    if (!(await allowed('report'))) return refused(tooManyTries);
-    const { target, reason, note } = input.value;
-    const about = target === 'profile' ? { target, handle: input.value.handle ?? '' } : { target, id: input.value.id ?? 0 };
-    const result = await withStore(async (store) => await store.socialFloor.report(member.value.id, about, reason, note));
-    return result.ok ? done(null) : refused(reportRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: reportSchema, limit: 'report', refusals: reportRefusals }, async ({ actor, input, store }) => {
+      const { target, reason, note } = input;
+      const about = target === 'profile' ? { target, handle: input.handle ?? '' } : { target, id: input.id ?? 0 };
+      const result = await store.socialFloor.report(actor.id, about, reason, note);
+      return result.ok ? done(null) : result;
+    }),
+  );
 
 /**
  * People and posts for a search, with links built for the host the page is on. The search page shows them, and the

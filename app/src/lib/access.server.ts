@@ -18,14 +18,14 @@ export const check = async <L extends Level>(level: L): Promise<Decision<L>> => 
 export type Away<L extends Level> = (denial: Denial<L>, here: URL) => Response | NotFoundError;
 
 /** For loaders and server routes: who acts at level, or a throw of where away sends everyone else. */
-export async function admit<L extends Level>(level: L, away: Away<L>): Promise<Actor<L>> {
+export async function admit<L extends Level>(level: L, away: Away<NoInfer<L>>): Promise<Actor<L>> {
   const decision = await check(level);
   if (decision.ok) return decision.actor;
   throw away(decision.denial, new URL(getRequest().url));
 }
 
 /** A club page: sign in and come back, pay, or go to the members' area. */
-export const toClub: Away<'paid' | 'admin'> = (denial, here) => redirect({ href: clubAway[denial](here.pathname + here.search) });
+export const toClub: Away<'member' | 'paid' | 'admin'> = (denial, here) => redirect({ href: clubAway[denial](here.pathname + here.search) });
 
 /** A page whose very existence is the team's: everyone else gets a 404. */
 export const hidden = () => notFound();

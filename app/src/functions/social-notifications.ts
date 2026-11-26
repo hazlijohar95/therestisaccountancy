@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { renewsIn } from '../../../src/lib/ticks.ts';
 import type { CosignRefusal } from '../../../src/server/social-casebook.ts';
 import { numberId } from '../lib/fields.ts';
-import { memberOrRefusal } from '../lib/guards.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { action } from '../lib/action.server.ts';
+import { done } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
 
@@ -45,12 +45,10 @@ export const openNotifications = createServerFn({ method: 'POST' }).handler(asyn
 /** The co-signer named on an entry signs it or declines, once. */
 export const decideCosign = createServerFn({ method: 'POST' })
   .validator((input: { entry: number; outcome: 'signed' | 'declined' }) => input)
-  .handler(async ({ data }): Promise<Outcome<{ outcome: 'signed' | 'declined' }>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(z.object({ entry: numberId, outcome: z.enum(['signed', 'declined']) }), data);
-    if (!input.ok) return input;
-    const { entry, outcome } = input.value;
-    const result = await withStore(async (store) => await store.socialCasebook.decide(member.value.id, entry, outcome));
-    return result.ok ? done({ outcome: result.value.outcome }) : refused(cosignRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: z.object({ entry: numberId, outcome: z.enum(['signed', 'declined']) }), refusals: cosignRefusals }, async ({ actor, input, store }) => {
+      const { entry, outcome } = input;
+      const result = await store.socialCasebook.decide(actor.id, entry, outcome);
+      return result.ok ? done({ outcome: result.value.outcome }) : result;
+    }),
+  );

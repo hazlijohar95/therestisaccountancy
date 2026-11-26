@@ -1,6 +1,5 @@
 import { notFound, redirect } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
-import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 import { accountHandle, BODY_IDS, bodyById, CLAIM_LIMITS, LICENCES, PLATFORMS, statusTrack, type Platform } from '../../../src/data/social.ts';
 import { claimWhen, renewsIn } from '../../../src/lib/ticks.ts';
@@ -8,7 +7,9 @@ import { deleteEvidence, storeEvidence, type EvidenceRefusal } from '../../../sr
 import { signInPath, socialPath } from '../../../src/server/paths.ts';
 import { report } from '../../../src/server/report.ts';
 import { email, id, line, oneLine } from '../lib/fields.ts';
-import { memberOrRefusal } from '../lib/guards.server.ts';
+import { denials } from '../lib/access.ts';
+import { admit } from '../lib/access.server.ts';
+import { action } from '../lib/action.server.ts';
 import {
   evidenceType,
   monthOf,
@@ -20,11 +21,8 @@ import {
   type WorkEmailRefusal,
 } from '../../../src/server/social-claims.ts';
 import { workEmailLetter } from '../../../src/server/social-letters.ts';
-import type { Profile } from '../../../src/server/social-profiles.ts';
-import { tooManyTries } from '../lib/action.ts';
-import { allowed } from '../lib/limits.server.ts';
-import { sendLater } from '../lib/mail.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import type { Store } from '../../../src/server/instance.ts';
+import { done, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { formFields, socialAbsolute } from '../lib/social-input.server.ts';
 import { withStore } from '../lib/store.server.ts';
@@ -34,7 +32,7 @@ import { withStore } from '../lib/store.server.ts';
  * are in social-review.ts.
  */
 
-const noHandle = 'Claim your handle first.';
+const noHandle = denials['no-handle'];
 
 const accountRefusals: Record<AccountRefusal | 'no-handle', string> = {
   'no-handle': noHandle,
@@ -75,16 +73,6 @@ const vouchRefusals: Record<VouchRefusal, string> = {
   already: 'You have already vouched for this.',
 };
 
-const here = () => new URL(getRequest().url);
-
-/** The signed-in member's profile, checked before the form is read or a document stored. Ticks belong to a profile, so a member without a handle claims one first. */
-async function profileOrRefusal(): Promise<Outcome<Profile>> {
-  const member = await memberOrRefusal();
-  if (!member.ok) return member;
-  const profile = await withStore(async (store) => await store.socialProfiles.ownProfile(member.value.id));
-  return profile ? done(profile) : refused(noHandle);
-}
-
 /** Why an uploaded file cannot be evidence, read from its first bytes. Null when it can. */
 async function fileProblem(file: File | undefined): Promise<string | null> {
   if (!file || file.size === 0) return 'Choose the file to upload.';
@@ -109,32 +97,35 @@ const https = z
 const evidence = z.preprocess((value) => (value instanceof File ? value : undefined), z.instanceof(File).optional());
 
 /** Stores the upload, then the claim. A refused claim leaves no file behind. */
-async function addWithEvidence(memberId: number, file: File, draft: (key: string) => ClaimDraft): Promise<Outcome<{ claim: number }>> {
+async function addWithEvidence(store: Store, memberId: number, file: File, draft: (key: string) => ClaimDraft): Promise<Outcome<{ claim: number }>> {
   const stored = await storeEvidence(memberId, file);
   if (!stored.ok) return refused(evidenceRefusals[stored.reason]);
-  const added = await withStore(async (store) => await store.socialClaims.addClaim(memberId, draft(stored.value)));
+  const added = await store.socialClaims.addClaim(memberId, draft(stored.value));
   if (added.ok) return done({ claim: added.value.id });
   await deleteEvidence(stored.value);
   return refused(claimRefusals[added.reason]);
 }
 
 /** Adds a claim with no document, or the refusal. */
-async function addPlain(memberId: number, draft: ClaimDraft): Promise<Outcome<{ claim: number }>> {
-  const added = await withStore(async (store) => await store.socialClaims.addClaim(memberId, draft));
+async function addPlain(store: Store, memberId: number, draft: ClaimDraft): Promise<Outcome<{ claim: number }>> {
+  const added = await store.socialClaims.addClaim(memberId, draft);
   return added.ok ? done({ claim: added.value.id }) : refused(claimRefusals[added.reason]);
 }
 
+/** A form's fields as the claim schemas read them. Posted as a form, since a document rides with it. */
+const claimForm = (names: readonly string[]) => (input: FormData) => {
+  if (!(input instanceof FormData)) throw new Error('Expected a form.');
+  return formFields(input, names);
+};
+
 /** Get ticked: the member's accounts and claims, each with what its row says. Signed out goes to sign in; no handle, to claim one. */
 export const verifyPage = createServerFn({ method: 'GET' }).handler(async () => {
-  const member = await currentMember();
-  if (!member) throw redirect({ href: signInPath(here(), '/verify') });
+  const profile = await admit('profile', (denial, here) => redirect({ href: denial === 'signed-out' ? signInPath(here, '/verify') : socialPath(here, '/edit') }));
   const now = new Date();
   return withStore(async (store) => {
-    const profile = await store.socialProfiles.ownProfile(member.id);
-    if (!profile) throw redirect({ href: socialPath(here(), '/edit') });
-    const { accounts, claims } = await store.socialClaims.mine(member.id);
+    const { accounts, claims } = await store.socialClaims.mine(profile.memberId);
     return {
-      name: member.name,
+      name: profile.name,
       profile: { name: profile.name, handle: profile.handle, track: profile.track, headline: profile.headline },
       accounts: accounts.map((a) => ({ id: a.id, platform: a.platform, handle: a.handle, code: a.code, state: a.review.state, reason: a.review.state === 'rejected' ? a.review.reason : null })),
       claims: claims.map((c) => ({
@@ -162,26 +153,17 @@ const accountInput = z.object({
 
 export const addAccount = createServerFn({ method: 'POST' })
   .validator((input: { platform: string; handle: string }) => input)
-  .handler(async ({ data }): Promise<Outcome<{ account: number }>> => {
-    const profile = await profileOrRefusal();
-    if (!profile.ok) return profile;
-    const input = await parsed(accountInput, data);
-    if (!input.ok) return input;
-    if (!(await allowed('ticks'))) return refused(tooManyTries);
-    const platform: Platform = input.value.platform;
-    const added = await withStore(async (store) => await store.socialClaims.addAccount(profile.value.memberId, platform, input.value.handle));
-    return added.ok ? done({ account: added.value.id }) : refused(accountRefusals[added.reason]);
-  });
+  .handler(
+    action({ access: 'profile', input: accountInput, limit: 'ticks', refusals: accountRefusals }, async ({ actor, input, store }) => {
+      const platform: Platform = input.platform;
+      const added = await store.socialClaims.addAccount(actor.memberId, platform, input.handle);
+      return added.ok ? done({ account: added.value.id }) : added;
+    }),
+  );
 
 export const removeAccount = createServerFn({ method: 'POST' })
   .validator((input: { account: number }) => input)
-  .handler(async ({ data }): Promise<Outcome<{ removed: boolean }>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(z.object({ account: id }), data);
-    if (!input.ok) return input;
-    return done({ removed: await withStore(async (store) => await store.socialClaims.removeAccount(member.value.id, input.value.account)) });
-  });
+  .handler(action({ access: 'member', input: z.object({ account: id }) }, async ({ actor, input, store }) => done({ removed: await store.socialClaims.removeAccount(actor.id, input.account) })));
 
 const bodyInput = z
   .object({
@@ -199,27 +181,20 @@ const bodyInput = z
     if (problem) ctx.addIssue({ code: 'custom', path: ['evidence'], message: problem });
   });
 
-/** A body claim. Posted as a form, since a body with no register sends its certificate with it. */
+/** A body claim. A body with no register sends its certificate with it. */
 export const addBody = createServerFn({ method: 'POST' })
-  .validator((input: FormData) => {
-    if (!(input instanceof FormData)) throw new Error('Expected a form.');
-    return input;
-  })
-  .handler(async ({ data }): Promise<Outcome<{ claim: number }>> => {
-    const profile = await profileOrRefusal();
-    if (!profile.ok) return profile;
-    const input = await parsed(bodyInput, formFields(data, ['body', 'status', 'reference', 'otherName', 'evidence']));
-    if (!input.ok) return input;
-    if (!(await allowed('ticks'))) return refused(tooManyTries);
-    const body = bodyById(input.value.body);
-    if (!body) return refused('Pick your body.');
-    const memberId = profile.value.memberId;
-    const draft = { kind: 'body', bodyId: body.id, status: input.value.status, reference: input.value.reference } as const;
-    const { evidence: file, otherName } = input.value;
-    return body.id === 'other' && file && otherName
-      ? addWithEvidence(memberId, file, (key) => ({ ...draft, otherName, evidenceKey: key }))
-      : addPlain(memberId, { ...draft, otherName: null, evidenceKey: null });
-  });
+  .validator(claimForm(['body', 'status', 'reference', 'otherName', 'evidence']))
+  .handler(
+    action({ access: 'profile', input: bodyInput, limit: 'ticks' }, async ({ actor, input, store }) => {
+      const body = bodyById(input.body);
+      if (!body) return refused('Pick your body.');
+      const draft = { kind: 'body', bodyId: body.id, status: input.status, reference: input.reference } as const;
+      const { evidence: file, otherName } = input;
+      return body.id === 'other' && file && otherName
+        ? await addWithEvidence(store, actor.memberId, file, (key) => ({ ...draft, otherName, evidenceKey: key }))
+        : await addPlain(store, actor.memberId, { ...draft, otherName: null, evidenceKey: null });
+    }),
+  );
 
 const licenceInput = z
   .object({
@@ -235,72 +210,57 @@ const licenceInput = z
 
 /** A licence claim, with the document that shows it. */
 export const addLicence = createServerFn({ method: 'POST' })
-  .validator((input: FormData) => {
-    if (!(input instanceof FormData)) throw new Error('Expected a form.');
-    return input;
-  })
-  .handler(async ({ data }): Promise<Outcome<{ claim: number }>> => {
-    const profile = await profileOrRefusal();
-    if (!profile.ok) return profile;
-    const input = await parsed(licenceInput, formFields(data, ['licence', 'reference', 'until', 'evidence']));
-    if (!input.ok) return input;
-    if (!(await allowed('ticks'))) return refused(tooManyTries);
-    const { evidence: file, licence, reference, until } = input.value;
-    if (!file) return refused('Choose the file to upload.');
-    return addWithEvidence(profile.value.memberId, file, (key) => ({ kind: 'licence', licence, reference, until, evidenceKey: key }));
-  });
+  .validator(claimForm(['licence', 'reference', 'until', 'evidence']))
+  .handler(
+    action({ access: 'profile', input: licenceInput, limit: 'ticks' }, async ({ actor, input, store }) => {
+      const { evidence: file, licence, reference, until } = input;
+      if (!file) return refused('Choose the file to upload.');
+      return await addWithEvidence(store, actor.memberId, file, (key) => ({ kind: 'licence', licence, reference, until, evidenceKey: key }));
+    }),
+  );
 
 export const addAcademic = createServerFn({ method: 'POST' })
   .validator((input: { role: string; url: string }) => input)
-  .handler(async ({ data }): Promise<Outcome<{ claim: number }>> => {
-    const profile = await profileOrRefusal();
-    if (!profile.ok) return profile;
-    const input = await parsed(z.object({ role: line(CLAIM_LIMITS.label, 'Enter your post, like Senior lecturer, Universiti Malaya.'), url: https }), data);
-    if (!input.ok) return input;
-    if (!(await allowed('ticks'))) return refused(tooManyTries);
-    return addPlain(profile.value.memberId, { kind: 'academic', role: input.value.role, url: input.value.url });
-  });
+  .handler(
+    action(
+      { access: 'profile', input: z.object({ role: line(CLAIM_LIMITS.label, 'Enter your post, like Senior lecturer, Universiti Malaya.'), url: https }), limit: 'ticks' },
+      async ({ actor, input, store }) => await addPlain(store, actor.memberId, { kind: 'academic', role: input.role, url: input.url }),
+    ),
+  );
 
 export const addExperience = createServerFn({ method: 'POST' })
   .validator((input: { text: string }) => input)
-  .handler(async ({ data }): Promise<Outcome<{ claim: number }>> => {
-    const profile = await profileOrRefusal();
-    if (!profile.ok) return profile;
-    const input = await parsed(z.object({ text: line(CLAIM_LIMITS.label, 'Say what experience you have, like Six years in audit.') }), data);
-    if (!input.ok) return input;
-    if (!(await allowed('ticks'))) return refused(tooManyTries);
-    return addPlain(profile.value.memberId, { kind: 'experience', text: input.value.text });
-  });
+  .handler(
+    action(
+      { access: 'profile', input: z.object({ text: line(CLAIM_LIMITS.label, 'Say what experience you have, like Six years in audit.') }), limit: 'ticks' },
+      async ({ actor, input, store }) => await addPlain(store, actor.memberId, { kind: 'experience', text: input.text }),
+    ),
+  );
 
 export const removeClaim = createServerFn({ method: 'POST' })
   .validator((input: { claim: number }) => input)
-  .handler(async ({ data }): Promise<Outcome<{ removed: boolean }>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(z.object({ claim: id }), data);
-    if (!input.ok) return input;
-    const { removed, evidenceKey } = await withStore(async (store) => await store.socialClaims.removeClaim(member.value.id, input.value.claim));
-    if (evidenceKey) await deleteEvidence(evidenceKey).catch((error: unknown) => report('evidence', `The document of removed claim ${input.value.claim} was not deleted`, error));
-    return done({ removed });
-  });
+  .handler(
+    action({ access: 'member', input: z.object({ claim: id }) }, async ({ actor, input, store }) => {
+      const { removed, evidenceKey } = await store.socialClaims.removeClaim(actor.id, input.claim);
+      if (evidenceKey) await deleteEvidence(evidenceKey).catch((error: unknown) => report('evidence', `The document of removed claim ${input.claim} was not deleted`, error));
+      return done({ removed });
+    }),
+  );
 
 /** Emails a link to a work address. Only the domain shows on the profile, once the member confirms it signed in. */
 export const sendWorkEmail = createServerFn({ method: 'POST' })
   .validator((input: { email: string }) => input)
-  .handler(async ({ data }): Promise<Outcome<{ address: string }>> => {
-    const profile = await profileOrRefusal();
-    if (!profile.ok) return profile;
-    const input = await parsed(z.object({ email }), data);
-    if (!input.ok) return input;
-    if (!(await allowed('work-email'))) return refused(tooManyTries);
-    const check = await withStore(async (store) => await store.socialClaims.startWorkEmail(profile.value.memberId, input.value.email));
-    if (!check.ok) return refused(workEmailRefusals[check.reason]);
-    const { address, token, expiresAt, claim } = check.value;
-    const link = socialAbsolute(`/verify/email?token=${encodeURIComponent(token)}`);
-    const domain = claim.label.replace(/^Works at /, '');
-    sendLater([workEmailLetter({ address, name: profile.value.name, handle: profile.value.handle, domain, link, expiresAt })]);
-    return done({ address });
-  });
+  .handler(
+    action({ access: 'profile', input: z.object({ email }), limit: 'work-email', refusals: workEmailRefusals }, async ({ actor, input, store, send }) => {
+      const started = await store.socialClaims.startWorkEmail(actor.memberId, input.email);
+      if (!started.ok) return started;
+      const { address, token, expiresAt, claim } = started.value;
+      const link = socialAbsolute(`/verify/email?token=${encodeURIComponent(token)}`);
+      const domain = claim.label.replace(/^Works at /, '');
+      send([workEmailLetter({ address, name: actor.name, handle: actor.handle, domain, link, expiresAt })]);
+      return done({ address });
+    }),
+  );
 
 /**
  * The page a work-email link opens: who asked and for which domain, and whether the signed-in member is them. A link
@@ -324,24 +284,20 @@ export const workEmailPage = createServerFn({ method: 'GET' })
 /** Opening the link confirms nothing, since mail scanners open links too. The member who asked confirms here, signed in. */
 export const confirmWorkEmail = createServerFn({ method: 'POST' })
   .validator((input: { token: string }) => input)
-  .handler(async ({ data }): Promise<Outcome<{ label: string }>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(z.object({ token: z.string().min(1) }), data);
-    if (!input.ok) return input;
-    const claim = await withStore(async (store) => await store.socialClaims.confirmWorkEmail(member.value.id, input.value.token));
-    return claim.ok ? done({ label: claim.value.label }) : refused(confirmRefusals[claim.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: z.object({ token: z.string().min(1) }), refusals: confirmRefusals }, async ({ actor, input, store }) => {
+      const claim = await store.socialClaims.confirmWorkEmail(actor.id, input.token);
+      return claim.ok ? done({ label: claim.value.label }) : claim;
+    }),
+  );
 
 /** A member with the seal vouches for someone else's experience. Used on profiles. */
 export const vouch = createServerFn({ method: 'POST' })
   .validator((input: { claim: number }) => input)
-  .handler(async ({ data }): Promise<Outcome<{ vouches: number; ticked: boolean }>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = await parsed(z.object({ claim: id }), data);
-    if (!input.ok) return input;
-    const claim = await withStore(async (store) => await store.socialClaims.vouch(member.value.id, input.value.claim));
-    return claim.ok ? done({ vouches: claim.value.vouches, ticked: claim.value.review.state === 'ticked' }) : refused(vouchRefusals[claim.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: z.object({ claim: id }), refusals: vouchRefusals }, async ({ actor, input, store }) => {
+      const claim = await store.socialClaims.vouch(actor.id, input.claim);
+      return claim.ok ? done({ vouches: claim.value.vouches, ticked: claim.value.review.state === 'ticked' }) : claim;
+    }),
+  );
 

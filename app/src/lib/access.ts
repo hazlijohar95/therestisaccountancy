@@ -72,7 +72,7 @@ export const denials: Readonly<Record<Denial, string>> = {
 export const refusal = (denial: Denial): Outcome<never> => refused(denials[denial]);
 
 /** Where a club page sends someone it turns away. here is the page's path and query, to come back to after signing in. */
-export const clubAway: Readonly<Record<Denial<'paid' | 'admin'>, (here: string) => string>> = {
+export const clubAway: Readonly<Record<Denial<'member' | 'paid' | 'admin'>, (here: string) => string>> = {
   'signed-out': (here) => `/sign-in?next=${encodeURIComponent(here)}`,
   unpaid: () => '/members/pay',
   'not-admin': () => '/members',
