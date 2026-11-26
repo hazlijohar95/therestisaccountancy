@@ -40,7 +40,7 @@ export function ProblemPage({ board, view, here, written = false }: { board: Boa
     <div className="page problems">
       <div>
         {view ? (
-          <Problem view={view} board={board} here={here} written={written} />
+          <Problem key={view.problem.number} view={view} board={board} here={here} written={written} />
         ) : numbered ? (
           <div className="card empty">
             <h1 className="head">No problem with that number.</h1>
