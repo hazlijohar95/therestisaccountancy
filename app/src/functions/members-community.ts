@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { notFound, redirect } from '@tanstack/react-router';
 import { z } from 'zod';
 import { isChannelSlug, LIMITS, PAGE_SIZE, threadPath, channelBySlug, type ChannelSlug } from '../../../src/data/community.ts';
-import { MODERATIONS, tidy, type Author, type Moderation, type Post, type PostPlace, type PostRefusal, type Thread } from '../../../src/server/community.ts';
+import { MODERATIONS, tidy, type Moderation, type PostPlace, type PostRefusal } from '../../../src/server/community.ts';
 import { replyLetter } from '../../../src/server/letters.ts';
 import { numberId } from '../lib/fields.ts';
 import { memberOrRefusal, paidOrRefusal } from '../lib/guards.server.ts';
@@ -21,21 +21,6 @@ const postRefusals: Record<PostRefusal, string> = {
 };
 const moderationRefusals: Record<PostRefusal, string> = { ...postRefusals, forbidden: 'Only a club admin can moderate threads.' };
 
-/* Plain copies of what the store answers, for the page. */
-const plainAuthor = (author: Author | null): Author | null => author && { id: author.id, name: author.name, role: author.role };
-const plainThread = (t: Thread): Thread => ({
-  id: t.id,
-  channel: t.channel,
-  title: t.title,
-  author: plainAuthor(t.author),
-  createdAt: t.createdAt,
-  lastPostAt: t.lastPostAt,
-  replies: t.replies,
-  pinned: t.pinned,
-  locked: t.locked,
-});
-const plainPost = (p: Post): Post => ({ id: p.id, threadId: p.threadId, author: plainAuthor(p.author), body: p.body, createdAt: p.createdAt, editedAt: p.editedAt, deleted: p.deleted });
-
 /** Far beyond any real list, and small enough that the offset stays a safe integer for SQLite. */
 const MAX_PAGE = 1_000_000;
 /** The page asked for, from 1. Anything else reads as the first page; anything huge, as MAX_PAGE. */
@@ -48,7 +33,7 @@ export const membersCommunity = createServerFn({ method: 'GET' }).handler(async 
   await paidMemberOrRedirect();
   return withStore(async (store) => {
     const summaries = (await store.community.channels()).map(({ slug, threads, latest }) => ({ slug, threads, latest: latest && { title: latest.title, lastPostAt: latest.lastPostAt } }));
-    const recent = (await store.community.recent(RECENT)).map(plainThread);
+    const recent = await store.community.recent(RECENT);
     return { summaries, recent };
   });
 });
@@ -61,10 +46,7 @@ export const membersChannel = createServerFn({ method: 'GET' })
     const channel = channelBySlug(data.channel);
     if (!channel) throw notFound();
     const page = pageOf(data.page);
-    const { items, total } = await withStore(async (store) => {
-      const found = await store.community.threads(channel.slug, { limit: PAGE_SIZE.threads, offset: (page - 1) * PAGE_SIZE.threads });
-      return { items: found.items.map(plainThread), total: found.total };
-    });
+    const { items, total } = await withStore(async (store) => store.community.threads(channel.slug, { limit: PAGE_SIZE.threads, offset: (page - 1) * PAGE_SIZE.threads }));
     const pages = pageCount(total, PAGE_SIZE.threads);
     if (page > pages) throw redirect({ href: pageAt(`/members/community/${channel.slug}`, data.query, pages) });
     return { channel: { slug: channel.slug, name: channel.name, about: channel.about }, threads: items, page, pages };
@@ -91,7 +73,7 @@ export const membersThread = createServerFn({ method: 'GET' })
           const thread = await store.community.thread(id);
           if (!thread) return null;
           const posts = await store.community.posts(thread.id, { limit: PAGE_SIZE.posts, offset: (page - 1) * PAGE_SIZE.posts });
-          return { thread: plainThread(thread), posts: posts.items.map(plainPost), total: posts.total };
+          return { thread, posts: posts.items, total: posts.total };
         })
       : null;
     if (!found) throw notFound();

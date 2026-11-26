@@ -2,7 +2,6 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { memberNumber } from '../../../src/server/club.ts';
 import { MIN_PASSWORD_LENGTH } from '../../../src/server/password.ts';
-import { plainStanding } from './members-billing.ts';
 import { memberOrRefusal, memberOrSignIn } from '../lib/guards.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { startSession } from '../lib/session.server.ts';
@@ -11,10 +10,10 @@ import { withStore } from '../lib/store.server.ts';
 /** The account page: open to every signed-in member, paid up or not. Admins have no membership to show. */
 export const membersAccount = createServerFn({ method: 'GET' }).handler(async () => {
   const member = await memberOrSignIn();
-  const { standing, prefs } = await withStore(async (store) => {
-    const { replies, digest } = await store.mailings.prefs(member.id);
-    return { standing: member.role === 'admin' ? null : plainStanding(await store.billing.standing(member.id)), prefs: { replies, digest } };
-  });
+  const { standing, prefs } = await withStore(async (store) => ({
+    prefs: await store.mailings.prefs(member.id),
+    standing: member.role === 'admin' ? null : await store.billing.standing(member.id),
+  }));
   return { member: { name: member.name, email: member.email, number: memberNumber(member), joinedAt: member.joinedAt }, standing, prefs, minPassword: MIN_PASSWORD_LENGTH };
 });
 

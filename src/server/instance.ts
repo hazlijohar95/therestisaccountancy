@@ -43,7 +43,13 @@ export class ClubStore extends DurableObject<Env> {
   }
 }
 
-/** The club and community, called across to the ClubStore. Every call is a round trip, so each returns a promise. */
-export const openStore = () => exports.ClubStore.getByName('club').open();
+type Remote<Module> = { readonly [K in keyof Module]: Module[K] extends (...args: infer A) => infer R ? (...args: A) => Promise<Awaited<R>> : never };
 
-export type Store = Awaited<ReturnType<typeof openStore>>;
+/** The store as the app reaches it, across to the ClubStore. Every call is a round trip, so each returns a promise. */
+export type Store = { readonly [M in keyof ReturnType<typeof createStore>]: Remote<ReturnType<typeof createStore>[M]> };
+
+/**
+ * The ClubStore's stub, typed as the plain data it answers. The RPC types also give each result a disposer; a result
+ * here holds no stub, so nothing calls it, and leaving it in the type would bar the result from a server function.
+ */
+export const openStore = (): Promise<Store & Disposable> => exports.ClubStore.getByName('club').open();
