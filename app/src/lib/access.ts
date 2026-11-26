@@ -39,9 +39,22 @@ export interface Lookups {
 
 type Rules = { readonly [L in Level]: <M extends Who>(member: M | null, lookups: Lookups) => Promise<Decision<L, M>> };
 
+/** The levels decided by who is signed in alone. A route guard decides these in the browser, with no server call. */
+type Direct = 'anyone' | 'member' | 'admin';
+type DirectRules = { readonly [L in Direct]: <M extends Who>(member: M | null) => Decision<L, M> };
+
+const direct: DirectRules = {
+  anyone: (member) => ({ ok: true, actor: member }),
+  member: (member) => (member ? { ok: true, actor: member } : { ok: false, denial: 'signed-out' }),
+  admin: (member) => {
+    if (!member) return { ok: false, denial: 'signed-out' };
+    return member.role === 'admin' ? { ok: true, actor: member } : { ok: false, denial: 'not-admin' };
+  },
+};
+
 const rules: Rules = {
-  anyone: async (member) => ({ ok: true, actor: member }),
-  member: async (member) => (member ? { ok: true, actor: member } : { ok: false, denial: 'signed-out' }),
+  anyone: async (member) => direct.anyone(member),
+  member: async (member) => direct.member(member),
   paid: async (member, lookups) => {
     if (!member) return { ok: false, denial: 'signed-out' };
     if (member.role === 'admin' || paidAccess(member.role, await lookups.billing.access(member.id))) return { ok: true, actor: member };
@@ -52,11 +65,11 @@ const rules: Rules = {
     const profile = await lookups.socialProfiles.ownProfile(member.id);
     return profile ? { ok: true, actor: profile } : { ok: false, denial: 'no-handle' };
   },
-  admin: async (member) => {
-    if (!member) return { ok: false, denial: 'signed-out' };
-    return member.role === 'admin' ? { ok: true, actor: member } : { ok: false, denial: 'not-admin' };
-  },
+  admin: async (member) => direct.admin(member),
 };
+
+/** Whether member may act at a level that needs no lookup. */
+export const decideDirect = <L extends Direct, M extends Who>(level: L, member: M | null): Decision<L, M> => direct[level](member);
 
 /** Whether member may act at level: who acts, or why not. Admins never pay. */
 export const decide = <L extends Level, M extends Who>(level: L, member: M | null, lookups: Lookups): Promise<Decision<L, M>> => rules[level](member, lookups);
