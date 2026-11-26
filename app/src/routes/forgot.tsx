@@ -1,8 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Page } from '../components/club/Page.tsx';
+import { useAction } from '../components/useAction.ts';
 import { requestLink } from '../functions/public-account.ts';
+import { wireField } from '../lib/form.ts';
 import { clubTitle, noindex } from '../lib/title.ts';
 /* The same layout as signing in: the page sits beside it in the flow. */
 import s from './sign-in.module.css';
@@ -13,23 +14,21 @@ export const Route = createFileRoute('/forgot')({
 });
 
 function Forgot() {
-  const send = useServerFn(requestLink);
+  const send = useAction(requestLink, { refresh: 'never' });
   const [sentTo, setSentTo] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const email = useRef<HTMLInputElement>(null);
+  /* Whatever the refusal, its one message describes the email field. */
+  const problem = wireField(send.refusal && (send.refusal.fields['email'] ?? send.refusal.message), { id: 'form-error' });
 
   useEffect(() => {
-    if (error) email.current?.focus();
-  }, [error]);
+    if (problem.error) email.current?.focus();
+  }, [problem.error]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    setBusy(true);
-    const outcome = await send({ data: { email: String(form.get('email') ?? '') } });
-    setBusy(false);
-    if (!outcome.ok) return setError(outcome.fields['email'] ?? outcome.message);
+    const outcome = await send.run({ email: String(form.get('email') ?? '') });
+    if (!outcome?.ok) return;
     setSentTo(outcome.value.email);
   };
 
@@ -64,16 +63,15 @@ function Forgot() {
                   type="email"
                   autoComplete="username"
                   required
-                  aria-invalid={error ? true : undefined}
-                  aria-describedby={error ? 'form-error' : undefined}
+                  {...problem.input}
                 />
               </div>
-              {error && (
-                <p className={`error ${s.error}`} id="form-error" role="alert">
-                  {error}
+              {problem.error && (
+                <p className={`error ${s.error}`} id={problem.errorId} role="alert">
+                  {problem.error}
                 </p>
               )}
-              <button className="btn" type="submit" disabled={busy}>
+              <button className="btn" type="submit" disabled={send.busy}>
                 Email me a link
               </button>
               <p className={`small ${s.small}`}>

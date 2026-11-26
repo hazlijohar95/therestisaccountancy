@@ -2,6 +2,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router';
 import { Page } from '../../components/club/Page.tsx';
 import { PageHead } from '../../components/club/PageHead.tsx';
 import { Notice } from '../../components/club/Notice.tsx';
+import { wireField } from '../../lib/form.ts';
 import { subscribe } from '../../functions/public-forms.server.ts';
 import { newsletterResult } from '../../functions/public-newsletter.ts';
 import { clubTitle, noindex } from '../../lib/title.ts';
@@ -32,7 +33,7 @@ function Subscribe() {
       </Page>
     );
   }
-  const badEmail = result.fields['email'] !== undefined;
+  const email = wireField(result.fields['email'], { id: 'newsletter-error' });
   return (
     <Page signup={false}>
       <PageHead label="Newsletter" title="Not subscribed yet." />
@@ -50,7 +51,7 @@ function Subscribe() {
             autoComplete="email"
             required
             defaultValue={result.posted['email'] ?? ''}
-            aria-invalid={badEmail ? true : undefined}
+            aria-invalid={email.input['aria-invalid']}
             aria-describedby="newsletter-error"
             autoFocus
           />

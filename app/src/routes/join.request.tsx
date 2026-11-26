@@ -3,7 +3,9 @@ import { join, joinSection } from '../../../src/data/club.ts';
 import { Page } from '../components/club/Page.tsx';
 import { PageHead } from '../components/club/PageHead.tsx';
 import { Notice } from '../components/club/Notice.tsx';
+import { FieldError } from '../components/FieldError.tsx';
 import { joinResult } from '../functions/public-account.ts';
+import { wireField } from '../lib/form.ts';
 import { clubTitle, noindex } from '../lib/title.ts';
 import s from './join.request.module.css';
 
@@ -28,6 +30,8 @@ function JoinRequest() {
     );
   }
   const { fields, posted } = result;
+  const name = wireField(fields['name'], { id: 'join-name-error' });
+  const email = wireField(fields['email'], { id: 'join-email-error' });
   return (
     <Page>
       <PageHead label={joinSection.label} title="Not sent yet." />
@@ -46,15 +50,10 @@ function JoinRequest() {
               maxLength={60}
               required
               defaultValue={posted['name'] ?? ''}
-              aria-invalid={fields['name'] ? true : undefined}
-              aria-describedby={fields['name'] ? 'join-name-error' : undefined}
+              {...name.input}
               autoFocus={fields['name'] !== undefined}
             />
-            {fields['name'] && (
-              <span className="error" id="join-name-error">
-                {fields['name']}
-              </span>
-            )}
+            <FieldError field={name} />
           </div>
           <div className="field">
             <label htmlFor="join-email">Work email</label>
@@ -66,15 +65,10 @@ function JoinRequest() {
               autoComplete="email"
               required
               defaultValue={posted['email'] ?? ''}
-              aria-invalid={fields['email'] ? true : undefined}
-              aria-describedby={fields['email'] ? 'join-email-error' : undefined}
+              {...email.input}
               autoFocus={fields['email'] !== undefined && fields['name'] === undefined}
             />
-            {fields['email'] && (
-              <span className="error" id="join-email-error">
-                {fields['email']}
-              </span>
-            )}
+            <FieldError field={email} />
           </div>
           <div className="field">
             <label htmlFor="join-stage">Where you are</label>

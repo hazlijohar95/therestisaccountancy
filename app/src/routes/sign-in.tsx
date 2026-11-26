@@ -1,10 +1,11 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
-import { useState, type FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import { z } from 'zod';
 import { isSocialHost, safeNext } from '../../../src/server/paths.ts';
 import { Page } from '../components/club/Page.tsx';
+import { useAction } from '../components/useAction.ts';
 import { signIn } from '../functions/auth.ts';
+import { wireField } from '../lib/form.ts';
 import { socialHref } from '../lib/links.ts';
 import { clubTitle, noindex } from '../lib/title.ts';
 import s from './sign-in.module.css';
@@ -29,19 +30,17 @@ function home(next: string, member: { role: 'member' | 'admin'; clubApproved: bo
 function SignIn() {
   const search = Route.useSearch();
   const next = safeNext(search.next ?? null);
-  const send = useServerFn(signIn);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const send = useAction(signIn, { refresh: 'never' });
+  /* Sign-in never says which field was wrong, so its one message describes the email field. */
+  const problem = wireField(send.refusal?.message, { id: 'form-error' });
   /* One account signs in to the club and to Social. Coming from Social, the page says so. */
   const forSocial = next.startsWith('/social') || (next.startsWith('http') && isSocialHost(new URL(next).hostname));
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    setBusy(true);
-    const outcome = await send({ data: { email: String(form.get('email') ?? ''), password: String(form.get('password') ?? '') } });
-    setBusy(false);
-    if (!outcome.ok) return setError(outcome.message);
+    const outcome = await send.run({ email: String(form.get('email') ?? ''), password: String(form.get('password') ?? '') });
+    if (!outcome?.ok) return;
     /* A full load, so every part of the page, and the other host, sees the new session. */
     window.location.assign(home(next, outcome.value));
   };
@@ -69,18 +68,18 @@ function SignIn() {
             )}
             <div className="field">
               <label htmlFor="email">Email</label>
-              <input className="input" id="email" name="email" type="email" autoComplete="username" required aria-invalid={error ? true : undefined} aria-describedby={error ? 'form-error' : undefined} />
+              <input className="input" id="email" name="email" type="email" autoComplete="username" required {...problem.input} />
             </div>
             <div className="field">
               <label htmlFor="password">Password</label>
               <input className="input" id="password" name="password" type="password" autoComplete="current-password" required />
             </div>
-            {error && (
-              <p className={`error ${s.error}`} id="form-error" role="alert">
-                {error}
+            {problem.error && (
+              <p className={`error ${s.error}`} id={problem.errorId} role="alert">
+                {problem.error}
               </p>
             )}
-            <button className="btn" type="submit" disabled={busy}>
+            <button className="btn" type="submit" disabled={send.busy}>
               Sign in
             </button>
             <p className={s.small}>
