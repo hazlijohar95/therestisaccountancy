@@ -10,15 +10,23 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DevSeedRouteImport } from './routes/dev-seed'
+import { Route as DevSeedReviewRouteImport } from './routes/dev-seed-review'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SocialRouteRouteImport } from './routes/social/route'
 import { Route as SocialTicksRouteImport } from './routes/social/ticks'
+import { Route as SocialReviewIndexRouteImport } from './routes/social/review/index'
 import { Route as SocialVerifyIndexRouteImport } from './routes/social/verify/index'
 import { Route as SocialVerifyEmailRouteImport } from './routes/social/verify/email'
+import { Route as SocialReviewEvidenceClaimRouteImport } from './routes/social/review/evidence.$claim'
 
 const DevSeedRoute = DevSeedRouteImport.update({
   id: '/dev-seed',
   path: '/dev-seed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevSeedReviewRoute = DevSeedReviewRouteImport.update({
+  id: '/dev-seed-review',
+  path: '/dev-seed-review',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInRoute = SignInRouteImport.update({
@@ -36,6 +44,11 @@ const SocialTicksRoute = SocialTicksRouteImport.update({
   path: '/ticks',
   getParentRoute: () => SocialRouteRoute,
 } as any)
+const SocialReviewIndexRoute = SocialReviewIndexRouteImport.update({
+  id: '/review/',
+  path: '/review/',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
 const SocialVerifyIndexRoute = SocialVerifyIndexRouteImport.update({
   id: '/verify/',
   path: '/verify/',
@@ -46,62 +59,87 @@ const SocialVerifyEmailRoute = SocialVerifyEmailRouteImport.update({
   path: '/verify/email',
   getParentRoute: () => SocialRouteRoute,
 } as any)
+const SocialReviewEvidenceClaimRoute =
+  SocialReviewEvidenceClaimRouteImport.update({
+    id: '/review/evidence/$claim',
+    path: '/review/evidence/$claim',
+    getParentRoute: () => SocialRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
+  '/dev-seed-review': typeof DevSeedReviewRoute
   '/sign-in': typeof SignInRoute
   '/social/ticks': typeof SocialTicksRoute
   '/social/verify/email': typeof SocialVerifyEmailRoute
+  '/social/review/': typeof SocialReviewIndexRoute
   '/social/verify/': typeof SocialVerifyIndexRoute
+  '/social/review/evidence/$claim': typeof SocialReviewEvidenceClaimRoute
 }
 export interface FileRoutesByTo {
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
+  '/dev-seed-review': typeof DevSeedReviewRoute
   '/sign-in': typeof SignInRoute
   '/social/ticks': typeof SocialTicksRoute
   '/social/verify/email': typeof SocialVerifyEmailRoute
+  '/social/review': typeof SocialReviewIndexRoute
   '/social/verify': typeof SocialVerifyIndexRoute
+  '/social/review/evidence/$claim': typeof SocialReviewEvidenceClaimRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
+  '/dev-seed-review': typeof DevSeedReviewRoute
   '/sign-in': typeof SignInRoute
   '/social/ticks': typeof SocialTicksRoute
   '/social/verify/email': typeof SocialVerifyEmailRoute
+  '/social/review/': typeof SocialReviewIndexRoute
   '/social/verify/': typeof SocialVerifyIndexRoute
+  '/social/review/evidence/$claim': typeof SocialReviewEvidenceClaimRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/social'
     | '/dev-seed'
+    | '/dev-seed-review'
     | '/sign-in'
     | '/social/ticks'
     | '/social/verify/email'
+    | '/social/review/'
     | '/social/verify/'
+    | '/social/review/evidence/$claim'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/social'
     | '/dev-seed'
+    | '/dev-seed-review'
     | '/sign-in'
     | '/social/ticks'
     | '/social/verify/email'
+    | '/social/review'
     | '/social/verify'
+    | '/social/review/evidence/$claim'
   id:
     | '__root__'
     | '/social'
     | '/dev-seed'
+    | '/dev-seed-review'
     | '/sign-in'
     | '/social/ticks'
     | '/social/verify/email'
+    | '/social/review/'
     | '/social/verify/'
+    | '/social/review/evidence/$claim'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   SocialRouteRoute: typeof SocialRouteRouteWithChildren
   DevSeedRoute: typeof DevSeedRoute
+  DevSeedReviewRoute: typeof DevSeedReviewRoute
   SignInRoute: typeof SignInRoute
 }
 
@@ -112,6 +150,13 @@ declare module '@tanstack/react-router' {
       path: '/dev-seed'
       fullPath: '/dev-seed'
       preLoaderRoute: typeof DevSeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev-seed-review': {
+      id: '/dev-seed-review'
+      path: '/dev-seed-review'
+      fullPath: '/dev-seed-review'
+      preLoaderRoute: typeof DevSeedReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sign-in': {
@@ -135,6 +180,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SocialTicksRouteImport
       parentRoute: typeof SocialRouteRoute
     }
+    '/social/review/': {
+      id: '/social/review/'
+      path: '/review'
+      fullPath: '/social/review/'
+      preLoaderRoute: typeof SocialReviewIndexRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
     '/social/verify/': {
       id: '/social/verify/'
       path: '/verify'
@@ -149,19 +201,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SocialVerifyEmailRouteImport
       parentRoute: typeof SocialRouteRoute
     }
+    '/social/review/evidence/$claim': {
+      id: '/social/review/evidence/$claim'
+      path: '/review/evidence/$claim'
+      fullPath: '/social/review/evidence/$claim'
+      preLoaderRoute: typeof SocialReviewEvidenceClaimRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
   }
 }
 
 interface SocialRouteRouteChildren {
   SocialTicksRoute: typeof SocialTicksRoute
   SocialVerifyEmailRoute: typeof SocialVerifyEmailRoute
+  SocialReviewIndexRoute: typeof SocialReviewIndexRoute
   SocialVerifyIndexRoute: typeof SocialVerifyIndexRoute
+  SocialReviewEvidenceClaimRoute: typeof SocialReviewEvidenceClaimRoute
 }
 
 const SocialRouteRouteChildren: SocialRouteRouteChildren = {
   SocialTicksRoute: SocialTicksRoute,
   SocialVerifyEmailRoute: SocialVerifyEmailRoute,
+  SocialReviewIndexRoute: SocialReviewIndexRoute,
   SocialVerifyIndexRoute: SocialVerifyIndexRoute,
+  SocialReviewEvidenceClaimRoute: SocialReviewEvidenceClaimRoute,
 }
 
 const SocialRouteRouteWithChildren = SocialRouteRoute._addFileChildren(
@@ -171,6 +234,7 @@ const SocialRouteRouteWithChildren = SocialRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   SocialRouteRoute: SocialRouteRouteWithChildren,
   DevSeedRoute: DevSeedRoute,
+  DevSeedReviewRoute: DevSeedReviewRoute,
   SignInRoute: SignInRoute,
 }
 export const routeTree = rootRouteImport
