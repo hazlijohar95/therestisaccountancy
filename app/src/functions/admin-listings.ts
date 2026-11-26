@@ -4,11 +4,12 @@ import { LISTING_LIMITS, listingPath } from '../../../src/data/directory.ts';
 import { capitalised, formatDay, numberWord } from '../../../src/lib/format.ts';
 import { tidy } from '../../../src/server/community.ts';
 import { decisionOf, listingApprovedLetter, listingReturnedLetter, type Decision, type DecisionRefusal, type Listing } from '../../../src/server/listings.ts';
+import { id } from '../lib/fields.ts';
 import { adminOrRefusal } from '../lib/guards.server.ts';
 import { absolute, sendLater } from '../lib/mail.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
-import { adminOrRedirect, id } from './admin.server.ts';
+import { adminOrRedirect } from './admin.server.ts';
 
 const decisionRefusals: Record<DecisionRefusal, string> = {
   'not-found': 'That listing is no longer here.',

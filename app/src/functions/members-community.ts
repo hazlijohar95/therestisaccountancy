@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { isChannelSlug, LIMITS, PAGE_SIZE, threadPath, channelBySlug, type ChannelSlug } from '../../../src/data/community.ts';
 import { MODERATIONS, tidy, type Author, type Moderation, type Post, type PostPlace, type PostRefusal, type Thread } from '../../../src/server/community.ts';
 import { replyLetter } from '../../../src/server/letters.ts';
+import { numberId } from '../lib/fields.ts';
 import { memberOrRefusal, paidOrRefusal } from '../lib/guards.server.ts';
 import { absolute, sendLater } from '../lib/mail.server.ts';
 import { paidMemberOrRedirect } from '../lib/members.server.ts';
@@ -109,7 +110,6 @@ const title = z
   .min(LIMITS.title.min, `Give the thread a title of at least ${LIMITS.title.min} characters.`)
   .max(LIMITS.title.max, `Keep the title under ${LIMITS.title.max} characters.`);
 const channel = z.custom<ChannelSlug>((v) => typeof v === 'string' && isChannelSlug(v), 'Pick a channel.');
-const id = z.number().int().positive();
 
 /** Where to send the browser after a post: the page it sits on, at the post. */
 export interface Landing {
@@ -133,7 +133,7 @@ export const startThread = createServerFn({ method: 'POST' })
     return done(landing(await withStore(async (store) => store.community.startThread(member.value, input.value))));
   });
 
-const replyInput = z.object({ thread: id, body });
+const replyInput = z.object({ thread: numberId, body });
 
 export const reply = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof replyInput>) => input)
@@ -155,7 +155,7 @@ export const reply = createServerFn({ method: 'POST' })
     return done(result.place);
   });
 
-const editInput = z.object({ post: id, body });
+const editInput = z.object({ post: numberId, body });
 
 export const editPost = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof editInput>) => input)
@@ -168,7 +168,7 @@ export const editPost = createServerFn({ method: 'POST' })
     return edited.ok ? done(landing(edited.value)) : refused(postRefusals[edited.reason]);
   });
 
-const deleteInput = z.object({ post: id });
+const deleteInput = z.object({ post: numberId });
 
 export const deletePost = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof deleteInput>) => input)
@@ -181,7 +181,7 @@ export const deletePost = createServerFn({ method: 'POST' })
     return deleted.ok ? done({ ...landing(deleted.value), threadRemoved: deleted.value.threadRemoved }) : refused(postRefusals[deleted.reason]);
   });
 
-const moderateInput = z.object({ thread: id, action: z.enum(MODERATIONS) });
+const moderateInput = z.object({ thread: numberId, action: z.enum(MODERATIONS) });
 
 export const moderateThread = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof moderateInput>) => input)

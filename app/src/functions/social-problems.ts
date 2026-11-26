@@ -3,11 +3,11 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { OPTION_KEYS, POST_JURISDICTIONS, PROBLEM_LIMITS, RATING_IDS, TOPICS } from '../../../src/data/social.ts';
 import type { AnswerRefusal, CreateRefusal, RateRefusal, RemoveProblemRefusal } from '../../../src/server/social-problems.ts';
+import { blankable, id, line, malaysiaTime, oneLine } from '../lib/fields.ts';
 import { adminOrRefusal } from '../lib/guards.server.ts';
 import { allowed, tooManyTries } from '../lib/limits.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
-import { blankable, id, line, malaysiaTime, oneLine } from '../lib/social-input.server.ts';
 import { withStore } from '../lib/store.server.ts';
 
 /*

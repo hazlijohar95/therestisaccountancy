@@ -4,11 +4,11 @@ import { HANDLE, HANDLE_TAKEN, JURISDICTIONS, PROFILE_LIMITS, SECTORS, TOPICS, T
 import { claimWhen, renewsIn } from '../../../src/lib/ticks.ts';
 import type { VouchRefusal } from '../../../src/server/social-claims.ts';
 import { handleProblem, normaliseHandle, type ClaimRefusal, type FollowRefusal, type HandleRefusal, type Profile } from '../../../src/server/social-profiles.ts';
+import { numberId, oneLine, token } from '../lib/fields.ts';
 import { memberOrRefusal } from '../lib/guards.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
-import { id, oneLine, token } from './social-fields.ts';
 
 /* Profiles: The List, a member's page, following, vouching, and editing your own. */
 
@@ -184,7 +184,7 @@ export const vouch = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<{ ticked: boolean }>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ claim: id }), data);
+    const input = parsed(z.object({ claim: numberId }), data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.socialClaims.vouch(member.value.id, input.value.claim));
     return result.ok ? done({ ticked: result.value.review.state === 'ticked' }) : refused(vouchRefusals[result.reason]);

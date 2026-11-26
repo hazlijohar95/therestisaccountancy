@@ -7,6 +7,7 @@ import { claimWhen, renewsIn } from '../../../src/lib/ticks.ts';
 import { deleteEvidence, storeEvidence, type EvidenceRefusal } from '../../../src/server/evidence.ts';
 import { signInPath, socialPath } from '../../../src/server/paths.ts';
 import { report } from '../../../src/server/report.ts';
+import { email, id, line, oneLine } from '../lib/fields.ts';
 import {
   evidenceType,
   monthOf,
@@ -23,7 +24,7 @@ import { allowed, tooManyTries } from '../lib/limits.server.ts';
 import { sendLater } from '../lib/mail.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
-import { email, formFields, id, line, oneLine, socialAbsolute } from '../lib/social-input.server.ts';
+import { formFields, socialAbsolute } from '../lib/social-input.server.ts';
 import { withStore } from '../lib/store.server.ts';
 
 /*

@@ -6,10 +6,10 @@ import { AREAS, BANDS, CASEBOOK_LIMITS, casebookYears, EMPLOYER_KINDS, ENGAGEMEN
 import { identifying, ROLE_TITLE_SKIP } from '../../../src/lib/guard.ts';
 import { signInPath } from '../../../src/server/paths.ts';
 import type { EntryRefusal, RoleRefusal } from '../../../src/server/social-casebook.ts';
+import { blankable, id, oneLine } from '../lib/fields.ts';
 import { allowed, tooManyTries } from '../lib/limits.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
-import { blankable, id, oneLine } from '../lib/social-input.server.ts';
 import { withStore } from '../lib/store.server.ts';
 
 /*

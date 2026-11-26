@@ -2,6 +2,7 @@ import { deleteCookie, getCookie, setCookie } from '@tanstack/react-start/server
 import { z } from 'zod';
 import { joinSection } from '../../../src/data/club.ts';
 import { joinRequestLetter, newsletterConfirmLetter } from '../../../src/server/letters.ts';
+import { email, oneLine } from '../lib/fields.ts';
 import { allowed, tooManyTries, type LimitedForm } from '../lib/limits.server.ts';
 import { absolute, sendLater } from '../lib/mail.server.ts';
 import { parsed } from '../lib/outcome.ts';
@@ -71,10 +72,6 @@ export function takeResult(cookie: string): FormResult | null {
     return null;
   }
 }
-
-const email = z.string().trim().toLowerCase().pipe(z.email(joinSection.messages.email));
-/** A person's name on one line: runs of whitespace, line breaks included, become one space. It goes into email subjects. */
-const oneLine = (value: string) => value.replace(/\s+/g, ' ').trim();
 
 const joinRequest = z.object({
   name: z.string().transform(oneLine).pipe(z.string().min(1, joinSection.messages.name).max(60)),

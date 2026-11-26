@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { byDay, callLetters, TOPIC_MAX, type BookRefusal } from '../../../src/server/calls.ts';
+import { numberId, oneLine } from '../lib/fields.ts';
 import { memberOrRefusal, paidOrRefusal } from '../lib/guards.server.ts';
 import { allowed, tooManyTries } from '../lib/limits.server.ts';
 import { absolute, sendLater } from '../lib/mail.server.ts';
@@ -30,8 +31,6 @@ export const membersCalls = createServerFn({ method: 'GET' }).handler(async () =
   });
 });
 
-const oneLine = (value: string) => value.replace(/\s+/g, ' ').trim();
-
 const bookInput = z.object({
   slot: z.coerce.number({ message: 'Pick a time.' }).int().positive('Pick a time.'),
   topic: z
@@ -54,7 +53,7 @@ export const bookCall = createServerFn({ method: 'POST' })
     return done({ id: booked.value.call.id });
   });
 
-const cancelInput = z.object({ slot: z.number().int().positive() });
+const cancelInput = z.object({ slot: numberId });
 
 export const cancelCall = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof cancelInput>) => input)

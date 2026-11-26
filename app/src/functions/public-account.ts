@@ -1,11 +1,11 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
-import { joinSection } from '../../../src/data/club.ts';
 import { everyRate } from '../../../src/data/membership.ts';
 import { firstName } from '../../../src/lib/format.ts';
 import { LINK_FOR, type LinkPurpose, type PasswordLink } from '../../../src/server/club.ts';
 import { passwordLetter } from '../../../src/server/letters.ts';
 import { MIN_PASSWORD_LENGTH } from '../../../src/server/password.ts';
+import { email } from '../lib/fields.ts';
 import { allowed, tooManyTries } from '../lib/limits.server.ts';
 import { absolute, sendLater } from '../lib/mail.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
@@ -13,7 +13,6 @@ import { startSession } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
 import { JOIN_RESULT, takeResult } from './public-forms.server.ts';
 
-const email = z.string().trim().toLowerCase().pipe(z.email(joinSection.messages.email));
 
 const newPassword = z
   .object({

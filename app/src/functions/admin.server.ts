@@ -1,6 +1,4 @@
 import { redirect } from '@tanstack/react-router';
-import { z } from 'zod';
-import { joinSection } from '../../../src/data/club.ts';
 import { everyRate } from '../../../src/data/membership.ts';
 import { callLetters } from '../../../src/server/calls.ts';
 import type { Member, PasswordLink } from '../../../src/server/club.ts';
@@ -18,21 +16,6 @@ export async function adminOrRedirect(): Promise<Member> {
   if (member.role !== 'admin') throw redirect({ href: '/members' });
   return member;
 }
-
-export const id = z.coerce.number().int().positive();
-export const email = z.string().trim().toLowerCase().pipe(z.email(joinSection.messages.email));
-/** A person's name on one line: runs of whitespace, line breaks included, become one space. It goes into email subjects. */
-export const oneLine = (value: string) => value.replace(/\s+/g, ' ').trim();
-export const memberName = z.string().transform(oneLine).pipe(z.string().min(1, 'Enter a name.').max(60, 'Keep the name under 60 characters.'));
-
-/** Malaysia keeps UTC+8 all year, so a local date and time map to one instant. Null for a date or time that does not exist. */
-export const malaysiaTime = (date: string, time: string): string | null => {
-  const [y = 0, m = 1, d = 1] = date.split('-').map(Number);
-  const [hh = 0, mm = 0] = time.split(':').map(Number);
-  const day = new Date(Date.UTC(y, m - 1, d));
-  if (day.getUTCFullYear() !== y || day.getUTCMonth() !== m - 1 || day.getUTCDate() !== d || hh > 23 || mm > 59) return null;
-  return new Date(Date.UTC(y, m - 1, d, hh - 8, mm)).toISOString().replace(/\.\d{3}Z$/, 'Z');
-};
 
 /** Today's date in Malaysia, as a date input's min. */
 export const malaysiaToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).format(new Date());

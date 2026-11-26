@@ -10,11 +10,12 @@ import type { RevokeRefusal, TeamInviteRefusal } from '../../../src/server/socia
 import { accountDecidedLetter, claimDecidedLetter, requestApprovedLetter, requestDeclinedLetter, teamInviteLetter } from '../../../src/server/social-letters.ts';
 import type { InviteRefusal } from '../../../src/server/social-nominations.ts';
 import type { DecideRefusal } from '../../../src/server/social-requests.ts';
+import { blankable, email, id, line, oneLine } from '../lib/fields.ts';
 import { adminOrRefusal } from '../lib/guards.server.ts';
 import { absolute, sendLater } from '../lib/mail.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
-import { blankable, email, id, line, oneLine, socialAbsolute } from '../lib/social-input.server.ts';
+import { socialAbsolute } from '../lib/social-input.server.ts';
 import { withStore } from '../lib/store.server.ts';
 
 /*

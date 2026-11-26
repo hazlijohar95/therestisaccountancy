@@ -1,9 +1,9 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
-import { joinSection } from '../../../src/data/club.ts';
 import { isServiceSlug, LISTING_LIMITS, states, type ServiceSlug } from '../../../src/data/directory.ts';
 import { tidy } from '../../../src/server/community.ts';
 import { listingQueuedLetter, type Listing, type SaveOutcome } from '../../../src/server/listings.ts';
+import { email, oneLine } from '../lib/fields.ts';
 import { paidOrRefusal } from '../lib/guards.server.ts';
 import { allowed, tooManyTries } from '../lib/limits.server.ts';
 import { absolute, sendLater } from '../lib/mail.server.ts';
@@ -40,8 +40,6 @@ export const membersListing = createServerFn({ method: 'GET' }).handler(async ()
   });
   return { email: member.email, listing };
 });
-
-const oneLine = (value: string) => value.replace(/\s+/g, ' ').trim();
 const line = (field: string, max: number) =>
   z
     .string()
@@ -73,7 +71,7 @@ const listingInput = z.object({
     .pipe(z.string().min(1, 'Write a few lines about your practice.').max(LISTING_LIMITS.bio, `Keep it under ${LISTING_LIMITS.bio} characters.`)),
   qualifications: line('your qualifications', LISTING_LIMITS.qualifications),
   website: blankIsNone(website),
-  contactEmail: z.string().trim().toLowerCase().pipe(z.email(joinSection.messages.email)),
+  contactEmail: email,
   declared: z.literal(true, 'Tick the declaration to send your listing.'),
 });
 

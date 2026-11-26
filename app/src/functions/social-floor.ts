@@ -1,10 +1,10 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { FEED_FILTERS, FLOOR_LIMITS, POST_JURISDICTIONS, reasonsFor, REPORT_NOTE_MAX, REPORT_REASON_IDS, REPORT_TARGETS, ROOM_IDS, ROOMS, type FeedFilter, type RoomId } from '../../../src/data/social.ts';
-import { id, oneLine } from './social-fields.ts';
 import { pageCount } from '../../../src/lib/paging.ts';
 import { SEARCH_MAX } from '../../../src/lib/search.ts';
 import type { AcceptRefusal, EditRefusal, PostRefusal, RemoveRefusal, ReplyRefusal, ReportRefusal, ThreadSort, UsefulRefusal } from '../../../src/server/social-floor.ts';
+import { numberId, oneLine } from '../lib/fields.ts';
 import { memberOrRefusal } from '../lib/guards.server.ts';
 import { allowed, tooManyTries } from '../lib/limits.server.ts';
 import { socialHref } from '../lib/links.ts';
@@ -63,14 +63,14 @@ const postFields = {
   body: prose(0, ''),
 };
 const postSchema = z.object(postFields);
-const editPostSchema = z.object({ post: id, ...postFields });
-const replySchema = z.object({ post: id, body: prose(1, 'Write your reply first.'), correction: z.boolean() });
-const editReplySchema = z.object({ reply: id, body: prose(1, 'Write your reply first.') });
-const usefulSchema = z.object({ target: z.enum(['post', 'reply']), id });
+const editPostSchema = z.object({ post: numberId, ...postFields });
+const replySchema = z.object({ post: numberId, body: prose(1, 'Write your reply first.'), correction: z.boolean() });
+const editReplySchema = z.object({ reply: numberId, body: prose(1, 'Write your reply first.') });
+const usefulSchema = z.object({ target: z.enum(['post', 'reply']), id: numberId });
 const reportSchema = z
   .object({
     target: z.enum(REPORT_TARGETS),
-    id: id.optional(),
+    id: numberId.optional(),
     handle: z.string().optional(),
     reason: z.enum(REPORT_REASON_IDS, 'Pick what is wrong.'),
     note: z
@@ -157,7 +157,7 @@ export const removeFloorPost = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ post: id }), data);
+    const input = parsed(z.object({ post: numberId }), data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.socialFloor.removePost(member.value.id, input.value.post));
     return result.ok ? done(null) : refused(removeRefusals[result.reason]);
@@ -191,7 +191,7 @@ export const removeFloorReply = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ reply: id }), data);
+    const input = parsed(z.object({ reply: numberId }), data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.socialFloor.removeReply(member.value.id, input.value.reply));
     return result.ok ? done(null) : refused(removeRefusals[result.reason]);
@@ -202,7 +202,7 @@ export const acceptReply = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ reply: id }), data);
+    const input = parsed(z.object({ reply: numberId }), data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.socialFloor.accept(member.value.id, input.value.reply));
     return result.ok ? done(null) : refused(acceptRefusals[result.reason]);
@@ -213,7 +213,7 @@ export const unacceptReply = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ reply: id }), data);
+    const input = parsed(z.object({ reply: numberId }), data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.socialFloor.unaccept(member.value.id, input.value.reply));
     return result.ok ? done(null) : refused(acceptRefusals[result.reason]);
