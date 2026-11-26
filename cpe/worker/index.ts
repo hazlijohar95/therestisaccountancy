@@ -181,7 +181,11 @@ const routes: Route[] = [
         total: graded.total,
         passed: graded.passed,
         certificate: graded.certificate,
-        review: p.script.quiz.map((q, i) => ({ prompt: q.prompt, options: [...q.options], picked: graded.results[i]!.picked, answer: q.answer, why: q.why })),
+        review: p.script.quiz.map((q, i) => {
+          const picked = graded.results[i]!.picked;
+          const reveal = graded.passed;
+          return { prompt: q.prompt, options: [...q.options], picked, right: picked === q.answer, answer: reveal ? q.answer : null, why: reveal ? q.why : null };
+        }),
         state: stateOut(await learner.snapshot()),
       };
     },

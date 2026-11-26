@@ -72,6 +72,7 @@ export function ranges(value: unknown, path: string): Range[] {
       const b = number(pair[1], `${path}[${i}][1]`, { min: 0 });
       return [a, b];
     }),
+    0,
   );
 }
 

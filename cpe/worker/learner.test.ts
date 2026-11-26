@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ledgerLines, toCsv } from "../src/domain/ledger.ts";
-import { acceptHeard, BANK_SECONDS, MAX_RATE, refill } from "../src/domain/rules.ts";
+import { acceptHeard, BANK_SECONDS, MAX_RATE, refill, seconds } from "../src/domain/rules.ts";
 import { createCatalogue } from "./catalogue.ts";
 import { createLearner, type Assessed } from "./learner.ts";
 import { memoryDb } from "./node-db.ts";
@@ -68,6 +68,18 @@ test("a report claiming the whole episode at once gets only what real time allow
   w.tick(10);
   const second = w.learner.heard(w.course.courseId, w.course.version, w.course.duration, [[0, w.course.duration]], w.course.duration);
   assert.deepEqual(second.ranges, [[0, 10 * MAX_RATE]]);
+});
+
+test("slivers reported a hair apart never fill the gaps between them", () => {
+  const w = world();
+  w.learner.heard(w.course.courseId, w.course.version, w.course.duration, [], 0);
+  let last = w.learner.heard(w.course.courseId, w.course.version, w.course.duration, [], 0);
+  // 0.01 s pieces 0.26 s apart, one per report: only the pieces themselves may count.
+  for (let i = 0; i < 40; i++) {
+    w.tick(1);
+    last = w.learner.heard(w.course.courseId, w.course.version, w.course.duration, [[i * 0.26, i * 0.26 + 0.01]], 0);
+  }
+  assert.ok(Math.abs(seconds(last.ranges) - 40 * 0.01) < 1e-9, `credited ${seconds(last.ranges)} s for 0.4 s of pieces`);
 });
 
 test("two courses at once draw on one budget", () => {

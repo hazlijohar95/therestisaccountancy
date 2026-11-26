@@ -243,15 +243,15 @@ function AssessmentView({ course }: { course: Course }) {
       <h2 className="label">Your answers</h2>
       <ol className="review">
         {graded.review.map((it, i) => {
-          const right = it.picked === it.answer;
+          const right = it.right;
           return (
             <li key={i} className={right ? "review--right" : "review--wrong"}>
               <p className="review__q">{it.prompt}</p>
               <p className="review__pick">
                 {right ? <Check width={16} height={16} /> : <Close width={16} height={16} />} You answered: {it.picked === null ? "—" : it.options[it.picked]}
               </p>
-              {!right && <p>Answer: {it.options[it.answer]}</p>}
-              <p className="muted">{it.why}</p>
+              {!right && it.answer !== null && <p>Answer: {it.options[it.answer]}</p>}
+              {it.why !== null && <p className="muted">{it.why}</p>}
             </li>
           );
         })}

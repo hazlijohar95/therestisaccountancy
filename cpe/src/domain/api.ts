@@ -40,7 +40,9 @@ export interface Graded {
   total: number;
   passed: boolean;
   /** Each question with its options in the author's order, what was picked, the answer and why. Sent only after grading. */
-  review: { prompt: string; options: string[]; picked: number | null; answer: number; why: string }[];
+  /** Each question as sat. The correct answer and its explanation come back only once the member has passed, so a
+   * failed attempt cannot be turned into a pass by copying them. */
+  review: { prompt: string; options: string[]; picked: number | null; right: boolean; answer: number | null; why: string | null }[];
   /** The certificate this sitting earned, or null. */
   certificate: Certificate | null;
   state: AppState;

@@ -23,13 +23,16 @@ export const BANK_SECONDS = 600;
 
 export type Range = readonly [number, number];
 
-/** Sorts and unions overlapping played ranges. */
-export function merge(ranges: readonly Range[]): Range[] {
+/**
+ * Sorts and unions played ranges. `slack` joins ranges that nearly touch: the app uses a quarter second to smooth
+ * the media element's jitter on screen, but evidence the server keeps uses none, so a gap is never counted as heard.
+ */
+export function merge(ranges: readonly Range[], slack = 0.25): Range[] {
   const sorted = [...ranges].filter(([a, b]) => b > a).sort((x, y) => x[0] - y[0]);
   const out: [number, number][] = [];
   for (const [a, b] of sorted) {
     const last = out[out.length - 1];
-    if (last && a <= last[1] + 0.25) last[1] = Math.max(last[1], b);
+    if (last && a <= last[1] + slack) last[1] = Math.max(last[1], b);
     else out.push([a, b]);
   }
   return out;
@@ -48,7 +51,7 @@ export const passes = (correct: number, total: number): boolean => total > 0 && 
 /** The parts of `reported` not already in `accepted`, earliest first. */
 function newPieces(accepted: readonly Range[], reported: readonly Range[]): Range[] {
   const pieces: Range[] = [];
-  for (const [a, b] of merge(reported)) {
+  for (const [a, b] of merge(reported, 0)) {
     let from = a;
     for (const [x, y] of accepted) {
       if (y <= from || x >= b) continue;
@@ -78,7 +81,7 @@ export function acceptHeard(accepted: readonly Range[], reported: readonly Range
     taken.push([a, end]);
     left -= end - a;
   }
-  return { ranges: merge([...accepted, ...taken]), spent: Math.max(0, budget) - left };
+  return { ranges: merge([...accepted, ...taken], 0), spent: Math.max(0, budget) - left };
 }
 
 /**

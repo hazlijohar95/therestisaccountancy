@@ -200,7 +200,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (!el) return;
       const asPreview = options.preview ?? false;
       if (courseId !== next.id || course?.version !== next.version || preview !== asPreview) {
-        reportRef.current(true);
+        // The new source clears el.played, so this report is the last chance to send the old course's evidence.
+        reportRef.current(true, true);
         el.src = next.audio;
         el.playbackRate = rate;
         const resume = at ?? progressOf(state, next).position;

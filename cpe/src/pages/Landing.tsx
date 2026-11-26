@@ -56,6 +56,8 @@ const FAQ: { q: string; a: string }[] = [
 export function Landing() {
   const { courses, courseById } = useCatalogue();
   const flagship = courseById(FLAGSHIP);
+  /* Samples anyone can hear: the static sample files. Audio uploaded in the Studio is served to paid members only. */
+  const samples = courses.filter((c) => c.audio.startsWith("/audio/"));
   const [run, setRun] = useState(0);
   return (
     <div className="landing">
@@ -118,7 +120,7 @@ export function Landing() {
             </div>
             <p className="l-intro">Every sample here is a real course. Press play to hear one. Sign in with your club membership and listening counts towards credit.</p>
           </div>
-          {courses.length > 0 && <SamplePlayer courses={courses} />}
+          {samples.length > 0 && <SamplePlayer courses={samples} />}
         </section>
 
         <section className="l-section" id="how">
