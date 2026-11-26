@@ -5,8 +5,11 @@ const csrf = createCsrfMiddleware({ filter: ({ request }) => request.method !== 
 
 /** The most any form may send: a 5 MB document and the rest of the form. Refused before the body is read. */
 const MAX_BODY_BYTES = 6 * 1024 * 1024;
-const bodyLimit = createMiddleware().server(({ request, next }) =>
-  Number(request.headers.get('content-length') ?? 0) > MAX_BODY_BYTES ? new Response('Upload a file under 5 MB.', { status: 413 }) : next(),
-);
+const bodyLimit = createMiddleware().server(({ request, next }) => {
+  const length = request.headers.get('content-length');
+  /* A body without a declared length could be any size; browsers always declare it for a form. */
+  if (request.body !== null && length === null) return new Response('Length required.', { status: 411 });
+  return Number(length ?? 0) > MAX_BODY_BYTES ? new Response('Upload a file under 5 MB.', { status: 413 }) : next();
+});
 
 export const startInstance = createStart(() => ({ requestMiddleware: [csrf, bodyLimit] }));

@@ -61,7 +61,8 @@ async function route(request: Request): Promise<Response> {
     return Response.redirect(`https://${socialHost}${url.pathname.slice(SOCIAL.length) || '/'}${url.search}`, 301);
   }
   const page = await env.ASSETS.fetch(new Request(new URL(marketingFile(url.pathname), url), request));
-  if (page.ok) return page;
+  /* Anything but a miss is the file's answer, a 304 to a browser revalidating its copy included. */
+  if (page.status !== 404) return page;
   /* A club page nobody has is Astro's 404, so the marketing site and the app look the same when a link is wrong. */
   const answer = await handler.fetch(request);
   if (answer.status !== 404) return answer;

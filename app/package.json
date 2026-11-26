@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite dev --port 4176",
+    "dev": "SITE_URL=http://localhost:4176 vite dev --port 4176",
     "build": "pnpm --dir .. build && vite build",
     "check": "tsc --noEmit",
     "deploy": "pnpm --dir .. build && cf deploy"

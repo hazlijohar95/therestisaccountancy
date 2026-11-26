@@ -13,9 +13,15 @@ export function requiredRole(pathname: string): 'member' | 'admin' | null {
 /** A return path from a query string, kept on this site: a path here, or an address on the social or CPE host. Anything else falls back. */
 export function safeNext(value: string | null, fallback = '/members'): string {
   if (!value) return fallback;
-  if (value.startsWith('/')) return value.startsWith('//') || value.startsWith('/\\') ? fallback : value;
+  if (value.startsWith('/')) return samePath(value) ? value : fallback;
   return socialAddress(value) ?? cpeAddress(value) ?? fallback;
 }
+
+/**
+ * True when a path stays on this site however a browser reads it. Browsers drop tabs and line breaks from an address,
+ * so /\t/evil.com would become //evil.com; a control character, a backslash or a second leading slash is refused.
+ */
+const samePath = (path: string) => !path.startsWith('//') && !/[\u0000-\u001f\\]/.test(path);
 
 /** CPE, the listening app on its own subdomain, signs members in here and asks to be sent back. */
 export const cpeHost = `cpe.${site.domain}`;
