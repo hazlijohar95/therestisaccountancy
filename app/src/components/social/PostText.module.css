@@ -1,3 +1,0 @@
-.text { max-width: 30em; }
-.text p { margin: 0 0 var(--space-4); white-space: pre-line; overflow-wrap: anywhere; }
-.text p:last-child { margin-bottom: 0; }

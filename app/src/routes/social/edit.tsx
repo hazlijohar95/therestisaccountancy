@@ -100,7 +100,7 @@ function ProfileForm({ profile }: { profile: Loaded['profile'] }) {
   const headline = fieldError(refusal, 'headline', { hint: 'headline-hint' });
   const sector = fieldError(refusal, 'sector');
   const city = fieldError(refusal, 'city');
-  const failure = refusal && Object.keys(refusal.fields).length === 0 ? refusal.message : null;
+  const failure = save.failure;
   return (
     <form className="panel card" method="POST" onSubmit={submit} noValidate>
       {!profile && (

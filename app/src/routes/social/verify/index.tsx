@@ -3,9 +3,9 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { BODIES, bodyById, CLAIM_LIMITS, LICENCES, PLATFORMS, type Body } from '../../../../../src/data/social.ts';
 import type { ClaimKind } from '../../../../../src/server/social-claims.ts';
 import { Avatar } from '../../../components/social/Avatar.tsx';
-import { SocialLink } from '../../../components/social/PathLink.tsx';
+import { SocialLink } from '../../../components/social/SocialLink.tsx';
 import { Tick } from '../../../components/social/Tick.tsx';
-import { describedBy, useAction } from '../../../components/social/useFormAction.ts';
+import { describedBy, useAction } from '../../../components/social/useAction.ts';
 import { addAcademic, addAccount, addBody, addExperience, addLicence, removeAccount, removeClaim, sendWorkEmail, verifyPage } from '../../../functions/social-ticks.ts';
 import { socialSignInHref } from '../../../lib/links.ts';
 import { noindex, socialTitle } from '../../../lib/title.ts';
@@ -95,7 +95,7 @@ function Verify() {
           <h1 className="title">Every claim, one tick at a time.</h1>
           <p className="lead">People on the team check each claim by hand. It takes a few days, and we email you when it is done.</p>
         </div>
-        <SocialLink className="small" path="/ticks">
+        <SocialLink className="small" to="/social/ticks">
           What a tick means
         </SocialLink>
       </div>
@@ -116,7 +116,7 @@ function Verify() {
           <ol className="steps">
             {STEPS.map((s, i) => (
               <li key={s.id} data-s={stepDone[s.id] ? 'done' : s.id === step ? 'now' : 'next'}>
-                <SocialLink path={`/verify?step=${s.id}`} aria-current={s.id === step ? 'step' : undefined}>
+                <SocialLink to="/social/verify" search={{ step: s.id }} current={s.id === step && 'step'}>
                   <span className="n">
                     {stepDone[s.id] ? (
                       <svg aria-hidden="true">
@@ -193,7 +193,7 @@ function Verify() {
                   </tr>
                 ))}
                 {data.claims.map((c) => {
-                  const renew = `/verify?step=${stepOfKind[c.kind]}${c.bodyId ? `&body=${c.bodyId}` : ''}`;
+                  const renew = { step: stepOfKind[c.kind], ...(c.bodyId ? { body: c.bodyId } : {}) };
                   return (
                     <tr key={`claim-${c.id}`} data-state={c.state}>
                       <td>
@@ -205,7 +205,7 @@ function Verify() {
                         {c.due !== null && (
                           <>
                             <br />
-                            <SocialLink className="due-chip" path={renew}>
+                            <SocialLink className="due-chip" to="/social/verify" search={renew}>
                               Renews in {c.due} {c.due === 1 ? 'day' : 'days'}. Renew it
                             </SocialLink>
                           </>
@@ -213,7 +213,7 @@ function Verify() {
                         {c.state === 'lapsed' && (
                           <>
                             <br />
-                            <SocialLink className="due-chip" path={renew}>
+                            <SocialLink className="due-chip" to="/social/verify" search={renew}>
                               Renew it
                             </SocialLink>
                           </>
@@ -254,6 +254,7 @@ function AccountStep({ data, onDone }: StepProps) {
     const form = event.currentTarget;
     const { platform = '', handle = '' } = read(form, 'platform', 'handle');
     const outcome = await add.run({ platform, handle });
+    if (!outcome) return;
     if (!outcome.ok) return;
     form.reset();
     onDone('addAccount');
@@ -350,6 +351,7 @@ function BodyStep({ data, body, onDone }: StepProps & { body: Body | undefined }
     setLarge(tooBig(form));
     if (tooBig(form)) return form.querySelector<HTMLInputElement>('#body-evidence')?.focus();
     const outcome = await add.run(new FormData(form));
+    if (!outcome) return;
     if (!outcome.ok) return;
     form.reset();
     onDone('addBody');
@@ -362,7 +364,7 @@ function BodyStep({ data, body, onDone }: StepProps & { body: Body | undefined }
       </h2>
       <div className="bodies">
         {BODIES.map((b) => (
-          <SocialLink key={b.id} className="body-btn" path={`/verify?step=body&body=${b.id}`} aria-current={body?.id === b.id ? 'true' : undefined}>
+          <SocialLink key={b.id} className="body-btn" to="/social/verify" search={{ step: 'body', body: b.id }} current={body?.id === b.id && 'true'}>
             {b.name}
             <small>{b.region}</small>
           </SocialLink>
@@ -489,7 +491,7 @@ function BodyStep({ data, body, onDone }: StepProps & { body: Body | undefined }
       ) : (
         <div className="panel-foot">
           <span className="small">Pick the body you belong to. Add each one you are with.</span>
-          <SocialLink className="btn ghost sm" path="/verify?step=licence">
+          <SocialLink className="btn ghost sm" to="/social/verify" search={{ step: 'licence' }}>
             Not a member yet. Skip.
           </SocialLink>
         </div>
@@ -509,6 +511,7 @@ function LicenceStep({ data, onDone }: StepProps) {
     setLarge(tooBig(form));
     if (tooBig(form)) return form.querySelector<HTMLInputElement>('#licence-evidence')?.focus();
     const outcome = await add.run(new FormData(form));
+    if (!outcome) return;
     if (!outcome.ok) return;
     form.reset();
     onDone('addLicence');
@@ -606,7 +609,7 @@ function LicenceStep({ data, onDone }: StepProps) {
           </p>
         )}
         <div className="panel-foot">
-          <SocialLink className="btn ghost sm" path="/verify?step=work">
+          <SocialLink className="btn ghost sm" to="/social/verify" search={{ step: 'work' }}>
             Skip
           </SocialLink>
           <button className="btn" type="submit" disabled={add.busy}>
@@ -629,6 +632,7 @@ function WorkStep({ data, onDone }: StepProps) {
     event.preventDefault();
     const form = event.currentTarget;
     const outcome = await work.run({ email: read(form, 'email')['email'] ?? '' });
+    if (!outcome) return;
     if (!outcome.ok) return;
     form.reset();
     onDone('sendWorkEmail');
@@ -638,6 +642,7 @@ function WorkStep({ data, onDone }: StepProps) {
     const form = event.currentTarget;
     const { role = '', url = '' } = read(form, 'role', 'url');
     const outcome = await academic.run({ role, url });
+    if (!outcome) return;
     if (!outcome.ok) return;
     form.reset();
     onDone('addAcademic');
@@ -646,6 +651,7 @@ function WorkStep({ data, onDone }: StepProps) {
     event.preventDefault();
     const form = event.currentTarget;
     const outcome = await experience.run({ text: read(form, 'text')['text'] ?? '' });
+    if (!outcome) return;
     if (!outcome.ok) return;
     form.reset();
     onDone('addExperience');
@@ -774,7 +780,7 @@ function WorkStep({ data, onDone }: StepProps) {
           </p>
         )}
         <div className="panel-foot">
-          <SocialLink className="btn ghost sm" path={`/@${data.profile.handle}`}>
+          <SocialLink className="btn ghost sm" to="/social/@{$handle}" params={{ handle: data.profile.handle }}>
             See your profile
           </SocialLink>
           <button className="btn ghost" type="submit" disabled={experience.busy}>
@@ -807,6 +813,7 @@ function Remove({
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const outcome = target.kind === 'account' ? await account.run({ account: target.id }) : await claim.run({ claim: target.id });
+    if (!outcome) return;
     if (outcome.ok) onDone();
     else onRefused(outcome.message);
   };

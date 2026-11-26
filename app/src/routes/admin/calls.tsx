@@ -2,9 +2,9 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { useActing } from '../../components/admin/acting.ts';
-import { describedBy, FieldError, type Fields } from '../../components/admin/FieldError.tsx';
-import { Masthead } from '../../components/admin/Masthead.tsx';
-import { Notice } from '../../components/admin/Notice.tsx';
+import { errorAttributes, FieldError, type Fields } from '../../components/admin/FieldError.tsx';
+import { Masthead } from '../../components/club/Masthead.tsx';
+import { Notice } from '../../components/club/Notice.tsx';
 import { adminCalls, cancelSlot, openSlot, type SlotForm } from '../../functions/admin-calls.ts';
 import { clubTitle } from '../../lib/title.ts';
 import s from './calls.module.css';
@@ -109,18 +109,18 @@ function Calls() {
           <div className={s.pair}>
             <div className="field">
               <label htmlFor="date">Date</label>
-              <input className="input" id="date" name="date" type="date" min={today} required {...describedBy(errors, 'date')} />
+              <input className="input" id="date" name="date" type="date" min={today} required {...errorAttributes(errors, 'date')} />
               <FieldError errors={errors} name="date" className={s.error} />
             </div>
             <div className="field">
               <label htmlFor="time">Start, Malaysia time</label>
-              <input className="input" id="time" name="time" type="time" required {...describedBy(errors, 'time')} />
+              <input className="input" id="time" name="time" type="time" required {...errorAttributes(errors, 'time')} />
               <FieldError errors={errors} name="time" className={s.error} />
             </div>
           </div>
           <div className="field">
             <label htmlFor="minutes">Length in minutes</label>
-            <input className="input" id="minutes" name="minutes" type="number" min={minutes.min} max={minutes.max} step="5" required defaultValue="30" {...describedBy(errors, 'minutes')} />
+            <input className="input" id="minutes" name="minutes" type="number" min={minutes.min} max={minutes.max} step="5" required defaultValue="30" {...errorAttributes(errors, 'minutes')} />
             <span className="hint">
               Between {minutes.min} and {minutes.max}.
             </span>
@@ -128,7 +128,7 @@ function Calls() {
           </div>
           <div className="field">
             <label htmlFor="link">Call link</label>
-            <input className="input" id="link" name="link" type="url" placeholder="https://" required defaultValue={lastLink} {...describedBy(errors, 'link')} />
+            <input className="input" id="link" name="link" type="url" placeholder="https://" required defaultValue={lastLink} {...errorAttributes(errors, 'link')} />
             <span className="hint">Only the member who books it sees it. Filled in with the link you used last.</span>
             <FieldError errors={errors} name="link" className={s.error} />
           </div>

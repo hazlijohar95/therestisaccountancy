@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router';
 import { join, joinSection } from '../../../src/data/club.ts';
 import { Page } from '../components/club/Page.tsx';
 import { PageHead } from '../components/club/PageHead.tsx';
-import { Notice } from '../components/public/Notice.tsx';
+import { Notice } from '../components/club/Notice.tsx';
 import { joinResult } from '../functions/public-account.ts';
 import { clubTitle, noindex } from '../lib/title.ts';
 import s from './join.request.module.css';

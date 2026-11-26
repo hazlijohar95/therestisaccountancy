@@ -154,7 +154,7 @@ function JoinForm({ invite, nomination, from, name, email, invitation }: { invit
   const nameError = fieldError(refusal, 'name');
   const emailError = fieldError(refusal, 'email', { hint: 'email-hint' });
   const handleError = fieldError(refusal, 'handle', { hint: 'handle-hint' });
-  const failure = refusal && Object.keys(refusal.fields).length === 0 ? refusal.message : null;
+  const failure = join.failure;
 
   if (joined)
     return (

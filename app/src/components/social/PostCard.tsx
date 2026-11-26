@@ -5,7 +5,7 @@ import { formatMoment } from '../../../../src/lib/format.ts';
 import type { PostCard as Post } from '../../../../src/server/social-floor.ts';
 import { Avatar } from './Avatar.tsx';
 import { Flair } from './Flair.tsx';
-import { PostText } from './PostText.tsx';
+import { PostText } from '../PostText.tsx';
 import { UsefulButton } from './UsefulButton.tsx';
 
 const EXCERPT = 280;

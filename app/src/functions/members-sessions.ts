@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { sessionLetters } from '../../../src/server/letters.ts';
 import type { LiveSession } from '../../../src/server/schedule.ts';
 import { allRecordings } from '../lib/content.server.ts';
+import { numberId } from '../lib/fields.ts';
 import { paidOrRefusal } from '../lib/guards.server.ts';
 import { absolute, sendLater } from '../lib/mail.server.ts';
 import { paidMemberOrRedirect } from '../lib/members.server.ts';
@@ -19,7 +20,7 @@ export const membersSessions = createServerFn({ method: 'GET' }).handler(async (
   return { upcoming, recordings };
 });
 
-const rsvpInput = z.object({ session: z.number().int().positive(), going: z.boolean() });
+const rsvpInput = z.object({ session: numberId, going: z.boolean() });
 
 /** Says the member is coming, or no longer is. Saying yes emails them the calendar file. */
 export const rsvp = createServerFn({ method: 'POST' })

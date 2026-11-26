@@ -4,17 +4,17 @@ import { services, states } from '../../../src/data/directory.ts';
 import { numberWord } from '../../../src/lib/format.ts';
 import { Page } from '../components/club/Page.tsx';
 import { PageHead } from '../components/club/PageHead.tsx';
-import { ListingEntry } from '../components/public/ListingEntry.tsx';
+import { ListingEntry } from '../components/club/ListingEntry.tsx';
 import { Section } from '../components/public/Section.tsx';
-import { textParam } from '../components/public/search.ts';
 import { directoryPage } from '../functions/public-directory.ts';
+import { linkTextParam } from '../lib/search-params.ts';
 import { clubTitle } from '../lib/title.ts';
 import s from './directory.module.css';
 
 export const Route = createFileRoute('/directory')({
   validateSearch: (search: Record<string, unknown>): { state?: string; service?: string } => ({
-    ...(search['state'] !== undefined && { state: textParam(search['state']) }),
-    ...(search['service'] !== undefined && { service: textParam(search['service']) }),
+    ...(search['state'] !== undefined && { state: linkTextParam(search['state']) }),
+    ...(search['service'] !== undefined && { service: linkTextParam(search['service']) }),
   }),
   loaderDeps: ({ search }) => ({ state: search.state ?? '', service: search.service ?? '' }),
   loader: ({ deps }) => directoryPage({ data: deps }),

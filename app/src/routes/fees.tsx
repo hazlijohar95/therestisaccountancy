@@ -7,14 +7,14 @@ import type { Edition, Spread } from '../../../src/server/fees.ts';
 import { Page } from '../components/club/Page.tsx';
 import { PageHead } from '../components/club/PageHead.tsx';
 import { Section } from '../components/public/Section.tsx';
-import { textParam } from '../components/public/search.ts';
 import { answerFeeSurvey, feesPage } from '../functions/public-fees.ts';
+import { linkTextParam } from '../lib/search-params.ts';
 import { clubTitle } from '../lib/title.ts';
 import s from './fees.module.css';
 
 export const Route = createFileRoute('/fees')({
   validateSearch: (search: Record<string, unknown>): { edition?: number; answered?: true } => {
-    const edition = search['edition'] === undefined ? Number.NaN : Number(textParam(search['edition']));
+    const edition = search['edition'] === undefined ? Number.NaN : Number(linkTextParam(search['edition']));
     return { ...(Number.isInteger(edition) && { edition }), ...('answered' in search && { answered: true }) };
   },
   loaderDeps: ({ search }) => ({ edition: search.edition }),

@@ -2,9 +2,9 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { useActing } from '../../components/admin/acting.ts';
-import { describedBy, FieldError, type Fields } from '../../components/admin/FieldError.tsx';
-import { Masthead } from '../../components/admin/Masthead.tsx';
-import { Notice } from '../../components/admin/Notice.tsx';
+import { errorAttributes, FieldError, type Fields } from '../../components/admin/FieldError.tsx';
+import { Masthead } from '../../components/club/Masthead.tsx';
+import { Notice } from '../../components/club/Notice.tsx';
 import { addSession, adminSessions, cancelSession, type SessionForm } from '../../functions/admin-sessions.ts';
 import { clubTitle } from '../../lib/title.ts';
 import s from './sessions.module.css';
@@ -91,7 +91,7 @@ function Sessions() {
         <form method="POST" className={s.form} onSubmit={onAdd}>
           <div className="field">
             <label htmlFor="title">Title</label>
-            <input className="input" id="title" name="title" required maxLength={120} {...describedBy(errors, 'title')} />
+            <input className="input" id="title" name="title" required maxLength={120} {...errorAttributes(errors, 'title')} />
             <FieldError errors={errors} name="title" className={s.error} />
           </div>
           <div className="field">
@@ -105,23 +105,23 @@ function Sessions() {
           <div className={s.pair}>
             <div className="field">
               <label htmlFor="date">Date</label>
-              <input className="input" id="date" name="date" type="date" min={today} required {...describedBy(errors, 'date')} />
+              <input className="input" id="date" name="date" type="date" min={today} required {...errorAttributes(errors, 'date')} />
               <FieldError errors={errors} name="date" className={s.error} />
             </div>
             <div className="field">
               <label htmlFor="time">Start, Malaysia time</label>
-              <input className="input" id="time" name="time" type="time" required {...describedBy(errors, 'time')} />
+              <input className="input" id="time" name="time" type="time" required {...errorAttributes(errors, 'time')} />
               <FieldError errors={errors} name="time" className={s.error} />
             </div>
           </div>
           <div className="field">
             <label htmlFor="minutes">Length in minutes</label>
-            <input className="input" id="minutes" name="minutes" type="number" min="15" max="480" step="5" required defaultValue="60" {...describedBy(errors, 'minutes')} />
+            <input className="input" id="minutes" name="minutes" type="number" min="15" max="480" step="5" required defaultValue="60" {...errorAttributes(errors, 'minutes')} />
             <FieldError errors={errors} name="minutes" className={s.error} />
           </div>
           <div className="field">
             <label htmlFor="link">Call link</label>
-            <input className="input" id="link" name="link" type="url" placeholder="https://" required {...describedBy(errors, 'link')} />
+            <input className="input" id="link" name="link" type="url" placeholder="https://" required {...errorAttributes(errors, 'link')} />
             <span className="hint">Only members see it.</span>
             <FieldError errors={errors} name="link" className={s.error} />
           </div>
@@ -129,7 +129,7 @@ function Sessions() {
             <label htmlFor="detail">
               What it covers <span className="hint">(optional)</span>
             </label>
-            <textarea className="input" id="detail" name="detail" rows={4} maxLength={1000} {...describedBy(errors, 'detail')} />
+            <textarea className="input" id="detail" name="detail" rows={4} maxLength={1000} {...errorAttributes(errors, 'detail')} />
             <FieldError errors={errors} name="detail" className={s.error} />
           </div>
           <button className="btn" type="submit" disabled={busy}>

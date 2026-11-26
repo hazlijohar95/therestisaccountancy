@@ -1,7 +1,7 @@
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent } from 'react';
-import { Notice } from '../../../components/members/Notice.tsx';
+import { Notice } from '../../../components/club/Notice.tsx';
 import { TemplateList } from '../../../components/members/TemplateList.tsx';
 import { lessonDone, membersLesson } from '../../../functions/members-learning.ts';
 import { clubTitle } from '../../../lib/title.ts';

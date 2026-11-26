@@ -1,10 +1,10 @@
-import { paragraphs, pieces } from '../../../../src/lib/text.ts';
+import { paragraphs, pieces } from '../../../src/lib/text.ts';
 import s from './PostText.module.css';
 
-/** Plain text someone wrote: paragraphs, line breaks and http(s) links. Never HTML. */
-export function PostText({ text, className = '' }: { text: string; className?: string | undefined }) {
+/** A post's plain text: paragraphs, line breaks and http(s) links. Never HTML. */
+export function PostText({ text }: { text: string }) {
   return (
-    <div className={`post-text ${s.text} ${className}`}>
+    <div className={`post-text ${s.text}`}>
       {paragraphs(text).map((paragraph, i) => (
         <p key={i}>
           {pieces(paragraph).map((piece, j) =>

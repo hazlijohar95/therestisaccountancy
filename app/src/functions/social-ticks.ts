@@ -7,6 +7,8 @@ import { claimWhen, renewsIn } from '../../../src/lib/ticks.ts';
 import { deleteEvidence, storeEvidence, type EvidenceRefusal } from '../../../src/server/evidence.ts';
 import { signInPath, socialPath } from '../../../src/server/paths.ts';
 import { report } from '../../../src/server/report.ts';
+import { email, id, line, oneLine } from '../lib/fields.ts';
+import { memberOrRefusal } from '../lib/guards.server.ts';
 import {
   evidenceType,
   monthOf,
@@ -23,7 +25,7 @@ import { allowed, tooManyTries } from '../lib/limits.server.ts';
 import { sendLater } from '../lib/mail.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
-import { email, formFields, id, line, oneLine, socialAbsolute } from '../lib/social-input.server.ts';
+import { formFields, socialAbsolute } from '../lib/social-input.server.ts';
 import { withStore } from '../lib/store.server.ts';
 
 /*
@@ -71,9 +73,9 @@ const here = () => new URL(getRequest().url);
 
 /** The signed-in member's profile. Ticks belong to a profile, so a member without a handle claims one first. */
 async function profileOrRefusal(): Promise<Outcome<Profile>> {
-  const member = await currentMember();
-  if (!member) return refused('Sign in first.');
-  const profile = await withStore(async (store) => await store.socialProfiles.ownProfile(member.id));
+  const member = await memberOrRefusal();
+  if (!member.ok) return member;
+  const profile = await withStore(async (store) => await store.socialProfiles.ownProfile(member.value.id));
   return profile ? done(profile) : refused('Claim your handle first.');
 }
 
@@ -168,11 +170,11 @@ export const addAccount = createServerFn({ method: 'POST' })
 export const removeAccount = createServerFn({ method: 'POST' })
   .validator((input: { account: number }) => input)
   .handler(async ({ data }): Promise<Outcome<{ removed: boolean }>> => {
-    const member = await currentMember();
-    if (!member) return refused('Sign in first.');
+    const member = await memberOrRefusal();
+    if (!member.ok) return member;
     const input = parsed(z.object({ account: id }), data);
     if (!input.ok) return input;
-    return done({ removed: await withStore(async (store) => await store.socialClaims.removeAccount(member.id, input.value.account)) });
+    return done({ removed: await withStore(async (store) => await store.socialClaims.removeAccount(member.value.id, input.value.account)) });
   });
 
 const bodyInput = z
@@ -267,11 +269,11 @@ export const addExperience = createServerFn({ method: 'POST' })
 export const removeClaim = createServerFn({ method: 'POST' })
   .validator((input: { claim: number }) => input)
   .handler(async ({ data }): Promise<Outcome<{ removed: boolean }>> => {
-    const member = await currentMember();
-    if (!member) return refused('Sign in first.');
+    const member = await memberOrRefusal();
+    if (!member.ok) return member;
     const input = parsed(z.object({ claim: id }), data);
     if (!input.ok) return input;
-    const { removed, evidenceKey } = await withStore(async (store) => await store.socialClaims.removeClaim(member.id, input.value.claim));
+    const { removed, evidenceKey } = await withStore(async (store) => await store.socialClaims.removeClaim(member.value.id, input.value.claim));
     if (evidenceKey) await deleteEvidence(evidenceKey).catch((error: unknown) => report('evidence', `The document of removed claim ${input.value.claim} was not deleted`, error));
     return done({ removed });
   });
@@ -317,11 +319,11 @@ export const workEmailPage = createServerFn({ method: 'GET' })
 export const confirmWorkEmail = createServerFn({ method: 'POST' })
   .validator((input: { token: string }) => input)
   .handler(async ({ data }): Promise<Outcome<{ label: string }>> => {
-    const member = await currentMember();
-    if (!member) return refused('Sign in first.');
+    const member = await memberOrRefusal();
+    if (!member.ok) return member;
     const input = parsed(z.object({ token: z.string().min(1) }), data);
     if (!input.ok) return input;
-    const claim = await withStore(async (store) => await store.socialClaims.confirmWorkEmail(member.id, input.value.token));
+    const claim = await withStore(async (store) => await store.socialClaims.confirmWorkEmail(member.value.id, input.value.token));
     return claim.ok ? done({ label: claim.value.label }) : refused(confirmRefusals[claim.reason]);
   });
 
@@ -329,11 +331,11 @@ export const confirmWorkEmail = createServerFn({ method: 'POST' })
 export const vouch = createServerFn({ method: 'POST' })
   .validator((input: { claim: number }) => input)
   .handler(async ({ data }): Promise<Outcome<{ vouches: number; ticked: boolean }>> => {
-    const member = await currentMember();
-    if (!member) return refused('Sign in first.');
+    const member = await memberOrRefusal();
+    if (!member.ok) return member;
     const input = parsed(z.object({ claim: id }), data);
     if (!input.ok) return input;
-    const claim = await withStore(async (store) => await store.socialClaims.vouch(member.id, input.value.claim));
+    const claim = await withStore(async (store) => await store.socialClaims.vouch(member.value.id, input.value.claim));
     return claim.ok ? done({ vouches: claim.value.vouches, ticked: claim.value.review.state === 'ticked' }) : refused(vouchRefusals[claim.reason]);
   });
 

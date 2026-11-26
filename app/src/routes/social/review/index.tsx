@@ -3,9 +3,9 @@ import { useEffect, useState, type FormEvent, type ReactNode, type RefObject } f
 import { bodyById, CLAIM_LIMITS } from '../../../../../src/data/social.ts';
 import { formatDay, formatMonth } from '../../../../../src/lib/format.ts';
 import { CopyLink } from '../../../components/social/CopyLink.tsx';
-import { SocialLink } from '../../../components/social/PathLink.tsx';
+import { SocialLink } from '../../../components/social/SocialLink.tsx';
 import { Tick } from '../../../components/social/Tick.tsx';
-import { useAction } from '../../../components/social/useFormAction.ts';
+import { useAction } from '../../../components/social/useAction.ts';
 import {
   approveAccount,
   approveClaim,
@@ -76,7 +76,7 @@ export const Route = createFileRoute('/social/review/')({
     <div className="page">
       <div className="card empty">
         <h1 className="head">Not found.</h1>
-        <SocialLink className="btn sm" path="/">
+        <SocialLink className="btn sm" to="/social">
           Back to the Floor
         </SocialLink>
       </div>
@@ -87,7 +87,7 @@ export const Route = createFileRoute('/social/review/')({
 
 type Queue = Awaited<ReturnType<typeof reviewQueue>>;
 /** Tells the page how a decision went: the note on success, the refusal's message when it is not about a field. */
-type Settle = (outcome: Outcome<unknown>, decided: Decided) => void;
+type Settle = (outcome: Outcome<unknown> | null, decided: Decided) => void;
 
 function Review() {
   const data = Route.useLoaderData();
@@ -105,6 +105,7 @@ function Review() {
   }, [tab]);
 
   const settle: Settle = (outcome, decided) => {
+    if (!outcome) return;
     setFailure(outcome.ok || Object.keys(outcome.fields).length ? null : outcome.message);
     setDone(outcome.ok ? decided : null);
     if (!outcome.ok) return;
@@ -139,7 +140,7 @@ function Review() {
       </div>
       <nav className="chips" aria-label="Queue">
         {TABS.map((t) => (
-          <SocialLink key={t.id} className="chip" path={`/review?tab=${t.id}`} aria-current={t.id === tab ? 'page' : undefined}>
+          <SocialLink key={t.id} className="chip" to="/social/review" search={{ tab: t.id }} current={t.id === tab}>
             {t.label} · {counts[t.id]}
           </SocialLink>
         ))}
@@ -264,7 +265,7 @@ function RequestItem({ request: r, settle }: { request: Queue['requests'][number
         )}
         {r.onSocial && (
           <p>
-            Already on Social as <SocialLink path={`/@${r.onSocial}`}>@{r.onSocial}</SocialLink>.
+            Already on Social as <SocialLink to="/social/@{$handle}" params={{ handle: r.onSocial }}>@{r.onSocial}</SocialLink>.
           </p>
         )}
       </div>
@@ -299,6 +300,7 @@ function Invites({
     const form = event.currentTarget;
     const fields = new FormData(form);
     const outcome = await invite.run({ email: String(fields.get('email') ?? ''), name: String(fields.get('name') ?? '') });
+    if (!outcome) return;
     if (!outcome.ok) return onRefused(Object.keys(outcome.fields).length ? null : outcome.message);
     form.reset();
     onInvited(outcome.value);
@@ -371,7 +373,7 @@ function TeamInviteItem({ invite: i, settle }: { invite: Queue['teamInvites'][nu
           {i.state === 'used' && i.usedBy && (
             <>
               {' '}
-              by <SocialLink path={`/@${i.usedBy}`}>@{i.usedBy}</SocialLink>
+              by <SocialLink to="/social/@{$handle}" params={{ handle: i.usedBy }}>@{i.usedBy}</SocialLink>
             </>
           )}
           {i.state === 'live' && ` · works until ${formatDay(i.expiresAt)}`}
@@ -411,6 +413,7 @@ function NominationItem({ nomination: n, settle, onInvited }: { nomination: Queu
 
   const send = async () => {
     const outcome = n.invitedAt ? await relink.run({ nomination: n.id }) : await invite.run({ nomination: n.id });
+    if (!outcome) return;
     if (outcome.ok) onInvited(outcome.value);
     else settle(outcome, 'nomination-rejected');
   };
@@ -481,7 +484,7 @@ function ReportItem({ item, settle }: { item: Queue['reports'][number]; settle: 
         <p>
           <b>{WHAT[item.target]}</b> by{' '}
           {item.member.handle ? (
-            <SocialLink path={`/@${item.member.handle}`}>
+            <SocialLink to="/social/@{$handle}" params={{ handle: item.member.handle }}>
               {item.member.name} (@{item.member.handle})
             </SocialLink>
           ) : (
@@ -491,7 +494,7 @@ function ReportItem({ item, settle }: { item: Queue['reports'][number]; settle: 
         </p>
         {item.summary && <p>“{item.summary}”</p>}
         <p>
-          <SocialLink path={item.path}>Open it where it is</SocialLink>
+          <ReportedPlace path={item.path}>Open it where it is</ReportedPlace>
         </p>
         <ul>
           {item.reports.map((r, i) => (
@@ -516,6 +519,25 @@ function ReportItem({ item, settle }: { item: Queue['reports'][number]; settle: 
   );
 }
 
+/** A link to where a reported item sits. The store writes the place as Social's own links do: /post/12, /post/12#reply-40 or /@aina. */
+function ReportedPlace({ path, children }: { path: string; children: ReactNode }) {
+  const post = /^\/post\/(\d+)(?:#(.+))?$/.exec(path);
+  if (post?.[1])
+    return (
+      <SocialLink to="/social/post/$id" params={{ id: post[1] }} {...(post[2] ? { hash: post[2] } : {})}>
+        {children}
+      </SocialLink>
+    );
+  const handle = /^\/@(.+)$/.exec(path);
+  if (handle?.[1])
+    return (
+      <SocialLink to="/social/@{$handle}" params={{ handle: handle[1] }}>
+        {children}
+      </SocialLink>
+    );
+  return <SocialLink to="/social">{children}</SocialLink>;
+}
+
 function Claims({ tab, data, settle }: { tab: 'accounts' | 'credentials' | 'documents'; data: Queue; settle: Settle }) {
   return (
     <ul className="queue">
@@ -533,7 +555,7 @@ function Who({ who }: { who: Person }) {
   return (
     <p>
       {who.handle ? (
-        <SocialLink path={`/@${who.handle}`}>
+        <SocialLink to="/social/@{$handle}" params={{ handle: who.handle }}>
           {who.name} (@{who.handle})
         </SocialLink>
       ) : (
@@ -546,7 +568,7 @@ function Who({ who }: { who: Person }) {
 
 /** A rejection's form: it posts the reason, and shows the reason's error beside it. */
 interface Rejecter {
-  run: (reason: string) => Promise<Outcome<null>>;
+  run: (reason: string) => Promise<Outcome<null> | null>;
   busy: boolean;
   error: string | undefined;
   form: RefObject<HTMLFormElement | null>;
@@ -570,7 +592,7 @@ function Decide({
   who: Person;
   approveLabel: string;
   placeholder: string;
-  approve: () => Promise<Outcome<null>>;
+  approve: () => Promise<Outcome<null> | null>;
   reject: Rejecter;
   settle: Settle;
 }) {

@@ -2,12 +2,12 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { accountHandle, CLAIM_LIMITS, PLATFORM_PROFILES, PLATFORMS, TOPICS } from '../../../src/data/social.ts';
 import type { ClaimRefusal, NominateRefusal } from '../../../src/server/social-nominations.ts';
+import { token } from '../lib/fields.ts';
 import { memberOrRefusal } from '../lib/guards.server.ts';
 import { allowed, tooManyTries } from '../lib/limits.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
-import { token } from './social-fields.ts';
 
 /* Nominations stay private: only the nominator sees theirs, and only the nominee sees their invite. */
 

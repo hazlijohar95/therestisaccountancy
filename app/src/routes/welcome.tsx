@@ -3,9 +3,9 @@ import { useServerFn } from '@tanstack/react-start';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { LINK_DAYS, type LinkPurpose } from '../../../src/data/links.ts';
 import { Page } from '../components/club/Page.tsx';
-import { textParam } from '../components/public/search.ts';
 import { passwordLink, setPassword } from '../functions/public-account.ts';
 import { socialHref } from '../lib/links.ts';
+import { linkTextParam } from '../lib/search-params.ts';
 import { clubTitle, noindex } from '../lib/title.ts';
 import s from './welcome.module.css';
 
@@ -25,7 +25,7 @@ const copy = {
 } as const satisfies Record<LinkPurpose, { label: string; title: (name: string) => string; lead: (email: string) => string; submit: string }>;
 
 export const Route = createFileRoute('/welcome')({
-  validateSearch: (search: Record<string, unknown>): { token?: string } => (search['token'] === undefined ? {} : { token: textParam(search['token']) }),
+  validateSearch: (search: Record<string, unknown>): { token?: string } => (search['token'] === undefined ? {} : { token: linkTextParam(search['token']) }),
   loaderDeps: ({ search }) => ({ token: search.token ?? '' }),
   loader: ({ deps }) => passwordLink({ data: { token: deps.token } }),
   head: ({ loaderData }) => ({ meta: [...clubTitle(loaderData?.holder ? copy[loaderData.holder.purpose].label : 'Password link'), noindex] }),

@@ -4,10 +4,11 @@ import { FEE_FIGURES, feeChoices, feeFigures, PUBLISH_MIN } from '../../../src/d
 import { formatDay } from '../../../src/lib/format.ts';
 import { pageCount } from '../../../src/lib/paging.ts';
 import type { Edition, PublishRefusal } from '../../../src/server/fees.ts';
+import { id } from '../lib/fields.ts';
 import { adminOrRefusal } from '../lib/guards.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
-import { adminOrRedirect, id, pagingFor } from './admin.server.ts';
+import { adminOrRedirect, pagingFor } from './admin.server.ts';
 
 const PAGE_SIZE = 50;
 
@@ -58,7 +59,7 @@ export const adminFees = createServerFn({ method: 'GET' })
     };
   });
 
-const editionInput = z.object({ edition: z.coerce.number().int().positive() });
+const editionInput = z.object({ edition: id });
 
 /** Puts a year's results up on the fee survey page. */
 export const publishFees = createServerFn({ method: 'POST' })

@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { Page } from '../../components/club/Page.tsx';
 import { PageHead } from '../../components/club/PageHead.tsx';
-import { Notice } from '../../components/public/Notice.tsx';
+import { Notice } from '../../components/club/Notice.tsx';
 import { subscribe } from '../../functions/public-forms.server.ts';
 import { newsletterResult } from '../../functions/public-newsletter.ts';
 import { clubTitle, noindex } from '../../lib/title.ts';

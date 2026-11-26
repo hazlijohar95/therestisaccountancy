@@ -9,13 +9,13 @@ import { socialUrl } from '../../../src/server/paths.ts';
 import type { JoinRefusal, MemberInviteRefusal, RedeemRefusal, RevokeRefusal } from '../../../src/server/social-invites.ts';
 import type { SignUpRefusal } from '../../../src/server/social-profiles.ts';
 import type { RequestRefusal } from '../../../src/server/social-requests.ts';
+import { email, memberName, numberId, oneLine, token } from '../lib/fields.ts';
 import { memberOrRefusal } from '../lib/guards.server.ts';
 import { allowed, tooManyTries } from '../lib/limits.server.ts';
 import { absolute, sendLater } from '../lib/mail.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
-import { email, id, memberName, oneLine, token } from './social-fields.ts';
 import { claimRefusals as nominationRefusals } from './social-nominations.ts';
 import { handleField, handleRefusals } from './social-profiles.ts';
 
@@ -137,7 +137,7 @@ export const revokeInvite = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<Outcome<null>> => {
     const member = await memberOrRefusal();
     if (!member.ok) return member;
-    const input = parsed(z.object({ invite: id }), data);
+    const input = parsed(z.object({ invite: numberId }), data);
     if (!input.ok) return input;
     const result = await withStore(async (store) => await store.socialInvites.revoke(member.value.id, input.value.invite));
     return result.ok ? done(null) : refused(revokeRefusals[result.reason]);

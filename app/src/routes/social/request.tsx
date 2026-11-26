@@ -44,7 +44,7 @@ function Request() {
   const email = fieldError(refusal, 'email', { hint: 'email-hint' });
   const about = fieldError(refusal, 'about', { hint: 'about-hint' });
   const link = fieldError(refusal, 'link');
-  const failure = refusal && Object.keys(refusal.fields).length === 0 ? refusal.message : null;
+  const failure = send.failure;
 
   if (sent)
     return (

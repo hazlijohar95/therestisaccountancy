@@ -4,11 +4,12 @@ import { useState, type FormEvent } from 'react';
 import { channelBySlug, channelPath, LIMITS, threadPath } from '../../../../../../src/data/community.ts';
 import { formatMoment } from '../../../../../../src/lib/format.ts';
 import type { Moderation } from '../../../../../../src/server/community.ts';
-import { Masthead } from '../../../../components/members/Masthead.tsx';
-import { Notice } from '../../../../components/members/Notice.tsx';
-import { Pager } from '../../../../components/members/Pager.tsx';
-import { PostText } from '../../../../components/members/PostText.tsx';
+import { Masthead } from '../../../../components/club/Masthead.tsx';
+import { Notice } from '../../../../components/club/Notice.tsx';
+import { Pager } from '../../../../components/club/Pager.tsx';
+import { PostText } from '../../../../components/PostText.tsx';
 import { deletePost, editPost, GONE, landingHref, membersThread, moderateThread, reply } from '../../../../functions/members-community.ts';
+import { formText } from '../../../../lib/form.ts';
 import type { Outcome } from '../../../../lib/outcome.ts';
 import { pageIn } from '../../../../components/members/flags.ts';
 import { clubTitle } from '../../../../lib/title.ts';
@@ -26,8 +27,6 @@ export const Route = createFileRoute('/members/community/threads/$id')({
 });
 
 type Failed = Extract<Outcome<unknown>, { ok: false }>;
-const text = (form: FormData, name: string) => String(form.get(name) ?? '');
-
 function ThreadPage() {
   const { me, thread, posts, page, pages } = Route.useLoaderData();
   const search = Route.useSearch();
@@ -74,7 +73,7 @@ function ThreadPage() {
   const submitReply = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
-    const body = text(new FormData(form), 'body');
+    const body = formText(new FormData(form), 'body');
     const outcome = await send.reply({ data: { thread: thread.id, body } });
     if (!outcome.ok) return refuse('reply', outcome, body);
     form.reset();
@@ -82,7 +81,7 @@ function ThreadPage() {
   };
   const submitEdit = (postId: number) => async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const body = text(new FormData(event.currentTarget), 'body');
+    const body = formText(new FormData(event.currentTarget), 'body');
     const outcome = await send.edit({ data: { post: postId, body } });
     if (!outcome.ok) return refuse('edit', outcome, body);
     await land(landingHref(outcome.value));

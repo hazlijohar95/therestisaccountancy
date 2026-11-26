@@ -3,11 +3,12 @@ import { z } from 'zod';
 import { SESSION_KINDS } from '../../../src/data/sessions.ts';
 import { formatMoment, listOf } from '../../../src/lib/format.ts';
 import { sessionLetters } from '../../../src/server/letters.ts';
+import { id, malaysiaTime } from '../lib/fields.ts';
 import { adminOrRefusal } from '../lib/guards.server.ts';
 import { absolute, sendLater } from '../lib/mail.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
-import { adminOrRedirect, id, malaysiaTime, malaysiaToday } from './admin.server.ts';
+import { adminOrRedirect, malaysiaToday } from './admin.server.ts';
 
 /** The sessions on the calendar, with who is coming to each. */
 export const adminSessions = createServerFn({ method: 'GET' }).handler(async () => {
