@@ -27,5 +27,5 @@ Everything that runs per request (the club's members' area and admin, sign-in, p
 ## Running it
 
 - `cd app && SITE_URL=http://localhost:4178 VITE_LOCAL_SEED=on CLOUDFLARE_VITE_FORCE_BUILD_OUTPUT=true npx vite build && npx vite preview --port 4178 --host 127.0.0.1`. The dev server works too (`npx vite dev`), but browse loses its tab on it.
-- `GET /dev-seed` on that build makes `team@local.test` (admin, handle `team`) and `a@`, `b@`, `c@local.test` (Social members; a and b ticked), all with the password `local test password 1`. The route is compiled out unless `VITE_LOCAL_SEED=on`.
+- `GET /dev-seed` on that build makes `team@local.test` (admin, handle `team_reviewer`) and `a@`, `b@`, `c@local.test` (Social members; a and b ticked), all with the password `local test password 1`. The route is compiled out unless `VITE_LOCAL_SEED=on`.
 - `GET /dev-seed?as=a@local.test` also signs that account in and sets the cookie. Use it in browse and with `curl -c`/`-b`: Chrome drops browse's connection as soon as a password field holds a value, so never type into the sign-in form.

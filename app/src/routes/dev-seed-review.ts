@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { isLocalHost } from '../lib/local.ts';
 import { withStore } from '../lib/store.server.ts';
 
 /*
@@ -11,7 +12,7 @@ export const Route = createFileRoute('/dev-seed-review')({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const local = ['127.0.0.1', 'localhost'].includes(new URL(request.url).hostname);
+        const local = isLocalHost(request.url);
         if (import.meta.env.VITE_LOCAL_SEED !== 'on' || !local) return new Response('Not found', { status: 404 });
         const seeded = await withStore(async (store) => {
           const a = await store.club.authenticate('a@local.test', PASSWORD);

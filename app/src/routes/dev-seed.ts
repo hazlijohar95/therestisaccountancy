@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { isLocalHost } from '../lib/local.ts';
 import { startSession } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
 
@@ -18,11 +19,11 @@ export const Route = createFileRoute('/dev-seed')({
     handlers: {
       GET: async ({ request }) => {
         /* Built in only with VITE_LOCAL_SEED=on, and answers only on the machine's own address. */
-        const local = ['127.0.0.1', 'localhost'].includes(new URL(request.url).hostname);
+        const local = isLocalHost(request.url);
         if (import.meta.env.VITE_LOCAL_SEED !== 'on' || !local) return new Response('Not found', { status: 404 });
         await withStore(async (store) => {
           const host = await store.club.ensureAdmin({ email: 'team@local.test', name: 'Team Reviewer', password: PASSWORD });
-          if (!(await store.socialProfiles.ownProfile(host.id))) await store.socialProfiles.claimHandle(host.id, 'team');
+          if (!(await store.socialProfiles.ownProfile(host.id))) await store.socialProfiles.claimHandle(host.id, 'team_reviewer');
           for (const person of MEMBERS) {
             const joined = await store.socialProfiles.signUp({ name: person.name, email: person.email, handle: person.handle }, { via: 'team' });
             if (!joined.ok) continue;
