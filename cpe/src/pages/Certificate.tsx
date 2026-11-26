@@ -1,4 +1,7 @@
 import { Button } from "@base-ui/react/button";
+import { useEffect, useState } from "react";
+import { api } from "../api.ts";
+import type { Verified } from "../domain/api.ts";
 import { Arrow, Download } from "../components/Icons.tsx";
 import { Logo } from "../components/Logo.tsx";
 import { formatHours } from "../domain/courses.ts";
@@ -9,6 +12,18 @@ import { NotFound } from "./NotFound.tsx";
 export function CertificatePage({ id }: { id: string }) {
   const state = useAppState();
   const cert = state.certificates.find((c) => c.id === id);
+  // Printed from the public register, not just this account's copy: what anyone checking the id will see.
+  const [registered, setRegistered] = useState<boolean | null>(null);
+  useEffect(() => {
+    let live = true;
+    api<Verified>("GET", `/api/verify/${encodeURIComponent(id)}`).then(
+      () => live && setRegistered(true),
+      () => live && setRegistered(false),
+    );
+    return () => {
+      live = false;
+    };
+  }, [id]);
   if (!cert) return <NotFound />;
   const verifyAt = `${location.origin}/verify/${cert.id}`;
   const issued = new Date(cert.issuedAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
@@ -57,7 +72,7 @@ export function CertificatePage({ id }: { id: string }) {
           </div>
         </footer>
         <p className="cert__fine">
-          Sample course. Not accredited and not valid for regulatory CPE. Check this certificate at{" "}
+          Sample course. Not accredited and not valid for regulatory CPE. {registered === false ? "Not yet on the public register; reload in a moment. " : ""}Check this certificate at{" "}
           <a href={verifyAt} data-test="verify-link">
             {verifyAt.replace(/^https?:\/\//, "")}
           </a>

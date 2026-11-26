@@ -120,7 +120,15 @@ export function CourseView({ course, preview = false }: { course: Course; previe
           </ul>
           <span className="mono">{formatTime(course.duration)}</span>
         </div>
-        {missed.length > 0 && (
+        {active && player.queued.length > 0 && player.pending === null && (
+          <div className="notice" data-test="queued">
+            {player.queued.length === 1 ? "One review question is waiting" : `${player.queued.length} review questions are waiting`} for the end of the episode.
+            <Button className="textbtn" onClick={player.answerQueued} data-test="answer-queued">
+              Answer now
+            </Button>
+          </div>
+        )}
+        {missed.length > 0 && !(active && player.queued.length > 0) && (
           <div className="notice" data-test="missed">
             Answer skipped review questions to unlock the assessment.
             {missed.map(({ c, i }) => (

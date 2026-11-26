@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { ledgerLines, toCsv } from "../src/domain/ledger.ts";
 import { acceptHeard, BANK_SECONDS, MAX_RATE, refill } from "../src/domain/rules.ts";
 import { createCatalogue } from "./catalogue.ts";
 import { createLearner, type Assessed } from "./learner.ts";
@@ -165,4 +166,22 @@ test("importing the prototype's record twice adds nothing the second time, and n
   const p = s.progress[w.course.courseId]!;
   assert.equal(p.position, 42);
   assert.deepEqual(p.ranges, [], "listening evidence is not imported");
+});
+
+test("the ledger and its CSV read straight from the server's record, with each line's source", () => {
+  const w = world();
+  w.listenAll();
+  w.answerAll();
+  w.learner.setName("Aina Rahman");
+  const sitting = w.learner.sit(w.course);
+  assert.ok(sitting !== "not-ready");
+  const graded = w.learner.submit(sitting.id, w.course.quiz.map((q, i) => sitting.orders[i]!.indexOf(q.answer)), w.course);
+  assert.ok(typeof graded === "object" && graded.certificate);
+  w.learner.log({ date: "2026-11-01", title: "Tax update", provider: "Self-reported", field: "Taxation", hours: 2 });
+  w.learner.importLegacy({ logged: [], certificates: [{ id: "OLD-1", date: "2026-10-01", title: "Old course", provider: "Stick to Accounting", field: "Ethics", hours: 1 }], positions: [] });
+  const csv = toCsv(ledgerLines(w.learner.snapshot())).split("\n");
+  assert.equal(csv[0], '"Date","Title","Provider","Field of study","Hours","Source","Certificate"');
+  const source = (row: string) => ["earned", "self-reported", "unverified"].find((x) => row.includes(`,"${x}",`));
+  assert.deepEqual(csv.slice(1).map(source), ["unverified", "self-reported", "earned"], "in date order");
+  assert.ok(csv[3]!.endsWith(`"${graded.certificate.id}"`), "an earned line carries its certificate id");
 });

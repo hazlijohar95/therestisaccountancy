@@ -11,11 +11,11 @@ import { Check } from "./Icons.tsx";
 const LETTERS = ["A", "B", "C", "D"];
 
 /**
- * Review questions interrupt the episode where the idea lands. The dialog can't be dismissed:
- * the only way on is a correct answer. They teach; they don't grade.
+ * Review questions interrupt the episode where the idea lands, or in hands-free mode wait for its end. The dialog
+ * can't be dismissed: the only way on is a correct answer, which the server checks. They teach; they don't grade.
  */
 export function CheckpointCard() {
-  const { course, pending, clearPending } = usePlayer();
+  const { course, pending, clearPending, queued } = usePlayer();
   const actions = useActions();
   // Keep the last question so its content stays on screen through the exit animation.
   const [shown, setShown] = useState<{ course: Course; index: number } | null>(null);
@@ -62,7 +62,9 @@ export function CheckpointCard() {
                 <span className="tape checkpoint__tape">
                   Question {shown.index + 1} of {shown.course.checkpoints.length}
                 </span>
-                <p className="eyebrow">Paused · {shown.course.title}</p>
+                <p className="eyebrow">
+                  {queued.includes(shown.index) ? "Waiting for you" : "Paused"} · {shown.course.title}
+                </p>
                 <Dialog.Title className="checkpoint__prompt" id="cp-prompt">
                   {cp.prompt}
                 </Dialog.Title>
@@ -90,10 +92,10 @@ export function CheckpointCard() {
                 <div className="checkpoint__actions">
                   {correct ? (
                     <Button className="pill pill--cpe" onClick={clearPending} data-test="cp-continue">
-                      Continue listening
+                      {queued.includes(shown.index) && queued.some((q) => q !== shown.index) ? "Next question" : queued.includes(shown.index) ? "Done" : "Continue listening"}
                     </Button>
                   ) : (
-                    <span className="muted">Answer to keep listening.</span>
+                    <span className="muted">{queued.includes(shown.index) ? "Answer it to count towards your credit." : "Answer to keep listening."}</span>
                   )}
                 </div>
               </>

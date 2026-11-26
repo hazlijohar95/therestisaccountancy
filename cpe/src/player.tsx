@@ -9,13 +9,32 @@ export { RATES, type Rate } from "./domain/rules.ts";
 /** How often the player tells the server what was heard while there is anything new to tell. */
 const REPORT_MS = 5000;
 
+/** Hands-free is a setting of this device, so it lives in the browser. Phones start with it on. */
+const HANDS_FREE_KEY = "tria-cpe:hands-free";
+function initialHandsFree(): boolean {
+  try {
+    const saved = localStorage.getItem(HANDS_FREE_KEY);
+    if (saved !== null) return saved === "1";
+  } catch {
+    // Storage blocked: fall back to the device's kind.
+  }
+  return matchMedia("(pointer: coarse)").matches;
+}
+
 interface Player {
   course: Course | null;
   time: number;
   playing: boolean;
   rate: Rate;
-  /** A review checkpoint the listener has reached and not yet answered. */
+  /** The review question on screen now. */
   pending: number | null;
+  /** Review questions reached but not yet answered, waiting for the end of the episode in hands-free mode. */
+  queued: readonly number[];
+  /** Review questions queue up instead of pausing the episode. Credit still needs every one answered. */
+  handsFree: boolean;
+  setHandsFree: (on: boolean) => void;
+  /** Shows the first queued question now. */
+  answerQueued: () => void;
   /** A preview plays a Studio draft: nothing is reported and review questions do not pause it. */
   play: (course: Course, at?: number, options?: { preview?: boolean }) => void;
   toggle: () => void;
@@ -45,6 +64,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [playing, setPlaying] = useState(false);
   const [rate, setRateState] = useState<Rate>(1);
   const [pending, setPending] = useState<number | null>(null);
+  const [queued, setQueued] = useState<readonly number[]>([]);
+  const [handsFree, setHandsFreeState] = useState(initialHandsFree);
+  const [ended, setEnded] = useState(false);
+  const handsFreeRef = useRef(handsFree);
+  handsFreeRef.current = handsFree;
   const courseId = course?.id ?? null;
   const member = session.status === "member" && !preview;
 
@@ -119,13 +143,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setTime(t);
       if (preview || prev === null || t <= prev || t - prev > 1.5 * el.playbackRate) return;
       const hit = course.checkpointTimes.findIndex((at, i) => !answeredRef.current.includes(i) && prev <= at && at <= t);
-      if (hit >= 0) {
-        const at = course.checkpointTimes[hit]!;
-        el.pause();
-        el.currentTime = at;
-        last.current = at;
-        setPending(hit);
+      if (hit < 0) return;
+      // Hands-free, or playing in the background where nobody can answer: queue it and keep playing.
+      if (handsFreeRef.current || document.visibilityState === "hidden") {
+        setQueued((q) => (q.includes(hit) ? q : [...q, hit].sort((a, b) => a - b)));
+        return;
       }
+      const at = course.checkpointTimes[hit]!;
+      el.pause();
+      el.currentTime = at;
+      last.current = at;
+      setPending(hit);
     };
     const onSeeking = () => {
       last.current = null;
@@ -135,24 +163,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       last.current = el.currentTime;
       reportRef.current();
     };
-    const onPlay = () => setPlaying(true);
+    const onPlay = () => {
+      setPlaying(true);
+      setEnded(false);
+    };
     const onPause = () => {
       setPlaying(false);
       reportRef.current(true);
+    };
+    const onEnded = () => {
+      onPause();
+      setEnded(true);
     };
     el.addEventListener("timeupdate", onTime);
     el.addEventListener("seeking", onSeeking);
     el.addEventListener("seeked", onSeeked);
     el.addEventListener("play", onPlay);
     el.addEventListener("pause", onPause);
-    el.addEventListener("ended", onPause);
+    el.addEventListener("ended", onEnded);
     return () => {
       el.removeEventListener("timeupdate", onTime);
       el.removeEventListener("seeking", onSeeking);
       el.removeEventListener("seeked", onSeeked);
       el.removeEventListener("play", onPlay);
       el.removeEventListener("pause", onPause);
-      el.removeEventListener("ended", onPause);
+      el.removeEventListener("ended", onEnded);
     };
   }, [course, preview]);
 
@@ -173,6 +208,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setCourse(next);
         setPreview(asPreview);
         setPending(null);
+        setQueued([]);
+        setEnded(false);
       } else if (at !== undefined) {
         el.currentTime = at;
       }
@@ -183,6 +220,110 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     },
     [course, courseId, preview, rate, state],
   );
+
+  /** Whether the question on screen came from a pause, so answering it should play on. Queued ones never resume. */
+  const pausedFor = useRef<number | null>(null);
+  useEffect(() => {
+    pausedFor.current = pending !== null && !queued.includes(pending) ? pending : pausedFor.current;
+  }, [pending, queued]);
+
+  // At the end of the episode, queued questions come up one by one.
+  useEffect(() => {
+    if (ended && pending === null && queued.length > 0) setPending(queued[0]!);
+  }, [ended, pending, queued]);
+
+  const clearPending = useCallback(() => {
+    const done = pending;
+    const rest = queued.filter((q) => q !== done);
+    setQueued(rest);
+    if (done !== null && pausedFor.current === done) {
+      pausedFor.current = null;
+      setPending(null);
+      void audio.current?.play();
+      return;
+    }
+    // A queued question leads to the next one waiting, if any.
+    setPending(rest.length > 0 ? rest[0]! : null);
+  }, [pending, queued]);
+
+  /*
+   * Lock-screen and headset controls. A question that paused the episode cannot be answered from the lock screen, so
+   * pressing play there queues it for later and plays on, rather than doing nothing.
+   */
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
+  useEffect(() => {
+    const el = audio.current;
+    if (!el || !course || !("mediaSession" in navigator)) return;
+    const ms = navigator.mediaSession;
+    const setPosition = () => {
+      if (!Number.isFinite(el.duration) || el.duration <= 0) return;
+      try {
+        ms.setPositionState({ duration: el.duration, position: Math.min(el.currentTime, el.duration), playbackRate: el.playbackRate });
+      } catch {
+        // Some browsers refuse a position state mid-seek; the next update sets it.
+      }
+    };
+    const seekBy = (d: number) => {
+      el.currentTime = Math.max(0, Math.min(course.duration, el.currentTime + d));
+      setPosition();
+    };
+    const handlers: [MediaSessionAction, MediaSessionActionHandler][] = [
+      [
+        "play",
+        () => {
+          const waiting = pendingRef.current;
+          if (waiting !== null) {
+            setQueued((q) => (q.includes(waiting) ? q : [...q, waiting].sort((a, b) => a - b)));
+            pausedFor.current = null;
+            setPending(null);
+          }
+          void el.play();
+        },
+      ],
+      ["pause", () => el.pause()],
+      ["seekbackward", (d) => seekBy(-(d.seekOffset ?? 15))],
+      ["seekforward", (d) => seekBy(d.seekOffset ?? 15)],
+      [
+        "seekto",
+        (d) => {
+          if (d.seekTime === undefined) return;
+          el.currentTime = Math.max(0, Math.min(course.duration, d.seekTime));
+          setPosition();
+        },
+      ],
+    ];
+    for (const [action, handler] of handlers) {
+      try {
+        ms.setActionHandler(action, handler);
+      } catch {
+        // An action this browser does not support.
+      }
+    }
+    let lastSet = 0;
+    const onTime = () => {
+      if (Date.now() - lastSet < 1000) return;
+      lastSet = Date.now();
+      setPosition();
+    };
+    const onState = () => {
+      ms.playbackState = el.paused ? "paused" : "playing";
+      setPosition();
+    };
+    el.addEventListener("timeupdate", onTime);
+    for (const e of ["play", "pause", "ratechange", "seeked", "loadedmetadata"]) el.addEventListener(e, onState);
+    return () => {
+      el.removeEventListener("timeupdate", onTime);
+      for (const e of ["play", "pause", "ratechange", "seeked", "loadedmetadata"]) el.removeEventListener(e, onState);
+      for (const [action] of handlers) {
+        try {
+          ms.setActionHandler(action, null);
+        } catch {
+          // Unsupported action.
+        }
+      }
+    };
+  }, [course]);
 
   const value = useMemo<Player>(
     () => ({
@@ -207,12 +348,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setRateState(r);
         if (audio.current) audio.current.playbackRate = r;
       },
-      clearPending: () => {
-        setPending(null);
-        void audio.current?.play();
+      clearPending,
+      queued,
+      handsFree,
+      setHandsFree: (on) => {
+        setHandsFreeState(on);
+        try {
+          localStorage.setItem(HANDS_FREE_KEY, on ? "1" : "0");
+        } catch {
+          // Storage blocked: the setting lasts for this visit.
+        }
+      },
+      answerQueued: () => {
+        if (queued.length && pending === null) {
+          audio.current?.pause();
+          setPending(queued[0]!);
+        }
       },
     }),
-    [course, time, playing, rate, pending, play],
+    [course, time, playing, rate, pending, play, clearPending, queued, handsFree],
   );
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
