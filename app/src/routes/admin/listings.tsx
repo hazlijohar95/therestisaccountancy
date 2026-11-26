@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import type { Decision } from '../../../../src/server/listings.ts';
-import { useActing } from '../../components/admin/acting.ts';
+import { FieldError } from '../../components/FieldError.tsx';
+import { useAction } from '../../components/useAction.ts';
 import { ListingEntry } from '../../components/club/ListingEntry.tsx';
 import { Masthead } from '../../components/club/Masthead.tsx';
 import { Notice } from '../../components/club/Notice.tsx';
 import { adminListings, approveListing, returnListing } from '../../functions/admin-listings.ts';
+import { wireField } from '../../lib/form.ts';
 import { clubTitle } from '../../lib/title.ts';
 import s from './listings.module.css';
 
@@ -31,9 +32,9 @@ interface NoteError {
 
 function Listings() {
   const data = Route.useLoaderData();
-  const approve = useServerFn(approveListing);
-  const sendBack = useServerFn(returnListing);
-  const { busy, act } = useActing();
+  const approve = useAction(approveListing, { refresh: 'always' });
+  const sendBack = useAction(returnListing, { refresh: 'always' });
+  const busy = approve.busy || sendBack.busy;
   const [shown, setShown] = useState<ReactNode>(null);
   const [noteError, setNoteError] = useState<NoteError | null>(null);
   const groups = [
@@ -42,7 +43,8 @@ function Listings() {
   ];
 
   const onApprove = async (member: number, seen: string) => {
-    const outcome = await act(() => approve({ data: { member, seen } }));
+    const outcome = await approve.run({ member, seen });
+    if (!outcome) return;
     setNoteError(null);
     setShown(outcome.ok ? <Notice>{doneNotice[outcome.value]}</Notice> : <Notice tone="error">{outcome.message}</Notice>);
   };
@@ -50,7 +52,8 @@ function Listings() {
   const onReturn = async (event: FormEvent<HTMLFormElement>, member: number, seen: string) => {
     event.preventDefault();
     const note = String(new FormData(event.currentTarget).get('note') ?? '');
-    const outcome = await act(() => sendBack({ data: { member, seen, note } }));
+    const outcome = await sendBack.run({ member, seen, note });
+    if (!outcome) return;
     const fieldError = outcome.ok ? undefined : outcome.fields['note'];
     setNoteError(fieldError ? { member, message: fieldError } : null);
     setShown(outcome.ok ? <Notice>{doneNotice[outcome.value]}</Notice> : fieldError ? null : <Notice tone="error">{outcome.message}</Notice>);
@@ -79,6 +82,7 @@ function Listings() {
               {group.items.map((l) => {
                 const member = l.listing.memberId;
                 const retrying = noteError?.member === member;
+                const note = wireField(retrying ? noteError.message : undefined, { id: `note-${member}-error`, hint: `note-${member}-hint` });
                 return (
                   <li className={s.check} key={member}>
                     <p className={`small ${s.who}`}>
@@ -133,17 +137,12 @@ function Listings() {
                               rows={3}
                               required
                               maxLength={data.noteMax}
-                              aria-invalid={retrying ? true : undefined}
-                              aria-describedby={retrying ? `note-${member}-hint note-${member}-error` : `note-${member}-hint`}
+                              {...note.input}
                             />
                             <span className="hint" id={`note-${member}-hint`}>
                               The member gets this by email, word for word.
                             </span>
-                            {retrying && (
-                              <span className={`error ${s.error}`} id={`note-${member}-error`}>
-                                {noteError.message}
-                              </span>
-                            )}
+                            <FieldError field={note} className={s.error} />
                             <button className="btn ghost" type="submit" disabled={busy}>
                               {l.review.state === 'listed' ? 'Take it down' : 'Return it'}
                             </button>

@@ -1,12 +1,14 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent } from 'react';
 import { capitalised, firstName } from '../../../../src/lib/format.ts';
-import { useActing } from '../../components/admin/acting.ts';
+import { FieldError } from '../../components/FieldError.tsx';
+import { useAction } from '../../components/useAction.ts';
 import { Masthead } from '../../components/club/Masthead.tsx';
 import { Notice } from '../../components/club/Notice.tsx';
 import { PlanLetter } from '../../components/club/PlanLetter.tsx';
 import { adminPlans, answerPlan } from '../../functions/admin-plans.ts';
+import { wireField } from '../../lib/form.ts';
+import { failureOf } from '../../lib/outcome.ts';
 import { clubTitle } from '../../lib/title.ts';
 import s from './plans.module.css';
 
@@ -22,13 +24,12 @@ type Sent = { readonly ok: true } | { readonly ok: false; readonly plan: number;
 function Plans() {
   const data = Route.useLoaderData();
   const { waiting, answered } = data;
-  const send = useServerFn(answerPlan);
-  const { busy, act } = useActing();
+  const send = useAction(answerPlan, { refresh: 'always' });
   const [sent, setSent] = useState<Sent | null>(null);
 
   const refusal = sent && !sent.ok ? sent : null;
   /* A refusal the form shows beside the answer is about the answer; any other is about the plan. */
-  const failure = refusal && !Object.keys(refusal.fields).length ? refusal.message : null;
+  const failure = failureOf(refusal);
   /* A plan still waiting keeps a refused answer in its own box. One that has left the list has it shown back up here. */
   const unsent = failure && refusal && !waiting.some((p) => p.id === refusal.plan) ? refusal.reply : '';
 
@@ -36,7 +37,8 @@ function Plans() {
     event.preventDefault();
     const form = event.currentTarget;
     const reply = String(new FormData(form).get('reply') ?? '');
-    const outcome = await act(() => send({ data: { plan: plan.id, sentAt: plan.sentAt, reply } }));
+    const outcome = await send.run({ plan: plan.id, sentAt: plan.sentAt, reply });
+    if (!outcome) return;
     setSent(outcome.ok ? { ok: true } : { ok: false, plan: plan.id, reply, message: outcome.message, fields: outcome.fields });
     if (outcome.ok) window.scrollTo({ top: 0 });
   };
@@ -101,8 +103,8 @@ function Plans() {
               </table>
             </div>
             {waiting.map((p) => {
-              const error = refusal?.plan === p.id ? refusal.fields['reply'] : undefined;
               const hint = `reply-${p.id}-hint`;
+              const reply = wireField(refusal?.plan === p.id ? refusal.fields['reply'] : undefined, { id: `reply-${p.id}-error`, hint });
               return (
                 <article className={s.plan} id={`plan-${p.id}`} aria-labelledby={`plan-${p.id}-title`} key={p.id}>
                   <header className={s.who}>
@@ -131,19 +133,14 @@ function Plans() {
                         rows={10}
                         required
                         maxLength={data.replyMax}
-                        aria-describedby={error ? `${hint} reply-${p.id}-error` : hint}
-                        aria-invalid={error ? true : undefined}
+                        {...reply.input}
                       />
                       <span className="hint" id={hint}>
                         Plain text. Leave a blank line between paragraphs. It goes to them by email, from you, and closes the plan, so it cannot be changed after.
                       </span>
-                      {error && (
-                        <span className={`error ${s.error}`} id={`reply-${p.id}-error`}>
-                          {error}
-                        </span>
-                      )}
+                      <FieldError field={reply} className={s.error} />
                     </div>
-                    <button className="btn" type="submit" disabled={busy}>
+                    <button className="btn" type="submit" disabled={send.busy}>
                       Send the answer
                     </button>
                   </form>

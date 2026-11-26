@@ -1,9 +1,8 @@
 import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { LINK_DAYS } from '../../../../src/data/links.ts';
 import { pageHref } from '../../../../src/lib/paging.ts';
-import { useActing } from '../../components/admin/acting.ts';
+import { useAction } from '../../components/useAction.ts';
 import { LinkNotice } from '../../components/admin/LinkNotice.tsx';
 import { Masthead } from '../../components/club/Masthead.tsx';
 import { Notice } from '../../components/club/Notice.tsx';
@@ -34,15 +33,16 @@ function Admin() {
   const data = Route.useLoaderData();
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const invite = useServerFn(inviteRequest);
-  const decline = useServerFn(declineRequest);
-  const { busy, act } = useActing();
+  const invite = useAction(inviteRequest, { refresh: 'always' });
+  const decline = useAction(declineRequest, { refresh: 'always' });
+  const busy = invite.busy || decline.busy;
   const [shown, setShown] = useState<ReactNode>(search.removed ? <Notice>Member removed.</Notice> : null);
   const { pending, decided, members, query, status } = data;
   const waiting = pending.length === 1 ? 'One request waiting.' : pending.length === 0 ? 'No requests waiting.' : `${pending.length} requests waiting.`;
 
   const onInvite = async (request: number) => {
-    const outcome = await act(() => invite({ data: { request } }));
+    const outcome = await invite.run({ request });
+    if (!outcome) return;
     if (!outcome.ok) return setShown(<Notice tone="error">{outcome.message}</Notice>);
     const invited = outcome.value;
     if (invited.kind === 'link') return setShown(<LinkNotice issued={invited.issued} />);
@@ -55,7 +55,8 @@ function Admin() {
   };
 
   const onDecline = async (request: number) => {
-    const outcome = await act(() => decline({ data: { request } }));
+    const outcome = await decline.run({ request });
+    if (!outcome) return;
     setShown(outcome.ok ? <Notice>Request declined.</Notice> : <Notice tone="error">{outcome.message}</Notice>);
   };
 
