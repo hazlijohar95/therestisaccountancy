@@ -1,4 +1,18 @@
 /* The Studio's own layout. Everything else reuses the app's field, input, pill, tag and notice styles. */
+/* Page heads: the title, then its note, then the work, on the same rhythm as the rest of the app. */
+.studio > .libhead {
+  margin-bottom: var(--space-3);
+}
+.studio > .libhead + p.muted {
+  max-width: 68ch;
+  margin-bottom: var(--space-6);
+}
+.studio > .eyebrow + .pagetitle {
+  margin: var(--space-2) 0 var(--space-5);
+}
+.studio > .lead {
+  margin: var(--space-4) 0 var(--space-5);
+}
 .studio .row,
 .studio-tools {
   display: flex;
