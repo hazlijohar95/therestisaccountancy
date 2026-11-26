@@ -18,7 +18,8 @@
     "@therestisaccountancy/brand": "link:./brand",
     "astro": "^7.4.13",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",

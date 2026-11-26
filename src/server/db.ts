@@ -595,6 +595,17 @@ const MIGRATIONS: readonly string[] = [
   CREATE UNIQUE INDEX one_pending_social_request ON social_requests (email) WHERE state = 'pending';
   CREATE INDEX social_requests_by_state ON social_requests (state, created_at);
   `,
+  `
+  CREATE TABLE sign_ins (
+    token_hash TEXT PRIMARY KEY,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    epoch INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    CHECK (expires_at > created_at)
+  );
+  CREATE INDEX sign_ins_by_expiry ON sign_ins (expires_at);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
