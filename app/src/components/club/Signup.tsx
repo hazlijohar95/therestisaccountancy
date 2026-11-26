@@ -19,7 +19,7 @@ export function Signup({
         </h2>
         <p>{lead}</p>
       </div>
-      <div className={s.field}>
+      <div className={`field ${s.field}`}>
         <label className="small" htmlFor={`${id}-email`}>
           Email
         </label>

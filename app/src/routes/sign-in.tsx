@@ -55,7 +55,7 @@ function SignIn() {
             <h1 className={`headline serif ${s.headline}`} id="page-title">
               {forSocial ? 'Sign in to Social.' : 'Sign in to the club.'}
             </h1>
-            <p className={s.lead}>
+            <p className={`lead ${s.lead}`}>
               {forSocial
                 ? 'One account for Social and the club. Just joined? Use the link we emailed to set a password first.'
                 : 'New member? Use the link in your invitation to set a password first.'}
