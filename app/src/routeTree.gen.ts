@@ -13,6 +13,8 @@ import { Route as DevSeedRouteImport } from './routes/dev-seed'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SocialRouteRouteImport } from './routes/social/route'
 import { Route as SocialTicksRouteImport } from './routes/social/ticks'
+import { Route as SocialVerifyIndexRouteImport } from './routes/social/verify/index'
+import { Route as SocialVerifyEmailRouteImport } from './routes/social/verify/email'
 
 const DevSeedRoute = DevSeedRouteImport.update({
   id: '/dev-seed',
@@ -34,18 +36,32 @@ const SocialTicksRoute = SocialTicksRouteImport.update({
   path: '/ticks',
   getParentRoute: () => SocialRouteRoute,
 } as any)
+const SocialVerifyIndexRoute = SocialVerifyIndexRouteImport.update({
+  id: '/verify/',
+  path: '/verify/',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
+const SocialVerifyEmailRoute = SocialVerifyEmailRouteImport.update({
+  id: '/verify/email',
+  path: '/verify/email',
+  getParentRoute: () => SocialRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
   '/sign-in': typeof SignInRoute
   '/social/ticks': typeof SocialTicksRoute
+  '/social/verify/email': typeof SocialVerifyEmailRoute
+  '/social/verify/': typeof SocialVerifyIndexRoute
 }
 export interface FileRoutesByTo {
   '/social': typeof SocialRouteRouteWithChildren
   '/dev-seed': typeof DevSeedRoute
   '/sign-in': typeof SignInRoute
   '/social/ticks': typeof SocialTicksRoute
+  '/social/verify/email': typeof SocialVerifyEmailRoute
+  '/social/verify': typeof SocialVerifyIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +69,34 @@ export interface FileRoutesById {
   '/dev-seed': typeof DevSeedRoute
   '/sign-in': typeof SignInRoute
   '/social/ticks': typeof SocialTicksRoute
+  '/social/verify/email': typeof SocialVerifyEmailRoute
+  '/social/verify/': typeof SocialVerifyIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/social' | '/dev-seed' | '/sign-in' | '/social/ticks'
+  fullPaths:
+    | '/social'
+    | '/dev-seed'
+    | '/sign-in'
+    | '/social/ticks'
+    | '/social/verify/email'
+    | '/social/verify/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/social' | '/dev-seed' | '/sign-in' | '/social/ticks'
-  id: '__root__' | '/social' | '/dev-seed' | '/sign-in' | '/social/ticks'
+  to:
+    | '/social'
+    | '/dev-seed'
+    | '/sign-in'
+    | '/social/ticks'
+    | '/social/verify/email'
+    | '/social/verify'
+  id:
+    | '__root__'
+    | '/social'
+    | '/dev-seed'
+    | '/sign-in'
+    | '/social/ticks'
+    | '/social/verify/email'
+    | '/social/verify/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -98,15 +135,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SocialTicksRouteImport
       parentRoute: typeof SocialRouteRoute
     }
+    '/social/verify/': {
+      id: '/social/verify/'
+      path: '/verify'
+      fullPath: '/social/verify/'
+      preLoaderRoute: typeof SocialVerifyIndexRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
+    '/social/verify/email': {
+      id: '/social/verify/email'
+      path: '/verify/email'
+      fullPath: '/social/verify/email'
+      preLoaderRoute: typeof SocialVerifyEmailRouteImport
+      parentRoute: typeof SocialRouteRoute
+    }
   }
 }
 
 interface SocialRouteRouteChildren {
   SocialTicksRoute: typeof SocialTicksRoute
+  SocialVerifyEmailRoute: typeof SocialVerifyEmailRoute
+  SocialVerifyIndexRoute: typeof SocialVerifyIndexRoute
 }
 
 const SocialRouteRouteChildren: SocialRouteRouteChildren = {
   SocialTicksRoute: SocialTicksRoute,
+  SocialVerifyEmailRoute: SocialVerifyEmailRoute,
+  SocialVerifyIndexRoute: SocialVerifyIndexRoute,
 }
 
 const SocialRouteRouteWithChildren = SocialRouteRoute._addFileChildren(
