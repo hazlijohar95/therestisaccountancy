@@ -3,9 +3,8 @@ import { z } from 'zod';
 import { states } from '../../../src/data/directory.ts';
 import { confidence, FEE_FIGURES, feeChoices, feeFigures, type FeeFigure } from '../../../src/data/fees.ts';
 import type { AnswerRefusal, Edition, Report } from '../../../src/server/fees.ts';
-import { tooManyTries } from '../lib/action.ts';
-import { allowed } from '../lib/limits.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { action } from '../lib/action.server.ts';
+import { done } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
 
@@ -66,14 +65,11 @@ const survey = z
 /** Takes one person's anonymous answers into this year's survey. The form's fields arrive as the strings it holds. */
 export const answerFeeSurvey = createServerFn({ method: 'POST' })
   .validator((input: Readonly<Record<string, string>>) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const input = await parsed(survey, data);
-    if (!input.ok) return input;
-    if (!(await allowed('survey'))) return refused(tooManyTries);
-    const { trap, niche, hourly, bookkeeping, taxReturn, ...answers } = input.value;
-    if (trap) return done(null);
-    const result = await withStore(async (store) =>
-      await store.fees.respond({ ...answers, niche: niche === 'yes', fees: { hourly: hourly ?? null, bookkeeping: bookkeeping ?? null, taxReturn: taxReturn ?? null } }),
-    );
-    return result.ok ? done(null) : refused(answerRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'anyone', input: survey, limit: 'survey', refusals: answerRefusals }, async ({ input, store }) => {
+      const { trap, niche, hourly, bookkeeping, taxReturn, ...answers } = input;
+      if (trap) return done(null);
+      const result = await store.fees.respond({ ...answers, niche: niche === 'yes', fees: { hourly: hourly ?? null, bookkeeping: bookkeeping ?? null, taxReturn: taxReturn ?? null } });
+      return result.ok ? done(null) : result;
+    }),
+  );

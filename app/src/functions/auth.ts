@@ -2,11 +2,11 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { site } from '../../../src/data/site.ts';
 import type { SignInRefusal } from '../../../src/server/club.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { tooManyTries } from '../lib/action.ts';
+import { action } from '../lib/action.server.ts';
 import { clientKey } from '../lib/limits.server.ts';
+import { done, refused } from '../lib/outcome.ts';
 import { currentMember, endSession, startSession } from '../lib/session.server.ts';
-import { withStore } from '../lib/store.server.ts';
 
 const signInRefusals: Record<SignInRefusal, string> = {
   'no-match': 'That email and password do not match.',
@@ -24,23 +24,23 @@ export const me = createServerFn({ method: 'GET' }).handler(async () => {
 /** Signs in with email and password. Only failed tries count against the address, so an office's people do not lock each other out. */
 export const signIn = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof credentials>) => input)
-  .handler(async ({ data }): Promise<Outcome<{ role: 'member' | 'admin'; clubApproved: boolean }>> => {
-    const input = await parsed(credentials, data);
-    if (!input.ok) return input;
-    const key = clientKey('sign-in');
-    const result = await withStore(async (store) => {
-      if (await store.limits.full(key)) return null;
-      const attempt = await store.club.authenticate(input.value.email, input.value.password);
-      if (!attempt.ok) await store.limits.allow(key);
-      return attempt;
-    });
-    if (!result) return refused(tooManyTries);
-    if (!result.ok) return refused(signInRefusals[result.reason]);
-    await startSession(result.value.key);
-    return done({ role: result.value.member.role, clubApproved: result.value.member.clubApproved });
-  });
+  .handler(
+    action({ access: 'anyone', input: credentials, refusals: signInRefusals }, async ({ input, store }) => {
+      const key = clientKey('sign-in');
+      if (await store.limits.full(key)) return refused(tooManyTries);
+      const attempt = await store.club.authenticate(input.email, input.password);
+      if (!attempt.ok) {
+        await store.limits.allow(key);
+        return attempt;
+      }
+      await startSession(attempt.value.key);
+      return done({ role: attempt.value.member.role, clubApproved: attempt.value.member.clubApproved });
+    }),
+  );
 
-export const signOut = createServerFn({ method: 'POST' }).handler(async () => {
-  await endSession();
-  return done(null);
-});
+export const signOut = createServerFn({ method: 'POST' }).handler(
+  action({ access: 'anyone', input: z.undefined() }, async () => {
+    await endSession();
+    return done(null);
+  }),
+);

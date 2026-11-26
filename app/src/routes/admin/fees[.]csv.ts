@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { FEE_FIGURES, feeChoices, feeFigures } from '../../../../src/data/fees.ts';
 import { csv } from '../../../../src/lib/csv.ts';
-import { adminOrRedirect } from '../../functions/admin.server.ts';
+import { admit, toClub } from '../../lib/access.server.ts';
 import { withStore } from '../../lib/store.server.ts';
 
 /* The day only: the time adds nothing to a host's check and would make a row easier to tie to a person. */
@@ -12,7 +12,7 @@ export const Route = createFileRoute('/admin/fees.csv')({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        await adminOrRedirect();
+        await admit('admin', toClub);
         const asked = new URL(request.url).searchParams.get('edition');
         if (asked !== null && !/^\d{4}$/.test(asked)) return new Response('Name the year as ?edition=2026.', { status: 400 });
         const { edition, answers } = await withStore(async (store) => {
