@@ -178,10 +178,10 @@ export const RESERVED_HANDLES: ReadonlySet<string> = new Set([
   'therestisaccountancy', 'tria', 'sticktoaccounting',
 ]);
 
-/** Profile field limits, shared by the form and the server. */
 /** Said beside the handle field wherever someone picks one. */
 export const HANDLE_TAKEN = 'Someone already has that handle. Pick another.';
 
+/** Profile field limits, shared by the form and the server. */
 export const PROFILE_LIMITS = { headline: 120, city: 60 } as const;
 
 /**
