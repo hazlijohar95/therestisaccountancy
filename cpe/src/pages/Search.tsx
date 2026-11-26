@@ -6,9 +6,10 @@ import { useState } from "react";
 import { Cover } from "../components/Cover.tsx";
 import { Search as SearchIcon } from "../components/Icons.tsx";
 import { PlayButton } from "../components/PlayButton.tsx";
-import { courses, fields, formatHours, formatTime } from "../domain/courses.ts";
+import { fields, formatHours, formatTime } from "../domain/courses.ts";
 import type { Course, Field } from "../domain/types.ts";
 import { setQuery, Stretch } from "../router.tsx";
+import { useCatalogue } from "../state.tsx";
 
 interface Hit {
   course: Course;
@@ -16,7 +17,7 @@ interface Hit {
   line?: { text: string; start: number };
 }
 
-function find(q: string, field: Field | null): Hit[] {
+function find(courses: readonly Course[], q: string, field: Field | null): Hit[] {
   const needle = q.trim().toLowerCase();
   return courses.flatMap((course): Hit[] => {
     if (field && course.field !== field) return [];
@@ -43,13 +44,14 @@ function Snippet({ text, q }: { text: string; q: string }) {
 }
 
 export function Search() {
+  const { courses } = useCatalogue();
   const params = new URLSearchParams(location.search);
   const initialField = fields.find((f) => f === params.get("field")) ?? null;
   const [q, setQ] = useState(params.get("q") ?? "");
   const [field, setField] = useState<Field | null>(initialField);
   const present = fields.filter((f) => courses.some((c) => c.field === f));
   const browsing = !q.trim() && !field;
-  const hits = browsing ? [] : find(q, field);
+  const hits = browsing ? [] : find(courses, q, field);
 
   const update = (nq: string, nf: Field | null) => {
     setQ(nq);
@@ -130,7 +132,7 @@ export function Search() {
                     <span className="hit__title">{course.title}</span>
                     {line ? <Snippet text={line.text} q={q.trim()} /> : <span className="hit__meta">{course.field}</span>}
                   </span>
-                  <span className="hit__time mono">{line ? `at ${formatTime(line.start)}` : formatTime(course.duration)}</span>
+                  <span className="hit__time tnum">{line ? `at ${formatTime(line.start)}` : formatTime(course.duration)}</span>
                   <PlayButton course={course} size="sm" at={line?.start} />
                 </div>
               </li>

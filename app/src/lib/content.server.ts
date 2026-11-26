@@ -97,6 +97,7 @@ export type Post = (typeof postEntries)[number];
 const posts: readonly Post[] = postEntries.filter((post) => !(import.meta.env.PROD && post.data.draft));
 
 export const postAt = (column: string, id: string): Post | undefined => posts.find((post) => post.data.column === column && post.id === id);
+export const allPosts = (): readonly Post[] => posts;
 
 const isTopic = (value: string): value is CoverTopic => value in covers;
 

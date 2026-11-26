@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
+import { Fragment, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { join } from '../../../../src/data/club.ts';
 import { formatDay } from '../../../../src/lib/format.ts';
 import { plain, runs } from '../../../../src/lib/marked.ts';
@@ -8,6 +8,7 @@ import { Closing } from '../../components/members/Closing.tsx';
 import { memberPost } from '../../functions/members-posts.ts';
 import { clubTitle } from '../../lib/title.ts';
 import s from './$slug.module.css';
+import { hostFirstName } from '../../../../src/data/authors.ts';
 
 /* Rendered per request: a members-only post shows its body to paid members alone. */
 export const Route = createFileRoute('/$column/$slug')({
@@ -47,9 +48,11 @@ function PostPage() {
           <h1 className={`headline serif ${s.headline}`}>{runs(post.title).map((run, i) => (run.mark ? <span key={i} className="mark">{run.text}</span> : run.text))}</h1>
           <p className={`lead ${s.lead}`}>{post.dek}</p>
           <p className="small">
-            <span className={s.byline} style={{ '--face': `${FACE}px` } as CSSProperties}>
-              {post.authors.map((author) => (
-                <a key={author.href} href={author.href}>
+            <span className={s.byline} style={{ '--face': `${FACE}px` }}>
+              {post.authors.map((author, i) => (
+                <Fragment key={author.href}>
+                  {post.hosted && i === 1 && <span className={s.with}>with</span>}
+                  <a href={author.href}>
                   {author.photo ? (
                     <img className={s.face} src={author.photo} alt="" loading="lazy" width={FACE} height={FACE} />
                   ) : (
@@ -58,7 +61,8 @@ function PostPage() {
                     </span>
                   )}
                   <span>{author.name}</span>
-                </a>
+                  </a>
+                </Fragment>
               ))}
             </span>
           </p>
@@ -134,7 +138,7 @@ function PostPage() {
           </aside>
         )}
       </article>
-      <Closing title="Read it here. Work it through in the club." lead="Each post’s topic is a programme. Members take it from reading to doing, with the hosts and each other." />
+      <Closing title="Read it here. Work it through in the club." lead={`Each post’s topic is a programme. Members take it from reading to doing, with ${hostFirstName} and each other.`} />
     </Page>
   );
 }

@@ -1,9 +1,15 @@
 ---
 import { Image } from 'astro:assets';
 import { photos } from '../data/author-photos.ts';
-import { authorPath, authors } from '../data/authors.ts';
+import { authorPath, authors, roleOf, type AuthorHandle } from '../data/authors.ts';
 
-const pictured = authors.flatMap((author) => {
+/** People with a photo, as portraits. Everyone pictured by default, or only the handles given. */
+interface Props {
+  handles?: readonly AuthorHandle[];
+}
+
+const { handles } = Astro.props;
+const pictured = authors.filter((author) => !handles || handles.includes(author.handle)).flatMap((author) => {
   const photo = photos[author.handle];
   return photo ? [{ ...author, photo }] : [];
 });
@@ -14,7 +20,7 @@ const pictured = authors.flatMap((author) => {
     pictured.map((host) => (
       <figure>
         <Image src={host.photo.src} alt={host.photo.alt} widths={[320, 480, 640, 960]} sizes="(min-width: 1000px) 400px, 45vw" loading="lazy" />
-        <figcaption><a href={authorPath(host)}><b>{host.name}</b></a><span>{host.role}</span></figcaption>
+        <figcaption><a href={authorPath(host)}><b>{host.name}</b></a><span>{roleOf(host)}</span></figcaption>
       </figure>
     ))
   }

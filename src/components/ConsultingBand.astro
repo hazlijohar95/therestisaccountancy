@@ -1,0 +1,24 @@
+---
+import { hostFirstName } from '../data/authors.ts';
+import { consultingPitch } from '../data/club.ts';
+
+/** The paid offer for one firm, as a band near the foot of the home page. Its words are the consulting page's head. */
+---
+
+<section class="wrap" aria-labelledby="consulting-band-title">
+  <div class="band">
+    <p class="label">Consulting</p>
+    <h2 class="serif" id="consulting-band-title">{consultingPitch.title}</h2>
+    <p class="lead">{consultingPitch.lead}</p>
+    <a class="btn" href="/consulting">Talk to {hostFirstName}</a>
+  </div>
+</section>
+
+<style>
+  section { padding-block: clamp(40px, 5vw, 72px); }
+  .band { display: grid; justify-items: start; gap: var(--space-4); padding: clamp(32px, 5vw, 64px); background: var(--color-stock); color: var(--color-ink); }
+  .band p, h2 { margin: 0; }
+  h2 { max-width: 18ch; font-size: var(--size-title); line-height: 1.02; text-wrap: balance; }
+  .lead { max-width: 36em; }
+  .btn { margin-top: var(--space-2); }
+</style>

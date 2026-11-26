@@ -1,4 +1,5 @@
 import { Select } from "@base-ui/react/select";
+import { Toggle } from "@base-ui/react/toggle";
 import { formatTime } from "../domain/courses.ts";
 import { coverage, progressOf } from "../domain/progress.ts";
 import { RATES, usePlayer } from "../player.tsx";
@@ -16,7 +17,7 @@ export function PlayerBar() {
   const state = useAppState();
   const course = player.course;
   if (!course) return null;
-  const p = progressOf(state, course.id);
+  const p = progressOf(state, course);
   const heard = coverage(p, course);
   return (
     <div className="pbar" role="region" aria-label="Now playing" data-test="player-bar">
@@ -45,16 +46,26 @@ export function PlayerBar() {
           </Tip>
         </div>
         <div className="pbar__scrub">
-          <span className="mono">{formatTime(player.time)}</span>
+          <span className="tnum">{formatTime(player.time)}</span>
           <Scrubber course={course} time={player.time} ranges={p.ranges} answered={p.checkpoints} onSeek={player.seek} compact />
-          <span className="mono">{formatTime(course.duration)}</span>
+          <span className="tnum">{formatTime(course.duration)}</span>
         </div>
       </div>
       <div className="pbar__right">
+        <Toggle
+          className="speed"
+          pressed={player.handsFree}
+          onPressedChange={player.setHandsFree}
+          aria-label="Hands-free: review questions wait for the end of the episode"
+          title="Hands-free: review questions wait for the end of the episode"
+          data-test="hands-free"
+        >
+          {player.handsFree ? "Hands-free on" : "Hands-free off"}
+        </Toggle>
         <SpeedSelect />
         <span className="pbar__heard" title="Share of the episode you have heard">
           <Ring slices={[{ value: heard, tone: "var(--cpe)" }]} total={1} size={28} stroke={4} />
-          <span className="mono">{Math.floor(heard * 100)}%</span>
+          <span className="tnum">{Math.floor(heard * 100)}%</span>
         </span>
       </div>
       <div className="pbar__mobileplay">

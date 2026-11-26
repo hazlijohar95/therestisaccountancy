@@ -4,12 +4,14 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1 --port 5180",
-    "build": "tsc -b && cf build",
-    "deploy": "tsc -b && cf deploy",
-    "preview": "vite preview --host 127.0.0.1 --port 5181",
+    "dev": "vite --host localhost --port 5180",
+    "build": "cf workers types && tsc -b && cf build && node scripts/check-bundle.ts",
+    "deploy": "pnpm run build && cf deploy",
+    "preview": "vite preview --host localhost --port 5181",
     "audio": "node scripts/build-audio.ts",
-    "typecheck": "tsc -b"
+    "typecheck": "cf workers types && tsc -b",
+    "test": "node --test \"worker/**/*.test.ts\"",
+    "check:bundle": "node scripts/check-bundle.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

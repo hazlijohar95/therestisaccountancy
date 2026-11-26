@@ -12,7 +12,7 @@ export function Footer({ signup = true }: { signup?: boolean }) {
     <footer>
       <div className={`wrap ${s.in}`}>
         {signup && <Signup source="footer" />}
-        <div className={s.map}>
+        <div className={s.map} id="site-map">
           <a href="/" className={s.home}>
             <Logo brand="club" label={site.name} className={s.logo} />
           </a>

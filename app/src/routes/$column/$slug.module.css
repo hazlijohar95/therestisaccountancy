@@ -27,7 +27,8 @@
 .wall :global(.serif) { font-size: var(--size-head); }
 .topics { display: grid; gap: var(--space-2); }
 
-.byline { display: inline-flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.byline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); }
+.with { margin-inline: calc(var(--space-2) * -1); }
 .byline a { display: inline-flex; align-items: center; gap: var(--space-2); text-decoration: none; }
 .byline a:hover span:last-child { text-decoration: underline; text-decoration-thickness: var(--stroke-hair); }
 .face { flex: none; width: var(--face); height: var(--face); border-radius: 50%; object-fit: cover; filter: grayscale(1); }

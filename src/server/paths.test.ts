@@ -31,6 +31,17 @@ test('a return address may be on the social host, and nowhere else', () => {
   assert.equal(safeNext('javascript:alert(1)'), '/members');
 });
 
+test('a return address may be on the CPE host, and no lookalike of it', () => {
+  assert.equal(safeNext('https://cpe.therestisaccountancy.com/course/five-threats'), 'https://cpe.therestisaccountancy.com/course/five-threats');
+  assert.equal(safeNext('http://cpe.localhost:5180/home'), 'http://cpe.localhost:5180/home');
+  assert.equal(safeNext('http://cpe.therestisaccountancy.com/'), '/members', 'plain http off localhost');
+  assert.equal(safeNext('https://cpe.therestisaccountancy.com.evil.example/'), '/members');
+  assert.equal(safeNext('https://cpe.therestisaccountancy.com@evil.example/'), '/members');
+  assert.equal(safeNext('https://user:pass@cpe.therestisaccountancy.com/'), '/members');
+  assert.equal(safeNext('https://evilcpe.therestisaccountancy.com/'), '/members');
+  assert.equal(safeNext('https://cpe.evil.example/'), '/members');
+});
+
 test('the social host serves the pages under /social, and leaves files and Astro endpoints alone', () => {
   const route = (address: string) => socialRoute(new URL(address))?.href ?? null;
   assert.equal(route('https://social.therestisaccountancy.com/'), 'https://social.therestisaccountancy.com/social');

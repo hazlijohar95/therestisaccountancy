@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PLAN_ANSWER_MAX, planSections, type PlanSectionSlug } from '../data/plan.ts';
+import { hostFirstName } from '../data/authors.ts';
 import { site } from '../data/site.ts';
 import { firstName, numberWord } from '../lib/format.ts';
 import { paragraphs } from '../lib/text.ts';
@@ -267,7 +268,7 @@ export function planAnsweredLetter(plan: AnsweredPlan, host: { readonly name: st
       "I've read your plan and written back. The answer sits under your plan, so you can read the two together.",
       { href: planUrl, label: 'Read the answer' },
       "When you're ready for the next one, start it from there. It begins from this plan, so you only change what has moved.",
-      "You're getting this because you sent your plan to the hosts. Reply if you'd like to talk it over.",
+      `You're getting this because you sent your plan to ${hostFirstName}. Reply if you'd like to talk it over.`,
       signature,
     ],
   };

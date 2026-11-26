@@ -11,6 +11,7 @@ import type { Outcome } from '../../../lib/outcome.ts';
 import { flags } from '../../../components/members/flags.ts';
 import { clubTitle } from '../../../lib/title.ts';
 import s from './index.module.css';
+import { hostFirstName } from '../../../../../src/data/authors.ts';
 
 const FLAGS = ['saved', 'sent', 'unsent', 'back', 'started'] as const;
 type Flag = (typeof FLAGS)[number];
@@ -45,8 +46,8 @@ function PlanPage() {
   /** What the last action did, said only while it is still true. */
   const outcomes = [
     { key: 'saved', holds: draft !== null, text: 'Draft saved.' },
-    { key: 'sent', holds: open?.status === 'sent', text: 'Sent to the hosts. You will get the answer by email.' },
-    { key: 'back', holds: draft !== null, text: 'Taken back. It is a draft again, and off the hosts’ list until you send it.' },
+    { key: 'sent', holds: open?.status === 'sent', text: `Sent to ${hostFirstName}. You will get the answer by email.` },
+    { key: 'back', holds: draft !== null, text: `Taken back. It is a draft again, and off ${hostFirstName}’s list until you send it.` },
     { key: 'started', holds: draft !== null, text: 'Your next plan is open. It starts from your last one, with a blank question.' },
   ] as const;
   const notice = settled ? (outcomes.find((o) => o.holds && search[o.key])?.text ?? null) : null;
@@ -101,7 +102,7 @@ function PlanPage() {
         narrow
       >
         <p>
-          {capitalised(sections)} sections, in your own words. Save as you go, and send it to the hosts once every section is written. One of us reads it and answers in writing. It is the last module of Growth, and the lessons before it lead up to it.
+          {capitalised(sections)} sections, in your own words. Save as you go, and send it to {hostFirstName} once every section is written. {hostFirstName} reads it and answers in writing. It is the last module of Growth, and the lessons before it lead up to it.
         </p>
       </Masthead>
 
@@ -159,13 +160,13 @@ function PlanPage() {
             <div className={s.send}>
               <div className={s.row}>
                 <button className="btn" type="submit" value="send">
-                  Send to the hosts
+                  Send to {hostFirstName}
                 </button>
                 <button className="btn ghost" type="submit" value="save">
                   Save draft
                 </button>
               </div>
-              <p className="small">Sending needs all {sections} sections. Until a host answers, you can take it back to change it.</p>
+              <p className="small">Sending needs all {sections} sections. Until {hostFirstName} answers, you can take it back to change it.</p>
             </div>
           </form>
         </section>
@@ -175,9 +176,9 @@ function PlanPage() {
         <section className={`wrap ${s.block}`} aria-labelledby="sent-title">
           <div className={s.state}>
             <h2 className="head" id="sent-title">
-              With the hosts
+              With {hostFirstName}
             </h2>
-            <p>Sent on {formatDay(open.sentAt)}. A host reads it and answers in writing, and you get the answer by email. Until then, you can take it back to change it.</p>
+            <p>Sent on {formatDay(open.sentAt)}. {hostFirstName} reads it and answers in writing, and you get the answer by email. Until then, you can take it back to change it.</p>
             <form method="POST" onSubmit={act('back')}>
               <button className="btn ghost" type="submit">
                 Take it back to change it
@@ -204,7 +205,7 @@ function PlanPage() {
           <div className={s.state}>
             <h2 className="head">Answered</h2>
             <p>
-              {latest.reply.by ?? 'A host'} answered your plan on {formatDay(latest.reply.at)}.
+              {latest.reply.by ?? hostFirstName} answered your plan on {formatDay(latest.reply.at)}.
             </p>
             <p className={s.row}>
               <a className="btn" href={`/members/plan/${latest.id}`}>
@@ -214,7 +215,7 @@ function PlanPage() {
           </div>
           <div className={s.state}>
             <h2 className="head">The next plan</h2>
-            <p>When you are ready, write the next one. It starts from this plan, so you only change what has moved. The question for the hosts starts blank.</p>
+            <p>When you are ready, write the next one. It starts from this plan, so you only change what has moved. The question for {hostFirstName} starts blank.</p>
             <form method="POST" onSubmit={act('start')}>
               <button className="btn ghost" type="submit">
                 Start the next plan
@@ -246,7 +247,7 @@ function PlanPage() {
                   <tr key={p.id}>
                     <td>{formatDay(p.sentAt)}</td>
                     <td>{formatDay(p.reply.at)}</td>
-                    <td>{p.reply.by ?? 'A host'}</td>
+                    <td>{p.reply.by ?? hostFirstName}</td>
                     <td>
                       <a href={`/members/plan/${p.id}`}>Read</a>
                     </td>

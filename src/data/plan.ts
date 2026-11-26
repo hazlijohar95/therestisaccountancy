@@ -1,6 +1,8 @@
-/* The written plan a member sends the hosts, section by section. Answers are stored by slug, so a slug never changes
+/* The written plan a member sends the host, section by section. Answers are stored by slug, so a slug never changes
    once plans use it; headings and prompts can. A section that carries over starts the next plan with the answer from
-   the last one, so a member only changes what has moved. The question does not: the hosts have answered it. */
+   the last one, so a member only changes what has moved. The question does not: the host has answered it. */
+
+import { hostFirstName } from './authors.ts';
 
 export const planSections = [
   {
@@ -35,7 +37,7 @@ export const planSections = [
   },
   {
     slug: 'question',
-    heading: 'Your question for the hosts',
+    heading: `Your question for ${hostFirstName}`,
     prompt: 'The one thing you most want a second opinion on.',
     carriesOver: false,
   },

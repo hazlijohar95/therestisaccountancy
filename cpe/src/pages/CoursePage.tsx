@@ -5,17 +5,18 @@ import { PlayButton } from "../components/PlayButton.tsx";
 import { Button } from "@base-ui/react/button";
 import { Progress } from "@base-ui/react/progress";
 import { Scrubber } from "../components/Scrubber.tsx";
-import { courseById, formatHours, formatTime } from "../domain/courses.ts";
+import { formatHours, formatTime } from "../domain/courses.ts";
 import { coverage, LISTEN_THRESHOLD, phaseOf, progressOf, type Phase } from "../domain/progress.ts";
 import type { Course } from "../domain/types.ts";
 import { usePlayer } from "../player.tsx";
 import { Link, navigate } from "../router.tsx";
-import { useAppState } from "../state.tsx";
+import { useAppState, useCatalogue } from "../state.tsx";
 import { NotFound } from "./NotFound.tsx";
 
 export function CoursePage({ id }: { id: string }) {
+  const { courseById, loaded } = useCatalogue();
   const course = courseById(id);
-  if (!course) return <NotFound />;
+  if (!course) return loaded ? <NotFound /> : null;
   return <CourseView course={course} />;
 }
 
@@ -44,18 +45,18 @@ function Steps({ course, phase, heard, answered }: { course: Course; phase: Phas
             {s.state === "done" ? <Check width={14} height={14} /> : s.state === "locked" ? <Lock width={12} height={12} /> : null}
             {s.label}
           </span>
-          <span className="step__value mono">{s.value}</span>
+          <span className="step__value tnum">{s.value}</span>
         </li>
       ))}
     </ol>
   );
 }
 
-function CourseView({ course }: { course: Course }) {
+export function CourseView({ course, preview = false }: { course: Course; preview?: boolean }) {
   const state = useAppState();
   const player = usePlayer();
   const active = player.course?.id === course.id;
-  const p = progressOf(state, course.id);
+  const p = progressOf(state, course);
   const time = active ? player.time : p.position;
   const heard = coverage(p, course);
   // Audio behind the playhead that was never heard shows as skipped in the waveform.
@@ -66,7 +67,7 @@ function CourseView({ course }: { course: Course }) {
   const missed = course.checkpoints
     .map((c, i) => ({ c, i }))
     .filter(({ i }) => !p.checkpoints.includes(i) && course.checkpointTimes[i]! < time - 1);
-  const seek = (t: number) => (active ? player.seek(t) : player.play(course, t));
+  const seek = (t: number) => (active ? player.seek(t) : player.play(course, t, { preview }));
 
   return (
     <div className="view view--course">
@@ -84,7 +85,7 @@ function CourseView({ course }: { course: Course }) {
       </header>
 
       <div className="actions">
-        <PlayButton course={course} size="lg" />
+        <PlayButton course={course} size="lg" preview={preview} />
         {phase.kind === "ready" && (
           <Button className="pill pill--cpe" onClick={() => navigate(`/course/${course.id}/assessment`)} data-test="take-assessment">
             Take the assessment <Arrow width={18} height={18} />
@@ -111,19 +112,27 @@ function CourseView({ course }: { course: Course }) {
       <section className="wavecard" aria-label="Progress through the episode">
         <Scrubber course={course} time={time} ranges={p.ranges} answered={p.checkpoints} onSeek={seek} />
         <div className="wavecard__foot">
-          <span className="mono">{formatTime(time)}</span>
+          <span className="tnum">{formatTime(time)}</span>
           <ul className="key">
             <li><i className="key__heard" />Heard</li>
             {skipped && <li><i className="key__skipped" />Skipped</li>}
             <li><i className="key__cp" />Review question</li>
           </ul>
-          <span className="mono">{formatTime(course.duration)}</span>
+          <span className="tnum">{formatTime(course.duration)}</span>
         </div>
-        {missed.length > 0 && (
+        {active && player.queued.length > 0 && player.pending === null && (
+          <div className="notice" data-test="queued">
+            {player.queued.length === 1 ? "One review question is waiting" : `${player.queued.length} review questions are waiting`} for the end of the episode.
+            <Button className="textbtn" onClick={player.answerQueued} data-test="answer-queued">
+              Answer now
+            </Button>
+          </div>
+        )}
+        {missed.length > 0 && !(active && player.queued.length > 0) && (
           <div className="notice" data-test="missed">
             Answer skipped review questions to unlock the assessment.
             {missed.map(({ c, i }) => (
-              <Button key={i} className="textbtn" onClick={() => player.play(course, course.segments[c.afterSegment]!.start)}>
+              <Button key={i} className="textbtn" onClick={() => player.play(course, course.segments[c.afterSegment]!.start, { preview })}>
                 Back to review question {i + 1}
               </Button>
             ))}
@@ -132,7 +141,7 @@ function CourseView({ course }: { course: Course }) {
       </section>
 
       <div className="course-body">
-        <Transcript course={course} current={active ? current : -1} onPlay={(t) => player.play(course, t)} />
+        <Transcript course={course} current={active ? current : -1} onPlay={(t) => player.play(course, t, { preview })} />
         <aside className="facts">
           <h2 className="eyebrow">You’ll learn to</h2>
           <ul className="learn">
@@ -152,7 +161,7 @@ function CourseView({ course }: { course: Course }) {
           <dl className="specs">
             <div><dt>Delivery</dt><dd>Self-study, audio</dd></div>
             <div><dt>Prerequisites</dt><dd>None</dd></div>
-            <div><dt>To pass</dt><dd>{course.quiz.length} questions, 70%</dd></div>
+            <div><dt>To pass</dt><dd>{course.quizLength} questions, 70%</dd></div>
           </dl>
           <p className="sample">Sample course · synthetic voice · credit not accredited</p>
         </aside>

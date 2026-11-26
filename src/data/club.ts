@@ -5,7 +5,7 @@ import { capitalised, numberWord } from '../lib/format.ts';
 import { programmeBySlug, programmePath, programmes, type Programme, type ProgrammeSlug } from './programmes.ts';
 import type { SessionKind } from './sessions.ts';
 import { LINK_DAYS } from './links.ts';
-import { authors } from './authors.ts';
+import { host, hostFirstName } from './authors.ts';
 
 export interface Link {
   readonly href: `/${string}` | `#${string}`;
@@ -49,7 +49,7 @@ export const stuck = {
     { question: 'Nobody knows my firm exists.', leadsTo: toProgramme(programme('visibility')), answer: "Visibility is a plan you can keep. Choose what you want to be known for, then turn one idea a week into a post, a letter and a talk. In your voice, not an agency’s." },
     { question: 'AI is doing the work I bill for.', leadsTo: toProgramme(programme('ai')), answer: "AI shows where the tools help a practice, where they don’t, and where client data must stay put. Prompts, workflows and safeguards, kept current as the tools change." },
     { question: 'I want to advise, not just file.', leadsTo: toProgramme(programme('advisory')), answer: 'Advisory turns compliance clients into advisory clients. Management accounts clients actually read, cash forecasts, tax planning through the year, and how to charge for all of it.' },
-    { question: "I’m busy, but the firm isn’t growing.", leadsTo: toProgramme(programme('growth')), answer: 'Growth is about the firm itself: what you want it to be in three years, a week that repeats, systems before staff and your first hire. You finish with a written plan for that firm, read and answered by the hosts.' },
+    { question: "I’m busy, but the firm isn’t growing.", leadsTo: toProgramme(programme('growth')), answer: `Growth is about the firm itself: what you want it to be in three years, a week that repeats, systems before staff and your first hire. You finish with a written plan for that firm, read and answered by ${hostFirstName}.` },
     { question: 'I make every decision alone.', leadsTo: { href: '/membership#room', label: 'The room' }, answer: 'That is what the room is for. Bring a quote, a client, a hire or a bad week. Better said in the room than decided alone.' },
   ] satisfies readonly Obstacle[],
 } as const;
@@ -64,7 +64,7 @@ export const room = {
     "A large firm decides things in a room. Partners argue, check each other’s numbers and leave with a plan. On your own, the room is your head at eleven at night.",
     'The club is that room. It is not a networking group. Nobody is selling to you.',
   ],
-  who: ['The three hosts of Stick to Accounting', 'Accountants who run a practice, or mean to', 'Guests who know one subject well'],
+  who: [`${host.name}, host of Stick to Accounting`, 'Accountants who co-host its episodes', 'Accountants who run a practice, or mean to', 'Guests who know one subject well'],
   brings: ['A fee quote to check before it goes out', 'A client you are not sure about', 'A question you would rather not ask in public', 'A first hire', 'A plan to stress-test', 'A bad week'],
 } as const;
 
@@ -83,7 +83,7 @@ export const week = {
   ] satisfies readonly (Term & { term: SessionKind })[],
   between: [
     { term: 'Between sessions', detail: "The members’ room, online and open all week. Ask before you decide." },
-    { term: "When you’re stuck", detail: 'A short one-to-one call with a host, booked when you need it, to get you moving again.' },
+    { term: "When you’re stuck", detail: `A short one-to-one call with ${hostFirstName}, booked when you need it, to get you moving again.` },
   ] satisfies readonly Term[],
 } as const;
 
@@ -115,13 +115,12 @@ export const rate = {
 } as const;
 
 export const podcast = {
-  lead: 'News. Analysis. Interviews. Hosted by Hazli Johar, Abu Musa and Shukri Yusof.',
+  lead: `News. Analysis. Interviews. Hosted by ${host.name}, with accountant friends as co-hosts.`,
   find: 'Search for Stick to Accounting on YouTube, Spotify or Apple Podcasts.',
   /** Where every episode is published. */
   youtube: 'https://www.youtube.com/@TheRestIsAccountancy',
   /** The channel with YouTube's subscribe prompt open. */
   subscribe: 'https://www.youtube.com/@TheRestIsAccountancy?sub_confirmation=1',
-  hostNames: authors.map((a) => a.name),
 } as const;
 
 export const fit = {
@@ -167,4 +166,10 @@ export const joinSection = {
     failed: 'That did not send. Try again in a minute.',
     sent: (email: string) => `Received. We will write to ${email}.`,
   },
+} as const;
+
+/** Consulting in two lines: the head of its page, and the band near the foot of the home page. */
+export const consultingPitch = {
+  title: 'One firm. One problem. Worked through with you.',
+  lead: `For a practice that wants ${hostFirstName} on its own figures and clients, not a programme’s worked example.`,
 } as const;

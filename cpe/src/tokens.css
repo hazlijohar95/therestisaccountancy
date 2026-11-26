@@ -15,6 +15,8 @@
   --font-serif: "Geist Serif", "Iowan Old Style", Georgia, serif;
   --font-sans: "Instrument Sans Variable", "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* CPE headings and big figures: Geist, light. Shared by the landing and the app. */
+  --font-display: "Geist", var(--font-sans);
   --font-hand: "Gochi Hand", "Comic Sans MS", cursive;
 
   --stroke-hair: 1px;

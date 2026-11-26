@@ -10,24 +10,32 @@ export type Level = "Basic" | "Intermediate" | "Advanced";
 /** Credits move in half-hour steps. A half credit carries 3 quiz questions, a full credit 5. */
 export type Credits = 0.5 | 1 | 1.5 | 2;
 
-export type Speaker = "Host" | "Guest";
-
 export interface Segment {
-  speaker: Speaker;
+  /** Who is speaking, as the transcript shows it: a role like Host, or a name. */
+  speaker: string;
   text: string;
   /** Starts a new chapter when set. */
   chapter?: string;
 }
 
-export interface Question {
+/** A question as the listener sees it: never its answer. */
+export interface PublicQuestion {
   prompt: string;
   options: readonly string[];
+}
+
+/** A question as its author wrote it. Answers stay on the server. */
+export interface Question extends PublicQuestion {
   answer: number;
   why: string;
 }
 
 /** A review question that interrupts playback once the listener reaches the end of a segment. */
 export interface Checkpoint extends Question {
+  afterSegment: number;
+}
+
+export interface PublicCheckpoint extends PublicQuestion {
   afterSegment: number;
 }
 
@@ -40,6 +48,7 @@ export interface Show {
 
 export type CoverMotif = "ledger" | "dither" | "stamp" | "grid";
 
+/** Everything an author writes for one version of a course, answers included. Server only. */
 export interface CourseScript {
   id: string;
   showId: string;
@@ -57,10 +66,18 @@ export interface CourseScript {
   quiz: readonly Question[];
 }
 
-/** Produced by scripts/build-audio.ts from the real rendered audio. */
+/** Where each segment sits in the audio, in seconds. */
 export interface Timing {
   duration: number;
   segments: readonly { start: number; end: number }[];
+}
+
+/** A version's audio: where it plays from, and its shape measured when it was rendered or uploaded. */
+export interface Audio {
+  url: string;
+  duration: number;
+  /** Normalised loudness per bar. */
+  peaks: readonly number[];
 }
 
 export interface TimedSegment extends Segment {
@@ -73,13 +90,26 @@ export interface Chapter {
   start: number;
 }
 
-export interface Course extends Omit<CourseScript, "segments"> {
+/** One published version of a course, as the app plays it. Carries no answers. */
+export interface Course {
+  id: string;
+  version: number;
   show: Show;
+  title: string;
+  dek: string;
+  field: Field;
+  level: Level;
+  credits: Credits;
+  motif: CoverMotif;
+  published: string;
+  objectives: readonly string[];
+  glossary: readonly { term: string; meaning: string }[];
   audio: string;
   duration: number;
   segments: readonly TimedSegment[];
   chapters: readonly Chapter[];
+  checkpoints: readonly PublicCheckpoint[];
   checkpointTimes: readonly number[];
-  /** Normalised loudness per bar, measured from the rendered audio. */
+  quizLength: number;
   peaks: readonly number[];
 }

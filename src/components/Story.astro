@@ -7,7 +7,7 @@ import { postPath, type Post } from '../server/posts.ts';
 import Byline from './Byline.astro';
 import Title from './Title.astro';
 
-/** One post as a card on the home page: its cover, then the words. The lead story is set larger and keeps its dek. */
+/** One post as a card on the home page: its cover, then the words. The lead story is set larger and keeps its dek. Its class is "featured", not "lead", which the brand uses for lead paragraphs. */
 interface Props {
   post: Post;
   lead?: boolean;
@@ -19,7 +19,7 @@ const { post, lead = false, showColumn = true } = Astro.props;
 const column = columnBySlug(post.data.column);
 ---
 
-<article class:list={['story', { lead }]}>
+<article class:list={['story', { featured: lead }]}>
   <a class="cover" href={postPath(post)} tabindex="-1" aria-hidden="true">
     <Image src={coverOf(post)} alt="" widths={lead ? [640, 960, 1280, 1536] : [384, 640, 960]} sizes={lead ? '(min-width: 1000px) 60vw, 100vw' : '(min-width: 1000px) 25vw, (min-width: 720px) 50vw, 100vw'} loading={lead ? 'eager' : 'lazy'} />
   </a>
@@ -44,8 +44,8 @@ const column = columnBySlug(post.data.column);
   .meta { display: flex; flex-wrap: wrap; gap: 0 var(--space-3); font: 400 var(--size-label)/1.4 var(--font-mono); text-transform: uppercase; letter-spacing: .04em; }
   .meta a:hover, .title a:hover { text-decoration: underline; text-decoration-thickness: var(--stroke-hair); }
   .title { font-size: clamp(1.25rem, 1.1rem + .6vw, 1.6rem); line-height: 1.15; text-wrap: balance; }
-  .lead .title { font-size: clamp(2rem, 1.2rem + 2.8vw, 3.5rem); line-height: 1.02; }
-  .lead .dek { font-size: var(--size-lead); }
+  .featured .title { font-size: clamp(2rem, 1.2rem + 2.8vw, 3.5rem); line-height: 1.02; }
+  .featured .dek { font-size: var(--size-lead); }
   .dek { max-width: 32em; }
-  .story:not(.lead) .dek { font-size: var(--size-small); }
+  .story:not(.featured) .dek { font-size: var(--size-small); }
 </style>

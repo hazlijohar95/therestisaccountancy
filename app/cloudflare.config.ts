@@ -1,10 +1,14 @@
 import { bindings, defineConfig, exports, triggers } from 'cf/config';
 import * as entrypoint from './src/server.ts' with { type: 'cf-worker' };
 
-/* Kept in step with src/data/site.ts: a config that imports the Worker's own modules stops the dev server loading them. */
+/*
+ * Written out here rather than imported from src/data/site.ts: the Cloudflare Vite plugin blocks the dev server from
+ * loading any module this file imports, which breaks every Worker module that imports the same file.
+ * src/data/deploy-config.test.ts keeps these equal to site.ts.
+ */
 const domain = 'therestisaccountancy.com';
-const socialHost = `social.${domain}`;
 const sender = `club@${domain}`;
+const socialHost = `social.${domain}`;
 
 /*
  * The site's one Worker: the club, its members' area and admin, Social on its own host, and the marketing pages that
@@ -35,11 +39,13 @@ export default defineConfig({
     },
     exports: {
       ClubStore: exports.durableObject({ storage: 'sqlite' }),
+      /** Who is signed in, for the CPE Worker's service binding. Not reachable from the internet. */
+      CpeIdentity: exports.worker(),
     },
     /** Hourly: renewals, reminders, ticks, cleanup, and the digest on Monday mornings. */
     triggers: [triggers.scheduled({ schedule: '0 * * * *' })],
     domains: [domain, `www.${domain}`, socialHost],
-    /* Files are served by their exact path. Marketing pages live under /_site, so only the Worker serves them. */
+    /* Files are served by their exact path, so a page path like /about always reaches the Worker, which picks the file or the app. */
     assets: { htmlHandling: 'none' },
     workersDev: false,
     observability: { enabled: true },

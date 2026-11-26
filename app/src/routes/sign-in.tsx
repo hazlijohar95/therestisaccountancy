@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
-import { safeNext } from '../../../src/server/paths.ts';
+import { isSocialHost, safeNext } from '../../../src/server/paths.ts';
 import { Page } from '../components/club/Page.tsx';
 import { signIn } from '../functions/auth.ts';
 import { socialHref } from '../lib/links.ts';
@@ -33,7 +33,7 @@ function SignIn() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   /* One account signs in to the club and to Social. Coming from Social, the page says so. */
-  const forSocial = next.startsWith('/social') || next.startsWith('http');
+  const forSocial = next.startsWith('/social') || (next.startsWith('http') && isSocialHost(new URL(next).hostname));
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

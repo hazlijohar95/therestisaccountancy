@@ -1,0 +1,11 @@
+// Vendored from Stageshow (MIT, see LICENSE): the stage, the cursor and the motion parts the landing demo uses.
+export { Stage } from './stage'
+export type { StageProps } from './stage'
+export type { Act } from './act'
+export type { Point, Rect } from './measure'
+export { box, inset } from './measure'
+export { Window, Bar } from './window'
+export { Roll } from './motion/Roll'
+export { States } from './motion/States'
+export { Collapse } from './motion/Collapse'
+export { EASE, css as easeCss } from './ease'

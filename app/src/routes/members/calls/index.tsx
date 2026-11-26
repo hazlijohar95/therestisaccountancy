@@ -9,6 +9,7 @@ import type { Outcome } from '../../../lib/outcome.ts';
 import { flags } from '../../../components/members/flags.ts';
 import { clubTitle } from '../../../lib/title.ts';
 import s from './index.module.css';
+import { hostFirstName } from '../../../../../src/data/authors.ts';
 
 export const Route = createFileRoute('/members/calls/')({
   validateSearch: flags('booked', 'cancelled'),
@@ -50,12 +51,12 @@ function Calls() {
 
   return (
     <>
-      <Masthead label="One-to-one" title="Stuck? Talk it through with a host." narrow>
-        <p>Bring the quote you can't price, the client you can't read or the decision you keep putting off. Say what it is when you book, so the host comes ready.</p>
+      <Masthead label="One-to-one" title={`Stuck? Talk it through with ${hostFirstName}.`} narrow>
+        <p>Bring the quote you can't price, the client you can't read or the decision you keep putting off. Say what it is when you book, so {hostFirstName} comes ready.</p>
       </Masthead>
 
       {search.booked && mine && <Notice>Booked. A confirmation with the calendar invite is on its way to {email}.</Notice>}
-      {search.cancelled && !mine && <Notice>Cancelled. The host has been told.</Notice>}
+      {search.cancelled && !mine && <Notice>Cancelled. {hostFirstName} has been told.</Notice>}
       {failure && <Notice tone="error">{failure}</Notice>}
 
       {mine && (
@@ -101,7 +102,7 @@ function Calls() {
         </h2>
         {days.length === 0 ? (
           <p className={s.empty}>
-            No open times right now. New ones appear here as the hosts add them. Until then, the <a href="/members/community">members' room</a> is open all week.
+            No open times right now. New ones appear here as {hostFirstName} adds them. Until then, the <a href="/members/community">members' room</a> is open all week.
           </p>
         ) : (
           <>
@@ -148,7 +149,7 @@ function Calls() {
                     aria-invalid={fields['topic'] ? true : undefined}
                   />
                   <span className="hint" id="topic-hint">
-                    A sentence or two is plenty. Only the hosts see it.
+                    A sentence or two is plenty. Only {hostFirstName} sees it.
                   </span>
                   {fields['topic'] && (
                     <span className={`error ${s.error}`} id="topic-error">

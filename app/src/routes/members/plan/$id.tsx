@@ -8,6 +8,7 @@ import { PlanLetter } from '../../../components/club/PlanLetter.tsx';
 import { membersAnsweredPlan, startPlan } from '../../../functions/members-plans.ts';
 import { clubTitle } from '../../../lib/title.ts';
 import s from './$id.module.css';
+import { hostFirstName } from '../../../../../src/data/authors.ts';
 
 export const Route = createFileRoute('/members/plan/$id')({
   loader: ({ params }) => membersAnsweredPlan({ data: params.id }),
@@ -40,7 +41,7 @@ function AnsweredPlan() {
         narrow
       >
         <p>
-          Answered by {plan.reply.by ?? 'a host'} on {formatDay(plan.reply.at)}. Your sections first, then the answer.
+          Answered by {plan.reply.by ?? hostFirstName} on {formatDay(plan.reply.at)}. Your sections first, then the answer.
         </p>
       </Masthead>
 
@@ -58,7 +59,7 @@ function AnsweredPlan() {
             </p>
           ) : isLatest ? (
             <>
-              <p>When you are ready, write the next one. It starts from this plan, so you only change what has moved. The question for the hosts starts blank.</p>
+              <p>When you are ready, write the next one. It starts from this plan, so you only change what has moved. The question for {hostFirstName} starts blank.</p>
               <form method="POST" onSubmit={startNext}>
                 <button className="btn" type="submit">
                   Start the next plan

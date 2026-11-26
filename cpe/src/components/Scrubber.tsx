@@ -42,7 +42,7 @@ export function Scrubber({ course, time, ranges, answered, onSeek, compact }: Pr
             className="scrub__thumb"
             aria-label="Playback position"
             getAriaValueText={(_formatted, v) =>
-              `${formatTime(v)} of ${formatTime(course.duration)}, ${Math.floor(coverage({ ranges, position: v, checkpoints: answered, attempts: [] }, course) * 100)}% heard`
+              `${formatTime(v)} of ${formatTime(course.duration)}, ${Math.floor(coverage({ ranges }, course) * 100)}% heard`
             }
             data-test={compact ? "scrub-bar" : "scrub"}
           />

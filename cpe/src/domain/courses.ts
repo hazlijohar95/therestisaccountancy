@@ -1,44 +1,8 @@
-import { scripts, shows } from "../content/catalog.ts";
-import timings from "../content/timings.json";
-import type { Chapter, Course, CourseScript, Field, Show } from "./types.ts";
+import type { Chapter, CourseScript, Course, Field, Show, Timing } from "./types.ts";
 
-interface RenderedAudio {
-  duration: number;
-  segments: readonly { start: number; end: number }[];
-  peaks: readonly number[];
-}
-
-const rendered: Record<string, RenderedAudio | undefined> = timings;
-
-function build(script: CourseScript): Course {
-  const audio = rendered[script.id];
-  if (!audio || audio.segments.length !== script.segments.length) {
-    throw new Error(`Audio for "${script.id}" is missing or stale. Run npm run audio.`);
-  }
-  const show: Show | undefined = shows.find((s) => s.id === script.showId);
-  if (!show) throw new Error(`Unknown show "${script.showId}"`);
-
-  const segments = script.segments.map((seg, i) => ({ ...seg, ...audio.segments[i]! }));
-  const chapters: Chapter[] = segments.flatMap((s) => (s.chapter ? [{ title: s.chapter, start: s.start }] : []));
-  return {
-    ...script,
-    show,
-    audio: `/audio/${script.id}.m4a`,
-    duration: audio.duration,
-    segments,
-    chapters,
-    checkpointTimes: script.checkpoints.map((c) => segments[c.afterSegment]!.end),
-    peaks: audio.peaks,
-  };
-}
-
-export const courses: readonly Course[] = scripts.map(build);
-
-export const courseById = (id: string): Course | undefined => courses.find((c) => c.id === id);
+export { PASS_MARK } from "./rules.ts";
 
 export const fields: readonly Field[] = ["Ethics", "Accounting", "Auditing", "Taxation", "Practice Management"];
-
-export const PASS_MARK = 0.7;
 
 export function formatTime(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
@@ -47,4 +11,47 @@ export function formatTime(seconds: number): string {
 
 export function formatHours(h: number): string {
   return Number.isInteger(h) ? h.toFixed(1) : String(Math.round(h * 10) / 10);
+}
+
+/**
+ * The course as the app plays it, from what its author wrote and the audio's timings. Answers and explanations are
+ * dropped here; review options come in the order given, which the server shuffles per listener.
+ */
+export function playable(
+  script: CourseScript,
+  version: number,
+  show: Show,
+  audio: { url: string; duration: number; peaks: readonly number[] },
+  timing: Timing,
+  optionOrder: (checkpoint: number) => readonly number[] = (i) => script.checkpoints[i]!.options.map((_, n) => n),
+): Course {
+  if (timing.segments.length !== script.segments.length) throw new Error(`Timings for "${script.id}" do not match its transcript.`);
+  const segments = script.segments.map((seg, i) => ({ ...seg, ...timing.segments[i]! }));
+  const chapters: Chapter[] = segments.flatMap((s) => (s.chapter ? [{ title: s.chapter, start: s.start }] : []));
+  return {
+    id: script.id,
+    version,
+    show,
+    title: script.title,
+    dek: script.dek,
+    field: script.field,
+    level: script.level,
+    credits: script.credits,
+    motif: script.motif,
+    published: script.published,
+    objectives: script.objectives,
+    glossary: script.glossary,
+    audio: audio.url,
+    duration: audio.duration,
+    segments,
+    chapters,
+    checkpoints: script.checkpoints.map((c, i) => ({
+      afterSegment: c.afterSegment,
+      prompt: c.prompt,
+      options: optionOrder(i).map((n) => c.options[n]!),
+    })),
+    checkpointTimes: script.checkpoints.map((c) => segments[c.afterSegment]!.end),
+    quizLength: script.quiz.length,
+    peaks: audio.peaks,
+  };
 }

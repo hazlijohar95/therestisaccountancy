@@ -1,4 +1,5 @@
 ---
+import { hostFirstName } from '../../data/authors.ts';
 import type { GetStaticPaths } from 'astro';
 import Closing from '../../components/Closing.astro';
 import PageHead from '../../components/PageHead.astro';
@@ -16,7 +17,7 @@ const first = page.currentPage === 1;
 ---
 
 <Page signup={!first} title={first ? 'Newsletter' : `Newsletter, page ${page.currentPage}`} description="The Rest Is Accountancy’s newsletter: essays, the podcast, the weekly brief and software tested on practice work. Free.">
-  <PageHead label="Newsletter" title="The rest, written down." lead="Essays from the hosts, every episode of the podcast, the week’s practice news and software tried on real work. Free to read, free by email." />
+  <PageHead label="Newsletter" title="The rest, written down." lead="Essays, every episode of the podcast, the week’s practice news and software tried on real work. Free to read, free by email." />
   {
     first && (
       <section class="wrap capture">
@@ -41,7 +42,7 @@ const first = page.currentPage === 1;
       )
     }
   </Section>
-  <Closing title="Read it here. Work it through in the club." lead="Each post’s topic is a programme. Members take it from reading to doing, with the hosts and each other." />
+  <Closing title="Read it here. Work it through in the club." lead={`Each post’s topic is a programme. Members take it from reading to doing, with ${hostFirstName} and each other.`} />
 </Page>
 
 <style>

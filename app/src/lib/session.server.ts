@@ -1,6 +1,7 @@
 import { deleteCookie, getCookie, getRequest, setCookie } from '@tanstack/react-start/server';
 import { env } from 'cloudflare:workers';
 import type { Member, SessionKey } from '../../../src/server/club.ts';
+import { SESSION_COOKIE as COOKIE } from '../../../src/server/cpe-identity.ts';
 import { SESSION_DAYS } from '../../../src/server/sign-ins.ts';
 import { withStore } from './store.server.ts';
 
@@ -8,7 +9,6 @@ import { withStore } from './store.server.ts';
  * One sign-in for the club and Social. In production the cookie is set on the whole domain, so both hosts send it; on
  * a dev server it stays on the host, since browsers refuse a cookie for a domain the page is not on.
  */
-const COOKIE = 'session';
 const siteHost = new URL(env.SITE_URL).hostname;
 const local = siteHost === 'localhost' || siteHost === '127.0.0.1';
 const cookieOptions = { path: '/', httpOnly: true, sameSite: 'lax', secure: !local, ...(local ? {} : { domain: siteHost.replace(/^www\./, '') }) } as const;

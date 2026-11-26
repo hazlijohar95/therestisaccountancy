@@ -3,30 +3,30 @@ import Hosts from '../components/Hosts.astro';
 import Closing from '../components/Closing.astro';
 import PageHead from '../components/PageHead.astro';
 import Section from '../components/Section.astro';
-import { podcast, room } from '../data/club.ts';
+import { host } from '../data/authors.ts';
+import { room } from '../data/club.ts';
 import Page from '../layouts/Page.astro';
-import { listOf } from '../lib/format.ts';
 
 const voice = [
-  { term: 'Full stops, not hype.', detail: 'Three hosts. One mic. The numbers behind the news. Never the ultimate must-listen anything.' },
+  { term: 'Full stops, not hype.', detail: 'One host. Friends at the mic. The numbers behind the news. Never the ultimate must-listen anything.' },
   { term: 'Ask the real question.', detail: 'Will AI sign the audit report? Not “AI in auditing: key trends for the year ahead”.' },
   { term: 'Dry, never snide.', detail: 'Death and taxes were certain. Then AI joined. We laugh with the profession, not at clients.' },
   { term: 'Local and exact.', detail: 'Say “RM 48,200 in fees for the quarter”, not “a big chunk of revenue”. Figures, places and dates, stated plainly.' },
 ];
 ---
 
-<Page title="About" description="The Rest Is Accountancy is a members’ club for accountants who run a practice, or mean to, hosted by the three hosts of Stick to Accounting.">
+<Page title="About" description={`The Rest Is Accountancy is a members’ club for accountants who run a practice, or mean to, hosted by ${host.name}, host of Stick to Accounting.`}>
   <PageHead
     label="About"
     title="The exams teach the standards. Nobody teaches the rest."
-    lead="The Rest Is Accountancy is a members’ club for accountants who run a practice, or mean to. It is hosted by the three hosts of Stick to Accounting."
+    lead={`The Rest Is Accountancy is a members’ club for accountants who run a practice, or mean to. It is hosted by ${host.name}, host of Stick to Accounting.`}
   />
   <Section id="why" no={1} title="Why does it exist?">
     <p class="lead">The syllabus teaches the standards. It does not teach you to price, to sell, to hire or to say no. Those are learned from people who have done them, usually one awkward conversation at a time.</p>
     {room.paragraphs.map((text) => <p class="lead">{text}</p>)}
   </Section>
-  <Section id="hosts" no={2} title="Who hosts it?" intro={`${listOf(podcast.hostNames)}, the hosts of Stick to Accounting.`}>
-    <Hosts />
+  <Section id="hosts" no={2} title="Who hosts it?" intro={`${host.name}, host of Stick to Accounting. On the podcast, accountant friends join as co-hosts.`}>
+    <Hosts handles={[host.handle]} />
   </Section>
   <Section id="voice" no={3} title="How do we talk?" intro="The same way in the club, on the podcast and on this page.">
     <dl class="voice">

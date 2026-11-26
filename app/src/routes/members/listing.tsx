@@ -11,6 +11,7 @@ import { formText } from '../../lib/form.ts';
 import type { Outcome } from '../../lib/outcome.ts';
 import { clubTitle } from '../../lib/title.ts';
 import s from './listing.module.css';
+import { hostFirstName } from '../../../../src/data/authors.ts';
 
 export const Route = createFileRoute('/members/listing')({
   validateSearch: (search: Record<string, unknown>): { saved?: SaveOutcome } => {
@@ -23,18 +24,18 @@ export const Route = createFileRoute('/members/listing')({
 });
 
 const savedNotice: Record<SaveOutcome, string> = {
-  submitted: 'Sent. A host checks it, and we email you once it is in the directory.',
-  resubmitted: 'Sent back to the hosts. It goes in the directory again once a host has checked it.',
-  updated: 'Saved. It still waits for a host to check it.',
+  submitted: `Sent. ${hostFirstName} checks it, and we email you once it is in the directory.`,
+  resubmitted: `Sent back to ${hostFirstName}. It goes in the directory again once ${hostFirstName} has checked it.`,
+  updated: `Saved. It still waits for ${hostFirstName} to check it.`,
   unchanged: 'Nothing had changed, so nothing was sent.',
 };
 
 const isOutcome = (value: string): value is SaveOutcome => Object.hasOwn(savedNotice, value);
 
 function standing(l: Listing | null): string {
-  if (!l) return "Business owners use the club's directory to find an accountant, and a host checks each listing before it goes up.";
-  if (l.review.state === 'returned') return 'A host sent your listing back with this note.';
-  if (l.review.state === 'pending') return l.paused ? 'A host is checking your listing, which stays out of the directory while it is paused.' : 'A host is checking your listing, and we email you once it is in the directory.';
+  if (!l) return `Business owners use the club's directory to find an accountant, and ${hostFirstName} checks each listing before it goes up.`;
+  if (l.review.state === 'returned') return `${hostFirstName} sent your listing back with this note.`;
+  if (l.review.state === 'pending') return l.paused ? `${hostFirstName} is checking your listing, which stays out of the directory while it is paused.` : `${hostFirstName} is checking your listing, and we email you once it is in the directory.`;
   if (l.shown) return 'Your practice is in the directory, where business owners can find it.';
   return l.paused ? 'Your listing is paused, so business owners cannot see it until you unpause it.' : 'Your listing is approved, but it is out of the directory until your membership is paid up.';
 }
@@ -54,7 +55,7 @@ function ListingPage() {
   const failure = [saved, paused].map((o) => (o && !o.ok && Object.keys(o.fields).length === 0 ? o.message : null)).find(Boolean) ?? null;
   const outcome = saved === null && paused === null ? search.saved : undefined;
   const submit = !listing ? 'Send for a check' : listing.review.state === 'returned' ? 'Send it back for a check' : 'Save changes';
-  const warning = listing?.review.state === 'listed' ? 'Saving a change takes your listing out of the directory until a host has checked it. Pausing does not.' : null;
+  const warning = listing?.review.state === 'listed' ? `Saving a change takes your listing out of the directory until ${hostFirstName} has checked it. Pausing does not.` : null;
   const see = listing ? (listing.shown ? { href: listingPath(listing), label: 'See it in the directory' } : { href: '#preview', label: 'Preview how it reads' }) : null;
   const error = (name: string): ReactNode =>
     fields[name] && (
@@ -126,7 +127,7 @@ function ListingPage() {
         <h2 className="head" id="form-title">
           {listing ? 'Your listing' : 'Write your listing'}
         </h2>
-        <p className={`small ${s.intro}`}>Everything here is shown in the directory, written for a business owner looking for an accountant. A host checks that you are a member and that the practice is real and yours.</p>
+        <p className={`small ${s.intro}`}>Everything here is shown in the directory, written for a business owner looking for an accountant. {hostFirstName} checks that you are a member and that the practice is real and yours.</p>
         <form key={listing?.updatedAt ?? 'new'} method="POST" className={s.form} onSubmit={submitListing}>
           <div className="field">
             <label htmlFor="practice">Practice name</label>
@@ -277,7 +278,7 @@ function ListingPage() {
           <h2 className="head" id="preview-title">
             How it reads in the directory
           </h2>
-          <p className={`small ${s.intro}`}>{listing.review.state === 'listed' ? 'This is what business owners see once it is back in the directory.' : 'This is what business owners see once a host approves it. Until then only you and the hosts can see it.'}</p>
+          <p className={`small ${s.intro}`}>{listing.review.state === 'listed' ? 'This is what business owners see once it is back in the directory.' : `This is what business owners see once ${hostFirstName} approves it. Until then only you and ${hostFirstName} can see it.`}</p>
           <div className={s.entries}>
             <ListingEntry listing={listing} />
           </div>

@@ -1,4 +1,4 @@
-import { courseById, fields } from "./courses.ts";
+import { fields } from "./courses.ts";
 import type { AppState, Requirement } from "./progress.ts";
 import type { Field } from "./types.ts";
 
@@ -9,28 +9,23 @@ export interface LedgerLine {
   provider: string;
   field: Field;
   hours: number;
-  source: "earned" | "logged";
+  /** Earned: a certificate the server issued. The others are the learner's own word. */
+  source: "earned" | "self-reported" | "unverified";
   certificateId?: string;
 }
 
-export function ledgerLines(state: AppState): LedgerLine[] {
-  const earned: LedgerLine[] = state.certificates.flatMap((c) => {
-    const course = courseById(c.courseId);
-    if (!course) return [];
-    return [
-      {
-        id: c.id,
-        date: c.issuedAt.slice(0, 10),
-        title: course.title,
-        provider: course.show.title,
-        field: course.field,
-        hours: course.credits,
-        source: "earned" as const,
-        certificateId: c.id,
-      },
-    ];
-  });
-  const logged: LedgerLine[] = state.logged.map((e) => ({ ...e, source: "logged" as const }));
+export function ledgerLines(state: Pick<AppState, "certificates" | "logged">): LedgerLine[] {
+  const earned: LedgerLine[] = state.certificates.map((c) => ({
+    id: c.id,
+    date: c.issuedAt.slice(0, 10),
+    title: c.title,
+    provider: c.provider,
+    field: c.field,
+    hours: c.credits,
+    source: "earned",
+    certificateId: c.id,
+  }));
+  const logged: LedgerLine[] = state.logged.map((e) => ({ ...e }));
   return [...earned, ...logged].sort((a, b) => a.date.localeCompare(b.date));
 }
 

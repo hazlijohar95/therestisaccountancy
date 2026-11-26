@@ -1,14 +1,32 @@
 import handler, { createServerEntry } from '@tanstack/react-start/server-entry';
-import { env } from 'cloudflare:workers';
+import { env, WorkerEntrypoint } from 'cloudflare:workers';
 import { site } from '../../src/data/site.ts';
 import { socialHost } from '../../src/data/social.ts';
 import { paymentCallback, refundWebhook } from '../../src/server/chip-routes.ts';
+import { identify, sessionToken, type ClubIdentity } from '../../src/server/cpe-identity.ts';
 import { hourly } from '../../src/server/jobs.ts';
 import { isSocialHost } from '../../src/server/paths.ts';
 import { unsubscribe } from '../../src/server/unsubscribe.ts';
 import { SOCIAL } from './lib/hosts.ts';
+import { withStore } from './lib/store.server.ts';
 
 export { ClubStore } from '../../src/server/store.ts';
+
+/**
+ * The club's answer to "who is this?" for the CPE Worker, reachable only through its service binding: a named
+ * entrypoint has no public address. CPE forwards the browser's cookie; the session is read as the club's pages read it.
+ */
+export class CpeIdentity extends WorkerEntrypoint<Env> {
+  async member(cookie: string | null): Promise<ClubIdentity | null> {
+    const token = sessionToken(cookie);
+    if (!token) return null;
+    return withStore(async (store) => {
+      const key = await store.signIns.key(token);
+      const member = key ? await store.club.sessionMember(key) : null;
+      return identify(member, (memberId) => store.billing.access(memberId));
+    });
+  }
+}
 
 /** POSTs from outside the site (CHIP, mail apps). Each carries its own proof, so none goes through the origin check. */
 const outside: Record<string, (request: Request) => Promise<Response>> = {

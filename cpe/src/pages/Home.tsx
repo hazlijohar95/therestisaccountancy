@@ -1,15 +1,14 @@
 import { Progress } from "@base-ui/react/progress";
-import { shows } from "../content/catalog.ts";
 import { Cover, ShowCover } from "../components/Cover.tsx";
 import { Check } from "../components/Icons.tsx";
 import { PlayButton } from "../components/PlayButton.tsx";
 import { Ring } from "../components/Ring.tsx";
 import { statusLabel } from "../components/Shell.tsx";
-import { courses, fields, formatHours, formatTime } from "../domain/courses.ts";
+import { fields, formatHours, formatTime } from "../domain/courses.ts";
 import { ledgerLines, standing } from "../domain/ledger.ts";
 import { coverage, phaseOf, progressOf } from "../domain/progress.ts";
 import { Link, Stretch } from "../router.tsx";
-import { useAppState } from "../state.tsx";
+import { useAppState, useCatalogue } from "../state.tsx";
 
 function greeting(d: Date): string {
   const h = d.getHours();
@@ -18,6 +17,7 @@ function greeting(d: Date): string {
 
 export function Home() {
   const state = useAppState();
+  const { courses, shows } = useCatalogue();
   const s = standing(ledgerLines(state), state.requirement, new Date());
   const present = fields.filter((f) => courses.some((c) => c.field === f));
 
@@ -27,7 +27,7 @@ export function Home() {
         <h1 className="hello__title">{greeting(new Date())}{state.learner ? `, ${state.learner.split(" ")[0]}` : ""}</h1>
         <Link href="/ledger" className="hello__ring">
           <Ring slices={[{ value: s.total, tone: "var(--cpe)" }]} total={state.requirement.target} size={64} stroke={7}>
-            <span className="mono">{Math.round((s.total / (state.requirement.target || 1)) * 100)}%</span>
+            <span className="tnum">{Math.round((s.total / (state.requirement.target || 1)) * 100)}%</span>
           </Ring>
           <span>
             <strong>{formatHours(s.total)} of {formatHours(state.requirement.target)}h</strong>
@@ -39,7 +39,7 @@ export function Home() {
       <section className="tiles" aria-label="Courses">
         {courses.map((c) => {
           const phase = phaseOf(state, c);
-          const heard = coverage(progressOf(state, c.id), c);
+          const heard = coverage(progressOf(state, c), c);
           return (
             <div key={c.id} className="tile">
               <Stretch href={`/course/${c.id}`} label={c.title} test={`tile-${c.id}`} />

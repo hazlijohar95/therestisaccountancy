@@ -1,4 +1,3 @@
-import { AlertDialog } from "@base-ui/react/alert-dialog";
 import { Button } from "@base-ui/react/button";
 import { Dialog } from "@base-ui/react/dialog";
 import { Field } from "@base-ui/react/field";
@@ -15,7 +14,7 @@ import { ledgerLines, standing, toCsv } from "../domain/ledger.ts";
 import type { Requirement } from "../domain/progress.ts";
 import type { Field as FieldOfStudy } from "../domain/types.ts";
 import { Link } from "../router.tsx";
-import { useAppState, useDispatch } from "../state.tsx";
+import { useActions, useAppState } from "../state.tsx";
 import { toasts as toast } from "../toasts.ts";
 
 const FIELD_TONE: Record<FieldOfStudy, string> = {
@@ -28,9 +27,15 @@ const FIELD_TONE: Record<FieldOfStudy, string> = {
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 
+/** Runs a ledger change on the server and says so if it fails. */
+const saving = (work: Promise<void>) =>
+  work.catch((e: unknown) => {
+    toast.add({ title: "Not saved", description: e instanceof Error ? e.message : "Try again." });
+  });
+
 export function Ledger() {
   const state = useAppState();
-  const dispatch = useDispatch();
+  const actions = useActions();
   const lines = ledgerLines(state);
   const s = standing(lines, state.requirement, new Date());
   const req = state.requirement;
@@ -64,7 +69,7 @@ export function Ledger() {
             <span className="standing__total" data-test="ledger-total">
               {formatHours(s.total)}
             </span>
-            <span className="mono muted">of {formatHours(req.target)}h</span>
+            <span className="tnum muted">of {formatHours(req.target)}h</span>
           </Ring>
           <div className="standing__info">
             <p className="eyebrow">
@@ -106,7 +111,7 @@ export function Ledger() {
               <Meter.Root key={m.field} value={Math.min(m.have, m.required)} max={m.required} className="minimum">
                 <Meter.Label className="minimum__label">
                   {m.field} minimum{" "}
-                  <span className="mono muted">
+                  <span className="tnum muted">
                     {formatHours(m.have)} / {formatHours(m.required)}h
                   </span>
                 </Meter.Label>
@@ -161,7 +166,7 @@ export function Ledger() {
                   const outside = l.date < req.start || l.date > req.end;
                   return (
                     <tr key={l.id}>
-                      <td className="mono">
+                      <td className="tnum">
                         {l.date}
                         {outside && <span className="outside">Outside cycle</span>}
                       </td>
@@ -177,13 +182,16 @@ export function Ledger() {
                           </Link>
                         ) : (
                           <span className="logged">
-                            <span className="tag">Logged</span>
+                            <span className="tag" title={l.source === "unverified" ? "A certificate this browser made before accounts. It was never checked, so it counts as your own record." : "Logged by you."}>
+                              {l.source === "unverified" ? "Unverified" : "Logged"}
+                            </span>
                           <Button
                             className="ghost-icon ghost-icon--sm"
                             onClick={() => {
                               const entry = state.logged.find((e) => e.id === l.id);
-                              dispatch({ type: "unlog", id: l.id });
-                              if (entry) {
+                              void saving(actions.unlog(l.id));
+                              if (entry && entry.source === "self-reported") {
+                                const { id: _id, source: _source, ...again } = entry;
                                 const id = toast.add({
                                   title: "Entry removed",
                                   description: entry.title,
@@ -191,7 +199,7 @@ export function Ledger() {
                                   actionProps: {
                                     children: "Undo",
                                     onClick: () => {
-                                      dispatch({ type: "log", entry });
+                                      void saving(actions.log(again));
                                       toast.close(id);
                                     },
                                   },
@@ -206,10 +214,10 @@ export function Ledger() {
                           </span>
                         )}
                       </td>
-                      <td className="num mono" data-label="Hours">
+                      <td className="num tnum" data-label="Hours">
                         {formatHours(l.hours)}
                       </td>
-                      <td className="num mono" data-label="Balance">
+                      <td className="num tnum" data-label="Balance">
                         {formatHours(running)}
                       </td>
                     </tr>
@@ -219,7 +227,7 @@ export function Ledger() {
               <tfoot>
                 <tr>
                   <td colSpan={4}>In this cycle</td>
-                  <td className="num mono total">{formatHours(s.total)}</td>
+                  <td className="num tnum total">{formatHours(s.total)}</td>
                   <td />
                 </tr>
               </tfoot>
@@ -228,7 +236,7 @@ export function Ledger() {
         )}
       </section>
       <div className="fineprint">
-        Progress is kept in this browser only. Sample course credits are not accredited. <ResetDialog />
+        Progress is saved to your club account. Sample course credits are not accredited.
       </div>
     </div>
   );
@@ -307,7 +315,7 @@ function Hours({ label, value, onChange, step = 0.5, min = 0, test }: { label: s
 }
 
 function LogDialog() {
-  const dispatch = useDispatch();
+  const actions = useActions();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [provider, setProvider] = useState("");
@@ -317,20 +325,8 @@ function LogDialog() {
 
   const submit = () => {
     if (!title.trim() || !hours || hours <= 0) return;
-    const entry = { id: `log-${Date.now().toString(36)}`, title: title.trim(), provider: provider.trim() || "Self-reported", date, field, hours };
-    dispatch({ type: "log", entry });
-    const toastId = toast.add({
-      title: `${formatHours(hours)}h logged`,
-      description: entry.title,
-      timeout: 0,
-      actionProps: {
-        children: "Undo",
-        onClick: () => {
-          dispatch({ type: "unlog", id: entry.id });
-          toast.close(toastId);
-        },
-      },
-    });
+    const entry = { title: title.trim(), provider: provider.trim() || "Self-reported", date, field, hours };
+    void saving(actions.log(entry)).then(() => toast.add({ title: `${formatHours(hours)}h logged`, description: entry.title }));
     setTitle("");
     setProvider("");
     setOpen(false);
@@ -383,7 +379,7 @@ function LogDialog() {
 }
 
 function RequirementDialog({ value }: { value: Requirement }) {
-  const dispatch = useDispatch();
+  const actions = useActions();
   const [open, setOpen] = useState(false);
   const [r, setR] = useState(value);
 
@@ -405,8 +401,8 @@ function RequirementDialog({ value }: { value: Requirement }) {
         className="sheet__form"
         onFormSubmit={() => {
           if (r.end < r.start) return;
-          dispatch({ type: "requirement", requirement: { ...r, isExample: false } });
-          toast.add({ title: "Requirement saved", description: `${formatHours(r.target)}h by ${fmtDate(r.end)}` });
+          const { isExample: _example, ...own } = r;
+          void saving(actions.setRequirement(own)).then(() => toast.add({ title: "Requirement saved", description: `${formatHours(r.target)}h by ${fmtDate(r.end)}` }));
           setOpen(false);
         }}
       >
@@ -439,42 +435,5 @@ function RequirementDialog({ value }: { value: Requirement }) {
         </Button>
       </Form>
     </Sheet>
-  );
-}
-
-function ResetDialog() {
-  const dispatch = useDispatch();
-  const [open, setOpen] = useState(false);
-  return (
-    <AlertDialog.Root open={open} onOpenChange={setOpen}>
-      <AlertDialog.Trigger className="textbtn" data-test="reset">
-        Clear prototype data
-      </AlertDialog.Trigger>
-      <AlertDialog.Portal>
-        <AlertDialog.Backdrop className="backdrop" />
-        <AlertDialog.Viewport className="dialog-viewport">
-          <AlertDialog.Popup className="sheet sheet--alert">
-            <AlertDialog.Title className="sheet__title">Clear all prototype data?</AlertDialog.Title>
-            <AlertDialog.Description className="muted">
-              Deletes your progress, certificates, logged entries, requirement and name from this browser. You can’t undo this.
-            </AlertDialog.Description>
-            <div className="sheet__actions">
-              <AlertDialog.Close className="pill pill--ghost">Cancel</AlertDialog.Close>
-              <Button
-                className="pill pill--alert"
-                onClick={() => {
-                  dispatch({ type: "reset" });
-                  setOpen(false);
-                  toast.add({ title: "Prototype data cleared" });
-                }}
-                data-test="reset-confirm"
-              >
-                Clear all data
-              </Button>
-            </div>
-          </AlertDialog.Popup>
-        </AlertDialog.Viewport>
-      </AlertDialog.Portal>
-    </AlertDialog.Root>
   );
 }

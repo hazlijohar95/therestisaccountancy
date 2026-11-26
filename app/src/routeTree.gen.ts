@@ -18,6 +18,7 @@ import { Route as FeesRouteImport } from './routes/fees'
 import { Route as ForgotRouteImport } from './routes/forgot'
 import { Route as JoinRouteImport } from './routes/join'
 import { Route as MembersRouteRouteImport } from './routes/members/route'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SocialRouteRouteImport } from './routes/social/route'
 import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
@@ -123,6 +124,11 @@ const JoinRoute = JoinRouteImport.update({
 const MembersRouteRoute = MembersRouteRouteImport.update({
   id: '/members',
   path: '/members',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInRoute = SignInRouteImport.update({
@@ -448,6 +454,7 @@ export interface FileRoutesByFullPath {
   '/fees': typeof FeesRoute
   '/forgot': typeof ForgotRoute
   '/join': typeof JoinRouteWithChildren
+  '/search': typeof SearchRoute
   '/sign-in': typeof SignInRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/welcome': typeof WelcomeRoute
@@ -517,6 +524,7 @@ export interface FileRoutesByTo {
   '/fees': typeof FeesRoute
   '/forgot': typeof ForgotRoute
   '/join': typeof JoinRouteWithChildren
+  '/search': typeof SearchRoute
   '/sign-in': typeof SignInRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/welcome': typeof WelcomeRoute
@@ -590,6 +598,7 @@ export interface FileRoutesById {
   '/fees': typeof FeesRoute
   '/forgot': typeof ForgotRoute
   '/join': typeof JoinRouteWithChildren
+  '/search': typeof SearchRoute
   '/sign-in': typeof SignInRoute
   '/unsubscribe': typeof UnsubscribeRoute
   '/welcome': typeof WelcomeRoute
@@ -664,6 +673,7 @@ export interface FileRouteTypes {
     | '/fees'
     | '/forgot'
     | '/join'
+    | '/search'
     | '/sign-in'
     | '/unsubscribe'
     | '/welcome'
@@ -733,6 +743,7 @@ export interface FileRouteTypes {
     | '/fees'
     | '/forgot'
     | '/join'
+    | '/search'
     | '/sign-in'
     | '/unsubscribe'
     | '/welcome'
@@ -805,6 +816,7 @@ export interface FileRouteTypes {
     | '/fees'
     | '/forgot'
     | '/join'
+    | '/search'
     | '/sign-in'
     | '/unsubscribe'
     | '/welcome'
@@ -878,6 +890,7 @@ export interface RootRouteChildren {
   FeesRoute: typeof FeesRoute
   ForgotRoute: typeof ForgotRoute
   JoinRoute: typeof JoinRouteWithChildren
+  SearchRoute: typeof SearchRoute
   SignInRoute: typeof SignInRoute
   UnsubscribeRoute: typeof UnsubscribeRoute
   WelcomeRoute: typeof WelcomeRoute
@@ -949,6 +962,13 @@ declare module '@tanstack/react-router' {
       path: '/members'
       fullPath: '/members'
       preLoaderRoute: typeof MembersRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sign-in': {
@@ -1541,6 +1561,7 @@ const rootRouteChildren: RootRouteChildren = {
   FeesRoute: FeesRoute,
   ForgotRoute: ForgotRoute,
   JoinRoute: JoinRouteWithChildren,
+  SearchRoute: SearchRoute,
   SignInRoute: SignInRoute,
   UnsubscribeRoute: UnsubscribeRoute,
   WelcomeRoute: WelcomeRoute,

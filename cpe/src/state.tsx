@@ -1,40 +1,150 @@
-import { createContext, useContext, useEffect, useReducer, type Dispatch, type ReactNode } from "react";
-import { initialState, reduce, type Action, type AppState } from "./domain/progress.ts";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { api } from "./api.ts";
+import type { Catalogue, Graded, HeardReport, LegacyImport, ReviewAnswer, Session, Sitting } from "./domain/api.ts";
+import { emptyState, type AppState, type CourseProgress, type LoggedEntry, type Requirement } from "./domain/progress.ts";
+import type { Course, Show } from "./domain/types.ts";
 
-const KEY = "tria-cpe:v1";
+/** Where the prototype kept everything, in this browser. Read once after sign-in, brought into the account, then removed. */
+const LEGACY_KEY = "tria-cpe:v1";
 
-function load(): AppState {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return initialState;
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null || !("progress" in parsed) || !("requirement" in parsed)) {
-      return initialState;
-    }
-    return { ...initialState, ...(parsed as Partial<AppState>) };
-  } catch {
-    return initialState;
-  }
+type Loading = { status: "loading" } | { status: "error"; message: string };
+
+interface Store {
+  session: Session | Loading;
+  catalogue: { shows: readonly Show[]; courses: readonly Course[] } | null;
+  state: AppState;
 }
 
-const StateContext = createContext<AppState>(initialState);
-const DispatchContext = createContext<Dispatch<Action>>(() => {});
+export interface Actions {
+  /** Sends what the player heard. The server's accepted ranges come back and replace the course's progress. */
+  reportHeard: (report: HeardReport, keepalive?: boolean) => Promise<void>;
+  answerReview: (course: Course, checkpoint: number, pick: number) => Promise<ReviewAnswer>;
+  sit: (course: Course) => Promise<Sitting>;
+  submit: (course: Course, sittingId: string, picks: (number | null)[]) => Promise<Graded>;
+  setName: (name: string) => Promise<void>;
+  setRequirement: (r: Requirement) => Promise<void>;
+  log: (entry: Omit<LoggedEntry, "id" | "source">) => Promise<void>;
+  unlog: (id: string) => Promise<void>;
+}
+
+const StoreContext = createContext<Store>({ session: { status: "loading" }, catalogue: null, state: emptyState });
+const ActionsContext = createContext<Actions | null>(null);
+
+/** The prototype's record, shaped for the server's import. Anything unreadable is left out. */
+function readLegacy(courses: readonly Course[]): LegacyImport | null {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(LEGACY_KEY);
+  } catch {
+    return null;
+  }
+  if (!raw) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { logged: [], certificates: [], positions: [] };
+  }
+  if (typeof parsed !== "object" || parsed === null) return { logged: [], certificates: [], positions: [] };
+  const o = Object.fromEntries(Object.entries(parsed));
+  const arr = (v: unknown): Record<string, unknown>[] => (Array.isArray(v) ? v.flatMap((x) => (typeof x === "object" && x !== null ? [Object.fromEntries(Object.entries(x))] : [])) : []);
+  const progress = typeof o.progress === "object" && o.progress !== null ? Object.entries(o.progress) : [];
+  return {
+    ...(typeof o.learner === "string" ? { learner: o.learner } : {}),
+    ...(typeof o.requirement === "object" && o.requirement !== null ? { requirement: o.requirement } : {}),
+    logged: arr(o.logged).map((e) => ({ id: String(e.id), date: String(e.date), title: String(e.title), provider: String(e.provider), field: String(e.field), hours: Number(e.hours) })),
+    certificates: arr(o.certificates).flatMap((c) => {
+      const course = courses.find((x) => x.id === c.courseId);
+      if (!course) return [];
+      return [{ id: String(c.id), courseId: course.id, issuedAt: String(c.issuedAt), title: course.title, provider: course.show.title, field: course.field, hours: course.credits }];
+    }),
+    positions: progress.flatMap(([courseId, p]) => (typeof p === "object" && p !== null && "position" in p && typeof p.position === "number" ? [{ courseId, position: p.position }] : [])),
+  };
+}
 
 export function StateProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reduce, undefined, load);
+  const [store, setStore] = useState<Store>({ session: { status: "loading" }, catalogue: null, state: emptyState });
+  const setState = useCallback((state: AppState) => setStore((s) => ({ ...s, state })), []);
+  const setProgress = useCallback(
+    (courseId: string, p: CourseProgress) => setStore((s) => ({ ...s, state: { ...s.state, progress: { ...s.state.progress, [courseId]: p } } })),
+    [],
+  );
+
   useEffect(() => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(state));
-    } catch {
-      // Private mode or full storage: progress lives for this tab only.
-    }
-  }, [state]);
+    let live = true;
+    (async () => {
+      try {
+        const [session, catalogue] = await Promise.all([api<Session>("GET", "/api/session"), api<Catalogue>("GET", "/api/catalogue")]);
+        let state = session.status === "member" ? session.state : emptyState;
+        const legacy = session.status === "member" ? readLegacy(catalogue.courses) : null;
+        if (legacy) {
+          state = await api<AppState>("POST", "/api/import", legacy);
+          try {
+            localStorage.removeItem(LEGACY_KEY);
+          } catch {
+            // Storage blocked: the import is keyed by the old ids, so running it again adds nothing.
+          }
+        }
+        if (live) setStore({ session, catalogue, state });
+      } catch (error) {
+        if (live) setStore((s) => ({ ...s, session: { status: "error", message: error instanceof Error ? error.message : "CPE could not load." } }));
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const actions = useMemo<Actions>(
+    () => ({
+      reportHeard: async (report, keepalive = false) => {
+        const p = await api<CourseProgress>("POST", "/api/heard", report, { keepalive });
+        setProgress(report.courseId, p);
+      },
+      answerReview: async (course, checkpoint, pick) => {
+        const answer = await api<ReviewAnswer>("POST", "/api/review", { courseId: course.id, version: course.version, checkpoint, pick });
+        if (answer.correct) setProgress(course.id, answer.progress);
+        return answer;
+      },
+      sit: (course) => api<Sitting>("POST", "/api/sittings", { courseId: course.id, version: course.version }),
+      submit: async (course, sittingId, picks) => {
+        const graded = await api<Graded>("POST", `/api/sittings/${encodeURIComponent(sittingId)}`, { courseId: course.id, version: course.version, picks });
+        setState(graded.state);
+        return graded;
+      },
+      setName: async (name) => setState(await api<AppState>("PUT", "/api/name", { name })),
+      setRequirement: async (requirement) => setState(await api<AppState>("PUT", "/api/requirement", { requirement })),
+      log: async (entry) => setState(await api<AppState>("POST", "/api/logged", entry)),
+      unlog: async (id) => setState(await api<AppState>("DELETE", `/api/logged/${encodeURIComponent(id)}`)),
+    }),
+    [setProgress, setState],
+  );
+
   return (
-    <StateContext.Provider value={state}>
-      <DispatchContext.Provider value={dispatch}>{children}</DispatchContext.Provider>
-    </StateContext.Provider>
+    <StoreContext.Provider value={store}>
+      <ActionsContext.Provider value={actions}>{children}</ActionsContext.Provider>
+    </StoreContext.Provider>
   );
 }
 
-export const useAppState = () => useContext(StateContext);
-export const useDispatch = () => useContext(DispatchContext);
+export const useSession = () => useContext(StoreContext).session;
+export const useAppState = () => useContext(StoreContext).state;
+
+const noCourses: readonly Course[] = [];
+const noShows: readonly Show[] = [];
+
+/** The published courses this listener sees: each on the version they are part-way through, or the newest. */
+export function useCatalogue() {
+  const catalogue = useContext(StoreContext).catalogue;
+  const courses = catalogue?.courses ?? noCourses;
+  return useMemo(
+    () => ({ loaded: catalogue !== null, shows: catalogue?.shows ?? noShows, courses, courseById: (id: string) => courses.find((c) => c.id === id) }),
+    [catalogue, courses],
+  );
+}
+
+export function useActions(): Actions {
+  const a = useContext(ActionsContext);
+  if (!a) throw new Error("useActions outside StateProvider");
+  return a;
+}

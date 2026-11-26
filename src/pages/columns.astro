@@ -1,0 +1,59 @@
+---
+import PageHead from '../components/PageHead.astro';
+import Section from '../components/Section.astro';
+import { authorPath, authors, host, roleOf } from '../data/authors.ts';
+import { columnPath, columns } from '../data/columns.ts';
+import Page from '../layouts/Page.astro';
+import { tally } from '../lib/format.ts';
+import { postsBy, postsInColumn } from '../server/posts.ts';
+
+/* The host and co-hosts, then the columns. The host is first in authors. The podcast's column page is /podcast. */
+const rows = async <T,>(items: readonly T[], count: (item: T) => Promise<unknown[]>) => Promise.all(items.map(async (item) => ({ item, count: (await count(item)).length })));
+const people = await rows(authors, (author) => postsBy(author.handle));
+const listed = await rows(columns, (column) => postsInColumn(column.slug));
+const posts = (count: number) => (count ? tally(count, 'post') : 'Coming soon');
+---
+
+<Page title="People and columns" description={`Who is on Stick to Accounting and in the newsletter: ${host.name}, the host, and the accountants who co-host. Then the columns: essays, the podcast, the weekly brief, tool reviews and more.`}>
+  <PageHead label="The newsletter" title="People and columns." lead={`${host.name} hosts. Accountant friends join as co-hosts. Each post belongs to one column.`} />
+  <Section id="people" no={1} title="Who is on it?" intro="The host, then everyone who has co-hosted. Each has a page with every episode and post they are on.">
+    <div class="ep-list">
+      {
+        people.map(({ item: person, count }, i) => (
+          <a class="ep-row" href={authorPath(person)}>
+            <span class="no">{String(i + 1).padStart(2, '0')}</span>
+            <span class="what">
+              <span class="label">{posts(count)}</span>
+              <h3>{person.name}</h3>
+              <span class="small">{roleOf(person)}</span>
+            </span>
+            <span class="go" aria-hidden="true">→</span>
+          </a>
+        ))
+      }
+    </div>
+  </Section>
+  <Section id="columns" no={2} title="Which column?" intro="A column is a format or a voice. Follow the ones you read.">
+    <div class="ep-list">
+      {
+        listed.map(({ item: column, count }, i) => (
+          <a class="ep-row" href={column.slug === 'podcast' ? '/podcast' : columnPath(column)}>
+            <span class="no">{String(i + 1).padStart(2, '0')}</span>
+            <span class="what">
+              <span class="label">{posts(count)}</span>
+              <h3>{column.name}</h3>
+              <span class="small">{column.tagline}</span>
+            </span>
+            <span class="go" aria-hidden="true">→</span>
+          </a>
+        ))
+      }
+    </div>
+  </Section>
+</Page>
+
+<style>
+  .ep-row { grid-template-columns: 4.5rem minmax(0, 1fr) auto; }
+  .what { display: grid; gap: var(--space-1); }
+  @media (max-width: 600px) { .ep-row { grid-template-columns: 3rem minmax(0, 1fr) auto; } }
+</style>

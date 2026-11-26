@@ -11,6 +11,7 @@ import { answerFeeSurvey, feesPage } from '../functions/public-fees.ts';
 import { linkTextParam } from '../lib/search-params.ts';
 import { clubTitle } from '../lib/title.ts';
 import s from './fees.module.css';
+import { hostFirstName } from '../../../src/data/authors.ts';
 
 export const Route = createFileRoute('/fees')({
   validateSearch: (search: Record<string, unknown>): { edition?: number; answered?: true } => {
@@ -39,7 +40,7 @@ const soFar = (e: Edition) =>
   e.responses === 0
     ? `Nobody has answered the ${e.edition} survey yet.`
     : `${capitalised(e.responses === 1 ? 'one person has' : `${numberWord(e.responses)} people have`)} answered the ${e.edition} survey so far.`;
-const until = (e: Edition) => (e.responses >= PUBLISH_MIN ? 'once a host has read every answer' : `once ${PUBLISH_MIN} have answered and a host has read every answer`);
+const until = (e: Edition) => (e.responses >= PUBLISH_MIN ? `once ${hostFirstName} has read every answer` : `once ${PUBLISH_MIN} have answered and ${hostFirstName} has read every answer`);
 const practice: readonly ChoiceKey[] = ['stage', 'years', 'team', 'niche', 'pricing'];
 
 interface Failure {
@@ -174,7 +175,7 @@ function Fees() {
               </div>
               <div>
                 <dt>Checked</dt>
-                <dd>A host reads every answer before the results go up and deletes any that are plainly made up.</dd>
+                <dd>{hostFirstName} reads every answer before the results go up and deletes any that are plainly made up.</dd>
               </div>
             </dl>
             {otherYears.length > 0 && (
