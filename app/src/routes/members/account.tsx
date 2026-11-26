@@ -3,7 +3,6 @@ import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent } from 'react';
 import { anyTerm, everyRate, TERMS, terms } from '../../../../src/data/membership.ts';
 import { formatDay } from '../../../../src/lib/format.ts';
-import { MIN_PASSWORD_LENGTH } from '../../../../src/server/password.ts';
 import { Masthead } from '../../components/members/Masthead.tsx';
 import { changePassword, membersAccount, setEmailPrefs } from '../../functions/members-account.ts';
 import { setRenews } from '../../functions/members-billing.ts';
@@ -20,7 +19,7 @@ export const Route = createFileRoute('/members/account')({
 const text = (form: FormData, name: string) => String(form.get(name) ?? '');
 
 function Account() {
-  const { member, standing, prefs } = Route.useLoaderData();
+  const { member, standing, prefs, minPassword: MIN_PASSWORD_LENGTH } = Route.useLoaderData();
   const router = useRouter();
   const sendRenews = useServerFn(setRenews);
   const sendPrefs = useServerFn(setEmailPrefs);

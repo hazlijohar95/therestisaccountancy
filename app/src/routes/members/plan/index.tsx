@@ -3,7 +3,6 @@ import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent } from 'react';
 import { PLAN_ANSWER_MAX, planSections, type PlanSectionSlug } from '../../../../../src/data/plan.ts';
 import { capitalised, formatDay, formatMoment, numberWord } from '../../../../../src/lib/format.ts';
-import { missingSections } from '../../../../../src/server/plans.ts';
 import { Masthead } from '../../../components/members/Masthead.tsx';
 import { Notice } from '../../../components/members/Notice.tsx';
 import { PlanLetter } from '../../../components/members/PlanLetter.tsx';
@@ -52,12 +51,12 @@ function PlanPage() {
   ] as const;
   const notice = settled ? (outcomes.find((o) => o.holds && search[o.key])?.text ?? null) : null;
 
-  const missing = new Set<PlanSectionSlug>(unsent && draft ? missingSections(draft.answers) : []);
+  const missing = new Set<PlanSectionSlug>(unsent && draft ? draft.missing : []);
   const answerOf = (slug: PlanSectionSlug) => (posted ? (posted[slug] ?? '') : (draft?.answers[slug] ?? ''));
   const errorOf = (slug: PlanSectionSlug) => (tooLong ? refusal.outcome.fields[slug] : undefined) ?? (missing.has(slug) ? 'Write this section before you send it.' : null);
   const unsaved = open?.status === 'sent' && posted ? planSections.filter((section) => (posted[section.slug] ?? '').trim() !== '') : [];
   const sections = numberWord(planSections.length);
-  const written = planSections.length - missingSections(draft?.answers ?? {}).length;
+  const written = planSections.length - (draft ? draft.missing.length : planSections.length);
   const progress = written === 0 ? 'No sections written yet.' : `${capitalised(numberWord(written))} of ${sections} sections written.`;
   const number = (i: number) => String(i + 1).padStart(2, '0');
 

@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { LISTING_LIMITS, listingPath, services, states } from '../../../../src/data/directory.ts';
-import { SAVE_OUTCOMES, type Listing, type SaveOutcome } from '../../../../src/server/listings.ts';
+import type { Listing, SaveOutcome } from '../../../../src/server/listings.ts';
 import { ListingEntry } from '../../components/members/ListingEntry.tsx';
 import { Masthead } from '../../components/members/Masthead.tsx';
 import { Notice } from '../../components/members/Notice.tsx';
@@ -13,8 +13,8 @@ import s from './listing.module.css';
 
 export const Route = createFileRoute('/members/listing')({
   validateSearch: (search: Record<string, unknown>): { saved?: SaveOutcome } => {
-    const saved = SAVE_OUTCOMES.find((outcome) => outcome === search['saved']);
-    return saved ? { saved } : {};
+    const saved = search['saved'];
+    return typeof saved === 'string' && isOutcome(saved) ? { saved } : {};
   },
   loader: () => membersListing(),
   head: () => ({ meta: clubTitle('Your listing') }),
@@ -27,6 +27,8 @@ const savedNotice: Record<SaveOutcome, string> = {
   updated: 'Saved. It still waits for a host to check it.',
   unchanged: 'Nothing had changed, so nothing was sent.',
 };
+
+const isOutcome = (value: string): value is SaveOutcome => Object.hasOwn(savedNotice, value);
 
 function standing(l: Listing | null): string {
   if (!l) return "Business owners use the club's directory to find an accountant, and a host checks each listing before it goes up.";

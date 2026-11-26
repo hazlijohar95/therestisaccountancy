@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent } from 'react';
 import { firstName, formatTime, formatWeekday } from '../../../../../src/lib/format.ts';
-import { TOPIC_MAX } from '../../../../../src/server/calls.ts';
 import { Masthead } from '../../../components/members/Masthead.tsx';
 import { Notice } from '../../../components/members/Notice.tsx';
 import { bookCall, cancelCall, membersCalls } from '../../../functions/members-calls.ts';
@@ -19,7 +18,7 @@ export const Route = createFileRoute('/members/calls/')({
 });
 
 function Calls() {
-  const { email, mine, days } = Route.useLoaderData();
+  const { email, mine, days, topicMax } = Route.useLoaderData();
   const search = Route.useSearch();
   const navigate = useNavigate();
   const router = useRouter();
@@ -143,7 +142,7 @@ function Calls() {
                     id="topic"
                     name="topic"
                     rows={3}
-                    maxLength={TOPIC_MAX}
+                    maxLength={topicMax}
                     required
                     aria-describedby={fields['topic'] ? 'topic-hint topic-error' : 'topic-hint'}
                     aria-invalid={fields['topic'] ? true : undefined}

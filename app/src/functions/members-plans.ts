@@ -1,9 +1,9 @@
 import { notFound, redirect } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
-import { PLAN_ANSWER_MAX, planSections } from '../../../src/data/plan.ts';
+import { PLAN_ANSWER_MAX, planSections, type PlanSectionSlug } from '../../../src/data/plan.ts';
 import { tidy } from '../../../src/server/community.ts';
-import { planSentLetter, type AnsweredPlan, type OpenPlan, type PlanAnswers, type PlanReply } from '../../../src/server/plans.ts';
+import { missingSections, planSentLetter, type AnsweredPlan, type OpenPlan, type PlanAnswers, type PlanReply } from '../../../src/server/plans.ts';
 import { paidOrRefusal } from '../lib/guards.server.ts';
 import { absolute, sendLater } from '../lib/mail.server.ts';
 import { paidMemberOrRedirect } from '../lib/members.server.ts';
@@ -12,7 +12,7 @@ import { withStore } from '../lib/store.server.ts';
 
 /** A plan as the member's pages show it: the answers and where it stands. */
 export type PlanView =
-  | { readonly id: number; readonly status: 'draft'; readonly answers: PlanAnswers; readonly updatedAt: string }
+  | { readonly id: number; readonly status: 'draft'; readonly answers: PlanAnswers; readonly updatedAt: string; readonly missing: readonly PlanSectionSlug[] }
   | { readonly id: number; readonly status: 'sent'; readonly answers: PlanAnswers; readonly updatedAt: string; readonly sentAt: string };
 export interface AnsweredView {
   readonly id: number;
@@ -24,7 +24,7 @@ export interface AnsweredView {
 
 const openView = (plan: OpenPlan): PlanView =>
   plan.status === 'draft'
-    ? { id: plan.id, status: 'draft', answers: { ...plan.answers }, updatedAt: plan.updatedAt }
+    ? { id: plan.id, status: 'draft', answers: { ...plan.answers }, updatedAt: plan.updatedAt, missing: missingSections(plan.answers) }
     : { id: plan.id, status: 'sent', answers: { ...plan.answers }, updatedAt: plan.updatedAt, sentAt: plan.sentAt };
 const answeredView = (plan: AnsweredPlan): AnsweredView => ({
   id: plan.id,

@@ -8,9 +8,9 @@ import { withStore } from '../../../lib/store.server.ts';
 export const Route = createFileRoute('/members/sessions/{$id}.ics')({
   server: {
     handlers: {
-      GET: async ({ params }) => {
+      GET: async ({ params, request }) => {
         const member = await currentMember();
-        if (!member) return new Response(null, { status: 401 });
+        if (!member) return Response.redirect(new URL(`/sign-in?next=${encodeURIComponent(new URL(request.url).pathname)}`, request.url), 302);
         if (!(await membersPaid())) return new Response(null, { status: 302, headers: { location: '/members/pay' } });
         const id = Number(params.id);
         const session = Number.isInteger(id) ? await withStore(async (store) => store.schedule.session(id, member.id)) : null;

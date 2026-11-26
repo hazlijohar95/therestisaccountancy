@@ -23,6 +23,7 @@ export const membersCalls = createServerFn({ method: 'GET' }).handler(async () =
     const open = (await store.calls.open(member.id)).map(({ id, startsAt, minutes, host }) => ({ id, startsAt, minutes, host }));
     return {
       email: member.email,
+      topicMax: TOPIC_MAX,
       mine: call && { id: call.id, startsAt: call.startsAt, minutes: call.minutes, link: call.link, host: call.host.name, topic: call.booking.topic },
       days: byDay(open).map(({ date, slots }) => ({ date, slots: [...slots] })),
     };

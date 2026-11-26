@@ -15,7 +15,7 @@ export const membersAccount = createServerFn({ method: 'GET' }).handler(async ()
     const { replies, digest } = await store.mailings.prefs(member.id);
     return { standing: member.role === 'admin' ? null : plainStanding(await store.billing.standing(member.id)), prefs: { replies, digest } };
   });
-  return { member: { name: member.name, email: member.email, number: memberNumber(member), joinedAt: member.joinedAt }, standing, prefs };
+  return { member: { name: member.name, email: member.email, number: memberNumber(member), joinedAt: member.joinedAt }, standing, prefs, minPassword: MIN_PASSWORD_LENGTH };
 });
 
 const passwordInput = z

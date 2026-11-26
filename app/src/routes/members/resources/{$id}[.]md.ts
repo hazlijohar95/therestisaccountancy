@@ -7,8 +7,8 @@ import { membersPaid } from '../../../functions/members-gate.ts';
 export const Route = createFileRoute('/members/resources/{$id}.md')({
   server: {
     handlers: {
-      GET: async ({ params }) => {
-        if (!(await currentMember())) return new Response(null, { status: 401 });
+      GET: async ({ params, request }) => {
+        if (!(await currentMember())) return Response.redirect(new URL(`/sign-in?next=${encodeURIComponent(new URL(request.url).pathname)}`, request.url), 302);
         if (!(await membersPaid())) return new Response(null, { status: 302, headers: { location: '/members/pay' } });
         const resource = resourceById(params.id);
         if (!resource) return new Response('No template by that name.', { status: 404 });
