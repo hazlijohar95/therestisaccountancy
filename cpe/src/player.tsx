@@ -1,11 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { courseById } from "./domain/courses.ts";
 import { progressOf } from "./domain/progress.ts";
+import { merge, seconds, type Range, type Rate } from "./domain/rules.ts";
 import type { Course } from "./domain/types.ts";
-import { useAppState, useDispatch } from "./state.tsx";
+import { useActions, useAppState, useCatalogue, useSession } from "./state.tsx";
 
-export const RATES = [1, 1.25, 1.5, 1.75, 2] as const;
-export type Rate = (typeof RATES)[number];
+export { RATES, type Rate } from "./domain/rules.ts";
+
+/** How often the player tells the server what was heard while there is anything new to tell. */
+const REPORT_MS = 5000;
 
 interface Player {
   course: Course | null;
@@ -23,9 +25,18 @@ interface Player {
 
 const PlayerContext = createContext<Player | null>(null);
 
+/** The media element's own played ranges: seeks never add to them, so they are the evidence of listening. */
+function playedRanges(el: HTMLAudioElement): Range[] {
+  const out: [number, number][] = [];
+  for (let i = 0; i < el.played.length; i++) out.push([el.played.start(i), el.played.end(i)]);
+  return merge(out);
+}
+
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const state = useAppState();
-  const dispatch = useDispatch();
+  const session = useSession();
+  const actions = useActions();
+  const { courseById } = useCatalogue();
   const audio = useRef<HTMLAudioElement | null>(null);
   const last = useRef<number | null>(null);
   const [courseId, setCourseId] = useState<string | null>(null);
@@ -34,10 +45,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [rate, setRateState] = useState<Rate>(1);
   const [pending, setPending] = useState<number | null>(null);
   const course = courseId ? (courseById(courseId) ?? null) : null;
+  const member = session.status === "member";
 
-  const answered = course ? progressOf(state, course.id).checkpoints : [];
-  const answeredRef = useRef(answered);
-  answeredRef.current = answered;
+  const progress = course ? progressOf(state, course) : null;
+  const answeredRef = useRef<readonly number[]>([]);
+  answeredRef.current = progress?.checkpoints ?? [];
+  const acceptedRef = useRef<readonly Range[]>([]);
+  acceptedRef.current = progress?.ranges ?? [];
 
   useEffect(() => {
     const el = new Audio();
@@ -45,6 +59,54 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.current = el;
     return () => el.pause();
   }, []);
+
+  /*
+   * Reports go to the server, which keeps only what real time allows. The player keeps sending while anything it
+   * played is not yet accepted, so audio heard faster than the server's budget is counted a little later, not lost.
+   */
+  const lastSent = useRef({ heard: -1, position: -1 });
+  const sending = useRef(false);
+  const report = useCallback(
+    (force = false, keepalive = false) => {
+      const el = audio.current;
+      if (!el || !course || !member || (sending.current && !keepalive)) return;
+      const ranges = playedRanges(el);
+      const heard = seconds(ranges);
+      const position = Math.round(el.currentTime * 10) / 10;
+      const behind = heard > seconds(acceptedRef.current) + 0.5;
+      const moved = heard !== lastSent.current.heard || position !== lastSent.current.position;
+      if (!force && !behind && !moved) return;
+      lastSent.current = { heard, position };
+      sending.current = true;
+      actions
+        .reportHeard({ courseId: course.id, version: course.version, ranges, position }, keepalive)
+        .catch(() => {
+          // Offline or signed out: the next report carries the same ranges, since they are cumulative.
+        })
+        .finally(() => {
+          sending.current = false;
+        });
+    },
+    [course, member, actions],
+  );
+  const reportRef = useRef(report);
+  reportRef.current = report;
+
+  useEffect(() => {
+    if (!course || !member) return;
+    const id = setInterval(() => reportRef.current(), REPORT_MS);
+    const flush = () => reportRef.current(true, true);
+    const onHide = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, [course, member]);
 
   useEffect(() => {
     const el = audio.current;
@@ -54,10 +116,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const prev = last.current;
       last.current = t;
       setTime(t);
-      // The media element's own played ranges are the evidence: seeks never add to them.
-      const ranges: [number, number][] = [];
-      for (let i = 0; i < el.played.length; i++) ranges.push([el.played.start(i), el.played.end(i)]);
-      dispatch({ type: "heard", courseId: course.id, ranges, at: t });
       if (prev === null || t <= prev || t - prev > 1.5 * el.playbackRate) return;
       const hit = course.checkpointTimes.findIndex((at, i) => !answeredRef.current.includes(i) && prev <= at && at <= t);
       if (hit >= 0) {
@@ -74,10 +132,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
     const onSeeked = () => {
       last.current = el.currentTime;
-      dispatch({ type: "position", courseId: course.id, at: el.currentTime });
+      reportRef.current();
     };
     const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
+    const onPause = () => {
+      setPlaying(false);
+      reportRef.current(true);
+    };
     el.addEventListener("timeupdate", onTime);
     el.addEventListener("seeking", onSeeking);
     el.addEventListener("seeked", onSeeked);
@@ -92,18 +153,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       el.removeEventListener("pause", onPause);
       el.removeEventListener("ended", onPause);
     };
-  }, [course, dispatch]);
+  }, [course]);
 
   const play = useCallback(
     (next: Course, at?: number) => {
       const el = audio.current;
       if (!el) return;
       if (courseId !== next.id) {
+        reportRef.current(true);
         el.src = next.audio;
         el.playbackRate = rate;
-        const resume = at ?? progressOf(state, next.id).position;
+        const resume = at ?? progressOf(state, next).position;
         el.currentTime = resume < next.duration - 1 ? resume : 0;
         last.current = el.currentTime;
+        lastSent.current = { heard: -1, position: -1 };
         setTime(el.currentTime);
         setCourseId(next.id);
         setPending(null);

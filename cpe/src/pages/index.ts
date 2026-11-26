@@ -10,6 +10,7 @@ const load = {
   course: () => import("./CoursePage.tsx"),
   assessment: () => import("./Assessment.tsx"),
   certificate: () => import("./Certificate.tsx"),
+  verify: () => import("./Verify.tsx"),
   playerBar: () => import("../components/PlayerBar.tsx"),
   checkpoint: () => import("../components/CheckpointCard.tsx"),
   toasts: () => import("../components/Feedback.tsx"),
@@ -22,6 +23,7 @@ export const Ledger = lazy(() => load.ledger().then((m) => ({ default: m.Ledger 
 export const ShowPage = lazy(() => load.show().then((m) => ({ default: m.ShowPage })));
 export const CoursePage = lazy(() => load.course().then((m) => ({ default: m.CoursePage })));
 export const Assessment = lazy(() => load.assessment().then((m) => ({ default: m.Assessment })));
+export const VerifyPage = lazy(() => load.verify().then((m) => ({ default: m.VerifyPage })));
 export const CertificatePage = lazy(() => load.certificate().then((m) => ({ default: m.CertificatePage })));
 export const PlayerBar = lazy(() => load.playerBar().then((m) => ({ default: m.PlayerBar })));
 export const ToastLayer = lazy(() => load.toasts().then((m) => ({ default: m.ToastLayer })));

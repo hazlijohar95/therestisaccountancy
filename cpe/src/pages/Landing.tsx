@@ -3,14 +3,16 @@ import { useState } from "react";
 import { Arrow, Check, Ledger as LedgerIcon, Play, Plus } from "../components/Icons.tsx";
 import { Logo } from "../components/Logo.tsx";
 import { Ring } from "../components/Ring.tsx";
-import { courseById, formatHours } from "../domain/courses.ts";
+import { formatHours } from "../domain/courses.ts";
 import { LISTEN_THRESHOLD } from "../domain/progress.ts";
 import { HeroDemo } from "../landing/HeroDemo.tsx";
 import { SamplePlayer } from "../landing/SamplePlayer.tsx";
 import "../landing/landing.css";
 import { Link } from "../router.tsx";
+import { useCatalogue } from "../state.tsx";
 
-const flagship = courseById("five-threats")!;
+/** The course the hero demo plays and the main buttons open. */
+const FLAGSHIP = "five-threats";
 const heardToCount = `${Math.round(LISTEN_THRESHOLD * 100)}%`;
 
 const STEPS = [
@@ -22,7 +24,7 @@ const STEPS = [
 const FACTS = [
   { n: heardToCount, label: "of the audio heard to count" },
   { n: "70%", label: "to pass the assessment" },
-  { n: `${flagship.quiz.length}`, label: `questions for a ${formatHours(flagship.credits)}h course` },
+  { n: "5", label: `questions for a ${formatHours(1)}h course` },
   { n: "CSV", label: "export of your ledger" },
 ];
 
@@ -45,11 +47,13 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Is the credit accredited?",
-    a: "Not yet. This is a preview with sample courses read by synthetic voices, and the hours are not accredited. Your progress is saved in this browser.",
+    a: "Not yet. This is a preview with sample courses read by synthetic voices, and the hours are not accredited. Your progress is saved to your club account.",
   },
 ];
 
 export function Landing() {
+  const { courses, courseById } = useCatalogue();
+  const flagship = courseById(FLAGSHIP);
   const [run, setRun] = useState(0);
   return (
     <div className="landing">
@@ -80,7 +84,7 @@ export function Landing() {
             <div>
               <h1 className="l-display">CPE you can listen to</h1>
               <div className="l-ctas">
-                <Link className="l-btn l-btn--black l-btn--lg" href={`/course/${flagship.id}`} data-test="hero-start">
+                <Link className="l-btn l-btn--black l-btn--lg" href={`/course/${FLAGSHIP}`} data-test="hero-start">
                   Start listening
                 </Link>
                 <Link className="l-btn l-btn--white l-btn--lg" href="/home">
@@ -95,7 +99,7 @@ export function Landing() {
           </div>
 
           <div className="l-panel l-panel--stage">
-            <HeroDemo key={run} course={flagship} />
+            {flagship && <HeroDemo key={run} course={flagship} />}
           </div>
           <div className="l-replay">
             <button type="button" className="l-btn l-btn--white" onClick={() => setRun((n) => n + 1)}>
@@ -112,7 +116,7 @@ export function Landing() {
             </div>
             <p className="l-intro">Every sample here is a real course. Press play and it counts, the same as in the app, so you can pick up where you left off.</p>
           </div>
-          <SamplePlayer />
+          {courses.length > 0 && <SamplePlayer courses={courses} />}
         </section>
 
         <section className="l-section" id="how">
@@ -218,7 +222,7 @@ export function Landing() {
         <section className="l-section l-final">
           <h2 className="l-display l-display--md">Your next hour is one episode away</h2>
           <div className="l-ctas l-ctas--center">
-            <Link className="l-btn l-btn--black l-btn--lg" href={`/course/${flagship.id}`}>
+            <Link className="l-btn l-btn--black l-btn--lg" href={`/course/${FLAGSHIP}`}>
               Start listening <Arrow width={16} height={16} />
             </Link>
           </div>

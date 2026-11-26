@@ -1,10 +1,7 @@
-import { PASS_MARK } from "./courses.ts";
-import type { Course, Field } from "./types.ts";
+import { coverage as heardShare, LISTEN_THRESHOLD, type Range } from "./rules.ts";
+import type { Course, Field, Level } from "./types.ts";
 
-/** Share of the audio that must actually be played. Seeking past audio never counts. */
-export const LISTEN_THRESHOLD = 0.95;
-
-export type Range = readonly [number, number];
+export { LISTEN_THRESHOLD, merge, type Range } from "./rules.ts";
 
 export interface Attempt {
   at: string;
@@ -13,16 +10,25 @@ export interface Attempt {
   passed: boolean;
 }
 
+/** Issued by the server when an assessment is passed. It carries what it certifies, so it never changes with the catalogue. */
 export interface Certificate {
   id: string;
   courseId: string;
+  version: number;
   issuedAt: string;
   name: string;
   correct: number;
   total: number;
+  title: string;
+  provider: string;
+  field: Field;
+  level: Level;
+  credits: number;
 }
 
+/** A listener's evidence for the version of a course they are on. */
 export interface CourseProgress {
+  version: number;
   ranges: readonly Range[];
   position: number;
   /** Indices of review checkpoints answered correctly. */
@@ -39,6 +45,10 @@ export interface Requirement {
   isExample?: boolean;
 }
 
+/**
+ * Hours from outside the app. Self-reported: logged by hand. Unverified: a certificate a browser made before accounts,
+ * brought across as a claim, never as a certificate.
+ */
 export interface LoggedEntry {
   id: string;
   date: string;
@@ -46,6 +56,7 @@ export interface LoggedEntry {
   provider: string;
   field: Field;
   hours: number;
+  source: "self-reported" | "unverified";
 }
 
 export interface AppState {
@@ -56,93 +67,21 @@ export interface AppState {
   logged: readonly LoggedEntry[];
 }
 
-export type Action =
-  | { type: "heard"; courseId: string; ranges: readonly Range[]; at: number }
-  | { type: "position"; courseId: string; at: number }
-  | { type: "checkpoint"; courseId: string; index: number }
-  | { type: "attempt"; courseId: string; correct: number; total: number; at: string; certificateId: string }
-  | { type: "learner"; name: string }
-  | { type: "requirement"; requirement: Requirement }
-  | { type: "log"; entry: LoggedEntry }
-  | { type: "unlog"; id: string }
-  | { type: "reset" };
-
 const year = new Date().getFullYear();
 
-export const initialState: AppState = {
-  learner: "",
-  progress: {},
-  certificates: [],
-  requirement: { start: `${year}-01-01`, end: `${year}-12-31`, target: 40, minimums: { Ethics: 4 }, isExample: true },
-  logged: [],
+export const exampleRequirement: Requirement = { start: `${year}-01-01`, end: `${year}-12-31`, target: 40, minimums: { Ethics: 4 }, isExample: true };
+
+export const emptyState: AppState = { learner: "", progress: {}, certificates: [], requirement: exampleRequirement, logged: [] };
+
+const blank: CourseProgress = { version: 0, ranges: [], position: 0, checkpoints: [], attempts: [] };
+
+/** Progress on the version of the course being shown. Progress on another version is not this one's. */
+export const progressOf = (state: AppState, course: Pick<Course, "id" | "version">): CourseProgress => {
+  const p = state.progress[course.id];
+  return p && p.version === course.version ? p : blank;
 };
 
-const blank: CourseProgress = { ranges: [], position: 0, checkpoints: [], attempts: [] };
-
-export const progressOf = (state: AppState, courseId: string): CourseProgress => state.progress[courseId] ?? blank;
-
-export function reduce(state: AppState, action: Action): AppState {
-  switch (action.type) {
-    case "heard":
-      return patch(state, action.courseId, (p) => ({ ranges: merge([...p.ranges, ...action.ranges]), position: action.at }));
-    case "position":
-      return patch(state, action.courseId, () => ({ position: action.at }));
-    case "checkpoint":
-      return patch(state, action.courseId, (p) =>
-        p.checkpoints.includes(action.index) ? {} : { checkpoints: [...p.checkpoints, action.index] },
-      );
-    case "attempt": {
-      const passed = action.correct / action.total >= PASS_MARK;
-      const next = patch(state, action.courseId, (p) => ({
-        attempts: [...p.attempts, { at: action.at, correct: action.correct, total: action.total, passed }],
-      }));
-      if (!passed || state.certificates.some((c) => c.courseId === action.courseId)) return next;
-      const certificate: Certificate = {
-        id: action.certificateId,
-        courseId: action.courseId,
-        issuedAt: action.at,
-        name: state.learner,
-        correct: action.correct,
-        total: action.total,
-      };
-      return { ...next, certificates: [...next.certificates, certificate] };
-    }
-    case "learner":
-      return {
-        ...state,
-        learner: action.name,
-        certificates: state.certificates.map((c) => (c.name ? c : { ...c, name: action.name })),
-      };
-    case "requirement":
-      return { ...state, requirement: action.requirement };
-    case "log":
-      return { ...state, logged: [...state.logged, action.entry] };
-    case "unlog":
-      return { ...state, logged: state.logged.filter((e) => e.id !== action.id) };
-    case "reset":
-      return initialState;
-  }
-}
-
-function patch(state: AppState, courseId: string, f: (p: CourseProgress) => Partial<CourseProgress>): AppState {
-  const current = progressOf(state, courseId);
-  return { ...state, progress: { ...state.progress, [courseId]: { ...current, ...f(current) } } };
-}
-
-/** Sorts and unions overlapping played ranges. */
-export function merge(ranges: readonly Range[]): Range[] {
-  const sorted = [...ranges].filter(([a, b]) => b > a).sort((x, y) => x[0] - y[0]);
-  const out: [number, number][] = [];
-  for (const [a, b] of sorted) {
-    const last = out[out.length - 1];
-    if (last && a <= last[1] + 0.25) last[1] = Math.max(last[1], b);
-    else out.push([a, b]);
-  }
-  return out;
-}
-
-export const coverage = (p: CourseProgress, course: Course): number =>
-  Math.min(1, p.ranges.reduce((sum, [a, b]) => sum + (b - a), 0) / course.duration);
+export const coverage = (p: Pick<CourseProgress, "ranges">, course: Pick<Course, "duration">): number => heardShare(p.ranges, course.duration);
 
 export type Phase =
   | { kind: "new" }
@@ -150,26 +89,16 @@ export type Phase =
   | { kind: "ready"; failedAttempts: number }
   | { kind: "certified"; certificate: Certificate };
 
-/** The course's place on the credit path, derived so it can never disagree with the evidence. */
+/** The course's place on the credit path, derived from the server's evidence so it can never disagree with it. */
 export function phaseOf(state: AppState, course: Course): Phase {
   const certificate = state.certificates.find((c) => c.courseId === course.id);
   if (certificate) return { kind: "certified", certificate };
-  const p = progressOf(state, course.id);
+  const p = progressOf(state, course);
   const heard = coverage(p, course);
   const checkpointsLeft = course.checkpoints.length - p.checkpoints.length;
-  if (heard >= LISTEN_THRESHOLD && checkpointsLeft === 0) {
+  if (heard >= LISTEN_THRESHOLD && checkpointsLeft <= 0) {
     return { kind: "ready", failedAttempts: p.attempts.filter((a) => !a.passed).length };
   }
   if (heard === 0 && p.position === 0) return { kind: "new" };
   return { kind: "listening", heard, checkpointsLeft };
-}
-
-export function newCertificateId(course: Course, at: Date): string {
-  const stamp = at.toISOString().slice(0, 10).replaceAll("-", "");
-  const code = course.id
-    .split("-")
-    .map((w) => w[0]!.toUpperCase())
-    .join("");
-  const nonce = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `TRIA-${code}-${stamp}-${nonce}`;
 }

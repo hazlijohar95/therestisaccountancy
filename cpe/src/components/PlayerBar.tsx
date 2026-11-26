@@ -16,7 +16,7 @@ export function PlayerBar() {
   const state = useAppState();
   const course = player.course;
   if (!course) return null;
-  const p = progressOf(state, course.id);
+  const p = progressOf(state, course);
   const heard = coverage(p, course);
   return (
     <div className="pbar" role="region" aria-label="Now playing" data-test="player-bar">

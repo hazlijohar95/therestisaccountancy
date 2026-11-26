@@ -5,17 +5,18 @@ import { PlayButton } from "../components/PlayButton.tsx";
 import { Button } from "@base-ui/react/button";
 import { Progress } from "@base-ui/react/progress";
 import { Scrubber } from "../components/Scrubber.tsx";
-import { courseById, formatHours, formatTime } from "../domain/courses.ts";
+import { formatHours, formatTime } from "../domain/courses.ts";
 import { coverage, LISTEN_THRESHOLD, phaseOf, progressOf, type Phase } from "../domain/progress.ts";
 import type { Course } from "../domain/types.ts";
 import { usePlayer } from "../player.tsx";
 import { Link, navigate } from "../router.tsx";
-import { useAppState } from "../state.tsx";
+import { useAppState, useCatalogue } from "../state.tsx";
 import { NotFound } from "./NotFound.tsx";
 
 export function CoursePage({ id }: { id: string }) {
+  const { courseById, loaded } = useCatalogue();
   const course = courseById(id);
-  if (!course) return <NotFound />;
+  if (!course) return loaded ? <NotFound /> : null;
   return <CourseView course={course} />;
 }
 
@@ -55,7 +56,7 @@ function CourseView({ course }: { course: Course }) {
   const state = useAppState();
   const player = usePlayer();
   const active = player.course?.id === course.id;
-  const p = progressOf(state, course.id);
+  const p = progressOf(state, course);
   const time = active ? player.time : p.position;
   const heard = coverage(p, course);
   // Audio behind the playhead that was never heard shows as skipped in the waveform.
@@ -152,7 +153,7 @@ function CourseView({ course }: { course: Course }) {
           <dl className="specs">
             <div><dt>Delivery</dt><dd>Self-study, audio</dd></div>
             <div><dt>Prerequisites</dt><dd>None</dd></div>
-            <div><dt>To pass</dt><dd>{course.quiz.length} questions, 70%</dd></div>
+            <div><dt>To pass</dt><dd>{course.quizLength} questions, 70%</dd></div>
           </dl>
           <p className="sample">Sample course · synthetic voice · credit not accredited</p>
         </aside>

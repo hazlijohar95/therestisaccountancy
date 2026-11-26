@@ -5,15 +5,19 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { scripts } from "../src/content/catalog.ts";
-import type { Speaker } from "../src/domain/types.ts";
+import { scripts } from "../worker/seed/catalog.ts";
 
 const root = new URL("..", import.meta.url).pathname;
 const audioDir = join(root, "public/audio");
-const timingsPath = join(root, "src/content/timings.json");
+const timingsPath = join(root, "worker/seed/timings.json");
 const GAP = 0.45;
 const BARS = 160;
-const voices: Record<Speaker, string> = { Host: "Daniel", Guest: "Samantha" };
+const voices: Record<string, string> = { Host: "Daniel", Guest: "Samantha" };
+const voiceFor = (speaker: string) => {
+  const voice = voices[speaker];
+  if (!voice) throw new Error(`No voice for speaker "${speaker}"`);
+  return voice;
+};
 
 interface Entry {
   hash: string;
@@ -56,7 +60,7 @@ for (const course of scripts) {
   course.segments.forEach((seg, i) => {
     const aiff = join(work, `s${i}.aiff`);
     const wav = join(work, `s${i}.wav`);
-    execFileSync("say", ["-v", voices[seg.speaker], "-r", "185", "-o", aiff, seg.text]);
+    execFileSync("say", ["-v", voiceFor(seg.speaker), "-r", "185", "-o", aiff, seg.text]);
     execFileSync("ffmpeg", ["-v", "error", "-i", aiff, "-ar", "22050", "-ac", "1", wav]);
     const d = probe(wav);
     if (!Number.isFinite(d) || d <= 0) throw new Error(`${course.id} segment ${i} rendered no audio`);
