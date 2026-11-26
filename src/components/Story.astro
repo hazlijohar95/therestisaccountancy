@@ -20,8 +20,8 @@ const column = columnBySlug(post.data.column);
 <article class:list={['story', { lead }]}>
   <a class="cover" href={postPath(post)} tabindex="-1" aria-hidden="true">
     <Image src={coverOf(post)} alt="" widths={lead ? [640, 960, 1280, 1536] : [384, 640, 960]} sizes={lead ? '(min-width: 1000px) 60vw, 100vw' : '(min-width: 1000px) 25vw, (min-width: 720px) 50vw, 100vw'} loading={lead ? 'eager' : 'lazy'} />
-    {post.data.access === 'members' && <span class="stamp">Members</span>}
   </a>
+  {post.data.access === 'members' && <span class="stamp">Members</span>}
   <p class="meta">
     <span>{formatDay(post.data.date)}</span>
     {column && <a href={columnPath(column)}>{column.name}</a>}
@@ -32,7 +32,7 @@ const column = columnBySlug(post.data.column);
 </article>
 
 <style>
-  .story { display: grid; align-content: start; gap: var(--space-2); }
+  .story { position: relative; display: grid; align-content: start; gap: var(--space-2); }
   .story p, .title { margin: 0; }
   .story a { text-decoration: none; }
   .cover { position: relative; display: block; margin-bottom: var(--space-2); overflow: hidden; }

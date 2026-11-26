@@ -1,5 +1,6 @@
 ---
 import { lines } from '../data/lines.ts';
+import Title from './Title.astro';
 
 /*
  * The home page's opening: a working paper. A slow dithered ground (Paper Shaders) sits under ledger ruling, the
@@ -7,24 +8,22 @@ import { lines } from '../data/lines.ts';
  * business, so the ruling is also the way in. Without WebGL, or with reduced motion, the ground holds still.
  */
 interface Props {
-  /** The headline, with its marked phrase in `mark`. */
-  before: string;
-  mark: string;
-  after: string;
+  /** The headline, marking one phrase with asterisks as a post title does. */
+  title: string;
   lead: string;
 }
 
-const { before, mark, after, lead } = Astro.props;
+const { title, lead } = Astro.props;
 const shown = ['/newsletter', '/podcast', '/programmes', '/products'];
 const columns = lines.filter((line) => shown.includes(line.href));
 ---
 
 <section class="night hero" aria-labelledby="page-title">
   <div class="ground" data-ledger-shader aria-hidden="true"></div>
+  <p class="mono heads" aria-hidden="true"><span>Dr</span><span>Cr</span></p>
   <div class="wrap in">
-    <p class="mono top" aria-hidden="true"><span>Dr</span><span>Cr</span></p>
     <h1 class="headline serif" id="page-title">
-      {before}<span class="mark">{mark}</span>{after}<svg class="tick" viewBox="0 0 48 40" aria-hidden="true"><path d="M3 22 C 9 26, 13 31, 17 36 C 23 22, 33 10, 45 3" /></svg>
+      <Title text={title} /><svg class="tick" viewBox="0 0 48 40" aria-hidden="true"><path d="M3 22 C 9 26, 13 31, 17 36 C 23 22, 33 10, 45 3" /></svg>
     </h1>
     <p class="lead">{lead}</p>
     <nav class="cols" aria-label="What we make">
@@ -81,9 +80,10 @@ const columns = lines.filter((line) => shown.includes(line.href));
       linear-gradient(to bottom, transparent calc(100% - 46px), rgb(255 255 255 / .16) calc(100% - 46px), rgb(255 255 255 / .16) calc(100% - 45px), transparent calc(100% - 45px), transparent calc(100% - 41px), rgb(255 255 255 / .16) calc(100% - 41px), rgb(255 255 255 / .16) calc(100% - 40px), transparent calc(100% - 40px)),
       repeating-linear-gradient(to bottom, transparent 0 35px, rgb(255 255 255 / .06) 35px 36px);
   }
-  .in { display: grid; gap: var(--space-6); padding-block: clamp(32px, 5vw, 64px) clamp(72px, 9vw, 128px); }
+  .in { display: grid; gap: var(--space-6); padding-block: clamp(56px, 7vw, 96px) clamp(72px, 9vw, 128px); }
   .mono { font: 400 var(--size-label)/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .06em; }
-  .top { display: flex; justify-content: flex-end; gap: calc(11vw - 2ch); margin: 0; padding-inline-end: calc(5.5vw - var(--gutter)); opacity: .55; }
+  /* The money columns' heads, in the same coordinates as their rules: the last 22vw of the band, 11vw each. */
+  .heads { position: absolute; top: clamp(16px, 2vw, 28px); right: 0; display: grid; grid-template-columns: repeat(2, 11vw); margin: 0; text-align: center; opacity: .55; }
   .headline { margin: 0; max-width: 18ch; font-size: var(--size-page); line-height: 1; text-wrap: balance; }
   .tick { display: inline-block; width: .55em; height: .46em; margin-inline-start: .12em; vertical-align: baseline; fill: none; stroke: var(--alert); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
   @media (prefers-reduced-motion: no-preference) {
