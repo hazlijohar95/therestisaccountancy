@@ -29,8 +29,7 @@ export const openNotifications = createServerFn({ method: 'POST' }).handler(asyn
       const days = renewsIn(claim, now);
       return days === null || !claim.until ? [] : [{ id: claim.id, source: claim.source, label: claim.label, kind: claim.kind, until: claim.until, days }];
     });
-    const notices = await store.socialNotifications.list(member.id);
-    await store.socialNotifications.markRead(member.id);
+    const notices = await store.socialNotifications.open(member.id);
     return {
       requests: requests.map(({ entry, author }) => ({
         entry: { id: entry.id, service: entry.service, industry: entry.industry, band: entry.band, framework: entry.framework, year: entry.year, role: entry.role, areas: entry.areas, note: entry.note, createdAt: entry.createdAt },

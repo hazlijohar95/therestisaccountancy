@@ -43,9 +43,9 @@ test('the bell counts what is unread and still there; viewing marks everything r
   value(w.profiles.follow(abu.id, 'aina'));
   assert.equal(w.notifications.unread(aina.id), 2);
 
-  w.notifications.markRead(aina.id);
+  assert.deepEqual(w.notifications.open(aina.id).map((n) => n.unread), [true, true], 'opened as they stood');
   assert.equal(w.notifications.unread(aina.id), 0);
-  assert.equal(w.notifications.list(aina.id).length, 2, 'read ones stay in the list');
+  assert.deepEqual(w.notifications.list(aina.id).map((n) => n.unread), [false, false], 'read ones stay in the list');
 
   w.later(60_000);
   value(w.floor.reply(abu.id, postId, { body: 'Two.', correction: false }));
@@ -81,7 +81,7 @@ test('a rating notifies the answer’s author once; a changed rating updates it,
   value(w.problems.answer(priya.id, 7, { pick: 'B', reasoning: '' }));
   const answerId = w.problems.view(priya.id, 7)?.answers.find((a) => !a.mine)?.id ?? 0;
   value(w.problems.rate(priya.id, answerId, 'partly'));
-  w.notifications.markRead(aina.id);
+  w.notifications.open(aina.id);
   value(w.problems.rate(priya.id, answerId, 'sound'));
 
   const notices = w.notifications.list(aina.id);

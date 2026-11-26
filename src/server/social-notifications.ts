@@ -100,20 +100,24 @@ export function createSocialNotifications(db: Db, now: () => Date = () => new Da
   const rows = (memberId: number, where: string, limit: number) =>
     db.prepare(`SELECT * FROM notifications WHERE member_id = ? ${where} ORDER BY created_at DESC, id DESC LIMIT ?`).all(memberId, limit);
 
+  const list = (memberId: number): Notice[] => rows(memberId, '', LIST_LIMIT).flatMap((row) => resolve(row) ?? []);
+
   return {
     /** The latest notifications, newest first, as they read now. */
-    list(memberId: number): Notice[] {
-      return rows(memberId, '', LIST_LIMIT).flatMap((row) => resolve(row) ?? []);
-    },
+    list,
 
     /** Unread notifications that still read as something. The bell shows this. */
     unread(memberId: number): number {
       return rows(memberId, 'AND read_at IS NULL', LIST_LIMIT).filter((row) => resolve(row) !== null).length;
     },
 
-    /** Everything up to now has been seen. */
-    markRead(memberId: number): void {
-      db.prepare('UPDATE notifications SET read_at = ? WHERE member_id = ? AND read_at IS NULL').run(iso(now()), memberId);
+    /** The member opens their notifications: the list as it stood, unread ones still flagged, and now all of it read. */
+    open(memberId: number): Notice[] {
+      return db.transaction(() => {
+        const notices = list(memberId);
+        db.prepare('UPDATE notifications SET read_at = ? WHERE member_id = ? AND read_at IS NULL').run(iso(now()), memberId);
+        return notices;
+      });
     },
   };
 }
