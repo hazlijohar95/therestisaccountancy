@@ -11,7 +11,7 @@ import type { Account, Claim, Queued } from '../../server/social-claims.ts';
 export const prerender = false;
 
 const to = (path: string) => socialPath(Astro.url, path);
-const { member, socialClaims, socialNominations } = Astro.locals;
+const { member, socialClaims, socialNominations, socialFloor } = Astro.locals;
 if (!member) return Astro.redirect(signInPath(Astro.url, '/review'));
 const team = member.role === 'admin';
 if (!team) Astro.response.status = 404;
@@ -21,6 +21,7 @@ const TABS = [
   { id: 'credentials', label: 'Credentials' },
   { id: 'documents', label: 'Documents' },
   { id: 'nominations', label: 'Nominations' },
+  { id: 'reports', label: 'Reports' },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 const tab: Tab = TABS.find((t) => t.id === Astro.url.searchParams.get('tab'))?.id ?? 'accounts';
@@ -39,11 +40,14 @@ const nominationResults = {
   reject: Astro.getActionResult(actions.rejectNomination),
 };
 if (nominationResults.reject?.data) return Astro.redirect(to(`/review?tab=nominations&done=${nominationResults.reject.data.decided}`));
+const reportResults = { hide: Astro.getActionResult(actions.hideReported), dismiss: Astro.getActionResult(actions.dismissReported) };
+const reportDecided = reportResults.hide?.data ?? reportResults.dismiss?.data;
+if (reportDecided) return Astro.redirect(to(`/review?tab=reports&done=${reportDecided.decided}`));
 /* The invite link exists only in this response: its hash is all we keep, so it is never put in a redirect. */
 const invited = nominationResults.invite?.data ?? nominationResults.relink?.data ?? null;
 const done = Astro.url.searchParams.get('done');
 
-const failure = [...Object.values(results), ...Object.values(nominationResults)].map((r) => (r?.error && !isInputError(r.error) ? r.error.message : null)).find(Boolean) ?? null;
+const failure = [...Object.values(results), ...Object.values(nominationResults), ...Object.values(reportResults)].map((r) => (r?.error && !isInputError(r.error) ? r.error.message : null)).find(Boolean) ?? null;
 const rejected = results.rejectAccount ?? results.rejectClaim;
 const reasonError = rejected?.error && isInputError(rejected.error) ? (rejected.error.fields.reason?.[0] ?? null) : null;
 const posted = await postedFields(Astro.request);
@@ -51,8 +55,17 @@ const retrying = reasonError ? Number(posted(results.rejectAccount ? 'account' :
 
 const queue = team ? await socialClaims.queue() : { accounts: [], credentials: [], documents: [] };
 const nominations = team ? await socialNominations.queue() : { pending: [], invited: [] };
-const counts: Record<Tab, number> = { accounts: queue.accounts.length, credentials: queue.credentials.length, documents: queue.documents.length, nominations: nominations.pending.length };
-const items: readonly (Queued<Account> | Queued<Claim>)[] = tab === 'nominations' ? [] : queue[tab];
+const reports = team ? await socialFloor.reports() : [];
+const counts: Record<Tab, number> = {
+  accounts: queue.accounts.length,
+  credentials: queue.credentials.length,
+  documents: queue.documents.length,
+  nominations: nominations.pending.length,
+  reports: reports.length,
+};
+const items: readonly (Queued<Account> | Queued<Claim>)[] = tab === 'nominations' || tab === 'reports' ? [] : queue[tab];
+const HIDE = { post: 'Hide post', reply: 'Hide reply', profile: 'Take off The List' } as const;
+const WHAT = { post: 'Post', reply: 'Reply', profile: 'Profile' } as const;
 const isAccount = (entry: Queued<Account> | Queued<Claim>): entry is Queued<Account> => 'code' in entry.item;
 /* Forms post back to this tab, without the note from an earlier decision. */
 const here = addressed(Astro.url);
@@ -63,6 +76,7 @@ const guidance: Record<Tab, string> = {
   credentials: 'Find the member on the body’s public register, or open the staff page. The name and number must match.',
   documents: 'Download the document and read it. It is deleted once you decide, so decide only when you are sure.',
   nominations: 'Open the profile. Invite people who post things worth learning from, then send them the link by direct message. Once only, no chasing.',
+  reports: 'Read it where it is. Hide removes a post or reply, or takes a profile off The List. Dismiss leaves it. Nobody is told either way.',
 };
 const people = (n: number) => `${n} ${n === 1 ? 'nominator' : 'nominators'}`;
 ---
@@ -101,6 +115,8 @@ const people = (n: number) => `${n} ${n === 1 ? 'nominator' : 'nominators'}`;
         {done === 'approved' && <p class="note" role="status">Approved. The member has been emailed.</p>}
         {done === 'rejected' && <p class="note" role="status">Rejected. The member has your reason by email.</p>}
         {done === 'nomination-rejected' && <p class="note" role="status">Not invited. Nobody is told.</p>}
+        {done === 'hidden' && <p class="note" role="status">Hidden. The reports on it are closed.</p>}
+        {done === 'dismissed' && <p class="note" role="status">Dismissed. The reports on it are closed.</p>}
         {failure && <p class="error" role="alert">{failure}</p>}
         {invited && (
           <div class="invite-link">
@@ -175,7 +191,56 @@ const people = (n: number) => `${n} ${n === 1 ? 'nominator' : 'nominators'}`;
             ))}
           </ul>
         )}
-        {tab !== 'nominations' && (
+        {tab === 'reports' && (
+          <ul class="queue">
+            {reports.length === 0 && (
+              <li class="empty card">
+                <p>Queue clear.</p>
+              </li>
+            )}
+            {reports.map((item) => (
+              <li class="queue-item card">
+                <div class="facts">
+                  <p>
+                    <b>{WHAT[item.target]}</b> by {item.member.handle ? <a href={to(`/@${item.member.handle}`)}>{item.member.name} (@{item.member.handle})</a> : item.member.name}
+                    {item.gone && ' · already off the Floor or The List'}
+                  </p>
+                  {item.summary && <p>“{item.summary}”</p>}
+                  <p>
+                    <a href={to(item.path)}>Open it where it is</a>
+                  </p>
+                  <ul>
+                    {item.reports.map((r) => (
+                      <li>
+                        {r.reason}
+                        {r.note && `: ${r.note}`} · {r.reporter ? `@${r.reporter}` : 'a removed member'} · {formatDay(r.createdAt)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <span class="ago">{item.reports.length === 1 ? '1 report' : `${item.reports.length} reports`}</span>
+                <div class="actions">
+                  <form method="POST" action={action(actions.hideReported)}>
+                    <input type="hidden" name="target" value={item.target} />
+                    <input type="hidden" name="id" value={item.targetId} />
+                    <button class="btn sm danger" type="submit">
+                      {HIDE[item.target]}
+                      <span class="sr-only">: {item.summary || item.member.name}</span>
+                    </button>
+                  </form>
+                  <form method="POST" action={action(actions.dismissReported)}>
+                    <input type="hidden" name="target" value={item.target} />
+                    <input type="hidden" name="id" value={item.targetId} />
+                    <button class="btn sm ghost" type="submit">
+                      Dismiss<span class="sr-only">: {item.summary || item.member.name}</span>
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {tab !== 'nominations' && tab !== 'reports' && (
         <ul class="queue">
           {items.length === 0 && (
             <li class="empty card">

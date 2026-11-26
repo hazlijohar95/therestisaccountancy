@@ -385,6 +385,62 @@ const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX nominators_by_member ON nominators (member_id);
   `,
+  `
+  CREATE TABLE floor_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    room TEXT NOT NULL,
+    jurisdiction TEXT NOT NULL CHECK (jurisdiction IN ('MY', 'SG', 'AU', 'UK', 'Any')),
+    title TEXT NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    edited_at TEXT,
+    removed_at TEXT,
+    removed_by INTEGER REFERENCES members (id) ON DELETE SET NULL
+  );
+  CREATE INDEX floor_posts_by_time ON floor_posts (created_at, id);
+  CREATE INDEX floor_posts_by_member ON floor_posts (member_id, created_at);
+
+  CREATE TABLE floor_replies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL REFERENCES floor_posts (id) ON DELETE CASCADE,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    body TEXT NOT NULL,
+    accepted INTEGER NOT NULL DEFAULT 0 CHECK (accepted IN (0, 1)),
+    correction INTEGER NOT NULL DEFAULT 0 CHECK (correction IN (0, 1)),
+    created_at TEXT NOT NULL,
+    edited_at TEXT,
+    removed_at TEXT,
+    removed_by INTEGER REFERENCES members (id) ON DELETE SET NULL
+  );
+  CREATE INDEX floor_replies_by_post ON floor_replies (post_id, created_at);
+  CREATE UNIQUE INDEX one_accepted_reply_per_post ON floor_replies (post_id) WHERE accepted = 1;
+
+  CREATE TABLE useful (
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    target TEXT NOT NULL CHECK (target IN ('post', 'reply', 'item')),
+    target_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (member_id, target, target_id)
+  );
+  CREATE INDEX useful_by_target ON useful (target, target_id);
+
+  CREATE TABLE reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reporter_id INTEGER REFERENCES members (id) ON DELETE SET NULL,
+    target TEXT NOT NULL CHECK (target IN ('post', 'reply', 'profile')),
+    target_id INTEGER NOT NULL,
+    target_member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    reason TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    state TEXT NOT NULL DEFAULT 'open' CHECK (state IN ('open', 'actioned', 'dismissed')),
+    created_at TEXT NOT NULL,
+    decided_at TEXT,
+    decided_by INTEGER REFERENCES members (id) ON DELETE SET NULL
+  );
+  CREATE INDEX reports_by_state ON reports (state, created_at);
+  CREATE UNIQUE INDEX one_open_report_per_reporter ON reports (reporter_id, target, target_id) WHERE state = 'open';
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

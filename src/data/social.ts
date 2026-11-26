@@ -115,6 +115,43 @@ export const ROOMS = [
   { id: 'practice', name: 'Practitioners’ room', locked: true },
 ] as const;
 export type RoomId = (typeof ROOMS)[number]['id'];
+export const ROOM_IDS = ROOMS.map((room) => room.id);
+
+/** A post's jurisdiction: one we know, or 'Any' when the answer does not change at the border. */
+export const POST_JURISDICTIONS = ['MY', 'SG', 'AU', 'UK', 'Any'] as const;
+export type PostJurisdiction = (typeof POST_JURISDICTIONS)[number];
+
+/** Post and reply limits, shared by the forms and the server. Authors can edit for the first quarter hour. */
+export const FLOOR_LIMITS = { titleMin: 8, title: 140, body: 10_000, editMinutes: 15, pageSize: 20 } as const;
+
+/** The Floor's filters, beside the rooms. */
+export const FEED_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'following', label: 'Following' },
+  { id: 'ticked', label: 'Ticked answers' },
+  { id: 'MY', label: 'MY' },
+  { id: 'SG', label: 'SG' },
+  { id: 'AU', label: 'AU' },
+  { id: 'UK', label: 'UK' },
+  { id: 'Any', label: 'Any' },
+] as const;
+export type FeedFilter = (typeof FEED_FILTERS)[number]['id'];
+
+/** What can be reported, and why. A person on the team reads every report. */
+export const REPORT_TARGETS = ['post', 'reply', 'profile'] as const;
+export type ReportTarget = (typeof REPORT_TARGETS)[number];
+export const REPORT_REASONS = [
+  { id: 'client', label: 'It names a client or shares their details', on: ['post', 'reply'] },
+  { id: 'wrong-claim', label: 'A claim is wrong', on: ['profile'] },
+  { id: 'impersonation', label: 'Pretending to be someone', on: ['profile'] },
+  { id: 'its-me', label: 'This is me. Take it down.', on: ['profile'] },
+  { id: 'spam', label: 'Spam or selling', on: ['post', 'reply', 'profile'] },
+  { id: 'abuse', label: 'Harassment or abuse', on: ['post', 'reply', 'profile'] },
+] as const satisfies readonly { id: string; label: string; on: readonly ReportTarget[] }[];
+export type ReportReason = (typeof REPORT_REASONS)[number]['id'];
+export const REPORT_REASON_IDS = REPORT_REASONS.map((reason) => reason.id);
+export const reasonsFor = (target: ReportTarget) => REPORT_REASONS.filter((reason) => reason.on.some((on) => on === target));
+export const REPORT_NOTE_MAX = 500;
 
 /** What people post about. A profile picks any of these, and The List filters by them. */
 export const TOPICS = ['Audit', 'Tax', 'Reporting', 'FP&A', 'Co sec', 'Careers', 'AI & tools'] as const;

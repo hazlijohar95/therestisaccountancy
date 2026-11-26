@@ -1,4 +1,5 @@
 import { HANDLE, JURISDICTIONS, RESERVED_HANDLES, SECTORS, statusTrack, TOPICS, type Jurisdiction, type Sector, type Topic, type Track } from '../data/social.ts';
+import { matcher } from '../lib/search.ts';
 import { STATUS_SQL } from './club.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import { fail, ok, type Result } from './result.ts';
@@ -73,6 +74,13 @@ export function sealOf(claims: readonly ClaimFact[]): boolean {
   const ticked = claims.filter((claim) => claim.state === 'ticked');
   return ticked.some((claim) => claim.kind === 'account') && ticked.some((claim) => claim.kind !== 'account');
 }
+
+/**
+ * sealOf as SQL, for lists that filter and page in the database. memberColumn is the outer query's qualified column,
+ * like p.member_id. Tests hold the two to the same answer.
+ */
+export const sealedSql = (memberColumn: string) =>
+  `(EXISTS (SELECT 1 FROM social_accounts WHERE member_id = ${memberColumn} AND state = 'proven') AND EXISTS (SELECT 1 FROM claims WHERE member_id = ${memberColumn} AND state = 'ticked'))`;
 
 const FACT_KINDS = ['account', 'body', 'licence', 'employer', 'academic', 'experience'] as const;
 const FACT_STATES = ['pending', 'ticked', 'rejected', 'lapsed'] as const;
@@ -216,6 +224,25 @@ export function createSocialProfiles(db: Db, now: () => Date = () => new Date())
         .filter((profile) => (!filter.topic || profile.topics.includes(filter.topic)) && (!filter.track || profile.track === filter.track))
         .map((profile) => ({ profile, points: peerPoints(profile.memberId) }))
         .sort((a, b) => b.points - a.points);
+    },
+
+    /**
+     * Listed profiles where a word in the name, handle, headline or a topic starts with the query: five at most, the
+     * longest here first. Unlisted profiles stay out of search, as they stay off The List.
+     */
+    search(query: string, limit = 5): Profile[] {
+      const match = matcher(query);
+      if (!match) return [];
+      return db
+        .prepare(
+          `${PROFILES} WHERE p.listed = 1 AND ${PUBLIC}
+           AND (m.name LIKE ? ESCAPE '\\' OR p.handle LIKE ? ESCAPE '\\' OR p.headline LIKE ? ESCAPE '\\' OR p.topics LIKE ? ESCAPE '\\')
+           ORDER BY p.created_at, p.member_id LIMIT 200`,
+        )
+        .all(match.like, match.like, match.like, match.like)
+        .filter((row) => [text(row, 'name'), text(row, 'handle'), text(row, 'headline'), ...listOf(row, 'topics', TOPICS)].some(match.test))
+        .slice(0, limit)
+        .map(toProfile);
     },
 
     /** Follows a public profile. Following twice changes nothing. */

@@ -13,6 +13,7 @@ import { createNewsletter } from './newsletter.ts';
 import { createPlans } from './plans.ts';
 import { createSchedule } from './schedule.ts';
 import { createSocialClaims } from './social-claims.ts';
+import { createSocialFloor } from './social-floor.ts';
 import { createSocialNominations } from './social-nominations.ts';
 import { createSocialProfiles } from './social-profiles.ts';
 
@@ -56,6 +57,7 @@ export class ClubStore extends DurableObject<Env> {
   readonly #socialProfiles;
   readonly #socialClaims;
   readonly #socialNominations;
+  readonly #socialFloor;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -76,11 +78,12 @@ export class ClubStore extends DurableObject<Env> {
     this.#socialProfiles = createSocialProfiles(db);
     this.#socialClaims = createSocialClaims(db);
     this.#socialNominations = createSocialNominations(db);
+    this.#socialFloor = createSocialFloor(db);
     const email = (env.ADMIN_EMAIL ?? '').trim().toLowerCase();
     if (email) this.#club.appointAdmin({ email, name: 'Admin' });
   }
 
   open() {
-    return { club: this.#club, community: this.#community, limits: this.#limits, mailings: this.#mailings, schedule: this.#schedule, billing: this.#billing, incidents: this.#incidents, plans: this.#plans, calls: this.#calls, listings: this.#listings, fees: this.#fees, newsletter: this.#newsletter, socialProfiles: this.#socialProfiles, socialClaims: this.#socialClaims, socialNominations: this.#socialNominations };
+    return { club: this.#club, community: this.#community, limits: this.#limits, mailings: this.#mailings, schedule: this.#schedule, billing: this.#billing, incidents: this.#incidents, plans: this.#plans, calls: this.#calls, listings: this.#listings, fees: this.#fees, newsletter: this.#newsletter, socialProfiles: this.#socialProfiles, socialClaims: this.#socialClaims, socialNominations: this.#socialNominations, socialFloor: this.#socialFloor };
   }
 }

@@ -2,6 +2,8 @@
 import { actions } from 'astro:actions';
 import Avatar from '../../components/social/Avatar.astro';
 import Flair from '../../components/social/Flair.astro';
+import PostCard from '../../components/social/PostCard.astro';
+import ReportDialog from '../../components/social/ReportDialog.astro';
 import Tick from '../../components/social/Tick.astro';
 import { TICK_SOURCES, VOUCHES_TO_TICK, type TickSource } from '../../data/social.ts';
 import Social from '../../layouts/Social.astro';
@@ -12,10 +14,12 @@ import { addressed, signInPath, socialPath, socialPathOf } from '../../server/pa
 export const prerender = false;
 
 const handle = Astro.params.handle ?? '';
-const { member, socialProfiles, socialClaims } = Astro.locals;
+const { member, socialProfiles, socialClaims, socialFloor } = Astro.locals;
 const profile = await socialProfiles.profile(handle);
 const followed = Astro.getActionResult(actions.follow) ?? Astro.getActionResult(actions.unfollow);
 const vouched = Astro.getActionResult(actions.vouch);
+const reported = Astro.getActionResult(actions.report);
+const useful = Astro.getActionResult(actions.markUseful) ?? Astro.getActionResult(actions.unmarkUseful);
 const to = (path: string) => socialPath(Astro.url, path);
 
 if (profile && profile.handle !== handle) return Astro.redirect(to(`/@${profile.handle}`));
@@ -25,6 +29,8 @@ const own = member !== null && profile?.memberId === member.id;
 const following = member && profile && !own ? await socialProfiles.isFollowing(member.id, profile.memberId) : false;
 const counts = profile ? await socialProfiles.followCounts(profile.memberId) : null;
 const ledger = profile ? await socialClaims.ledger(profile.memberId, member?.id ?? null) : { claims: [], accounts: [] };
+const posts = profile ? await socialFloor.recentPosts(member?.id ?? null, profile.memberId) : [];
+const usefulFocus = useful?.data ? `useful-${useful.data.target}-${useful.data.id}` : null;
 /* Only members with the seal vouch, and never for themselves. Others see the count. */
 const canVouch = !own && (Astro.locals.profile?.sealed ?? false);
 const sources = [...new Set<TickSource>([...(ledger.accounts.length ? ['account' as const] : []), ...ledger.claims.map((c) => c.source)])];
@@ -86,8 +92,11 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
                 ) : (
                   <a class="btn sm" href={signInPath(Astro.url, socialPathOf(Astro.url))}>Sign in to follow</a>
                 )}
+                {member && !own && <ReportDialog target="profile" handle={profile.handle} about={`@${profile.handle}`} class="btn sm ghost" />}
               </div>
               {followError && <p class="error" role="alert">{followError}</p>}
+              {reported?.error && <p class="error" role="alert">{reported.error.message}</p>}
+              {reported?.data && <p class="note" role="status">Report sent. A person on the team reads every one.</p>}
               {followed?.data && <p class="sr-only" role="status">{followed.data.following ? `Following ${profile.name}.` : 'Unfollowed.'}</p>}
             </div>
           </section>
@@ -169,6 +178,23 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
               )}
             </div>
             {own && <p class="small">Self-declared claims are ticked once {VOUCHES_TO_TICK} members with the seal vouch for them. <a href={to('/verify')}>Add or renew claims</a>.</p>}
+          </section>
+
+          <section class="section card" aria-labelledby="posts-title">
+            <header>
+              <h2 class="head" id="posts-title">Recent posts</h2>
+            </header>
+            {useful?.error && <p class="error" role="alert">{useful.error.message}</p>}
+            {posts.length ? (
+              <div class="recent">
+                {posts.map((post) => <PostCard post={post} signedIn={member !== null} focus={usefulFocus} />)}
+              </div>
+            ) : (
+              <div class="empty">
+                <p>{own ? 'You have not posted yet.' : 'No posts yet.'}</p>
+                {own && <a class="btn sm" href={to('/')}>Ask the Floor</a>}
+              </div>
+            )}
           </section>
         </div>
 

@@ -1,57 +1,198 @@
 ---
-import { ROOMS } from '../../data/social.ts';
+import { actions, isInputError } from 'astro:actions';
+import Avatar from '../../components/social/Avatar.astro';
+import PostCard from '../../components/social/PostCard.astro';
+import ReportDialog from '../../components/social/ReportDialog.astro';
+import { FEED_FILTERS, FLOOR_LIMITS, POST_JURISDICTIONS, ROOMS, type FeedFilter, type RoomId } from '../../data/social.ts';
 import Social from '../../layouts/Social.astro';
-import { socialPath } from '../../server/paths.ts';
+import { postedFields } from '../../lib/form.ts';
+import { formAction } from '../../lib/format.ts';
+import { pageCount, pageHref, pagingOf } from '../../lib/paging.ts';
+import { addressed, signInPath, socialPath, socialPathOf } from '../../server/paths.ts';
 
 export const prerender = false;
 
-const member = Astro.locals.member;
-const profile = member ? await Astro.locals.socialProfiles.ownProfile(member.id) : null;
 const to = (path: string) => socialPath(Astro.url, path);
+const { member, profile, socialFloor } = Astro.locals;
+const params = Astro.url.searchParams;
+const room: RoomId | null = ROOMS.find((r) => r.id === params.get('room'))?.id ?? null;
+const filter: FeedFilter = FEED_FILTERS.find((f) => f.id === params.get('filter'))?.id ?? 'all';
+
+const posted = Astro.getActionResult(actions.floorPost);
+if (posted?.data) return Astro.redirect(to(`/post/${posted.data.id}?posted=1`));
+const useful = Astro.getActionResult(actions.markUseful) ?? Astro.getActionResult(actions.unmarkUseful);
+const reported = Astro.getActionResult(actions.report);
+
+const paging = pagingOf(Astro.url, FLOOR_LIMITS.pageSize);
+const feed = await socialFloor.feed(member?.id ?? null, { room, filter, offset: paging.offset });
+const pages = pageCount(feed.total, FLOOR_LIMITS.pageSize);
+if (paging.page > pages) return Astro.redirect(pageHref(Astro.url, pages));
+
+/* The Floor with one choice changed and the other kept, back on the first page. */
+const link = (change: { room?: RoomId | null; filter?: FeedFilter }) => {
+  const next = { room, filter, ...change };
+  const query = new URLSearchParams();
+  if (next.room) query.set('room', next.room);
+  if (next.filter !== 'all') query.set('filter', next.filter);
+  return `${to('/')}${query.size ? `?${query}` : ''}`;
+};
+
+const composeErrors = posted?.error && isInputError(posted.error) ? posted.error.fields : {};
+const composeFailure = posted?.error && !isInputError(posted.error) ? posted.error.message : null;
+const typed = posted?.error ? await postedFields(Astro.request) : () => '';
+const errors = { title: composeErrors.title?.[0], body: composeErrors.body?.[0], room: composeErrors.room?.[0], jurisdiction: composeErrors.jurisdiction?.[0] };
+const composing = Boolean(posted?.error);
+const firstError = (['title', 'body', 'room', 'jurisdiction'] as const).find((field) => errors[field]);
+const describedBy = (field: keyof typeof errors, hint?: string) => [hint, errors[field] ? `compose-${field}-error` : undefined].filter(Boolean).join(' ') || undefined;
+const postRooms = feed.rooms.filter((r) => !r.locked);
+const chosenRoom = typed('room') || (room && postRooms.some((r) => r.id === room) ? room : 'open');
+const chosenJurisdiction = typed('jurisdiction') || 'MY';
+const usefulFocus = useful?.data ? `useful-${useful.data.target}-${useful.data.id}` : null;
+const canPost = Boolean(member && profile);
+const action = (which: { toString(): string }) => formAction(addressed(Astro.url), which);
+const roomName = room ? ROOMS.find((r) => r.id === room)?.name : null;
 ---
 
-<Social section="floor">
+<Social title={roomName ?? undefined} section="floor">
   <div class="page floor">
-    <section class="rooms card" aria-labelledby="rooms-title">
+    <nav class="rooms card" aria-labelledby="rooms-title">
       <p class="kicker" id="rooms-title">Rooms</p>
       <ul>
+        <li>
+          <a class="room" href={link({ room: null })} aria-current={room === null ? 'page' : undefined}>
+            <span>All rooms</span>
+          </a>
+        </li>
         {
-          ROOMS.map((room) => (
-            <li class="room">
-              <span>{room.name}</span>
-              {room.locked && (
-                <svg role="img" aria-label="Needs a practising tick">
-                  <use href="#i-lock" />
-                </svg>
-              )}
+          feed.rooms.map((r) => (
+            <li>
+              <a class="room" href={link({ room: r.id })} aria-current={r.id === room ? 'page' : undefined}>
+                <span>{r.name}</span>
+                {r.locked ? (
+                  <svg role="img" aria-label="Needs a practising tick">
+                    <use href="#i-lock" />
+                  </svg>
+                ) : (
+                  <span class="n">
+                    {r.posts}
+                    <span class="sr-only"> posts</span>
+                  </span>
+                )}
+              </a>
             </li>
           ))
         }
       </ul>
-    </section>
+    </nav>
     <section aria-labelledby="floor-title">
-      <h1 class="sr-only" id="floor-title">Floor</h1>
+      <h1 class="sr-only" id="floor-title">{roomName ?? 'Floor'}</h1>
+      {
+        canPost && profile ? (
+          <div class="composer card">
+            <Avatar name={profile.name} track={profile.track} sealed={profile.sealed} size="sm" />
+            <button class="fake" type="button" commandfor="compose" command="show-modal">
+              Ask the floor, or share what you know.
+            </button>
+            <button class="btn sm" type="button" commandfor="compose" command="show-modal" aria-label="New post">
+              <svg aria-hidden="true"><use href="#i-plus" /></svg>
+              <span>Post</span>
+            </button>
+          </div>
+        ) : (
+          <div class="composer card">
+            <p class="small">
+              {member ? (
+                <>
+                  <a href={to('/edit')}>Claim your handle</a> to post and reply.
+                </>
+              ) : (
+                <>
+                  <a href={signInPath(Astro.url, socialPathOf(Astro.url))}>Sign in</a> or <a href={to('/sign-up')}>sign up free</a> to post and reply.
+                </>
+              )}
+            </p>
+          </div>
+        )
+      }
+      <nav class="filters chips" aria-label="Filter posts">
+        {
+          FEED_FILTERS.map((f) => (
+            <a class="chip" href={link({ filter: f.id })} aria-current={f.id === filter ? 'page' : undefined}>
+              {f.id === 'ticked' && <svg aria-hidden="true"><use href="#tk" /></svg>}
+              {f.label}
+            </a>
+          ))
+        }
+      </nav>
+      {useful?.error && <p class="error" role="alert">{useful.error.message}</p>}
+      {useful?.data && <p class="sr-only" role="status">{useful.data.marked ? 'Marked useful.' : 'Unmarked.'}</p>}
+      {params.get('done') === 'deleted' && <p class="note" role="status">Deleted.</p>}
+      {reported?.error && <p class="error" role="alert">{reported.error.message}</p>}
+      {reported?.data && <p class="note" role="status">Report sent. A person on the team reads every one.</p>}
       <div class="feed">
-        <div class="empty">
-          <p class="head">Nothing on the Floor yet.</p>
-          <p>Posts and answers open here soon. Claim your handle now, and you can post from day one.</p>
-          {
-            member ? (
-              <a class="btn sm" href={to('/edit')}>{profile ? 'Fill in your profile' : 'Claim your handle'}</a>
-            ) : (
-              <a class="btn sm" href={to('/sign-up')}>Sign up free</a>
-            )
-          }
-        </div>
+        {
+          feed.locked ? (
+            <div class="empty">
+              <p class="head">This room needs a practising tick.</p>
+              <p>Practitioners talk shop here. Fees, inspections, clients. Everyone else reads the open floor.</p>
+              <a class="btn sm" href={to('/verify?step=licence')}>Get ticked</a>
+            </div>
+          ) : filter === 'following' && !member ? (
+            <div class="empty">
+              <p class="head">Sign in to see who you follow.</p>
+              <p>Follow people from The List and their posts show here.</p>
+              <a class="btn sm" href={signInPath(Astro.url, socialPathOf(Astro.url))}>Sign in</a>
+            </div>
+          ) : feed.posts.length ? (
+            feed.posts.map((post) => (
+              <PostCard post={post} signedIn={member !== null} focus={usefulFocus}>
+                {member && !post.mine && <ReportDialog target="post" id={post.id} about={`“${post.title}”`} />}
+              </PostCard>
+            ))
+          ) : filter === 'following' ? (
+            <div class="empty">
+              <p class="head">Nothing from people you follow yet.</p>
+              <p>Follow people from The List and their posts show here.</p>
+              <a class="btn sm" href={to('/list')}>Open The List</a>
+            </div>
+          ) : room === null && filter === 'all' ? (
+            <div class="empty">
+              <p class="head">Nothing on the Floor yet.</p>
+              <p>Ask the first question. People who know answer here, and ticked answers show it.</p>
+              {!canPost && <a class="btn sm" href={member ? to('/edit') : to('/sign-up')}>{member ? 'Claim your handle' : 'Sign up free'}</a>}
+            </div>
+          ) : (
+            <div class="empty">
+              <p class="head">Quiet in here.</p>
+              <p>Nothing matches this room and filter yet.</p>
+              <a class="btn sm ghost" href={link({ room: null, filter: 'all' })}>Show everything</a>
+            </div>
+          )
+        }
       </div>
+      {
+        pages > 1 && (
+          <nav class="pager" aria-label="Pages">
+            {paging.page > 1 ? <a class="btn sm ghost" href={pageHref(Astro.url, paging.page - 1)}>Newer</a> : <span />}
+            <span class="small">
+              Page {paging.page} of {pages}
+            </span>
+            {paging.page < pages ? <a class="btn sm ghost" href={pageHref(Astro.url, paging.page + 1)}>Older</a> : <span />}
+          </nav>
+        )
+      }
     </section>
     <aside class="rail" aria-label="Next steps">
-      <div class="rail-card card">
-        <p class="hand-note">get your seal</p>
-        <h2 class="head">Get ticked</h2>
-        <p class="small">Prove your account. Add your body. The seal shows once one account and one credential are ticked.</p>
-        <a class="btn sm" href={to('/ticks')}>What a tick means</a>
-      </div>
+      {
+        !(profile?.sealed ?? false) && (
+          <div class="rail-card card">
+            <p class="hand-note">get your seal</p>
+            <h2 class="head">Get ticked</h2>
+            <p class="small">Prove your account. Add your body. The seal shows once one account and one credential are ticked.</p>
+            <a class="btn sm" href={to('/verify')}>Start</a>
+          </div>
+        )
+      }
       <div class="rail-card card">
         <p class="kicker">The List</p>
         <p class="small">People worth following, ranked by peers. Never by followers.</p>
@@ -59,4 +200,109 @@ const to = (path: string) => socialPath(Astro.url, path);
       </div>
     </aside>
   </div>
+
+  {
+    canPost && (
+      <dialog class="modal card" id="compose" aria-labelledby="compose-title" open={composing ? true : undefined} data-reopen={composing ? '' : undefined}>
+        <form method="POST" action={action(actions.floorPost)} novalidate data-draft-form={composing ? 'typed' : 'fresh'}>
+          <p class="kicker">New post</p>
+          <h2 class="head" id="compose-title">What do you want to ask or share?</h2>
+          <div class="field">
+            <label for="compose-title-input">Title</label>
+            <input class="input" id="compose-title-input" name="title" required minlength={FLOOR_LIMITS.titleMin} maxlength={FLOOR_LIMITS.title} value={typed('title')} placeholder="Does a dormant Sdn Bhd still need an audit?" aria-invalid={errors.title ? 'true' : undefined} aria-describedby={describedBy('title')} autofocus={firstError === 'title' || !firstError ? true : undefined} data-draft="title" />
+            {errors.title && <span class="error" id="compose-title-error">{errors.title}</span>}
+          </div>
+          <div class="field">
+            <label for="compose-body">Details · optional</label>
+            <textarea class="input" id="compose-body" name="body" rows="5" maxlength={FLOOR_LIMITS.body} placeholder="What you know so far, and what you’ve tried." aria-invalid={errors.body ? 'true' : undefined} aria-describedby={describedBy('body')} autofocus={firstError === 'body' ? true : undefined} data-draft="body">{typed('body')}</textarea>
+            {errors.body && <span class="error" id="compose-body-error">{errors.body}</span>}
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label for="compose-room">Room</label>
+              <select class="input" id="compose-room" name="room" aria-invalid={errors.room ? 'true' : undefined} aria-describedby={describedBy('room')} data-draft="room">
+                {postRooms.map((r) => <option value={r.id} selected={chosenRoom === r.id}>{r.name}</option>)}
+              </select>
+              {errors.room && <span class="error" id="compose-room-error">{errors.room}</span>}
+            </div>
+            <div class="field">
+              <label for="compose-jurisdiction">Jurisdiction</label>
+              <select class="input" id="compose-jurisdiction" name="jurisdiction" aria-invalid={errors.jurisdiction ? 'true' : undefined} aria-describedby={describedBy('jurisdiction', 'compose-jurisdiction-hint')} data-draft="jurisdiction">
+                {POST_JURISDICTIONS.map((j) => <option value={j} selected={chosenJurisdiction === j}>{j}</option>)}
+              </select>
+              {errors.jurisdiction && <span class="error" id="compose-jurisdiction-error">{errors.jurisdiction}</span>}
+            </div>
+          </div>
+          <p class="small" id="compose-jurisdiction-hint">Tag the jurisdiction. Tax answers change at the border.</p>
+          {composeFailure && <p class="error" role="alert">{composeFailure}</p>}
+          <div class="row-end">
+            <span class="small" role="status" data-draft-status></span>
+            <button class="btn" type="submit">Post</button>
+          </div>
+        </form>
+        <button class="icon-btn close" type="button" commandfor="compose" command="close" aria-label="Close dialog">
+          <svg aria-hidden="true"><use href="#i-x" /></svg>
+        </button>
+      </dialog>
+    )
+  }
 </Social>
+
+<script>
+  import { DRAFT_KEY } from '../../lib/drafts.ts';
+
+  /*
+   * The composer keeps a draft in this browser as you type, and brings it back next time. A refused post shows what
+   * was sent instead, so the server's copy wins. The thread page clears the draft once a post lands.
+   */
+  const dialog = document.getElementById('compose');
+  const form = dialog?.querySelector('form[data-draft-form]');
+  if (dialog instanceof HTMLDialogElement && form instanceof HTMLFormElement) {
+    if (dialog.hasAttribute('data-reopen')) {
+      dialog.close();
+      dialog.showModal();
+    }
+    const status = form.querySelector('[data-draft-status]');
+    /* Each drafted field, read and written the same way whether it is typed or picked. */
+    const fields: { key: string; get: () => string; set: (value: string) => void; typed: boolean; accepts: (value: string) => boolean }[] = [];
+    for (const node of form.querySelectorAll('[data-draft]')) {
+      if (node instanceof HTMLSelectElement) {
+        const select = node;
+        fields.push({ key: select.dataset.draft ?? '', get: () => select.value, set: (value) => (select.value = value), typed: false, accepts: (value) => [...select.options].some((o) => o.value === value) });
+      } else if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) {
+        const input = node;
+        fields.push({ key: input.dataset.draft ?? '', get: () => input.value, set: (value) => (input.value = value), typed: true, accepts: () => true });
+      }
+    }
+    const read = (): Record<string, string> => {
+      try {
+        const stored: unknown = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? '{}');
+        if (typeof stored !== 'object' || stored === null) return {};
+        return Object.fromEntries(Object.entries(stored).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+      } catch {
+        return {};
+      }
+    };
+    const save = () => {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(Object.fromEntries(fields.map((field) => [field.key, field.get()]))));
+        if (status) status.textContent = 'Draft saved.';
+      } catch {
+        /* Storage can be full or blocked. The post still sends. */
+      }
+    };
+    if (form.dataset.draftForm === 'fresh') {
+      const draft = read();
+      let restored = false;
+      for (const field of fields) {
+        const value = draft[field.key];
+        if (!value || !field.accepts(value)) continue;
+        field.set(value);
+        if (field.typed) restored = true;
+      }
+      if (restored && status) status.textContent = 'Draft restored.';
+    }
+    form.addEventListener('input', save);
+    form.addEventListener('change', save);
+  }
+</script>

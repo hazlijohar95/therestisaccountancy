@@ -177,6 +177,7 @@ test('the migration leaves out members who had already paid, but not members sti
   billing.opened('p-paid', paid.id, 'checkout', 'month');
   assert.ok(billing.paid('p-paid', false));
   /* Back to the schema before the getting-started emails (migration 16), undoing the social ones after it, then upgrade again. */
+  w.db.exec('DROP TABLE reports; DROP TABLE useful; DROP TABLE floor_replies; DROP TABLE floor_posts;');
   w.db.exec('DROP TABLE nominators; DROP TABLE nominations;');
   w.db.exec('DROP TABLE vouches; DROP TABLE email_checks; DROP TABLE claims; DROP TABLE social_accounts; ALTER TABLE members DROP COLUMN club_approved_at;');
   w.db.exec('DROP TABLE follows; DROP TABLE profiles; ALTER TABLE members DROP COLUMN joined_via;');

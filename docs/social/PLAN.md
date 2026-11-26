@@ -20,6 +20,8 @@ The visual and interaction spec is the static design in `../social/` at the work
 - **Notifications** are rows in a table, written when the event happens.
 - **Drafts** stay in the browser (`localStorage`), never on the server.
 - **Nominations stay private.** Only the nominator sees their own (on The List), the team sees the queue, and the nominee sees their invite. A handle counts as on The List once a member has proven that account; a pending account blocks nothing. We know only a handle, so the team sends the invite link by direct message themselves. The link is shown once, in the response to Invite (only its hash is kept); Make a new link replaces a lost one. Claiming signed out goes through sign-up with only the token, and the server reads the account from it.
+- **What the Floor shows.** One rule for every read and write: not removed, written by an active member with a handle, and the practitioners' room only for a member with any ticked licence claim (or the team). Search, profiles and the feed all go through it. Posting needs a handle, never the seal.
+- **Answers and corrections are read from current ticks.** "Answered by a ticked X" shows while the accepted reply's author holds the seal, X being their most telling ticked credential (a qualifying body status, then a training one, then a licence, then an academic post), or "member" when the seal rests on a workplace or experience. A member with the seal marks their own reply as a correction when they post it; it shows in red while they hold the seal.
 - **Peer points** for The List: answers rated sound by ticked members plus saves of shelf items, in the current quarter.
 
 ## Constraints from the domain move (another session, landing on main before this branch merges)
@@ -50,8 +52,10 @@ nominations        id AUTOINCREMENT, platform, handle (accountHandle form), stat
                    'removed' is the nominee's no, kept with its nominators deleted so the handle is never invited again)
 nominators         nomination_id, member_id, topics JSON, why_url NULL, created_at (PK both: a member counts once)
 follows            follower_id, followee_id, created_at (PK both)
-floor_posts        id, member_id, room, jurisdiction, title, body, created_at, edited_at, removed_at
-floor_replies      id, post_id, member_id, body, accepted INTEGER, correction INTEGER, created_at, removed_at
+floor_posts        id AUTOINCREMENT, member_id, room, jurisdiction MY|SG|AU|UK|Any, title, body, created_at, edited_at,
+                   removed_at, removed_by  (removal is soft: the author's delete and the team's remove both set it)
+floor_replies      id AUTOINCREMENT, post_id, member_id, body, accepted INTEGER (one per post), correction INTEGER,
+                   created_at, edited_at, removed_at, removed_by
 useful             member_id, target post|reply|item, target_id, created_at (PK all three)
 problems           id, number UNIQUE, tag, jurisdiction, title, scenario JSON, ask, options JSON,
                    opens_at, closes_at, created_by
@@ -62,8 +66,9 @@ casebook           id, member_id, service, industry, band, framework, year, role
 shelf_items        id, member_id, kind, title, url, created_at, removed_at
 saves              member_id, item_id, created_at (PK both)
 notifications      id, member_id, kind, payload JSON, created_at, read_at
-reports            id, reporter_id, target_member_id, reason, note, state open|actioned|dismissed,
-                   created_at, decided_by, decided_at
+reports            id, reporter_id, target post|reply|profile, target_id (the member's id for a profile),
+                   target_member_id, reason, note, state open|actioned|dismissed, created_at, decided_by, decided_at
+                   (one open report per reporter and thing; the team decides all open reports on a thing at once)
 ```
 
 Lists that the code checks against (bodies, platforms, rooms, topics, sectors, services, industries, bands, frameworks, report reasons) live in `src/data/social.ts`, typed with `as const`.
