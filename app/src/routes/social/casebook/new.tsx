@@ -4,7 +4,7 @@ import { AREAS, BANDS, CASEBOOK_LIMITS, EMPLOYER_KINDS, ENGAGEMENT_ROLES, FRAMEW
 import { identifying } from '../../../../../src/lib/guard.ts';
 import { SocialLink } from '../../../components/social/PathLink.tsx';
 import { Tick } from '../../../components/social/Tick.tsx';
-import { useAction } from '../../../components/social/useFormAction.ts';
+import { useAction } from '../../../components/social/useAction.ts';
 import { addEntry, addRole, casebookPage, removeEntry, removeRole } from '../../../functions/social-casebook.ts';
 import { socialSignInHref } from '../../../lib/links.ts';
 import { noindex, socialTitle } from '../../../lib/title.ts';
@@ -187,6 +187,7 @@ function EntryForm({ years, onDone, onRefused }: { years: string[]; onDone: () =
     event.preventDefault();
     const form = event.currentTarget;
     const outcome = await add.run(draftOf(form));
+    if (!outcome) return;
     if (!outcome.ok) return onRefused(Object.keys(outcome.fields).length ? null : outcome.message);
     form.reset();
     setDraft(blank);
@@ -301,6 +302,7 @@ function RoleForm({ thisYear, onDone, onRefused }: { thisYear: number; onDone: (
     const data = new FormData(form);
     const one = (name: string) => String(data.get(name) ?? '');
     const outcome = await add.run({ from: one('from'), to: one('to'), title: one('title'), employer: one('employer') });
+    if (!outcome) return;
     if (!outcome.ok) return onRefused(Object.keys(outcome.fields).length ? null : outcome.message);
     form.reset();
     onDone();
@@ -387,6 +389,7 @@ function RemoveEntry({ entry, onDone, onRefused }: { entry: Data['entries'][numb
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const outcome = await remove.run({ entry: entry.id });
+    if (!outcome) return;
     if (outcome.ok) onDone();
     else onRefused(outcome.message);
   };
@@ -414,6 +417,7 @@ function RemoveRole({ role, onDone, onRefused }: { role: Data['roles'][number]; 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const outcome = await remove.run({ role: role.id });
+    if (!outcome) return;
     if (outcome.ok) onDone();
     else onRefused(outcome.message);
   };

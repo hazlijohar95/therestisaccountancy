@@ -333,7 +333,7 @@ function Compose({ dialog, rooms, room }: { dialog: RefObject<HTMLDialogElement 
   const body = fieldError(refusal, 'body', { id: 'compose-body-error' });
   const roomError = fieldError(refusal, 'room', { id: 'compose-room-error' });
   const jurisdiction = fieldError(refusal, 'jurisdiction', { id: 'compose-jurisdiction-error', hint: 'compose-jurisdiction-hint' });
-  const failure = refusal && Object.keys(refusal.fields).length === 0 ? refusal.message : null;
+  const failure = post.failure;
 
   return (
     <dialog className="modal card" id="compose" ref={dialog} aria-labelledby="compose-title">

@@ -38,7 +38,7 @@ function Nominate() {
   const platform = fieldError(refusal, 'platform', { id: 'nominate-platform-error' });
   const handle = fieldError(refusal, 'handle', { id: 'nominate-handle-error', hint: 'nominate-handle-hint' });
   const whyUrl = fieldError(refusal, 'whyUrl', { id: 'nominate-whyUrl-error' });
-  const failure = refusal && Object.keys(refusal.fields).length === 0 ? refusal.message : null;
+  const failure = send.failure;
 
   return (
     <div className="page">

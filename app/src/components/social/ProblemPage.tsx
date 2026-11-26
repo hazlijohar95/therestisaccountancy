@@ -9,7 +9,7 @@ import { Flair } from './Flair.tsx';
 import { PostText } from '../PostText.tsx';
 import { SocialLink } from './PathLink.tsx';
 import { Tick } from './Tick.tsx';
-import { useAction } from './useFormAction.ts';
+import { useAction } from './useAction.ts';
 
 export type Board = Awaited<ReturnType<typeof problemBoard>>;
 export type View = NonNullable<Awaited<ReturnType<typeof problemView>>>;
@@ -171,6 +171,7 @@ function Problem({ view, board, here, written }: { view: View; board: Board; her
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const outcome = await answer.run({ number: problem.number, pick: String(form.get('pick') ?? ''), reasoning: String(form.get('reasoning') ?? '') });
+    if (!outcome) return;
     if (outcome.ok) setAnswered(true);
   };
 
@@ -178,6 +179,7 @@ function Problem({ view, board, here, written }: { view: View; board: Board; her
   const rateOne = async (answerId: number, button: string, rating: string) => {
     if (rate.busy) return;
     const outcome = await rate.run({ answer: answerId, button, rating });
+    if (!outcome) return;
     if (outcome.ok) setStatus(outcome.value.rating ? `Rated ${outcome.value.rating}.` : 'Rating taken back.');
   };
 

@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import type { FormEvent } from 'react';
 import { SocialLink, useGo } from '../../../components/social/PathLink.tsx';
 import { Tick } from '../../../components/social/Tick.tsx';
-import { useAction } from '../../../components/social/useFormAction.ts';
+import { useAction } from '../../../components/social/useAction.ts';
 import { confirmWorkEmail, workEmailPage } from '../../../functions/social-ticks.ts';
 import { socialSignInHref } from '../../../lib/links.ts';
 import { noindex, socialTitle } from '../../../lib/title.ts';
@@ -46,6 +46,7 @@ function WorkEmail() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const outcome = await confirm.run({ token });
+    if (!outcome) return;
     if (outcome.ok) go('/verify?step=work&done=confirmWorkEmail');
   };
 

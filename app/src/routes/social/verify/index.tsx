@@ -5,7 +5,7 @@ import type { ClaimKind } from '../../../../../src/server/social-claims.ts';
 import { Avatar } from '../../../components/social/Avatar.tsx';
 import { SocialLink } from '../../../components/social/PathLink.tsx';
 import { Tick } from '../../../components/social/Tick.tsx';
-import { describedBy, useAction } from '../../../components/social/useFormAction.ts';
+import { describedBy, useAction } from '../../../components/social/useAction.ts';
 import { addAcademic, addAccount, addBody, addExperience, addLicence, removeAccount, removeClaim, sendWorkEmail, verifyPage } from '../../../functions/social-ticks.ts';
 import { socialSignInHref } from '../../../lib/links.ts';
 import { noindex, socialTitle } from '../../../lib/title.ts';
@@ -254,6 +254,7 @@ function AccountStep({ data, onDone }: StepProps) {
     const form = event.currentTarget;
     const { platform = '', handle = '' } = read(form, 'platform', 'handle');
     const outcome = await add.run({ platform, handle });
+    if (!outcome) return;
     if (!outcome.ok) return;
     form.reset();
     onDone('addAccount');
@@ -350,6 +351,7 @@ function BodyStep({ data, body, onDone }: StepProps & { body: Body | undefined }
     setLarge(tooBig(form));
     if (tooBig(form)) return form.querySelector<HTMLInputElement>('#body-evidence')?.focus();
     const outcome = await add.run(new FormData(form));
+    if (!outcome) return;
     if (!outcome.ok) return;
     form.reset();
     onDone('addBody');
@@ -509,6 +511,7 @@ function LicenceStep({ data, onDone }: StepProps) {
     setLarge(tooBig(form));
     if (tooBig(form)) return form.querySelector<HTMLInputElement>('#licence-evidence')?.focus();
     const outcome = await add.run(new FormData(form));
+    if (!outcome) return;
     if (!outcome.ok) return;
     form.reset();
     onDone('addLicence');
@@ -629,6 +632,7 @@ function WorkStep({ data, onDone }: StepProps) {
     event.preventDefault();
     const form = event.currentTarget;
     const outcome = await work.run({ email: read(form, 'email')['email'] ?? '' });
+    if (!outcome) return;
     if (!outcome.ok) return;
     form.reset();
     onDone('sendWorkEmail');
@@ -638,6 +642,7 @@ function WorkStep({ data, onDone }: StepProps) {
     const form = event.currentTarget;
     const { role = '', url = '' } = read(form, 'role', 'url');
     const outcome = await academic.run({ role, url });
+    if (!outcome) return;
     if (!outcome.ok) return;
     form.reset();
     onDone('addAcademic');
@@ -646,6 +651,7 @@ function WorkStep({ data, onDone }: StepProps) {
     event.preventDefault();
     const form = event.currentTarget;
     const outcome = await experience.run({ text: read(form, 'text')['text'] ?? '' });
+    if (!outcome) return;
     if (!outcome.ok) return;
     form.reset();
     onDone('addExperience');
@@ -807,6 +813,7 @@ function Remove({
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const outcome = target.kind === 'account' ? await account.run({ account: target.id }) : await claim.run({ claim: target.id });
+    if (!outcome) return;
     if (outcome.ok) onDone();
     else onRefused(outcome.message);
   };

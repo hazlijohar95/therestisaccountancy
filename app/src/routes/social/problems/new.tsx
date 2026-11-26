@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { OPTION_KEYS, POST_JURISDICTIONS, PROBLEM_LIMITS, TOPICS } from '../../../../../src/data/social.ts';
 import { formatMoment, tally } from '../../../../../src/lib/format.ts';
 import { SocialLink, useGo } from '../../../components/social/PathLink.tsx';
-import { useAction } from '../../../components/social/useFormAction.ts';
+import { useAction } from '../../../components/social/useAction.ts';
 import { newProblemPage, removeProblem, writeProblem } from '../../../functions/social-problems.ts';
 import { socialSignInHref } from '../../../lib/links.ts';
 import { noindex, socialTitle } from '../../../lib/title.ts';
@@ -69,6 +69,7 @@ function WriteProblem() {
       closesDate: one('closesDate'),
       closesTime: one('closesTime'),
     });
+    if (!outcome) return;
     if (outcome.ok) go(`/problems/${outcome.value.number}?written=1`);
   };
 
@@ -248,6 +249,7 @@ function TakeBack({ problem, onDone, onRefused }: { problem: Data['schedule'][nu
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const outcome = await remove.run({ number: problem.number });
+    if (!outcome) return;
     if (outcome.ok) onDone();
     else onRefused(outcome.message);
   };

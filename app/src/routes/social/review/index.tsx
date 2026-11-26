@@ -5,7 +5,7 @@ import { formatDay, formatMonth } from '../../../../../src/lib/format.ts';
 import { CopyLink } from '../../../components/social/CopyLink.tsx';
 import { SocialLink } from '../../../components/social/PathLink.tsx';
 import { Tick } from '../../../components/social/Tick.tsx';
-import { useAction } from '../../../components/social/useFormAction.ts';
+import { useAction } from '../../../components/social/useAction.ts';
 import {
   approveAccount,
   approveClaim,
@@ -87,7 +87,7 @@ export const Route = createFileRoute('/social/review/')({
 
 type Queue = Awaited<ReturnType<typeof reviewQueue>>;
 /** Tells the page how a decision went: the note on success, the refusal's message when it is not about a field. */
-type Settle = (outcome: Outcome<unknown>, decided: Decided) => void;
+type Settle = (outcome: Outcome<unknown> | null, decided: Decided) => void;
 
 function Review() {
   const data = Route.useLoaderData();
@@ -105,6 +105,7 @@ function Review() {
   }, [tab]);
 
   const settle: Settle = (outcome, decided) => {
+    if (!outcome) return;
     setFailure(outcome.ok || Object.keys(outcome.fields).length ? null : outcome.message);
     setDone(outcome.ok ? decided : null);
     if (!outcome.ok) return;
@@ -299,6 +300,7 @@ function Invites({
     const form = event.currentTarget;
     const fields = new FormData(form);
     const outcome = await invite.run({ email: String(fields.get('email') ?? ''), name: String(fields.get('name') ?? '') });
+    if (!outcome) return;
     if (!outcome.ok) return onRefused(Object.keys(outcome.fields).length ? null : outcome.message);
     form.reset();
     onInvited(outcome.value);
@@ -411,6 +413,7 @@ function NominationItem({ nomination: n, settle, onInvited }: { nomination: Queu
 
   const send = async () => {
     const outcome = n.invitedAt ? await relink.run({ nomination: n.id }) : await invite.run({ nomination: n.id });
+    if (!outcome) return;
     if (outcome.ok) onInvited(outcome.value);
     else settle(outcome, 'nomination-rejected');
   };
@@ -546,7 +549,7 @@ function Who({ who }: { who: Person }) {
 
 /** A rejection's form: it posts the reason, and shows the reason's error beside it. */
 interface Rejecter {
-  run: (reason: string) => Promise<Outcome<null>>;
+  run: (reason: string) => Promise<Outcome<null> | null>;
   busy: boolean;
   error: string | undefined;
   form: RefObject<HTMLFormElement | null>;
@@ -570,7 +573,7 @@ function Decide({
   who: Person;
   approveLabel: string;
   placeholder: string;
-  approve: () => Promise<Outcome<null>>;
+  approve: () => Promise<Outcome<null> | null>;
   reject: Rejecter;
   settle: Settle;
 }) {

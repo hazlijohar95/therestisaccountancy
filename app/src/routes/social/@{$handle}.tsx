@@ -627,7 +627,7 @@ function AddToShelf() {
   };
   const title = fieldError(add.refusal, 'title', { id: 's-title-error' });
   const url = fieldError(add.refusal, 'url', { id: 's-url-error', hint: 's-url-hint' });
-  const failure = add.refusal && Object.keys(add.refusal.fields).length === 0 ? add.refusal.message : null;
+  const failure = add.failure;
   return (
     <details className="add-shelf" ref={details}>
       <summary className="btn sm ghost">
