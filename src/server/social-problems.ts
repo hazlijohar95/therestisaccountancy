@@ -2,6 +2,7 @@ import { OPTION_KEYS, POST_JURISDICTIONS, RATING_IDS, TOPICS, type OptionKey, ty
 import { STATUS_SQL } from './club.ts';
 import { attempt, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import { fail, ok, type Result } from './result.ts';
+import { notify, unnotify } from './social-notify.ts';
 import { activeSql, authorOf, claimFacts, sealedSql, sealOf, type Author } from './social-profiles.ts';
 
 /*
@@ -334,12 +335,15 @@ export function createSocialProblems(db: Db, now: () => Date = () => new Date())
         if (!viewer.sealed) refuse('no-seal');
         if (integer(row, 'member_id') === raterId) refuse('self');
         if (seen.problem.state !== 'open') refuse('closed');
-        if (rating === null) db.prepare('DELETE FROM ratings WHERE answer_id = ? AND rater_id = ?').run(answerId, raterId);
-        else {
+        if (rating === null) {
+          db.prepare('DELETE FROM ratings WHERE answer_id = ? AND rater_id = ?').run(answerId, raterId);
+          unnotify(db, integer(row, 'member_id'), 'rating', `${answerId}:${raterId}`);
+        } else {
           db.prepare(
             `INSERT INTO ratings (answer_id, rater_id, verdict, created_at) VALUES (?, ?, ?, ?)
              ON CONFLICT (answer_id, rater_id) DO UPDATE SET verdict = excluded.verdict, created_at = excluded.created_at WHERE verdict != excluded.verdict`,
           ).run(answerId, raterId, rating, iso(now()));
+          notify(db, now(), integer(row, 'member_id'), { kind: 'rating', key: `${answerId}:${raterId}`, actorId: raterId, subjectId: integer(row, 'number'), detail: rating });
         }
         return { answerId, rating, ratings: ratingCounts(answerId) };
       });

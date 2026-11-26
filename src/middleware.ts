@@ -5,6 +5,7 @@ import { isSocialPage, needsPayment, paidAccess, requiredRole } from './server/p
 export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.member = null;
   context.locals.profile = null;
+  context.locals.unread = 0;
   if (context.isPrerendered) return next();
 
   const store = await openStore();
@@ -25,9 +26,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
     context.locals.socialNominations = store.socialNominations;
     context.locals.socialFloor = store.socialFloor;
     context.locals.socialProblems = store.socialProblems;
+    context.locals.socialCasebook = store.socialCasebook;
+    context.locals.socialShelf = store.socialShelf;
+    context.locals.socialNotifications = store.socialNotifications;
     const key = await context.session?.get('signedIn');
     context.locals.member = key ? await store.club.sessionMember(key) : null;
-    if (context.locals.member && isSocialPage(context.url.pathname)) context.locals.profile = await store.socialProfiles.ownProfile(context.locals.member.id);
+    if (context.locals.member && isSocialPage(context.url.pathname)) {
+      context.locals.profile = await store.socialProfiles.ownProfile(context.locals.member.id);
+      context.locals.unread = await store.socialNotifications.unread(context.locals.member.id);
+    }
 
     const role = requiredRole(context.url.pathname);
     if (role && !context.locals.member) {

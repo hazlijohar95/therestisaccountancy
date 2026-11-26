@@ -2,6 +2,7 @@ import { account } from './account.ts';
 import { adminActions } from './admin.ts';
 import { billing } from './billing.ts';
 import { calls } from './calls.ts';
+import { casebook } from './casebook.ts';
 import { community } from './community.ts';
 import { fees } from './fees.ts';
 import { floor } from './floor.ts';
@@ -14,4 +15,4 @@ import { sessions } from './sessions.ts';
 import { social } from './social.ts';
 import { ticks } from './ticks.ts';
 
-export const server = { ...account, ...adminActions, ...community, ...sessions, ...billing, ...plans, ...calls, ...listings, ...fees, ...social, ...ticks, ...nominations, ...floor, ...problems, newsletter };
+export const server = { ...account, ...adminActions, ...community, ...sessions, ...billing, ...plans, ...calls, ...listings, ...fees, ...social, ...ticks, ...nominations, ...floor, ...problems, ...casebook, newsletter };

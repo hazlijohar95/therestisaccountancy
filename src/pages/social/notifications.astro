@@ -1,0 +1,261 @@
+---
+import { actions, isInputError } from 'astro:actions';
+import Avatar from '../../components/social/Avatar.astro';
+import Tick from '../../components/social/Tick.astro';
+import { RATINGS } from '../../data/social.ts';
+import Social from '../../layouts/Social.astro';
+import { formAction, formatMoment, formatMonth, tally } from '../../lib/format.ts';
+import { renewsIn } from '../../lib/ticks.ts';
+import { addressed, signInPath, socialPath } from '../../server/paths.ts';
+import type { Notice } from '../../server/social-notifications.ts';
+
+export const prerender = false;
+
+const to = (path: string) => socialPath(Astro.url, path);
+const { member, socialNotifications, socialCasebook, socialClaims } = Astro.locals;
+if (!member) return Astro.redirect(signInPath(Astro.url, '/notifications'));
+
+const decided = Astro.getActionResult(actions.decideCosign);
+if (decided?.data) return Astro.redirect(`${to('/notifications')}?done=${decided.data.outcome}#activity`);
+const failure = decided?.error && !isInputError(decided.error) ? decided.error.message : null;
+
+/* What needs this member comes from what is true now; the list says what happened. Seeing the list marks it read. */
+const requests = await socialCasebook.requests(member.id);
+const now = new Date();
+const due = (await socialClaims.mine(member.id)).claims.flatMap((claim) => {
+  const days = renewsIn(claim, now);
+  return days === null || !claim.until ? [] : [{ claim, until: claim.until, days }];
+});
+const notices = await socialNotifications.list(member.id);
+await socialNotifications.markRead(member.id);
+Astro.locals.unread = 0;
+
+/* Requests and renewals still waiting show above, under Needs you, not twice. */
+const activity = notices.filter((n) => !((n.kind === 'cosign-request' || n.kind === 'renewal') && n.live));
+const action = (which: { toString(): string }) => formAction(addressed(Astro.url), which);
+const ratingName = (id: string) => RATINGS.find((r) => r.id === id)?.label ?? id;
+const done = Astro.url.searchParams.get('done');
+
+const hrefOf = (n: Notice): string => {
+  switch (n.kind) {
+    case 'reply':
+    case 'accepted':
+    case 'useful':
+      return to(`/post/${n.postId}`);
+    case 'follow':
+      return to(`/@${n.actor.handle}`);
+    case 'rating':
+      return to(`/problems/${n.number}#answers`);
+    case 'cosign-request':
+    case 'cosign-outcome':
+      return to('/me#casebook');
+    case 'ticked':
+    case 'not-ticked':
+    case 'renewal':
+      return to('/verify');
+    case 'nominee-joined':
+      return to('/nominate');
+  }
+};
+---
+
+<Social title="Notifications" noindex section="notifications">
+  <div class="page narrow">
+    <div class="page-head">
+      <div>
+        <p class="kicker">Notifications</p>
+        <h1 class="title">What’s new.</h1>
+      </div>
+    </div>
+    {
+      failure && (
+        <p class="error" role="alert">
+          {failure}
+        </p>
+      )
+    }
+    {
+      done && (
+        <p class="note" role="status">
+          {done === 'signed' ? 'Co-signed. It shows on their casebook.' : 'Declined. They see no reason.'}
+        </p>
+      )
+    }
+
+    <section class="stack" aria-labelledby="needs-title">
+      <h2 class="head" id="needs-title">Needs you</h2>
+      {requests.length + due.length === 0 && <p class="small">Nothing waiting on you.</p>}
+      {
+        requests.map(({ entry, author }) => (
+          <article class="alert-card card" aria-labelledby={`cosign-${entry.id}`}>
+            <div class="by">
+              <Avatar name={author.name} track={author.track} sealed={author.sealed} size="sm" />
+              <p id={`cosign-${entry.id}`}>
+                <a href={to(`/@${author.handle}`)}>
+                  <b>{author.name}</b>
+                </a>{' '}
+                asked you to co-sign a casebook entry.
+              </p>
+              <span class="ago">
+                <time datetime={entry.createdAt}>{formatMoment(entry.createdAt)}</time>
+              </span>
+            </div>
+            <dl class="entry-mini">
+              <dt>Work</dt>
+              <dd>
+                {entry.service} · {entry.industry}
+              </dd>
+              <dt>Band</dt>
+              <dd>{entry.band}</dd>
+              <dt>Framework</dt>
+              <dd>{entry.framework}</dd>
+              <dt>Year</dt>
+              <dd>{entry.year}</dd>
+              <dt>Their role</dt>
+              <dd>{entry.role}</dd>
+              {entry.areas.length > 0 && (
+                <>
+                  <dt>Areas</dt>
+                  <dd>{entry.areas.join(', ')}</dd>
+                </>
+              )}
+              {entry.note && (
+                <>
+                  <dt>Note</dt>
+                  <dd>{entry.note}</dd>
+                </>
+              )}
+            </dl>
+            <p class="small">Co-sign only if you worked on it or reviewed it. Your name shows on their entry.</p>
+            <div class="actions">
+              <form method="POST" action={action(actions.decideCosign)}>
+                <input type="hidden" name="entry" value={entry.id} />
+                <input type="hidden" name="outcome" value="signed" />
+                <button class="btn sm" type="submit">
+                  Co-sign<span class="sr-only"> {author.name}’s entry</span>
+                </button>
+              </form>
+              <form method="POST" action={action(actions.decideCosign)}>
+                <input type="hidden" name="entry" value={entry.id} />
+                <input type="hidden" name="outcome" value="declined" />
+                <button class="btn sm ghost" type="submit">
+                  Decline<span class="sr-only"> {author.name}’s entry</span>
+                </button>
+              </form>
+            </div>
+          </article>
+        ))
+      }
+      {
+        due.map(({ claim, until, days }) => (
+          <article class="alert-card card due">
+            <div class="by">
+              <Tick source={claim.source} state="ticked" />
+              <p>
+                <b>
+                  Your “{claim.label}” tick renews at the end of {formatMonth(until)}.
+                </b>{' '}
+                {tally(days, 'day')} left.
+              </p>
+            </div>
+            <p class="small">Send this year’s document and we check it again. If it lapses, the tick shows struck through in red until you do.</p>
+            <div class="actions">
+              <a class="btn sm" href={to(`/verify?step=${claim.kind === 'body' ? 'body' : 'licence'}`)}>
+                Renew it<span class="sr-only">: {claim.label}</span>
+              </a>
+            </div>
+          </article>
+        ))
+      }
+    </section>
+
+    <section class="stack" id="activity" aria-labelledby="activity-title">
+      <h2 class="head" id="activity-title">Activity</h2>
+      {
+        activity.length ? (
+          <ul class="alert-list card">
+            {activity.map((n) => (
+              <li class:list={['alert-row', { unread: n.unread }]}>
+                <a href={hrefOf(n)}>
+                  {'actor' in n ? (
+                    <Avatar name={n.actor.name} track={n.actor.track} sealed={n.actor.sealed} size="sm" />
+                  ) : (
+                    <span class="avatar sm" data-track="field" aria-hidden="true">
+                      @
+                    </span>
+                  )}
+                  <span>
+                    {n.unread && <span class="sr-only">Unread. </span>}
+                    {n.kind === 'reply' && (
+                      <>
+                        <b>{n.actor.name}</b> replied to “{n.title}”.
+                      </>
+                    )}
+                    {n.kind === 'accepted' && (
+                      <>
+                        <b>{n.actor.name}</b> marked your reply as the answer to “{n.title}”.
+                      </>
+                    )}
+                    {n.kind === 'useful' && (
+                      <>
+                        <b>{n.actor.name}</b> found your {n.target} useful on “{n.title}”.
+                      </>
+                    )}
+                    {n.kind === 'follow' && (
+                      <>
+                        <b>{n.actor.name}</b> followed you.
+                      </>
+                    )}
+                    {n.kind === 'rating' && (
+                      <>
+                        <b>{n.actor.name}</b> rated your answer to #{n.number} <b>{ratingName(n.rating)}</b>.
+                      </>
+                    )}
+                    {n.kind === 'cosign-request' && (
+                      <>
+                        <b>{n.actor.name}</b> asked you to co-sign a casebook entry. {n.decision === 'signed' ? 'You co-signed it.' : 'You declined.'}
+                      </>
+                    )}
+                    {n.kind === 'cosign-outcome' && (
+                      <>
+                        <b>{n.actor.name}</b> {n.outcome === 'signed' ? 'co-signed your casebook entry.' : 'declined to co-sign your casebook entry.'}
+                      </>
+                    )}
+                    {n.kind === 'ticked' && (
+                      <>
+                        Ticked: <b>{n.label}</b>.
+                      </>
+                    )}
+                    {n.kind === 'not-ticked' && (
+                      <>
+                        Not ticked: <b>{n.label}</b>. Your email has the team’s reason.
+                      </>
+                    )}
+                    {n.kind === 'renewal' && (
+                      <>
+                        We reminded you that your “{n.label}” tick runs to {formatMonth(n.until)}.
+                      </>
+                    )}
+                    {n.kind === 'nominee-joined' && (
+                      <>
+                        <b>{n.account}</b>, whom you nominated, claimed their invite.
+                      </>
+                    )}
+                  </span>
+                  <span class="ago">
+                    <time datetime={n.createdAt}>{formatMoment(n.createdAt)}</time>
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div class="empty card">
+            <p class="head">You’re up to date.</p>
+            <p>Follow people and answer problems. Activity lands here.</p>
+          </div>
+        )
+      }
+    </section>
+  </div>
+</Social>

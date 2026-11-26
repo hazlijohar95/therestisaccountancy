@@ -3,6 +3,7 @@ import { matcher } from '../lib/search.ts';
 import { STATUS_SQL } from './club.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import { fail, ok, type Result } from './result.ts';
+import { notify } from './social-notify.ts';
 
 /** What a member writes about themselves. All of it is public. */
 export interface ProfileFields {
@@ -128,6 +129,41 @@ export function authorOf(db: Db, memberId: number): Author {
 /** A member who has set a password and is not suspended, as SQL on a member id column. */
 export const activeSql = (memberColumn: string) => `EXISTS (SELECT 1 FROM members WHERE id = ${memberColumn} AND ${STATUS_SQL.active})`;
 
+/**
+ * Credentials that name what someone is, most telling first: a qualifying body status, a training one, a licence, an
+ * academic post. A workplace or experience does not read as "a ticked …", so a seal without these says "member".
+ */
+const CREDENTIAL_RANK = ['qualified', 'training', 'licence', 'academic'] as const;
+
+/** The label of a member's most telling ticked credential, as their profile shows it, or "member". */
+export function mainCredential(db: Db, memberId: number): string {
+  const ranked = db
+    .prepare(`SELECT kind, label, body_id, status_level FROM claims WHERE member_id = ? AND state = 'ticked' ORDER BY id`)
+    .all(memberId)
+    .map((row) => {
+      const kind = text(row, 'kind');
+      const bodyId = optionalText(row, 'body_id');
+      const status = optionalText(row, 'status_level');
+      const bucket = kind === 'body' ? ((bodyId && status ? statusTrack(bodyId, status) : null) ?? 'training') : kind;
+      return { label: text(row, 'label'), rank: CREDENTIAL_RANK.findIndex((entry) => entry === bucket) };
+    })
+    .filter((entry) => entry.rank >= 0)
+    .sort((a, b) => a.rank - b.rank);
+  return ranked[0]?.label ?? 'member';
+}
+
+/** What a new member has done of setting up their profile. The profile hides the checklist once all are done. */
+export interface Checklist {
+  readonly ticked: boolean;
+  readonly headline: boolean;
+  readonly casebook: boolean;
+  readonly answered: boolean;
+  readonly badge: boolean;
+}
+
+/** Sign-ups that never set a password are deleted after this long, and their handle is free again. */
+export const ABANDONED_AFTER_DAYS = 14;
+
 /** Malaysian time has no daylight saving. */
 const MYT_OFFSET_MS = 8 * 3_600_000;
 
@@ -153,8 +189,8 @@ const PROFILES = 'SELECT p.*, m.name FROM profiles p JOIN members m ON m.id = p.
 /** Handles, profiles, follows and The List. */
 export function createSocialProfiles(db: Db, now: () => Date = () => new Date()) {
   /**
-   * Peer points this quarter: ratings of Sound on the member's answers, from raters who hold the seal now. A changed
-   * rating counts from when it changed.
+   * Peer points this quarter: ratings of Sound on the member's answers, from raters who hold the seal now, and saves of
+   * their shelf items. A changed rating counts from when it changed.
    */
   const peerPoints = (memberId: number): number =>
     count(
@@ -162,6 +198,14 @@ export function createSocialProfiles(db: Db, now: () => Date = () => new Date())
         .prepare(
           `SELECT count(*) AS n FROM ratings rt JOIN answers a ON a.id = rt.answer_id
            WHERE a.member_id = ? AND rt.verdict = 'sound' AND rt.created_at >= ? AND ${activeSql('rt.rater_id')} AND ${sealedSql('rt.rater_id')}`,
+        )
+        .get(memberId, iso(quarterStart(now()))),
+    ) +
+    count(
+      db
+        .prepare(
+          `SELECT count(*) AS n FROM saves s JOIN shelf_items i ON i.id = s.item_id
+           WHERE i.member_id = ? AND i.removed_at IS NULL AND s.created_at >= ? AND ${activeSql('s.member_id')}`,
         )
         .get(memberId, iso(quarterStart(now()))),
     );
@@ -213,7 +257,7 @@ export function createSocialProfiles(db: Db, now: () => Date = () => new Date())
     signUp(input: { name: string; email: string; handle: string }): Result<{ memberId: number }, SignUpRefusal> {
       return attempt<{ memberId: number }, SignUpRefusal>(db, (refuse) => {
         if (db.prepare('SELECT 1 FROM members WHERE email = ?').get(input.email)) refuse('email-taken');
-        const { lastInsertRowid } = db.prepare(`INSERT INTO members (email, name, joined_via) VALUES (?, ?, 'social')`).run(input.email, input.name);
+        const { lastInsertRowid } = db.prepare(`INSERT INTO members (email, name, joined_via, joined_at) VALUES (?, ?, 'social', ?)`).run(input.email, input.name, iso(now()));
         insertProfile(lastInsertRowid, normaliseHandle(input.handle), refuse);
         return { memberId: lastInsertRowid };
       });
@@ -290,7 +334,10 @@ export function createSocialProfiles(db: Db, now: () => Date = () => new Date())
       const followee = publicProfile(handle);
       if (!followee) return fail('not-found');
       if (followee.memberId === followerId) return fail('self');
-      db.prepare('INSERT INTO follows (follower_id, followee_id, created_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING').run(followerId, followee.memberId, iso(now()));
+      db.transaction(() => {
+        db.prepare('INSERT INTO follows (follower_id, followee_id, created_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING').run(followerId, followee.memberId, iso(now()));
+        notify(db, now(), followee.memberId, { kind: 'follow', key: String(followerId), actorId: followerId });
+      });
       return ok(followee);
     },
 
@@ -303,6 +350,54 @@ export function createSocialProfiles(db: Db, now: () => Date = () => new Date())
 
     isFollowing(followerId: number, followeeId: number): boolean {
       return db.prepare('SELECT 1 FROM follows WHERE follower_id = ? AND followee_id = ?').get(followerId, followeeId) !== undefined;
+    },
+
+    /** The member's setup checklist. */
+    checklist(memberId: number): Checklist {
+      const has = (sql: string) => db.prepare(sql).get(memberId) !== undefined;
+      return {
+        ticked: sealOf(claimFacts(db, memberId)),
+        headline: has(`SELECT 1 FROM profiles WHERE member_id = ? AND headline != ''`),
+        casebook: has('SELECT 1 FROM casebook WHERE member_id = ?'),
+        answered: has('SELECT 1 FROM answers WHERE member_id = ?'),
+        badge: has('SELECT 1 FROM profiles WHERE member_id = ? AND badge_copied_at IS NOT NULL'),
+      };
+    },
+
+    /** The member copied their badge for a bio. The first copy is the one kept. */
+    badgeCopied(memberId: number): void {
+      db.prepare('UPDATE profiles SET badge_copied_at = coalesce(badge_copied_at, ?) WHERE member_id = ?').run(iso(now()), memberId);
+    },
+
+    /** A member's most telling ticked credential, for their badge. */
+    credential(memberId: number): string {
+      return mainCredential(db, memberId);
+    },
+
+    /**
+     * Deletes members who signed up on the social site and never set a password, after ABANDONED_AFTER_DAYS. Their
+     * profile and handle go with them. An invite they claimed at sign-up goes back to the team's queue, so it can be
+     * sent again. Club members, members the club accepted, members the team paused, and the team are never touched.
+     * Returns how many went.
+     */
+    pruneAbandoned(): number {
+      return db.transaction(() => {
+        const cutoff = iso(new Date(now().getTime() - ABANDONED_AFTER_DAYS * 86_400_000));
+        const abandoned = db
+          .prepare(
+            `SELECT id FROM members WHERE joined_via = 'social' AND role = 'member' AND ${STATUS_SQL.invited} AND club_approved_at IS NULL AND joined_at < ?`,
+          )
+          .all(cutoff)
+          .map((row) => integer(row, 'id'));
+        for (const memberId of abandoned) {
+          db.prepare(
+            `UPDATE nominations SET state = 'pending', invite_token_hash = NULL, decided_at = NULL, decided_by = NULL
+             WHERE state = 'claimed' AND EXISTS (SELECT 1 FROM social_accounts a WHERE a.member_id = ? AND a.platform = nominations.platform AND a.handle = nominations.handle)`,
+          ).run(memberId);
+          db.prepare('DELETE FROM members WHERE id = ?').run(memberId);
+        }
+        return abandoned.length;
+      });
     },
 
     /** Followers and followed, counting only people the public can see. */

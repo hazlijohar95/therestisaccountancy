@@ -15,6 +15,7 @@ import {
 import { STATUS_SQL } from './club.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import type { Result } from './result.ts';
+import { notify } from './social-notify.ts';
 import { claimFacts, sealOf } from './social-profiles.ts';
 
 /*
@@ -556,6 +557,7 @@ export function createSocialClaims(db: Db, now: () => Date = () => new Date()) {
           reviewerId,
           accountId,
         );
+        notify(db, now(), current.memberId, { kind: verdict.verdict === 'approve' ? 'ticked' : 'not-ticked', key: `account:${accountId}`, detail: `${current.platform} · @${current.handle}` });
         return { item: account(accountId) ?? refuse('not-found'), member: person(current.memberId) };
       });
     },
@@ -574,6 +576,7 @@ export function createSocialClaims(db: Db, now: () => Date = () => new Date()) {
         } else {
           db.prepare(`UPDATE claims SET state = 'rejected', note = ?, decided_at = ?, decided_by = ? WHERE id = ?`).run(verdict.reason, iso(now()), reviewerId, claimId);
         }
+        notify(db, now(), current.memberId, { kind: verdict.verdict === 'approve' ? 'ticked' : 'not-ticked', key: `claim:${claimId}`, detail: current.label });
         return { item: saved(claimId), member: person(current.memberId) };
       });
     },
@@ -624,6 +627,7 @@ export function createSocialClaims(db: Db, now: () => Date = () => new Date()) {
             const stage = RENEWAL_REMINDER_DAYS.reduce((reached, days, i) => (left <= days ? i + 1 : reached), 0);
             if (left <= 0 || stage <= integer(row, 'reminded')) return [];
             db.prepare('UPDATE claims SET reminded = ? WHERE id = ?').run(stage, ticked.id);
+            notify(db, at, ticked.memberId, { kind: 'renewal', key: `${ticked.id}:${stage}`, subjectId: ticked.id });
             return [{ claim: ticked, member: person(ticked.memberId), daysLeft: left }];
           });
       });

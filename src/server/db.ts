@@ -478,6 +478,72 @@ const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX ratings_by_rater ON ratings (rater_id);
   `,
+  `
+  ALTER TABLE profiles ADD COLUMN badge_copied_at TEXT;
+
+  CREATE TABLE casebook (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    service TEXT NOT NULL,
+    industry TEXT NOT NULL,
+    band TEXT NOT NULL,
+    framework TEXT NOT NULL,
+    year TEXT NOT NULL,
+    role TEXT NOT NULL,
+    areas TEXT NOT NULL DEFAULT '[]',
+    note TEXT NOT NULL DEFAULT '',
+    cosigner_id INTEGER REFERENCES members (id) ON DELETE SET NULL,
+    cosign TEXT CHECK (cosign IN ('pending', 'signed', 'declined')),
+    cosigned_at TEXT,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX casebook_by_member ON casebook (member_id, created_at);
+  CREATE INDEX casebook_by_cosigner ON casebook (cosigner_id, cosign);
+
+  CREATE TABLE roles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    from_year INTEGER NOT NULL,
+    to_year INTEGER CHECK (to_year IS NULL OR to_year >= from_year),
+    title TEXT NOT NULL,
+    employer TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX roles_by_member ON roles (member_id, from_year);
+
+  CREATE TABLE shelf_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL CHECK (url LIKE 'https://%'),
+    created_at TEXT NOT NULL,
+    removed_at TEXT
+  );
+  CREATE INDEX shelf_items_by_member ON shelf_items (member_id, created_at);
+
+  CREATE TABLE saves (
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    item_id INTEGER NOT NULL REFERENCES shelf_items (id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (member_id, item_id)
+  );
+  CREATE INDEX saves_by_item ON saves (item_id, created_at);
+
+  CREATE TABLE notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    key TEXT NOT NULL,
+    actor_id INTEGER REFERENCES members (id) ON DELETE CASCADE,
+    subject_id INTEGER,
+    detail TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    read_at TEXT,
+    UNIQUE (member_id, key)
+  );
+  CREATE INDEX notifications_by_member ON notifications (member_id, created_at);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

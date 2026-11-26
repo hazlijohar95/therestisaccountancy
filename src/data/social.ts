@@ -206,3 +206,34 @@ export const RATINGS = [
 ] as const;
 export type Rating = (typeof RATINGS)[number]['id'];
 export const RATING_IDS = RATINGS.map((rating) => rating.id);
+
+/** Casebook entries: the kind of work, never the client. Bands and years only. */
+export const SERVICES = ['Audit', 'Tax', 'Reporting', 'Advisory', 'FP&A', 'Co sec'] as const;
+export type Service = (typeof SERVICES)[number];
+export const INDUSTRIES = ['Manufacturing', 'Plantation', 'Property', 'Retail', 'Tech', 'Financial services', 'Public sector', 'Non-profit'] as const;
+export type Industry = (typeof INDUSTRIES)[number];
+export const BANDS = ['Under RM5m', 'RM5m–50m', 'RM50m–500m', 'Over RM500m'] as const;
+export type Band = (typeof BANDS)[number];
+export const FRAMEWORKS = ['MFRS', 'MPERS', 'IFRS', 'SFRS(I)', 'Tax law', 'Companies Act', 'Not applicable'] as const;
+export type Framework = (typeof FRAMEWORKS)[number];
+export const ENGAGEMENT_ROLES = ['Associate', 'Senior', 'Manager', 'Senior manager', 'Director', 'Partner', 'In-house'] as const;
+export type EngagementRole = (typeof ENGAGEMENT_ROLES)[number];
+export const AREAS = ['Revenue', 'Inventory', 'Going concern', 'Impairment', 'Leases', 'Deferred tax', 'Related parties', 'Consolidation', 'Transfer pricing'] as const;
+export type Area = (typeof AREAS)[number];
+/** The year an engagement ended: last year back to seven years ago, or earlier. A year that has not ended yet narrows it down. */
+export const EARLIER = 'Earlier';
+export const casebookYears = (now: Date): string[] => {
+  const year = new Date(now.getTime() + 8 * 3_600_000).getUTCFullYear();
+  return [...Array.from({ length: 7 }, (_, i) => String(year - 1 - i)), EARLIER];
+};
+export const CASEBOOK_LIMITS = { note: 300 } as const;
+
+/** Roles on a member's timeline: the kind of employer, never its name. */
+export const EMPLOYER_KINDS = ['Big Four firm', 'Mid-tier firm', 'Small practice', 'Own practice', 'Listed group', 'Private company', 'Multinational', 'Public sector', 'Non-profit', 'University', 'Other'] as const;
+export type EmployerKind = (typeof EMPLOYER_KINDS)[number];
+export const ROLE_LIMITS = { title: 80, earliest: 1960 } as const;
+
+/** What a shelf item is. Members link to work they share in public; we never host the file. */
+export const SHELF_KINDS = ['Template', 'Checklist', 'Explainer', 'Article', 'Video', 'Course', 'Tool'] as const;
+export type ShelfKind = (typeof SHELF_KINDS)[number];
+export const SHELF_LIMITS = { title: 140, url: 500, items: 30 } as const;

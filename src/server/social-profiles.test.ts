@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { createClub } from './club.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
+import { at, DAY, socialWorld } from './social-fixtures.ts';
 import { createSocialProfiles, sealOf, trackOf, type ProfileFields } from './social-profiles.ts';
 
 const PASSWORD = 'correct horse battery';
@@ -167,4 +168,52 @@ test('track and seal come from ticked claims: credentials outrank the creator fl
   assert.equal(sealOf([fellow]), false, 'a credential alone is not enough');
   assert.equal(sealOf([account, fellow]), true);
   assert.equal(sealOf([account, { ...fellow, state: 'pending' }]), false);
+});
+
+test('sign-ups that never set a password go after 14 days, handle and all; nobody else is touched', async () => {
+  const w = socialWorld();
+  const host = await w.host;
+  const set = await w.joined('Aina', 'aina@firm.my', 'aina');
+  const { memberId: gone } = value(w.profiles.signUp({ name: 'Gone', email: 'gone@firm.my', handle: 'gone' }));
+  const { memberId: accepted } = value(w.profiles.signUp({ name: 'Accepted', email: 'accepted@firm.my', handle: 'accepted' }));
+  const { memberId: paused } = value(w.profiles.signUp({ name: 'Paused', email: 'paused@firm.my', handle: 'paused' }));
+  value(w.club.suspendMember(host.id, paused));
+  w.club.recordJoinRequest({ name: 'Accepted', email: 'accepted@firm.my', stage: 'I run a practice' });
+  value(w.club.inviteFromRequest(w.club.joinRequests()[0]?.id ?? 0));
+  w.club.recordJoinRequest({ name: 'Club invite', email: 'club@firm.my', stage: 'Student' });
+  const invitation = value(w.club.inviteFromRequest(w.club.joinRequests().find((r) => r.email === 'club@firm.my')?.id ?? 0));
+  const clubInvite = invitation.kind === 'link' ? invitation.link.member.id : invitation.member.id;
+  value(w.nominations.nominate(set.id, { platform: 'YouTube', handle: 'taxwithtan', topics: ['Tax'], whyUrl: null }));
+  const { token } = value(w.nominations.invite(w.nominations.queue().pending[0]?.id ?? 0, host.id));
+  const { memberId: nominee } = value(w.profiles.signUp({ name: 'Tan', email: 'tan@tax.my', handle: 'taxwithtan' }));
+  value(w.claims.addAccount(nominee, 'YouTube', 'taxwithtan'));
+  value(w.nominations.claim(token));
+
+  w.later(13 * DAY);
+  assert.equal(w.profiles.pruneAbandoned(), 0, 'thirteen days is not enough');
+  w.later(2 * DAY);
+  assert.equal(w.profiles.pruneAbandoned(), 2);
+  assert.equal(w.profiles.pruneAbandoned(), 0, 'safe to rerun');
+  assert.equal(w.club.member(gone), null);
+  assert.equal(w.club.member(nominee), null);
+  for (const kept of [set.id, accepted, paused, clubInvite, host.id]) assert.ok(w.club.member(kept), `member ${kept} stays`);
+  value(w.profiles.signUp({ name: 'Someone else', email: 'else@firm.my', handle: 'gone' }));
+  assert.equal(w.nominations.queue().pending[0]?.handle, 'taxwithtan', 'the claimed invite goes back to the team to send again');
+});
+
+test('the setup checklist follows what the member has done', async () => {
+  const w = socialWorld();
+  const host = await w.host;
+  const aina = await w.joined('Aina', 'aina@firm.my', 'aina');
+  assert.deepEqual(w.profiles.checklist(aina.id), { ticked: false, headline: false, casebook: false, answered: false, badge: false });
+  await w.seal(aina.id, 'aina-rahman');
+  w.profiles.update(aina.id, { headline: 'Audit partner.', sector: null, city: '', jurisdictions: [], topics: [], creator: false, listed: true });
+  value(w.casebook.add(aina.id, { service: 'Audit', industry: 'Retail', band: 'Under RM5m', framework: 'MPERS', year: '2024', role: 'Partner', areas: [], note: '', cosigner: null }));
+  value(
+    w.problems.create(host.id, { number: 1, tag: 'Audit', jurisdiction: 'MY', title: 'T', scenario: ['a', 'b'], ask: 'Q', options: ['x', 'y'], opensAt: at(w.now()), closesAt: at(new Date(w.now().getTime() + DAY)) }),
+  );
+  value(w.problems.answer(aina.id, 1, { pick: 'A', reasoning: '' }));
+  w.profiles.badgeCopied(aina.id);
+  assert.deepEqual(w.profiles.checklist(aina.id), { ticked: true, headline: true, casebook: true, answered: true, badge: true });
+  assert.equal(w.profiles.credential(aina.id), 'ACCA · Member');
 });

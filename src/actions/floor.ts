@@ -2,7 +2,7 @@ import { defineAction } from 'astro:actions';
 import { z } from 'astro/zod';
 import { FLOOR_LIMITS, POST_JURISDICTIONS, reasonsFor, REPORT_NOTE_MAX, REPORT_REASON_IDS, REPORT_TARGETS, ROOM_IDS } from '../data/social.ts';
 import type { AcceptRefusal, EditRefusal, PostRefusal, RemoveRefusal, ReplyRefusal, ReportRefusal, UsefulRefusal } from '../server/social-floor.ts';
-import { admin, id, oneLine, settle, signedIn, throttle, type Refusal } from './guards.ts';
+import { admin, blankable, id, oneLine, settle, signedIn, throttle, type Refusal } from './guards.ts';
 
 const notFound: Refusal = { code: 'NOT_FOUND', message: 'That is no longer on the Floor.' };
 const noHandle: Refusal = { code: 'BAD_REQUEST', message: 'Claim your handle first. Posts show it.' };
@@ -47,8 +47,7 @@ const postFields = {
     .string('Write a title.')
     .transform(oneLine)
     .pipe(z.string().min(FLOOR_LIMITS.titleMin, `Write a title of at least ${FLOOR_LIMITS.titleMin} characters.`).max(FLOOR_LIMITS.title, `Keep the title under ${FLOOR_LIMITS.title} characters.`)),
-  /* Optional: a missing field is an empty body. Astro reads a default only on the field's outermost schema. */
-  body: prose(0, '').default(''),
+  body: blankable(prose(0, '')),
 };
 
 const target = z.enum(['post', 'reply']);
@@ -156,7 +155,7 @@ export const floor = {
         id: id.optional(),
         handle: z.string().optional(),
         reason: z.enum(REPORT_REASON_IDS, 'Pick what is wrong.'),
-        note: z.string().transform((value) => value.replace(/\r\n?/g, '\n').trim()).pipe(z.string().max(REPORT_NOTE_MAX, `Keep it under ${REPORT_NOTE_MAX} characters.`)).default(''),
+        note: blankable(z.string().transform((value) => value.replace(/\r\n?/g, '\n').trim()).pipe(z.string().max(REPORT_NOTE_MAX, `Keep it under ${REPORT_NOTE_MAX} characters.`))),
       })
       .superRefine((value, ctx) => {
         if (!reasonsFor(value.target).some((reason) => reason.id === value.reason)) ctx.addIssue({ code: 'custom', path: ['reason'], message: 'Pick what is wrong.' });

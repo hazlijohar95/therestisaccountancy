@@ -3,6 +3,7 @@ import { PLATFORM_PROFILES, PLATFORMS, TOPICS, type Platform, type Topic } from 
 import { STATUS_SQL } from './club.ts';
 import { attempt, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import { fail, ok, type Result } from './result.ts';
+import { notify } from './social-notify.ts';
 
 /*
  * Nominations: a member names someone on a platform who should be on The List. Only a handle is known, never an email,
@@ -202,10 +203,17 @@ export function createSocialNominations(db: Db, now: () => Date = () => new Date
 
     /** Marks the invite claimed by the member who now holds the account. The caller adds the account for proof first. */
     claim(token: string): Result<null, 'not-found'> {
-      const row = invited(token);
-      if (!row) return fail('not-found');
-      db.prepare(`UPDATE nominations SET state = 'claimed', invite_token_hash = NULL WHERE id = ?`).run(integer(row, 'id'));
-      return ok(null);
+      return db.transaction(() => {
+        const row = invited(token);
+        if (!row) return fail('not-found');
+        const id = integer(row, 'id');
+        db.prepare(`UPDATE nominations SET state = 'claimed', invite_token_hash = NULL WHERE id = ?`).run(id);
+        const account = `${text(row, 'platform')} · @${text(row, 'handle')}`;
+        for (const nominator of db.prepare('SELECT member_id FROM nominators WHERE nomination_id = ?').all(id)) {
+          notify(db, now(), integer(nominator, 'member_id'), { kind: 'nominee-joined', key: String(id), detail: account });
+        }
+        return ok(null);
+      });
     },
 
     /** The nominee says no: everything about the nomination goes, except that this handle is never invited again. */

@@ -2,7 +2,7 @@ import { ActionError, defineAction } from 'astro:actions';
 import { z } from 'astro/zod';
 import { OPTION_KEYS, POST_JURISDICTIONS, PROBLEM_LIMITS, RATING_IDS, TOPICS } from '../data/social.ts';
 import type { AnswerRefusal, CreateRefusal, RateRefusal, RemoveProblemRefusal } from '../server/social-problems.ts';
-import { admin, id, oneLine, settle, signedIn, throttle, type Refusal } from './guards.ts';
+import { admin, blankable, id, oneLine, settle, signedIn, throttle, type Refusal } from './guards.ts';
 import { malaysiaTime } from './sessions.ts';
 
 const notFound: Refusal = { code: 'NOT_FOUND', message: 'That problem is not open to you.' };
@@ -87,11 +87,12 @@ export const problems = {
     input: z.object({
       number: id,
       pick: z.enum(OPTION_KEYS, 'Pick an answer first.'),
-      reasoning: z
-        .string()
-        .transform((value) => value.replace(/\r\n?/g, '\n').trim())
-        .pipe(z.string().max(PROBLEM_LIMITS.reasoning, `Keep your reasoning under ${PROBLEM_LIMITS.reasoning.toLocaleString('en-MY')} characters.`))
-        .default(''),
+      reasoning: blankable(
+        z
+          .string()
+          .transform((value) => value.replace(/\r\n?/g, '\n').trim())
+          .pipe(z.string().max(PROBLEM_LIMITS.reasoning, `Keep your reasoning under ${PROBLEM_LIMITS.reasoning.toLocaleString('en-MY')} characters.`)),
+      ),
     }),
     handler: async ({ number, ...input }, context) => {
       const member = signedIn(context.locals);

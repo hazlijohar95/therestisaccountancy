@@ -27,11 +27,16 @@ declare namespace App {
     socialNominations: import('./server/instance.ts').Store['socialNominations'];
     socialFloor: import('./server/instance.ts').Store['socialFloor'];
     socialProblems: import('./server/instance.ts').Store['socialProblems'];
+    socialCasebook: import('./server/instance.ts').Store['socialCasebook'];
+    socialShelf: import('./server/instance.ts').Store['socialShelf'];
+    socialNotifications: import('./server/instance.ts').Store['socialNotifications'];
     /**
      * The signed-in member's own social profile, read once in the middleware on social pages so the layout can draw
      * their avatar with its track and seal. Null when signed out, off the social pages, or before they claim a handle.
      */
     profile: import('./server/social-profiles.ts').Profile | null;
+    /** Unread notifications for the bell, read with the profile. 0 when signed out or off the social pages. */
+    unread: number;
   }
   interface SessionData {
     signedIn: import('./server/club.ts').SessionKey;

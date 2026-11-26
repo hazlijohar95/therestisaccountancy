@@ -7,7 +7,7 @@ import { SEARCH_MAX } from '../lib/search.ts';
 import { clubPath, isSocialHost, signInPath, socialPath, socialPathOf } from '../server/paths.ts';
 import Base from './Base.astro';
 
-export type Section = 'floor' | 'list' | 'problems' | 'verify';
+export type Section = 'floor' | 'list' | 'problems' | 'verify' | 'notifications';
 
 interface Props {
   title?: string | undefined;
@@ -22,6 +22,7 @@ const url = Astro.url;
 const member = Astro.locals.member;
 /* Read in the middleware, before the store is released, so the header can draw the member's track and seal. */
 const own = Astro.locals.profile;
+const unread = Astro.locals.unread;
 const to = (path: string) => socialPath(url, path);
 const nav: readonly { section: Section; href: string; label: string; icon: string }[] = [
   { section: 'floor', href: to('/'), label: 'Floor', icon: 'i-floor' },
@@ -59,9 +60,15 @@ const signIn = signInPath(url, socialPathOf(url));
         </a>
         {
           member ? (
+            <>
+            <a class="icon-btn bell" href={to('/notifications')} aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'} aria-current={section === 'notifications' ? 'page' : undefined}>
+              <svg aria-hidden="true"><use href="#i-bell" /></svg>
+              {unread > 0 && <span class="count" aria-hidden="true">{unread}</span>}
+            </a>
             <a class="me" href={to('/me')} aria-label="Your profile">
               <Avatar name={member.name} track={own?.track} sealed={own?.sealed ?? false} size="sm" />
             </a>
+            </>
           ) : (
             <>
               <a class="btn sm ghost" href={signIn}>Sign in</a>

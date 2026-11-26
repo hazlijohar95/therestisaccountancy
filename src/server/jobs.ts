@@ -22,8 +22,8 @@ const SENDING_AT_ONCE = 5;
 
 /**
  * Runs every hour: renewals that are due, reminders to pay by hand, reminders for sessions and one-to-one calls within a
- * day, ticks that lapse or are due for renewal, documents left from decided claims, and on Monday mornings the week's
- * digest. Safe to rerun.
+ * day, ticks that lapse or are due for renewal (by email and in notifications), social sign-ups abandoned before a
+ * password, documents left from decided claims, and on Monday mornings the week's digest. Safe to rerun.
  */
 export async function hourly(at: Date, siteUrl: string): Promise<void> {
   const url = (path: string) => new URL(path, siteUrl).href;
@@ -64,6 +64,11 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
     await step('ticks', async () => {
       await store.socialClaims.lapse();
       for (const renewal of await store.socialClaims.dueRenewals()) letters.push(tickRenewalLetter(renewal, socialUrl(siteUrl, '/verify')));
+    });
+    /* Sign-ups that never set a password free their handle after two weeks. Nothing is sent: we never had their word. */
+    await step('abandoned sign-ups', async () => {
+      const removed = await store.socialProfiles.pruneAbandoned();
+      if (removed) console.log(`Hourly job removed ${removed} abandoned social sign-ups`);
     });
     /* A document the review could not delete straight away (R2 was down) is tried again here, until it goes. */
     await step('evidence', async () => {

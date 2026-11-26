@@ -4,7 +4,7 @@ import { HANDLE, JURISDICTIONS, PROFILE_LIMITS, SECTORS, TOPICS } from '../data/
 import type { LinkRefusal } from '../server/club.ts';
 import { passwordLetter } from '../server/letters.ts';
 import { handleProblem, normaliseHandle, type ClaimRefusal, type FollowRefusal, type SignUpRefusal } from '../server/social-profiles.ts';
-import { email, memberName, oneLine, sendLater, settle, shareable, signedIn, throttle, type Refusal } from './guards.ts';
+import { blankable, email, memberName, oneLine, sendLater, settle, shareable, signedIn, throttle, type Refusal } from './guards.ts';
 
 const handleRefusals = {
   'handle-invalid': { code: 'BAD_REQUEST', message: `Use ${HANDLE.min} to ${HANDLE.max} lowercase letters, digits or underscores.` },
@@ -76,9 +76,9 @@ export const social = {
     accept: 'form',
     input: z.object({
       handle: handle.optional(),
-      headline: line(PROFILE_LIMITS.headline, 'headline'),
-      sector: z.union([z.literal(''), z.enum(SECTORS)]).transform((value) => (value === '' ? null : value)),
-      city: line(PROFILE_LIMITS.city, 'city'),
+      headline: blankable(line(PROFILE_LIMITS.headline, 'headline')),
+      sector: blankable(z.union([z.literal(''), z.enum(SECTORS)]).transform((value) => (value === '' ? null : value))),
+      city: blankable(line(PROFILE_LIMITS.city, 'city')),
       jurisdictions: z.array(z.enum(JURISDICTIONS)),
       topics: z.array(z.enum(TOPICS)),
       creator: z.boolean(),

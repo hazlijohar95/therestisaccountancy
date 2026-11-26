@@ -7,7 +7,6 @@ import {
   reasonsFor,
   ROOM_IDS,
   ROOMS,
-  statusTrack,
   type FeedFilter,
   type PostJurisdiction,
   type ReportReason,
@@ -18,7 +17,8 @@ import { matcher } from '../lib/search.ts';
 import { STATUS_SQL } from './club.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Param, type Row } from './db.ts';
 import { fail, ok, type Result } from './result.ts';
-import { authorOf as readAuthor, claimFacts, normaliseHandle, sealedSql, sealOf, type Author } from './social-profiles.ts';
+import { authorOf as readAuthor, claimFacts, mainCredential, normaliseHandle, sealedSql, sealOf, type Author } from './social-profiles.ts';
+import { notify } from './social-notify.ts';
 
 /*
  * The Floor: posts in rooms, replies, the accepted answer, corrections from sealed members, useful marks, and reports.
@@ -137,12 +137,6 @@ export type ReportRefusal = 'not-found' | 'self' | 'already';
 
 const LOCKED_ROOMS: readonly RoomId[] = ROOMS.filter((room) => room.locked).map((room) => room.id);
 const EDIT_MS = FLOOR_LIMITS.editMinutes * 60_000;
-/**
- * Credentials that name what someone is, most telling first: a qualifying body status, a training one, a licence, an
- * academic post. A workplace or experience does not read as "a ticked …", so a seal without these says "member".
- */
-const CREDENTIAL_RANK = ['qualified', 'training', 'licence', 'academic'] as const;
-
 const iso = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
 const ACTIVE = (column: string) => `EXISTS (SELECT 1 FROM members WHERE id = ${column} AND ${STATUS_SQL.active})`;
 const VISIBLE_REPLY = (r: string) => `${r}.removed_at IS NULL AND ${ACTIVE(`${r}.member_id`)}`;
@@ -179,23 +173,6 @@ export function createSocialFloor(db: Db, now: () => Date = () => new Date()) {
     return found;
   };
 
-  /** The label of a member's most telling ticked credential, as their profile shows it, or "member". */
-  const mainCredential = (memberId: number): string => {
-    const ranked = db
-      .prepare(`SELECT id, kind, label, body_id, status_level FROM claims WHERE member_id = ? AND state = 'ticked' ORDER BY id`)
-      .all(memberId)
-      .map((row) => {
-        const kind = text(row, 'kind');
-        const bodyId = optionalText(row, 'body_id');
-        const status = optionalText(row, 'status_level');
-        const bucket = kind === 'body' ? (bodyId && status ? statusTrack(bodyId, status) : null) ?? 'training' : kind;
-        return { label: text(row, 'label'), rank: CREDENTIAL_RANK.findIndex((entry) => entry === bucket) };
-      })
-      .filter((entry) => entry.rank >= 0)
-      .sort((a, b) => a.rank - b.rank);
-    return ranked[0]?.label ?? 'member';
-  };
-
   const editable = (memberId: number, viewer: Viewer, createdAt: string) => viewer.memberId === memberId && now().getTime() - new Date(createdAt).getTime() < EDIT_MS;
 
   const POST_COLUMNS = `p.*,
@@ -207,7 +184,7 @@ export function createSocialFloor(db: Db, now: () => Date = () => new Date()) {
     const id = integer(row, 'id');
     const memberId = integer(row, 'member_id');
     const accepted = db.prepare(`SELECT r.id, r.member_id FROM floor_replies r WHERE r.post_id = ? AND r.accepted = 1 AND ${VISIBLE_REPLY('r')}`).get(id);
-    const credential = accepted && authorOf(integer(accepted, 'member_id')).sealed ? mainCredential(integer(accepted, 'member_id')) : null;
+    const credential = accepted && authorOf(integer(accepted, 'member_id')).sealed ? mainCredential(db, integer(accepted, 'member_id')) : null;
     const correction = db
       .prepare(`SELECT r.id, r.member_id FROM floor_replies r WHERE r.post_id = ? AND r.correction = 1 AND ${VISIBLE_REPLY('r')} ORDER BY r.created_at, r.id`)
       .all(id)
@@ -264,12 +241,6 @@ export function createSocialFloor(db: Db, now: () => Date = () => new Date()) {
   };
 
   const usefulCount = (target: 'post' | 'reply', id: number) => count(db.prepare('SELECT count(*) AS n FROM useful WHERE target = ? AND target_id = ?').get(target, id));
-
-  /** The member a useful mark or report is about, if the viewer can see it. */
-  const ownerOf = (viewer: Viewer, target: 'post' | 'reply', id: number): number | null => {
-    const row = target === 'post' ? postRow(viewer, id) : replyRow(viewer, id);
-    return row ? integer(row, 'member_id') : null;
-  };
 
   return {
     viewer: viewerOf,
@@ -403,13 +374,19 @@ export function createSocialFloor(db: Db, now: () => Date = () => new Date()) {
     /** Replies to a post the member can see. Only a member with the seal can mark their reply as a correction. */
     reply(memberId: number, postId: number, input: { readonly body: string; readonly correction: boolean }): Result<{ readonly id: number }, ReplyRefusal> {
       const viewer = viewerOf(memberId);
-      if (!postRow(viewer, postId)) return fail('not-found');
+      const post = postRow(viewer, postId);
+      if (!post) return fail('not-found');
       if (!viewer.hasHandle) return fail('no-handle');
       if (input.correction && !viewer.sealed) return fail('no-seal');
-      const { lastInsertRowid } = db
-        .prepare('INSERT INTO floor_replies (post_id, member_id, body, correction, created_at) VALUES (?, ?, ?, ?, ?)')
-        .run(postId, memberId, input.body, input.correction ? 1 : 0, iso(now()));
-      return ok({ id: lastInsertRowid });
+      return ok(
+        db.transaction(() => {
+          const { lastInsertRowid: id } = db
+            .prepare('INSERT INTO floor_replies (post_id, member_id, body, correction, created_at) VALUES (?, ?, ?, ?, ?)')
+            .run(postId, memberId, input.body, input.correction ? 1 : 0, iso(now()));
+          notify(db, now(), integer(post, 'member_id'), { kind: 'reply', key: String(id), actorId: memberId, subjectId: postId });
+          return { id };
+        }),
+      );
     },
 
     editReply(memberId: number, replyId: number, body: string): Result<{ readonly postId: number }, EditRefusal> {
@@ -443,6 +420,7 @@ export function createSocialFloor(db: Db, now: () => Date = () => new Date()) {
         const postId = integer(row, 'post_id');
         db.prepare('UPDATE floor_replies SET accepted = 0 WHERE post_id = ? AND accepted = 1 AND id != ?').run(postId, replyId);
         db.prepare('UPDATE floor_replies SET accepted = 1 WHERE id = ?').run(replyId);
+        notify(db, now(), integer(row, 'member_id'), { kind: 'accepted', key: String(replyId), actorId: memberId, subjectId: postId });
         return { postId };
       });
     },
@@ -458,11 +436,19 @@ export function createSocialFloor(db: Db, now: () => Date = () => new Date()) {
 
     /** One mark per member, never on their own words. Marking twice changes nothing. Returns the new count. */
     markUseful(memberId: number, target: 'post' | 'reply', id: number): Result<{ readonly useful: number }, UsefulRefusal> {
-      const owner = ownerOf(viewerOf(memberId), target, id);
-      if (owner === null) return fail('not-found');
+      const viewer = viewerOf(memberId);
+      const row = target === 'post' ? postRow(viewer, id) : replyRow(viewer, id);
+      if (!row) return fail('not-found');
+      const owner = integer(row, 'member_id');
       if (owner === memberId) return fail('self');
-      db.prepare('INSERT INTO useful (member_id, target, target_id, created_at) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING').run(memberId, target, id, iso(now()));
-      return ok({ useful: usefulCount(target, id) });
+      return ok(
+        db.transaction(() => {
+          db.prepare('INSERT INTO useful (member_id, target, target_id, created_at) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING').run(memberId, target, id, iso(now()));
+          const postId = target === 'post' ? id : integer(row, 'post_id');
+          notify(db, now(), owner, { kind: 'useful', key: `${target}:${id}:${memberId}`, actorId: memberId, subjectId: postId, detail: target });
+          return { useful: usefulCount(target, id) };
+        }),
+      );
     },
 
     unmarkUseful(memberId: number, target: 'post' | 'reply', id: number): { readonly useful: number } {

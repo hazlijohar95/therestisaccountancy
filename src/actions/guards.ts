@@ -29,7 +29,7 @@ export const admin = (locals: App.Locals): Member => {
   return member;
 };
 
-type LimitedForm = 'join' | 'sign-in' | 'link' | 'checkout' | 'survey' | 'listing' | 'call' | 'newsletter' | 'social-sign-up' | 'ticks' | 'work-email' | 'nominate' | 'decline' | 'floor' | 'report' | 'answer';
+type LimitedForm = 'join' | 'sign-in' | 'link' | 'checkout' | 'survey' | 'listing' | 'call' | 'newsletter' | 'social-sign-up' | 'ticks' | 'work-email' | 'nominate' | 'decline' | 'floor' | 'report' | 'answer' | 'casebook' | 'shelf';
 
 /** The key a form's posts are counted under: the form and the address they come from. */
 export const formKey = (context: ActionAPIContext, form: LimitedForm) => `${form} ${sourceOf(context.request.headers.get('cf-connecting-ip') ?? 'unknown')}`;
@@ -51,6 +51,12 @@ export const settle = <T, R extends string>(result: Result<T, R>, refusals: Reco
   if (result.ok) return result.value;
   throw new ActionError(refusals[result.reason]);
 };
+
+/**
+ * A text field that may be left blank. Astro reads an empty form field as null and applies a default only when the
+ * field is missing altogether, so a blank field becomes '' here before the schema sees it.
+ */
+export const blankable = <T extends z.ZodType>(schema: T) => z.preprocess((value) => value ?? '', schema);
 
 export const email = z.string().trim().toLowerCase().pipe(z.email(joinSection.messages.email));
 /** A person's name on one line: runs of whitespace, line breaks included, become one space. It goes into email subjects. */

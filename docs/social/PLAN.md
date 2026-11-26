@@ -17,7 +17,11 @@ The visual and interaction spec is the static design in `../social/` at the work
 - **Lapsing.** A claim with an expiry date lapses at the end of that month, in Malaysian time. The hourly job marks lapses and emails 60 days and 14 days before, once each. Body ticks run a year from the tick; licences run to the month on them. Renewing is a new claim; its tick replaces the older one.
 - **Claims are never edited.** Changing one means removing it and sending it again, under a new id that is never reused, so a reviewer's decision always lands on what they read.
 - **Work email needs the member.** Opening the emailed link confirms nothing (mail scanners open links). The member who asked confirms with a button, signed in.
-- **Notifications** are rows in a table, written when the event happens.
+- **Notifications** are rows in a table, written inside the same transaction as the event (`social-notify.ts`, which every module can import without a cycle). A row keeps ids, never copies: its actor, a subject id and a short detail, and it is read against what is true now, so one whose actor has gone or whose post was removed drops out. A key per member makes toggles (useful, follow, a changed rating) notify once; nobody is notified of their own doing. The bell's count is read in the middleware with the profile. "Needs you" (co-sign requests, ticks inside the renewal window) is read from live state, so a decided request never shows its buttons; viewing the page marks everything read.
+- **Casebook.** Entries carry bands and years only; `src/lib/guard.ts` is the one client-identifying guard, used by the browser as people type and by the server, which refuses the same note. Role titles go through it too (allowing "first" and "sole"), and the employer is a kind from a list. The co-signer is named by handle and must hold the seal; only they decide, once. A co-sign counts on the heatmap while its co-signer holds the seal.
+- **Shelf.** Links only, https with a host and no credentials; we never host the file. Removing an item is soft and takes it out of everyone's Saved. Saving your own item is refused.
+- **Abandoned sign-ups.** The hourly job deletes members who joined through Social, never set a password, were never accepted by the club, are not paused by the team and are not the team, 14 days after joining. Their profile and handle go with them. An invite they claimed at sign-up goes back to the team's queue as pending, so the nominee can be invited again.
+- **Blank form fields.** Astro reads an empty form field as null and applies a schema default only when the field is missing, so optional text goes through `blankable()` in `src/actions/guards.ts`.
 - **Drafts** stay in the browser (`localStorage`), never on the server.
 - **Nominations stay private.** Only the nominator sees their own (on The List), the team sees the queue, and the nominee sees their invite. A handle counts as on The List once a member has proven that account; a pending account blocks nothing. We know only a handle, so the team sends the invite link by direct message themselves. The link is shown once, in the response to Invite (only its hash is kept); Make a new link replaces a lost one. Claiming signed out goes through sign-up with only the token, and the server reads the account from it.
 - **What the Floor shows.** One rule for every read and write: not removed, written by an active member with a handle, and the practitioners' room only for a member with any ticked licence claim (or the team). Search, profiles and the feed all go through it. Posting needs a handle, never the seal.
@@ -57,16 +61,20 @@ floor_posts        id AUTOINCREMENT, member_id, room, jurisdiction MY|SG|AU|UK|A
                    removed_at, removed_by  (removal is soft: the author's delete and the team's remove both set it)
 floor_replies      id AUTOINCREMENT, post_id, member_id, body, accepted INTEGER (one per post), correction INTEGER,
                    created_at, edited_at, removed_at, removed_by
-useful             member_id, target post|reply|item, target_id, created_at (PK all three)
+useful             member_id, target post|reply|item, target_id, created_at (PK all three; 'item' is unused: shelf items
+                   have their own saves table)
 problems           id, number UNIQUE, tag, jurisdiction, title, scenario JSON, ask, options JSON,
                    opens_at, closes_at, created_by
 answers            id, problem_id, member_id, pick, reasoning, created_at (UNIQUE problem+member)
 ratings            answer_id, rater_id, verdict sound|partly|unsound, created_at (PK both)
 casebook           id, member_id, service, industry, band, framework, year, role, areas JSON, note,
-                   cosigner_id NULL, cosign pending|signed|declined NULL, created_at
-shelf_items        id, member_id, kind, title, url, created_at, removed_at
+                   cosigner_id NULL (SET NULL), cosign pending|signed|declined NULL, cosigned_at, created_at
+roles              id, member_id, from_year, to_year NULL (still there), title, employer (a kind from a list), created_at
+shelf_items        id, member_id, kind, title, url (https), created_at, removed_at
 saves              member_id, item_id, created_at (PK both)
-notifications      id, member_id, kind, payload JSON, created_at, read_at
+notifications      id, member_id, kind, key (UNIQUE with member_id), actor_id NULL (CASCADE), subject_id NULL, detail,
+                   created_at, read_at
+profiles           + badge_copied_at (the setup checklist's last step)
 reports            id, reporter_id, target post|reply|profile, target_id (the member's id for a profile),
                    target_member_id, reason, note, state open|actioned|dismissed, created_at, decided_by, decided_at
                    (one open report per reporter and thing; the team decides all open reports on a thing at once)
@@ -83,13 +91,15 @@ Lists that the code checks against (bodies, platforms, rooms, topics, sectors, s
 - `social-problems.ts`: problems, answers (hidden until you answer), ratings (ticked members only), judgment record, streak.
 - `social-casebook.ts`: entries, the client-identifying guard, co-sign.
 - `social-shelf.ts`: shelf items and saves.
-- `social-notifications.ts`: write, list, mark read, unread count.
+- `social-notifications.ts`: list, mark read, unread count. Writing is `notify()` in `social-notify.ts`.
+
+Tests from slice 6 on share `social-fixtures.ts`: the whole social site on node:sqlite with a clock the test moves.
 
 Each module is wired into `ClubStore.open()`, `src/env.d.ts` and the middleware's `locals`, and has a `.test.ts` beside it.
 
 ## Pages (`src/pages/social/`)
 
-`index` (Floor), `list`, `problems/[...number]` (the open problem at `/problems`, any number at `/problems/12`), `problems/new` (the team's), `post/[id]`, `@[handle]` (profile), `me` (redirects to own profile), `edit`, `verify` (accounts, bodies, licence upload, work email), `badge`, `nominate`, `claim/[token]`, `casebook/new`, `notifications`, `ticks`, `search` (JSON for the dialog), `sign-up`, and the team's `review` (admin only). Actions live in `src/actions/social.ts`.
+`index` (Floor), `list`, `problems/[...number]` (the open problem at `/problems`, any number at `/problems/12`), `problems/new` (the team's), `post/[id]`, `@[handle]` (profile), `me` (redirects to own profile), `edit`, `verify` (accounts, bodies, licence upload, work email), `badge`, `nominate`, `claim/[token]`, `casebook/new` (entries and roles), `notifications`, `ticks`, `search` (JSON for the dialog), `sign-up`, and the team's `review` (admin only). Actions live in `src/actions/` by area: `social.ts`, `ticks.ts`, `nominations.ts`, `floor.ts`, `problems.ts`, `casebook.ts` (casebook, roles, shelf, badge).
 
 ## Slices (each ends with `pnpm test` and `pnpm check` green, and is one commit)
 
@@ -98,7 +108,7 @@ Each module is wired into `ClubStore.open()`, `src/env.d.ts` and the middleware'
 3. **Nominations.** Nominate, team invite, claim page, remove.
 4. **Floor.** Posts, replies, accepted answers, corrections, useful, Following, rooms (the practitioners' room needs a ticked practising licence), reports, search.
 5. **Problems.** Team authoring, answering, hidden answers, ratings, archive, judgment record, streak.
-6. **The rest.** Casebook and co-sign, shelf and saves, notifications and the bell, badge, checklist, drafts.
+6. **The rest.** Casebook and co-sign, roles, shelf and saves, notifications and the bell, badge, checklist, abandoned sign-ups. (Drafts landed with the Floor in slice 4.)
 
 ## Not in scope
 
