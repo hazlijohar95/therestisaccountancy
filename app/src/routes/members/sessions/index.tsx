@@ -1,13 +1,12 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
+import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { week } from '../../../../../src/data/club.ts';
 import { formatDay, formatMoment } from '../../../../../src/lib/format.ts';
 import { Masthead } from '../../../components/club/Masthead.tsx';
 import { Notice } from '../../../components/club/Notice.tsx';
 import { Steps } from '../../../components/members/Steps.tsx';
+import { useAction } from '../../../components/useAction.ts';
 import { membersSessions, rsvp } from '../../../functions/members-sessions.ts';
-import type { Outcome } from '../../../lib/outcome.ts';
 import { clubTitle } from '../../../lib/title.ts';
 import s from './index.module.css';
 
@@ -21,20 +20,20 @@ const started = (startsAt: string) => new Date(startsAt).getTime() <= Date.now()
 
 function Sessions() {
   const { upcoming, recordings } = Route.useLoaderData();
-  const router = useRouter();
-  const answer = useServerFn(rsvp);
-  const [answered, setAnswered] = useState<Outcome<{ going: boolean }> | null>(null);
+  const answer = useAction(rsvp, { refresh: 'always' });
+  const [told, setTold] = useState<boolean | null>(null);
 
   const say = async (session: number, going: boolean) => {
-    setAnswered(await answer({ data: { session, going } }));
-    await router.invalidate();
+    const outcome = await answer.run({ session, going });
+    if (!outcome) return;
+    setTold(outcome.ok ? outcome.value.going : null);
   };
 
   return (
     <>
       <Masthead label="Sessions" title="Live every week. Recorded for the weeks you miss." narrow />
-      {answered?.ok && <Notice>{answered.value.going ? 'You are down for it. A calendar file is on its way by email.' : 'Noted. You are no longer down for it.'}</Notice>}
-      {answered && !answered.ok && <Notice tone="error">{answered.message}</Notice>}
+      {told !== null && <Notice>{told ? 'You are down for it. A calendar file is on its way by email.' : 'Noted. You are no longer down for it.'}</Notice>}
+      {answer.refusal && <Notice tone="error">{answer.refusal.message}</Notice>}
       <section className={`wrap ${s.block}`} aria-labelledby="coming-title">
         <h2 className="head" id="coming-title">
           Coming up

@@ -1,5 +1,4 @@
 import { createFileRoute, useLocation, useNavigate, useRouter } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent } from 'react';
 import { channelBySlug, channelPath, LIMITS, threadPath } from '../../../../../../src/data/community.ts';
 import { formatMoment } from '../../../../../../src/lib/format.ts';
@@ -7,10 +6,11 @@ import type { Moderation } from '../../../../../../src/server/community.ts';
 import { Masthead } from '../../../../components/club/Masthead.tsx';
 import { Notice } from '../../../../components/club/Notice.tsx';
 import { Pager } from '../../../../components/club/Pager.tsx';
+import { useAction } from '../../../../components/useAction.ts';
+import { FieldError } from '../../../../components/FieldError.tsx';
 import { PostText } from '../../../../components/PostText.tsx';
 import { deletePost, editPost, GONE, landingHref, membersThread, moderateThread, reply } from '../../../../functions/members-community.ts';
 import { formText } from '../../../../lib/form.ts';
-import type { Outcome } from '../../../../lib/outcome.ts';
 import { pageIn } from '../../../../components/members/flags.ts';
 import { clubTitle } from '../../../../lib/title.ts';
 import s from './$id.module.css';
@@ -26,25 +26,26 @@ export const Route = createFileRoute('/members/community/threads/$id')({
   component: ThreadPage,
 });
 
-type Failed = Extract<Outcome<unknown>, { ok: false }>;
 function ThreadPage() {
   const { me, thread, posts, page, pages } = Route.useLoaderData();
   const search = Route.useSearch();
   const location = useLocation();
   const navigate = useNavigate();
   const router = useRouter();
-  const send = { reply: useServerFn(reply), edit: useServerFn(editPost), remove: useServerFn(deletePost), moderate: useServerFn(moderateThread) };
-  /* The last refusal, and which form it answered. A refused reply or edit keeps what was typed. */
-  const [failed, setFailed] = useState<{ form: 'reply' | 'edit' | 'other'; outcome: Failed; draft: string } | null>(null);
+  const replying = useAction(reply, { refresh: 'never' });
+  const editing = useAction(editPost, { refresh: 'never' });
+  const removing = useAction(deletePost, { refresh: 'never' });
+  const moderating = useAction(moderateThread, { refresh: 'never' });
+  /* The four forms share one notice slot, so only the last answer's refusal is kept. A refused reply or edit keeps what was typed. */
+  const [draft, setDraft] = useState('');
+  const replyBody = replying.field('body', { id: 'reply-error', hint: 'reply-hint' });
 
   const isAdmin = me.role === 'admin';
   const canWrite = !thread.locked || isAdmin;
   const channel = channelBySlug(thread.channel);
   const flags = [thread.pinned ? 'Pinned' : null, thread.locked ? 'Locked' : null].filter(Boolean).join(' · ');
-  const failure = failed && Object.keys(failed.outcome.fields).length === 0 ? failed.outcome.message : null;
-  const replyErrors = failed?.form === 'reply' ? failed.outcome.fields : {};
-  const editErrors = failed?.form === 'edit' ? failed.outcome.fields : {};
-  const replyDraft = failed?.form === 'reply' ? failed.draft : '';
+  const failure = replying.failure ?? editing.failure ?? removing.failure ?? moderating.failure;
+  const replyDraft = replying.refusal ? draft : '';
 
   const withoutEdit = (() => {
     const query = new URLSearchParams(location.searchStr);
@@ -58,14 +59,21 @@ function ThreadPage() {
     return `${location.pathname}?${query.toString()}#post-${postId}`;
   };
 
+  const clear = (except?: { clear: () => void }) => {
+    for (const action of [replying, editing, removing, moderating]) if (action !== except) action.clear();
+  };
   /* A refusal shows above the posts. When the thread itself went, the member goes back to the board. */
-  const refuse = async (form: 'reply' | 'edit' | 'other', outcome: Failed, draft = '') => {
-    if (outcome.message === GONE) return navigate({ href: '/members/community?gone' });
-    setFailed({ form, outcome, draft });
+  const refuse = async (by: { clear: () => void }, outcome: { message: string }, typed = '') => {
+    if (outcome.message === GONE) {
+      by.clear();
+      return navigate({ href: '/members/community?gone' });
+    }
+    clear(by);
+    setDraft(typed);
     await router.invalidate();
   };
   const land = async (href: string) => {
-    setFailed(null);
+    clear();
     await navigate({ href });
     await router.invalidate();
   };
@@ -74,28 +82,32 @@ function ThreadPage() {
     event.preventDefault();
     const form = event.currentTarget;
     const body = formText(new FormData(form), 'body');
-    const outcome = await send.reply({ data: { thread: thread.id, body } });
-    if (!outcome.ok) return refuse('reply', outcome, body);
+    const outcome = await replying.run({ thread: thread.id, body });
+    if (!outcome) return;
+    if (!outcome.ok) return refuse(replying, outcome, body);
     form.reset();
     await land(landingHref(outcome.value));
   };
   const submitEdit = (postId: number) => async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const body = formText(new FormData(event.currentTarget), 'body');
-    const outcome = await send.edit({ data: { post: postId, body } });
-    if (!outcome.ok) return refuse('edit', outcome, body);
+    const outcome = await editing.run({ post: postId, body });
+    if (!outcome) return;
+    if (!outcome.ok) return refuse(editing, outcome, body);
     await land(landingHref(outcome.value));
   };
   const submitDelete = (postId: number) => async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const outcome = await send.remove({ data: { post: postId } });
-    if (!outcome.ok) return refuse('other', outcome);
+    const outcome = await removing.run({ post: postId });
+    if (!outcome) return;
+    if (!outcome.ok) return refuse(removing, outcome);
     await land(outcome.value.threadRemoved ? `${channelPath(outcome.value.channel)}?deleted` : landingHref(outcome.value));
   };
   const moderate = (action: Moderation) => async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const outcome = await send.moderate({ data: { thread: thread.id, action } });
-    if (!outcome.ok) return refuse('other', outcome);
+    const outcome = await moderating.run({ thread: thread.id, action });
+    if (!outcome) return;
+    if (!outcome.ok) return refuse(moderating, outcome);
     await land(outcome.value.action === 'remove' ? `${channelPath(outcome.value.channel)}?removed` : threadPath(outcome.value.threadId));
   };
   /* The pin and lock buttons share one form, as on the page before; the pressed button says which. */
@@ -151,7 +163,8 @@ function ThreadPage() {
         {posts.map((post) => {
           const mine = post.author?.id === me.id;
           const isEditing = search.edit === post.id && mine && !post.deleted && canWrite;
-          const editDraft = failed?.form === 'edit' && isEditing ? failed.draft : post.body;
+          const editDraft = editing.refusal && isEditing ? draft : post.body;
+          const editBody = editing.field('body', { id: `edit-${post.id}-error` });
           return (
             <article key={post.id} className={s.post} id={`post-${post.id}`}>
               <header className={`small ${s.meta}`}>
@@ -178,14 +191,9 @@ function ThreadPage() {
                     required
                     maxLength={LIMITS.body.max}
                     defaultValue={editDraft}
-                    aria-invalid={editErrors['body'] ? true : undefined}
-                    aria-describedby={editErrors['body'] ? `edit-${post.id}-error` : undefined}
+                    {...editBody.input}
                   />
-                  {editErrors['body'] && (
-                    <span className={`error ${s.error}`} id={`edit-${post.id}-error`}>
-                      {editErrors['body']}
-                    </span>
-                  )}
+                  <FieldError field={editBody} className={s.error} />
                   <div className={s.row}>
                     <button className="btn" type="submit">
                       Save
@@ -235,17 +243,12 @@ function ThreadPage() {
               required
               maxLength={LIMITS.body.max}
               defaultValue={replyDraft}
-              aria-invalid={replyErrors['body'] ? true : undefined}
-              aria-describedby={replyErrors['body'] ? 'reply-hint reply-error' : 'reply-hint'}
+              {...replyBody.input}
             />
             <span className="hint small" id="reply-hint">
               Plain text. Leave a blank line between paragraphs.
             </span>
-            {replyErrors['body'] && (
-              <span className={`error ${s.error}`} id="reply-error">
-                {replyErrors['body']}
-              </span>
-            )}
+            <FieldError field={replyBody} className={s.error} />
             <button className="btn" type="submit">
               Post reply
             </button>

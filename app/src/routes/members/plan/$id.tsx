@@ -1,10 +1,10 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
-import { useState, type FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import { formatDay } from '../../../../../src/lib/format.ts';
 import { Masthead } from '../../../components/club/Masthead.tsx';
 import { Notice } from '../../../components/club/Notice.tsx';
 import { PlanLetter } from '../../../components/club/PlanLetter.tsx';
+import { useAction } from '../../../components/useAction.ts';
 import { membersAnsweredPlan, startPlan } from '../../../functions/members-plans.ts';
 import { clubTitle } from '../../../lib/title.ts';
 import s from './$id.module.css';
@@ -19,14 +19,12 @@ export const Route = createFileRoute('/members/plan/$id')({
 function AnsweredPlan() {
   const { plan, open, isLatest } = Route.useLoaderData();
   const navigate = useNavigate();
-  const start = useServerFn(startPlan);
-  const [error, setError] = useState<string | null>(null);
+  const start = useAction(startPlan, { refresh: 'never' });
 
   const startNext = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const outcome = await start();
-    if (outcome.ok) return navigate({ to: '/members/plan', search: { started: true } });
-    setError(outcome.message);
+    const outcome = await start.run(undefined);
+    if (outcome?.ok) await navigate({ to: '/members/plan', search: { started: true } });
   };
 
   return (
@@ -45,7 +43,7 @@ function AnsweredPlan() {
         </p>
       </Masthead>
 
-      {error && <Notice tone="error">{error}</Notice>}
+      {start.refusal && <Notice tone="error">{start.refusal.message}</Notice>}
 
       <article className={`wrap ${s.block}`} aria-label="Your plan and the answer">
         <PlanLetter plan={plan} level={2} />

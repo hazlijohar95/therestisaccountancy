@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import { anyTerm, everyRate, monthsFree, TERMS, terms, type Term } from '../../../../src/data/membership.ts';
 import { capitalised, formatDay, numberWord } from '../../../../src/lib/format.ts';
 import { Masthead } from '../../components/club/Masthead.tsx';
 import { Notice } from '../../components/club/Notice.tsx';
+import { useAction } from '../../components/useAction.ts';
 import { checkout, membersPay } from '../../functions/members-billing.ts';
 import { clubTitle } from '../../lib/title.ts';
 import s from './pay.module.css';
@@ -27,17 +27,16 @@ const offers = TERMS.map((term) => {
 function Pay() {
   const { member, standing } = Route.useLoaderData();
   const { back } = Route.useSearch();
-  const open = useServerFn(checkout);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const open = useAction(checkout, { refresh: 'never' });
+  const [leaving, setLeaving] = useState(false);
+  const error = open.refusal?.message;
 
   const pay = (term: Term) => async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setBusy(true);
-    const outcome = await open({ data: { term } });
-    if (outcome.ok) return window.location.assign(outcome.value.url);
-    setBusy(false);
-    setError(outcome.message);
+    const outcome = await open.run({ term });
+    if (!outcome?.ok) return;
+    setLeaving(true);
+    window.location.assign(outcome.value.url);
   };
 
   /* Someone from the social site pays only once the club accepts a request from them. The form opens with their email in. */
@@ -87,7 +86,7 @@ function Pay() {
               <h3 className={`serif ${s.rate}`}>{offer.label}</h3>
               {offer.saving && <p className={s.saving}>{offer.saving}</p>}
               <form method="POST" onSubmit={pay(offer.term)}>
-                <button className="btn" type="submit" disabled={busy}>
+                <button className="btn" type="submit" disabled={open.busy || leaving}>
                   Pay {offer.price} with CHIP
                 </button>
               </form>
