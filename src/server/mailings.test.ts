@@ -40,18 +40,20 @@ test('a reply tells everyone else who posted in the thread, at most once every s
   const abu = await w.join('abu@firm.com.my', 'Abu');
   const siti = await w.join('siti@firm.com.my', 'Siti');
   const place = w.community.startThread(aina, { channel: 'pricing', title: 'Fixed fees for audits', body: 'How do you price them?' });
-  w.community.reply(abu, place.threadId, { body: 'Per entity.' });
+  const told = (member: { id: number; role: 'member' | 'admin' }, body: string) => {
+    const { notices } = value(w.community.reply(member, place.threadId, { body }));
+    assert.equal(notices.title, 'Fixed fees for audits');
+    return notices.recipients.map((r) => r.name).sort();
+  };
 
-  w.community.reply(siti, place.threadId, { body: 'Per hour, sadly.' });
-  const first = w.mailings.replyNotices(place.threadId, siti.id);
-  assert.equal(first.title, 'Fixed fees for audits');
-  assert.deepEqual(first.recipients.map((r) => r.name).sort(), ['Abu', 'Aina'], 'the replier is not told');
-  w.community.reply(abu, place.threadId, { body: 'Try fixed.' });
-  assert.deepEqual(w.mailings.replyNotices(place.threadId, abu.id).recipients.map((r) => r.name), ['Siti'], 'Aina, told minutes ago, is skipped');
+  assert.deepEqual(told(abu, 'Per entity.'), ['Aina'], 'the replier is not told');
+  assert.deepEqual(told(siti, 'Per hour, sadly.'), ['Abu'], 'Aina, told minutes ago, is skipped');
+  assert.deepEqual(told(abu, 'Try fixed.'), ['Siti']);
+  assert.deepEqual(told(abu, 'Try fixed.'), [], 'the same reply again posts once and tells nobody twice');
 
   w.later(REPLY_NOTICE_GAP_MS + 1);
   w.mailings.setPrefs(abu.id, { replies: false, digest: true });
-  assert.deepEqual(w.mailings.replyNotices(place.threadId, siti.id).recipients.map((r) => r.name), ['Aina'], 'a member who turned replies off is skipped');
+  assert.deepEqual(told(siti, 'Per hour, still.'), ['Aina'], 'a member who turned replies off is skipped');
   assert.deepEqual(w.mailings.prefs(abu.id), { replies: false, digest: true });
 });
 

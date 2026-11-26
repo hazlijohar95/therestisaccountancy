@@ -142,17 +142,14 @@ export const reply = createServerFn({ method: 'POST' })
     if (!input.ok) return input;
     const member = await paidOrRefusal();
     if (!member.ok) return member;
-    const result = await withStore(async (store) => {
-      const posted = await store.community.reply(member.value, input.value.thread, input.value);
-      if (!posted.ok) return posted;
-      const notices = await store.mailings.replyNotices(posted.value.threadId, member.value.id);
-      return { ok: true as const, place: landing(posted.value), title: notices.title, recipients: [...notices.recipients] };
-    });
-    if (!result.ok) return refused(postRefusals[result.reason]);
-    const url = absolute(landingHref(result.place));
+    const posted = await withStore(async (store) => await store.community.reply(member.value, input.value.thread, input.value));
+    if (!posted.ok) return refused(postRefusals[posted.reason]);
+    const place = landing(posted.value);
+    const url = absolute(landingHref(place));
     const settingsUrl = absolute('/members/account#email');
-    sendLater(result.recipients.map((to) => replyLetter(to, { title: result.title, by: member.value.name, url, settingsUrl })));
-    return done(result.place);
+    const { title, recipients } = posted.value.notices;
+    sendLater(recipients.map((to) => replyLetter(to, { title, by: member.value.name, url, settingsUrl })));
+    return done(place);
   });
 
 const editInput = z.object({ post: numberId, body });
