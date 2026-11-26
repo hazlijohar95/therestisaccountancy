@@ -2,26 +2,33 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createClub } from './club.ts';
 import { openDatabase } from './node-db.ts';
+import type { Result } from './result.ts';
 import { createSchedule } from './schedule.ts';
 
 const SITE = 'https://therestisaccountancy.com/';
 
 const PASSWORD = 'correct horse battery';
+const value = <T, R extends string>(result: Result<T, R>): T => {
+  if (!result.ok) assert.fail(`expected success, got ${result.reason}`);
+  return result.value;
+};
 const session = (title: string, startsAt: string) => ({ title, kind: 'Clinics' as const, startsAt, minutes: 60, link: 'https://meet.example/room', detail: '' });
 
 test('the admin sees each session still to come with the active members coming to it, in the order they said so; a suspended member still counts as going', async () => {
   const db = openDatabase(':memory:');
-  const now = () => new Date('2026-11-26T02:00:00Z');
+  let clock = new Date('2026-11-19T02:00:00Z');
+  const now = () => clock;
   const club = createClub(db, now);
   const schedule = createSchedule(db, now);
   const admin = await club.ensureAdmin({ email: 'admin@club.test', name: 'Admin', password: PASSWORD });
   const aina = await club.ensureAdmin({ email: 'aina@firm.my', name: 'Aina', password: PASSWORD });
   const abu = await club.ensureAdmin({ email: 'abu@firm.my', name: 'Abu', password: PASSWORD });
-  const later = schedule.add(session('Year-end close', '2026-12-03T07:00:00Z'));
-  const sooner = schedule.add(session('Pricing clinic', '2026-11-27T07:00:00Z'));
-  const onlyAbu = schedule.add(session('Audit clinic', '2026-12-10T07:00:00Z'));
-  const empty = schedule.add(session('Empty room', '2026-12-17T07:00:00Z'));
-  schedule.add(session('Already over', '2026-11-20T07:00:00Z'));
+  value(schedule.add(session('Already over', '2026-11-20T07:00:00Z')));
+  clock = new Date('2026-11-26T02:00:00Z');
+  const later = value(schedule.add(session('Year-end close', '2026-12-03T07:00:00Z')));
+  const sooner = value(schedule.add(session('Pricing clinic', '2026-11-27T07:00:00Z')));
+  const onlyAbu = value(schedule.add(session('Audit clinic', '2026-12-10T07:00:00Z')));
+  const empty = value(schedule.add(session('Empty room', '2026-12-17T07:00:00Z')));
   schedule.rsvp(abu.id, sooner, true);
   schedule.rsvp(aina.id, sooner, true);
   schedule.rsvp(aina.id, later, true);
@@ -36,4 +43,13 @@ test('the admin sees each session still to come with the active members coming t
     { id: onlyAbu, title: 'Audit clinic', going: 1, names: [] },
     { id: empty, title: 'Empty room', going: 0, names: [] },
   ]);
+});
+
+test('a session goes on the calendar only if it starts ahead of now', () => {
+  const db = openDatabase(':memory:');
+  const schedule = createSchedule(db, () => new Date('2026-11-26T07:00:00Z'));
+  assert.deepEqual(schedule.add(session('Right now', '2026-11-26T07:00:00Z')), { ok: false, reason: 'past' });
+  assert.deepEqual(schedule.add(session('This morning', '2026-11-26T01:00:00Z')), { ok: false, reason: 'past' });
+  assert.equal(value(schedule.add(session('In a minute', '2026-11-26T07:01:00Z'))), 1);
+  assert.deepEqual(schedule.upcoming(null).map((s) => s.title), ['In a minute']);
 });

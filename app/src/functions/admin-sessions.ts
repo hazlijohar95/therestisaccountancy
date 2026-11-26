@@ -45,9 +45,8 @@ export const addSession = createServerFn({ method: 'POST' })
     const { date, time, ...session } = input.value;
     const startsAt = malaysiaTime(date, time);
     if (!startsAt) return refused('That date or time does not exist.');
-    if (new Date(startsAt).getTime() <= Date.now()) return refused('That time has passed. Pick one ahead.');
-    await withStore(async (store) => await store.schedule.add({ ...session, startsAt }));
-    return done(null);
+    const added = await withStore(async (store) => await store.schedule.add({ ...session, startsAt }));
+    return added.ok ? done(null) : refused('That time has passed. Pick one ahead.');
   });
 
 const sessionInput = z.object({ session: id });
