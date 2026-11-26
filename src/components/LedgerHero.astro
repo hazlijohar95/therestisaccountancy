@@ -1,11 +1,10 @@
 ---
-import { lines } from '../data/lines.ts';
 import Title from './Title.astro';
 
 /*
  * The home page's opening: a working paper. A slow dithered ground (Paper Shaders) sits under ledger ruling, the
- * headline marks one phrase, and one red tick closes it, as on every cover. The ledger's columns are the lines of
- * business, so the ruling is also the way in. Without WebGL, or with reduced motion, the ground holds still.
+ * headline marks one phrase, and one red tick closes it, as on every cover. Without WebGL, or with reduced motion, the
+ * ground holds still.
  */
 interface Props {
   /** The headline, marking one phrase with asterisks as a post title does. */
@@ -14,8 +13,6 @@ interface Props {
 }
 
 const { title, lead } = Astro.props;
-const shown = ['/newsletter', '/podcast', '/programmes', '/products'];
-const columns = lines.filter((line) => shown.includes(line.href));
 ---
 
 <section class="night hero" aria-labelledby="page-title">
@@ -26,9 +23,6 @@ const columns = lines.filter((line) => shown.includes(line.href));
       <Title text={title} /><svg class="tick" viewBox="0 0 48 40" aria-hidden="true"><path d="M3 22 C 9 26, 13 31, 17 36 C 23 22, 33 10, 45 3" /></svg>
     </h1>
     <p class="lead">{lead}</p>
-    <nav class="cols" aria-label="What we make">
-      {columns.map((line) => <a href={line.href}><span class="mono">{line.group}</span><span>{line.label}</span></a>)}
-    </nav>
   </div>
 </section>
 
@@ -80,7 +74,7 @@ const columns = lines.filter((line) => shown.includes(line.href));
       linear-gradient(to bottom, transparent calc(100% - 46px), rgb(255 255 255 / .16) calc(100% - 46px), rgb(255 255 255 / .16) calc(100% - 45px), transparent calc(100% - 45px), transparent calc(100% - 41px), rgb(255 255 255 / .16) calc(100% - 41px), rgb(255 255 255 / .16) calc(100% - 40px), transparent calc(100% - 40px)),
       repeating-linear-gradient(to bottom, transparent 0 35px, rgb(255 255 255 / .06) 35px 36px);
   }
-  .in { display: grid; gap: var(--space-6); padding-block: clamp(56px, 7vw, 96px) clamp(72px, 9vw, 128px); }
+  .in { display: grid; justify-items: center; gap: var(--space-6); padding-block: clamp(72px, 9vw, 128px) clamp(88px, 11vw, 152px); text-align: center; }
   .mono { font: 400 var(--size-label)/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .06em; }
   /* The money columns' heads, in the same coordinates as their rules: the last 22vw of the band, 11vw each. */
   .heads { position: absolute; top: clamp(16px, 2vw, 28px); right: 0; display: grid; grid-template-columns: repeat(2, 11vw); margin: 0; text-align: center; opacity: .55; }
@@ -90,11 +84,5 @@ const columns = lines.filter((line) => shown.includes(line.href));
     .tick path { stroke-dasharray: 70; stroke-dashoffset: 70; animation: draw 700ms 500ms var(--motion-ease) forwards; }
   }
   @keyframes draw { to { stroke-dashoffset: 0; } }
-  .lead { margin: 0; max-width: 40em; }
-  .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: var(--space-5); border-top: var(--stroke-rule) solid var(--ink); }
-  .cols a { display: grid; gap: var(--space-1); padding: var(--space-4) var(--space-4) var(--space-4) 0; border-bottom: var(--stroke-hair) solid var(--ink); text-decoration: none; }
-  .cols a span:last-child { font: 400 var(--size-head)/1.1 var(--display-font); letter-spacing: var(--display-tracking); font-synthesis: none; }
-  .cols .mono { opacity: .6; }
-  @media (hover: hover) { .cols a:hover span:last-child { text-decoration: underline; text-decoration-thickness: var(--stroke-hair); text-underline-offset: .15em; } }
-  @media (min-width: 900px) { .cols { grid-template-columns: repeat(4, minmax(0, 1fr)); } .cols a + a { padding-inline-start: var(--space-4); border-inline-start: var(--stroke-hair) solid var(--ink); } }
+  .lead { margin: 0; max-width: 40em; text-wrap: balance; }
 </style>
