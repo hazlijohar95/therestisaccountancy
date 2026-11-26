@@ -58,6 +58,14 @@ export const socialUrl = (siteUrl: string, path: string) => new URL(socialPath(n
 /** Which social page a page under /social is, as socialPath takes it: /social/edit is /edit. */
 export const socialPathOf = (url: URL) => url.pathname.replace(/^\/social(?=\/|$)/, '') || '/';
 
+/** The social page at url with its query, less the form action a POST added: where to come back to after signing in. */
+export function socialHere(url: URL): string {
+  const query = new URLSearchParams(url.search);
+  query.delete('_action');
+  const search = query.toString();
+  return search ? `${socialPathOf(url)}?${search}` : socialPathOf(url);
+}
+
 /**
  * A link to a social page from the page at url. Root paths on the social host; the social host itself from the club's
  * own domain; /social/... anywhere else, so a dev server on localhost serves social pages too.

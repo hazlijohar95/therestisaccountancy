@@ -30,6 +30,8 @@ declare namespace App {
     socialCasebook: import('./server/instance.ts').Store['socialCasebook'];
     socialShelf: import('./server/instance.ts').Store['socialShelf'];
     socialNotifications: import('./server/instance.ts').Store['socialNotifications'];
+    socialInvites: import('./server/instance.ts').Store['socialInvites'];
+    socialRequests: import('./server/instance.ts').Store['socialRequests'];
     /**
      * The signed-in member's own social profile, read once in the middleware on social pages so the layout can draw
      * their avatar with its track and seal. Null when signed out, off the social pages, or before they claim a handle.

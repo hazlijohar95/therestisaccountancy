@@ -196,7 +196,7 @@ const streakNote = streak
                         </span>
                       ) : (
                         <span>
-                          <a href={signInPath(Astro.url, socialPathOf(Astro.url))}>Sign in</a> or <a href={to('/sign-up')}>sign up free</a> to answer. Answers stay hidden until you do.
+                          <a href={signInPath(Astro.url, socialPathOf(Astro.url))}>Sign in</a> to answer. Answers stay hidden until you do. New here? <a href={to('/request')}>Request to join</a>.
                         </span>
                       )}
                     </p>
@@ -320,9 +320,9 @@ const streakNote = streak
                 </>
               ) : (
                 <>
-                  <p>Sign up free and you can answer it the week it opens.</p>
-                  <a class="btn sm" href={to('/sign-up')}>
-                    Sign up
+                  <p>Join and you can answer it the week it opens. Social is free and invite-only.</p>
+                  <a class="btn sm" href={to('/request')}>
+                    Request to join
                   </a>
                 </>
               )}

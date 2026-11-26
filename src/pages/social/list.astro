@@ -118,7 +118,7 @@ const trackChips = [{ label: 'Everyone', track: undefined }, ...TRACKS.map((t) =
       ) : (
         <div class="card empty">
           <p class="head">{filtered ? 'No one matches yet.' : 'No one is on The List yet.'}</p>
-          <p>{filtered ? 'Try another topic or track.' : 'It fills with real people as they sign up. Know someone who posts things worth learning from?'}</p>
+          <p>{filtered ? 'Try another topic or track.' : 'It fills with real people as they join. Know someone who posts things worth learning from?'}</p>
           {filtered ? <a class="btn sm ghost" href={to('/list')}>Show everyone</a> : <a class="btn sm" href={to('/nominate')}>Nominate them</a>}
         </div>
       )

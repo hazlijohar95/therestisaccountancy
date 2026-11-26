@@ -108,7 +108,7 @@ const roomName = room ? ROOMS.find((r) => r.id === room)?.name : null;
                 </>
               ) : (
                 <>
-                  <a href={signInPath(Astro.url, socialPathOf(Astro.url))}>Sign in</a> or <a href={to('/sign-up')}>sign up free</a> to post and reply.
+                  <a href={signInPath(Astro.url, socialPathOf(Astro.url))}>Sign in</a> to post and reply. New here? <a href={to('/request')}>Request to join</a>.
                 </>
               )}
             </p>
@@ -160,7 +160,7 @@ const roomName = room ? ROOMS.find((r) => r.id === room)?.name : null;
             <div class="empty">
               <p class="head">Nothing on the Floor yet.</p>
               <p>Ask the first question. People who know answer here, and ticked answers show it.</p>
-              {!canPost && <a class="btn sm" href={member ? to('/edit') : to('/sign-up')}>{member ? 'Claim your handle' : 'Sign up free'}</a>}
+              {!canPost && <a class="btn sm" href={member ? to('/edit') : to('/request')}>{member ? 'Claim your handle' : 'Request to join'}</a>}
             </div>
           ) : (
             <div class="empty">

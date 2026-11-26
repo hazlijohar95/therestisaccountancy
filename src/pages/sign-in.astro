@@ -27,7 +27,7 @@ const error = result?.error && !isInputError(result.error) ? result.error.messag
       <div>
         <p class="label top">{forSocial ? 'Social' : 'Members'}</p>
         <h1 class="headline serif" id="page-title">{forSocial ? 'Sign in to Social.' : 'Sign in to the club.'}</h1>
-        <p class="lead">{forSocial ? 'One account for Social and the club. Just signed up? Use the link we emailed to set a password first.' : 'New member? Use the link in your invitation to set a password first.'}</p>
+        <p class="lead">{forSocial ? 'One account for Social and the club. Just joined? Use the link we emailed to set a password first.' : 'New member? Use the link in your invitation to set a password first.'}</p>
       </div>
       <form method="POST" action={formAction(Astro.url, actions.signIn)} class="form">
         {signedOut?.data && <p class="note" role="status">You have signed out.</p>}
@@ -42,7 +42,7 @@ const error = result?.error && !isInputError(result.error) ? result.error.messag
         {error && <p class="error" id="form-error" role="alert">{error}</p>}
         <button class="btn" type="submit">Sign in</button>
         <p class="small">Forgot your password, or lost your invitation? <a href="/forgot">Get a new link by email</a>.</p>
-        {forSocial ? <p class="small">New here? <a href={socialPath(Astro.url, '/sign-up')}>Sign up for Social</a>. It is free.</p> : <p class="small">Not a member yet? <a href="/join">Request membership</a>.</p>}
+        {forSocial ? <p class="small">New here? Social is invite-only. Use the link you were sent, or <a href={socialPath(Astro.url, '/request')}>request to join</a>.</p> : <p class="small">Not a member yet? <a href="/join">Request membership</a>.</p>}
       </form>
     </div>
   </section>

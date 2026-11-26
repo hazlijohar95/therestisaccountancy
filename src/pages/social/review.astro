@@ -11,7 +11,7 @@ import type { Account, Claim, Queued } from '../../server/social-claims.ts';
 export const prerender = false;
 
 const to = (path: string) => socialPath(Astro.url, path);
-const { member, socialClaims, socialNominations, socialFloor } = Astro.locals;
+const { member, socialClaims, socialNominations, socialFloor, socialRequests, socialInvites } = Astro.locals;
 if (!member) return Astro.redirect(signInPath(Astro.url, '/review'));
 const team = member.role === 'admin';
 if (!team) Astro.response.status = 404;
@@ -22,6 +22,8 @@ const TABS = [
   { id: 'documents', label: 'Documents' },
   { id: 'nominations', label: 'Nominations' },
   { id: 'reports', label: 'Reports' },
+  { id: 'requests', label: 'Requests' },
+  { id: 'invites', label: 'Invites' },
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 const tab: Tab = TABS.find((t) => t.id === Astro.url.searchParams.get('tab'))?.id ?? 'accounts';
@@ -43,11 +45,25 @@ if (nominationResults.reject?.data) return Astro.redirect(to(`/review?tab=nomina
 const reportResults = { hide: Astro.getActionResult(actions.hideReported), dismiss: Astro.getActionResult(actions.dismissReported) };
 const reportDecided = reportResults.hide?.data ?? reportResults.dismiss?.data;
 if (reportDecided) return Astro.redirect(to(`/review?tab=reports&done=${reportDecided.decided}`));
+const joinResults = {
+  approve: Astro.getActionResult(actions.approveRequest),
+  decline: Astro.getActionResult(actions.declineRequest),
+  withdraw: Astro.getActionResult(actions.withdrawTeamInvite),
+  invite: Astro.getActionResult(actions.teamInvite),
+};
+const joinDecided = joinResults.approve?.data ?? joinResults.decline?.data ?? joinResults.withdraw?.data;
+if (joinDecided) return Astro.redirect(to(`/review?tab=${joinResults.withdraw?.data ? 'invites' : 'requests'}&done=${joinDecided.decided}`));
+/* Like a nomination's, a team invite's link exists only in this response, to send by hand if the email did not go. */
+const teamInvited = joinResults.invite?.data ?? null;
 /* The invite link exists only in this response: its hash is all we keep, so it is never put in a redirect. */
 const invited = nominationResults.invite?.data ?? nominationResults.relink?.data ?? null;
 const done = Astro.url.searchParams.get('done');
 
-const failure = [...Object.values(results), ...Object.values(nominationResults), ...Object.values(reportResults)].map((r) => (r?.error && !isInputError(r.error) ? r.error.message : null)).find(Boolean) ?? null;
+const failure =
+  [...Object.values(results), ...Object.values(nominationResults), ...Object.values(reportResults), ...Object.values(joinResults)]
+    .map((r) => (r?.error && !isInputError(r.error) ? r.error.message : null))
+    .find(Boolean) ?? null;
+const inviteFields = joinResults.invite?.error && isInputError(joinResults.invite.error) ? joinResults.invite.error.fields : {};
 const rejected = results.rejectAccount ?? results.rejectClaim;
 const reasonError = rejected?.error && isInputError(rejected.error) ? (rejected.error.fields.reason?.[0] ?? null) : null;
 const posted = await postedFields(Astro.request);
@@ -56,14 +72,18 @@ const retrying = reasonError ? Number(posted(results.rejectAccount ? 'account' :
 const queue = team ? await socialClaims.queue() : { accounts: [], credentials: [], documents: [] };
 const nominations = team ? await socialNominations.queue() : { pending: [], invited: [] };
 const reports = team ? await socialFloor.reports() : [];
+const requests = team ? await socialRequests.queue() : [];
+const teamInvites = team ? await socialInvites.teamInvites() : [];
 const counts: Record<Tab, number> = {
   accounts: queue.accounts.length,
   credentials: queue.credentials.length,
   documents: queue.documents.length,
   nominations: nominations.pending.length,
   reports: reports.length,
+  requests: requests.length,
+  invites: teamInvites.filter((i) => i.state === 'live').length,
 };
-const items: readonly (Queued<Account> | Queued<Claim>)[] = tab === 'nominations' || tab === 'reports' ? [] : queue[tab];
+const items: readonly (Queued<Account> | Queued<Claim>)[] = tab === 'accounts' || tab === 'credentials' || tab === 'documents' ? queue[tab] : [];
 const HIDE = { post: 'Hide post', reply: 'Hide reply', profile: 'Take off The List' } as const;
 const WHAT = { post: 'Post', reply: 'Reply', profile: 'Profile' } as const;
 const isAccount = (entry: Queued<Account> | Queued<Claim>): entry is Queued<Account> => 'code' in entry.item;
@@ -77,7 +97,10 @@ const guidance: Record<Tab, string> = {
   documents: 'Download the document and read it. It is deleted once you decide, so decide only when you are sure.',
   nominations: 'Open the profile. Invite people who post things worth learning from, then send them the link by direct message. Once only, no chasing.',
   reports: 'Read it where it is. Hide removes a post or reply, or takes a profile off The List. Dismiss leaves it. Nobody is told either way.',
+  requests: 'Look them up. Approve people in the profession whose posts you can see; they get the email to set a password. Decline sends a short, polite email.',
+  invites: 'Invite by email, club members you bring over included. The link works once, for two weeks. It shows here once, too, in case the email does not arrive.',
 };
+const INVITE_STATE = { live: 'Waiting', used: 'Used', expired: 'Ran out', revoked: 'Withdrawn' } as const;
 const people = (n: number) => `${n} ${n === 1 ? 'nominator' : 'nominators'}`;
 ---
 
@@ -117,6 +140,9 @@ const people = (n: number) => `${n} ${n === 1 ? 'nominator' : 'nominators'}`;
         {done === 'nomination-rejected' && <p class="note" role="status">Not invited. Nobody is told.</p>}
         {done === 'hidden' && <p class="note" role="status">Hidden. The reports on it are closed.</p>}
         {done === 'dismissed' && <p class="note" role="status">Dismissed. The reports on it are closed.</p>}
+        {done === 'request-approved' && <p class="note" role="status">Approved. They have the email to get in.</p>}
+        {done === 'request-declined' && <p class="note" role="status">Declined. They have a short, polite email.</p>}
+        {done === 'invite-withdrawn' && <p class="note" role="status">Withdrawn. The link no longer works.</p>}
         {failure && <p class="error" role="alert">{failure}</p>}
         {invited && (
           <div class="invite-link">
@@ -133,6 +159,118 @@ const people = (n: number) => `${n} ${n === 1 ? 'nominator' : 'nominators'}`;
             </div>
             <p class="small" data-copy-status aria-live="polite"></p>
           </div>
+        )}
+        {teamInvited && (
+          <div class="invite-link">
+            <p>
+              <b>Invite for {teamInvited.email}.</b> {teamInvited.emailed ? 'We emailed it.' : 'The email did not go: send the link yourself.'} It shows only now.
+            </p>
+            <label class="label-text" for="team-invite-link">Invite link</label>
+            <input class="input" id="team-invite-link" readonly value={teamInvited.link} autofocus />
+            <div class="actions">
+              <button class="btn sm" type="button" data-copy="team-invite-link" hidden>Copy link</button>
+            </div>
+            <p class="small" data-copy-status aria-live="polite"></p>
+          </div>
+        )}
+        {tab === 'requests' && (
+          <ul class="queue">
+            {requests.length === 0 && (
+              <li class="empty card">
+                <p>Queue clear.</p>
+              </li>
+            )}
+            {requests.map((r) => (
+              <li class="queue-item card">
+                <div class="facts">
+                  <p>
+                    <b>{r.name}</b> · {r.email}
+                  </p>
+                  <p>“{r.about}”</p>
+                  {r.link && (
+                    <p>
+                      <a href={r.link} target="_blank" rel="noopener noreferrer nofollow">
+                        {r.link}
+                        <span class="sr-only"> (new tab)</span>
+                      </a>
+                    </p>
+                  )}
+                  {r.onSocial && (
+                    <p>
+                      Already on Social as <a href={to(`/@${r.onSocial}`)}>@{r.onSocial}</a>.
+                    </p>
+                  )}
+                </div>
+                <span class="ago">{formatDay(r.createdAt)}</span>
+                <div class="actions">
+                  <form method="POST" action={action(actions.approveRequest)}>
+                    <input type="hidden" name="request" value={r.id} />
+                    <button class="btn sm" type="submit">
+                      Approve<span class="sr-only">: {r.name}</span>
+                    </button>
+                  </form>
+                  <form method="POST" action={action(actions.declineRequest)}>
+                    <input type="hidden" name="request" value={r.id} />
+                    <button class="btn sm ghost" type="submit">
+                      Decline<span class="sr-only">: {r.name}</span>
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {tab === 'invites' && (
+          <>
+            <form class="panel card" method="POST" action={action(actions.teamInvite)} novalidate>
+              <div class="field">
+                <label for="invite-email">Email</label>
+                <input class="input" id="invite-email" name="email" type="email" required autocomplete="off" aria-invalid={inviteFields.email ? 'true' : undefined} aria-describedby={inviteFields.email ? 'invite-email-error' : undefined} autofocus={inviteFields.email ? true : undefined} />
+                {inviteFields.email && <span class="error" id="invite-email-error">{inviteFields.email[0]}</span>}
+              </div>
+              <div class="field">
+                <label for="invite-name">Name · optional</label>
+                <input class="input" id="invite-name" name="name" maxlength="60" autocomplete="off" aria-invalid={inviteFields.name ? 'true' : undefined} aria-describedby={inviteFields.name ? 'invite-name-error' : undefined} />
+                {inviteFields.name && <span class="error" id="invite-name-error">{inviteFields.name[0]}</span>}
+              </div>
+              <div class="panel-foot">
+                <span class="small">They pick a handle and set a password. Sending again replaces the earlier link.</span>
+                <button class="btn" type="submit">Send invite</button>
+              </div>
+            </form>
+            <ul class="queue">
+              {teamInvites.map((i) => (
+                <li class="queue-item card">
+                  <div class="facts">
+                    <p>
+                      <b>{i.name ? `${i.name} · ${i.email}` : i.email}</b>
+                    </p>
+                    <p>
+                      {INVITE_STATE[i.state]}
+                      {i.state === 'used' && i.usedBy && (
+                        <>
+                          {' '}
+                          by <a href={to(`/@${i.usedBy}`)}>@{i.usedBy}</a>
+                        </>
+                      )}
+                      {i.state === 'live' && ` · works until ${formatDay(i.expiresAt)}`}
+                    </p>
+                  </div>
+                  <span class="ago">{formatDay(i.createdAt)}</span>
+                  {i.state === 'live' && (
+                    <div class="actions">
+                      <form method="POST" action={action(actions.withdrawTeamInvite)}>
+                        <input type="hidden" name="invite" value={i.id} />
+                        <button class="btn sm ghost" type="submit">
+                          Withdraw<span class="sr-only">: {i.email}</span>
+                        </button>
+                      </form>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </>
         )}
         {tab === 'nominations' && (
           <ul class="queue">
@@ -240,7 +378,7 @@ const people = (n: number) => `${n} ${n === 1 ? 'nominator' : 'nominators'}`;
             ))}
           </ul>
         )}
-        {tab !== 'nominations' && tab !== 'reports' && (
+        {(tab === 'accounts' || tab === 'credentials' || tab === 'documents') && (
         <ul class="queue">
           {items.length === 0 && (
             <li class="empty card">
@@ -335,21 +473,7 @@ const people = (n: number) => `${n} ${n === 1 ? 'nominator' : 'nominators'}`;
 </Social>
 
 <script>
-  /* Copies the invite link. Without a clipboard the link is selected, so the team copies it by hand. */
-  for (const button of document.querySelectorAll('[data-copy]')) {
-    const input = document.getElementById(button.getAttribute('data-copy') ?? '');
-    const status = document.querySelector('[data-copy-status]');
-    if (!(button instanceof HTMLButtonElement) || !(input instanceof HTMLInputElement)) continue;
-    button.hidden = false;
-    button.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(input.value);
-        if (status) status.textContent = 'Copied.';
-      } catch {
-        input.focus();
-        input.select();
-        if (status) status.textContent = 'Selected. Press Ctrl+C or ⌘C to copy.';
-      }
-    });
-  }
+  import { wireCopyButtons } from '../../lib/copy.ts';
+
+  wireCopyButtons();
 </script>

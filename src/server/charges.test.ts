@@ -190,7 +190,7 @@ const fromSocial = async (email = 'priya@tax.my') => {
   const db = openDatabase(':memory:');
   const club = createClub(db, clock);
   const social = createSocialProfiles(db, clock);
-  const signed = social.signUp({ name: 'Priya Nair', email, handle: 'priyataxes' });
+  const signed = social.signUp({ name: 'Priya Nair', email, handle: 'priyataxes' }, { via: 'team' });
   assert.ok(signed.ok);
   const link = club.newLink(signed.value.memberId);
   assert.ok(link.ok);
@@ -227,7 +227,7 @@ test('a social sign-up who never set a password is approved and gets the welcome
   const clock = () => new Date('2026-01-31T10:00:00Z');
   const db = openDatabase(':memory:');
   const club = createClub(db, clock);
-  const signed = createSocialProfiles(db, clock).signUp({ name: 'Dan Tan', email: 'dan@firm.my', handle: 'dantan' });
+  const signed = createSocialProfiles(db, clock).signUp({ name: 'Dan Tan', email: 'dan@firm.my', handle: 'dantan' }, { via: 'team' });
   assert.ok(signed.ok);
   club.recordJoinRequest({ name: 'Dan Tan', email: 'dan@firm.my', stage: 'I run a practice' });
   const invited = club.inviteFromRequest(club.joinRequests()[0]?.id ?? 0);

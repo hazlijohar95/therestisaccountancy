@@ -279,6 +279,16 @@ const sameCredential = (a: Claim, b: Claim) =>
   a.kind === b.kind && (a.kind === 'body' && a.bodyId !== 'other' ? a.bodyId === b.bodyId : a.label === b.label);
 
 /** Social accounts, claims, work-email checks, vouches, the team's review queue, and lapsing. */
+/** Inside a transaction: adds a social account for the member to prove, with a fresh code for its bio. Returns its id. */
+export function insertAccount(db: Db, at: Date, memberId: number, platform: Platform, handle: string, refuse: (reason: AccountRefusal) => never): number {
+  if (!PLATFORM_PROFILES[platform].pattern.test(handle)) refuse('handle-invalid');
+  if (db.prepare(`SELECT 1 FROM social_accounts WHERE member_id = ? AND platform = ? AND state != 'rejected'`).get(memberId, platform)) refuse('platform-taken');
+  if (db.prepare(`SELECT 1 FROM social_accounts WHERE platform = ? AND handle = ? AND state = 'proven' AND member_id != ?`).get(platform, handle, memberId)) {
+    refuse('proven-elsewhere');
+  }
+  return db.prepare('INSERT INTO social_accounts (member_id, platform, handle, code, created_at) VALUES (?, ?, ?, ?, ?)').run(memberId, platform, handle, newCode(), iso(at)).lastInsertRowid;
+}
+
 export function createSocialClaims(db: Db, now: () => Date = () => new Date()) {
   const account = (id: number): Account | null => {
     const row = db.prepare('SELECT * FROM social_accounts WHERE id = ?').get(id);
@@ -392,15 +402,7 @@ export function createSocialClaims(db: Db, now: () => Date = () => new Date()) {
     /** Adds an account with a fresh code for its bio. One live account per platform; a proven account has one owner. */
     addAccount(memberId: number, platform: Platform, handle: string): Result<Account, AccountRefusal> {
       return attempt<Account, AccountRefusal>(db, (refuse) => {
-        if (!PLATFORM_PROFILES[platform].pattern.test(handle)) refuse('handle-invalid');
-        if (db.prepare(`SELECT 1 FROM social_accounts WHERE member_id = ? AND platform = ? AND state != 'rejected'`).get(memberId, platform)) refuse('platform-taken');
-        if (db.prepare(`SELECT 1 FROM social_accounts WHERE platform = ? AND handle = ? AND state = 'proven' AND member_id != ?`).get(platform, handle, memberId)) {
-          refuse('proven-elsewhere');
-        }
-        const { lastInsertRowid } = db
-          .prepare('INSERT INTO social_accounts (member_id, platform, handle, code, created_at) VALUES (?, ?, ?, ?, ?)')
-          .run(memberId, platform, handle, newCode(), iso(now()));
-        return account(lastInsertRowid) ?? refuse('handle-invalid');
+        return account(insertAccount(db, now(), memberId, platform, handle, refuse)) ?? refuse('handle-invalid');
       });
     },
 

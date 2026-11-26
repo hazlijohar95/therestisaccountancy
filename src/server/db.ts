@@ -544,6 +544,57 @@ const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX notifications_by_member ON notifications (member_id, created_at);
   `,
+  `
+  CREATE TABLE social_entries (
+    member_id INTEGER PRIMARY KEY REFERENCES members (id) ON DELETE CASCADE,
+    joined_via TEXT NOT NULL CHECK (joined_via IN ('open', 'team', 'member', 'nomination', 'club', 'request')),
+    inviter_id INTEGER REFERENCES members (id) ON DELETE SET NULL CHECK (inviter_id IS NULL OR joined_via = 'member'),
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX social_entries_by_inviter ON social_entries (inviter_id) WHERE inviter_id IS NOT NULL;
+  INSERT INTO social_entries (member_id, joined_via, created_at) SELECT member_id, 'open', created_at FROM profiles;
+  CREATE TRIGGER profiles_need_an_entry BEFORE INSERT ON profiles
+  WHEN NOT EXISTS (SELECT 1 FROM social_entries WHERE member_id = NEW.member_id)
+  BEGIN
+    SELECT RAISE(ABORT, 'a Social profile needs an entry');
+  END;
+
+  CREATE TABLE social_invites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_hash TEXT NOT NULL UNIQUE,
+    kind TEXT NOT NULL CHECK (kind IN ('team', 'member')),
+    inviter_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    email TEXT COLLATE NOCASE,
+    name TEXT,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used_at TEXT,
+    used_by INTEGER REFERENCES members (id) ON DELETE SET NULL,
+    revoked_at TEXT,
+    CHECK (expires_at > created_at),
+    CHECK (kind = 'team' OR (email IS NULL AND name IS NULL)),
+    CHECK (kind = 'member' OR email IS NOT NULL),
+    CHECK (used_at IS NULL OR revoked_at IS NULL),
+    CHECK (used_by IS NULL OR used_at IS NOT NULL)
+  );
+  CREATE INDEX social_invites_by_inviter ON social_invites (inviter_id, kind, created_at);
+  CREATE INDEX social_invites_by_user ON social_invites (used_by) WHERE used_by IS NOT NULL;
+
+  CREATE TABLE social_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL COLLATE NOCASE,
+    about TEXT NOT NULL,
+    link TEXT CHECK (link IS NULL OR link LIKE 'https://%'),
+    state TEXT NOT NULL DEFAULT 'pending' CHECK (state IN ('pending', 'approved', 'declined')),
+    created_at TEXT NOT NULL,
+    decided_at TEXT,
+    decided_by INTEGER REFERENCES members (id) ON DELETE SET NULL,
+    CHECK ((state = 'pending') = (decided_at IS NULL))
+  );
+  CREATE UNIQUE INDEX one_pending_social_request ON social_requests (email) WHERE state = 'pending';
+  CREATE INDEX social_requests_by_state ON social_requests (state, created_at);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

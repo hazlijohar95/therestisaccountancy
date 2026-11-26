@@ -173,12 +173,30 @@ export const RESERVED_HANDLES: ReadonlySet<string> = new Set([
   'admin', 'administrator', 'team', 'staff', 'support', 'help', 'official', 'moderator', 'mod', 'review', 'root', 'system',
   'social', 'club', 'members', 'member', 'me', 'edit', 'verify', 'badge', 'nominate', 'claim', 'casebook', 'notifications',
   'ticks', 'tick', 'search', 'list', 'floor', 'problems', 'problem', 'post', 'posts', 'sign_up', 'signup', 'sign_in', 'signin',
+  'request', 'invite', 'invites', 'join',
   'welcome', 'settings', 'account', 'about', 'privacy', 'terms', 'null', 'undefined', 'anonymous', 'everyone', 'you',
   'therestisaccountancy', 'tria', 'sticktoaccounting',
 ]);
 
 /** Profile field limits, shared by the form and the server. */
+/** Said beside the handle field wherever someone picks one. */
+export const HANDLE_TAKEN = 'Someone already has that handle. Pick another.';
+
 export const PROFILE_LIMITS = { headline: 120, city: 60 } as const;
+
+/**
+ * How a Social account got in. Social is invite-only: the team's invite, a member's invite, a nomination the nominee
+ * claimed, the club (any member it accepted), or a request the team approved. 'open' is everyone who joined before.
+ */
+export const ENTRY_VIA = ['open', 'team', 'member', 'nomination', 'club', 'request'] as const;
+export type EntryVia = (typeof ENTRY_VIA)[number];
+
+/** An invite link works once, for this long. */
+export const INVITE_DAYS = 14;
+/** Invites each member with a ticked credential may have out or used. Revoking or letting one expire returns it. */
+export const MEMBER_INVITES = 3;
+/** What a request to join says. */
+export const REQUEST_LIMITS = { about: 200, link: 300 } as const;
 
 /** How we know a claim is true. Each source has its own tick glyph, like an auditor's tickmark legend. */
 export const TICK_SOURCES = {

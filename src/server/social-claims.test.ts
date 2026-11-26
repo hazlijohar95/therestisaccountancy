@@ -24,7 +24,7 @@ const world = () => {
   const claims = createSocialClaims(db, now);
 
   const joined = async (name: string, email: string, handle: string) => {
-    const { memberId } = value(profiles.signUp({ name, email, handle }));
+    const { memberId } = value(profiles.signUp({ name, email, handle }, { via: 'team' }));
     const accepted = await club.setPasswordFromLink(value(club.newLink(memberId)).token, PASSWORD);
     assert.ok(accepted);
     return accepted.member;

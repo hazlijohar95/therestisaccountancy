@@ -5,10 +5,12 @@ import type { Result } from './result.ts';
 import { createSocialCasebook } from './social-casebook.ts';
 import { createSocialClaims } from './social-claims.ts';
 import { createSocialFloor } from './social-floor.ts';
+import { createSocialInvites } from './social-invites.ts';
 import { createSocialNominations } from './social-nominations.ts';
 import { createSocialNotifications } from './social-notifications.ts';
 import { createSocialProblems } from './social-problems.ts';
 import { createSocialProfiles } from './social-profiles.ts';
+import { createSocialRequests } from './social-requests.ts';
 import { createSocialShelf } from './social-shelf.ts';
 
 /* A whole social site on node:sqlite with a clock the test moves, for the tests of slice 6 and on. Tests only. */
@@ -36,11 +38,13 @@ export function socialWorld() {
   const casebook = createSocialCasebook(db, now);
   const shelf = createSocialShelf(db, now);
   const notifications = createSocialNotifications(db, now);
+  const invites = createSocialInvites(db, now);
+  const requests = createSocialRequests(db, now);
   const host = club.ensureAdmin({ email: 'host@club.test', name: 'Host', password: PASSWORD });
 
   /** A member who signed up on the social site and set their password. */
   const joined = async (name: string, email: string, handle: string) => {
-    const { memberId } = value(profiles.signUp({ name, email, handle }));
+    const { memberId } = value(profiles.signUp({ name, email, handle }, { via: 'team' }));
     const accepted = await club.setPasswordFromLink(value(club.newLink(memberId)).token, PASSWORD);
     assert.ok(accepted);
     return accepted.member;
@@ -54,5 +58,5 @@ export function socialWorld() {
     value(claims.decideClaim(body.id, reviewer, { verdict: 'approve' }));
     return body;
   };
-  return { db, club, profiles, claims, nominations, floor, problems, casebook, shelf, notifications, host, joined, seal, now, later: (ms: number) => (clock = new Date(clock.getTime() + ms)) };
+  return { db, club, profiles, claims, nominations, floor, problems, casebook, shelf, notifications, invites, requests, host, joined, seal, now, later: (ms: number) => (clock = new Date(clock.getTime() + ms)) };
 }

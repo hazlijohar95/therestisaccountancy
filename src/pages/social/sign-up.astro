@@ -1,43 +1,73 @@
 ---
 import { actions, isInputError } from 'astro:actions';
-import { HANDLE, socialHost } from '../../data/social.ts';
+import { HANDLE, HANDLE_TAKEN, socialHost } from '../../data/social.ts';
 import Social from '../../layouts/Social.astro';
 import { formAction } from '../../lib/format.ts';
 import { postedFields } from '../../lib/form.ts';
 import { LINK_DAYS } from '../../server/club.ts';
-import { addressed, clubPath, signInPath, socialPath } from '../../server/paths.ts';
+import { addressed, clubPath, signInPath, socialHere, socialPath } from '../../server/paths.ts';
 
 export const prerender = false;
 
+/*
+ * Social is invite-only, so this page is where a link lands: an invite (?invite=) or a nomination the nominee claims
+ * (?nomination=). Only the token travels with the form; what it lets in is read again by the server. Without a link,
+ * the way in is to ask.
+ */
 const to = (path: string) => socialPath(Astro.url, path);
-/* From an invite link: the account it names waits in Get ticked once they are in. Only the token travels with the form. */
 const invite = Astro.url.searchParams.get('invite') ?? '';
-if (Astro.locals.member) return Astro.redirect(to(invite ? `/claim/${encodeURIComponent(invite)}` : '/me'));
-const invitation = invite ? await Astro.locals.socialNominations.invitation(invite) : null;
+const nomination = Astro.url.searchParams.get('nomination') ?? '';
+if (!invite && !nomination) return Astro.redirect(to('/request'));
+const { member, profile, socialInvites, socialNominations } = Astro.locals;
+if (member && nomination) return Astro.redirect(to(`/claim/${encodeURIComponent(nomination)}`));
 
+const used = Astro.getActionResult(actions.useInvite);
+if (used?.data) return Astro.redirect(to('/edit'));
+
+const look = invite ? await socialInvites.look(invite) : null;
+const invitation = nomination ? await socialNominations.invitation(nomination) : null;
+const live = look?.state === 'live' ? look : null;
 const result = Astro.getActionResult(actions.socialSignUp);
+/* After joining, the link is spent: the page says to check email, not that the link is dead. */
+const dead = !result?.data && (invite ? !live : !invitation);
+if (dead) Astro.response.status = 404;
+
 const fieldErrors = result?.error && isInputError(result.error) ? result.error.fields : {};
 const refusal = result?.error && !isInputError(result.error) ? result.error : null;
 /* The server's refusals belong beside a field: a taken handle by the handle, an email with an account by the email. */
 const errors = {
   name: fieldErrors.name?.[0],
   email: fieldErrors.email?.[0] ?? (refusal?.code === 'UNAUTHORIZED' ? refusal.message : undefined),
-  handle: fieldErrors.handle?.[0] ?? (refusal?.code === 'CONFLICT' ? refusal.message : undefined),
+  handle: fieldErrors.handle?.[0] ?? (refusal?.message === HANDLE_TAKEN ? refusal.message : undefined),
 };
-const failure = refusal && refusal.code !== 'UNAUTHORIZED' && refusal.code !== 'CONFLICT' ? refusal.message : null;
+const failure = refusal && refusal.code !== 'UNAUTHORIZED' && !errors.handle ? refusal.message : null;
 const typed = result?.error ? await postedFields(Astro.request) : () => '';
 const suggestedHandle = invitation && HANDLE.pattern.test(invitation.handle) ? invitation.handle : '';
-/* Someone who already has an account signs in and comes back to their invite, not to a blank profile. */
-const afterSignIn = invitation ? `/claim/${encodeURIComponent(invite)}` : '/edit';
+/* Someone who already has an account signs in and comes back to this link, not to a blank profile. */
+const here = socialHere(Astro.url);
+const afterSignIn = nomination ? `/claim/${encodeURIComponent(nomination)}` : here;
 const first = (['name', 'email', 'handle'] as const).find((field) => errors[field]);
 const invalid = (field: keyof typeof errors) => (errors[field] ? 'true' : undefined);
 const describedBy = (field: keyof typeof errors, hint?: string) => [hint, errors[field] ? `${field}-error` : undefined].filter(Boolean).join(' ') || undefined;
+const from = live ? (live.kind === 'team' ? 'the team' : live.inviter.name) : null;
+const DEAD = { used: 'This invite has been used.', expired: 'This invite has run out.', revoked: 'This invite was withdrawn.', unknown: 'This invite link does not work.' } as const;
+const deadTitle = look && look.state !== 'live' ? DEAD[look.state] : 'This invite has been used or withdrawn.';
 ---
 
-<Social title="Sign up" description="Join The Rest Is Accountancy Social. Free. Claim your handle and get your credentials ticked.">
+<Social title={dead ? 'Invite' : 'Join'} description="Join The Rest Is Accountancy Social with an invite." noindex>
   <div class="page narrow">
     {
-      result?.data ? (
+      dead ? (
+        <section class="card empty" aria-labelledby="dead-title">
+          <p class="kicker">Invite</p>
+          <h1 class="head" id="dead-title">{deadTitle}</h1>
+          <p>Invite links work once, for a limited time. Ask whoever sent it for a new one, or ask to join and the team reads your request.</p>
+          <div class="actions">
+            <a class="btn sm" href={to('/request')}>Request to join</a>
+            <a class="btn sm ghost" href={to('/')}>Read the Floor</a>
+          </div>
+        </section>
+      ) : result?.data ? (
         <section class="panel card" aria-labelledby="done-title">
           <p class="kicker">Almost there</p>
           <h1 class="head" id="done-title">Check your email.</h1>
@@ -45,13 +75,34 @@ const describedBy = (field: keyof typeof errors, hint?: string) => [hint, errors
           {result.data.claimed && <p>Your invited account waits in Get ticked. Put the code we give you in its bio, and the team proves it.</p>}
           <p class="small">No email? Check spam, or <a href={clubPath(Astro.url, '/forgot')}>ask for a new link</a>.</p>
         </section>
+      ) : member ? (
+        <section class="panel card" aria-labelledby="in-title">
+          <p class="kicker">Invite from {from}</p>
+          {profile ? (
+            <>
+              <h1 class="head" id="in-title">You are on Social already.</h1>
+              <p>This invite is for someone new. Pass it on, or leave it: it runs out by itself.</p>
+              <a class="btn sm" href={to(`/@${profile.handle}`)}>Go to your profile</a>
+            </>
+          ) : (
+            <>
+              <h1 class="head" id="in-title">Use this invite.</h1>
+              <p>Signed in as {member.name}. Use the invite, then pick the handle people find you by.</p>
+              {used?.error && <p class="error" role="alert">{used.error.message}</p>}
+              <form method="POST" action={formAction(addressed(Astro.url), actions.useInvite)}>
+                <input type="hidden" name="token" value={invite} />
+                <button class="btn" type="submit">Use the invite</button>
+              </form>
+            </>
+          )}
+        </section>
       ) : (
         <>
           <div class="page-head">
             <div>
-              <p class="kicker">Sign up</p>
+              <p class="kicker">{invitation ? 'Claim your invite' : `Invite from ${from}`}</p>
               <h1 class="title">Claim your handle.</h1>
-              <p class="lead">Social is free. Post, answer the weekly problem and get your credentials ticked.</p>
+              <p class="lead">Social is free, and invite-only. Post, answer the weekly problem and get your credentials ticked.</p>
             </div>
           </div>
           {invitation && (
@@ -62,16 +113,16 @@ const describedBy = (field: keyof typeof errors, hint?: string) => [hint, errors
           <form class="panel card" method="POST" action={formAction(addressed(Astro.url), actions.socialSignUp)} novalidate>
             <div class="field">
               <label for="name">Your name</label>
-              <input class="input" id="name" name="name" required maxlength="60" autocomplete="name" value={typed('name')} aria-invalid={invalid('name')} aria-describedby={describedBy('name')} autofocus={first === 'name' ? true : undefined} />
+              <input class="input" id="name" name="name" required maxlength="60" autocomplete="name" value={typed('name') || live?.name || ''} aria-invalid={invalid('name')} aria-describedby={describedBy('name')} autofocus={first === 'name' ? true : undefined} />
               {errors.name && <span class="error" id="name-error">{errors.name}</span>}
             </div>
             <div class="field">
               <label for="email">Email</label>
-              <input class="input" id="email" name="email" type="email" required autocomplete="email" value={typed('email')} aria-invalid={invalid('email')} aria-describedby={describedBy('email', 'email-hint')} autofocus={first === 'email' ? true : undefined} />
+              <input class="input" id="email" name="email" type="email" required autocomplete="email" value={typed('email') || live?.email || ''} aria-invalid={invalid('email')} aria-describedby={describedBy('email', 'email-hint')} autofocus={first === 'email' ? true : undefined} />
               <span class="hint" id="email-hint">We send a link here to set your password. Nobody else sees it.</span>
               {errors.email && (
                 <span class="error" id="email-error">
-                  {errors.email} <a href={signInPath(Astro.url, afterSignIn)}>Sign in</a> and {invitation ? 'claim the invite there' : 'claim your handle there'}, or <a href={clubPath(Astro.url, '/forgot')}>get a new link</a> if you never set a password.
+                  {errors.email} <a href={signInPath(Astro.url, afterSignIn)}>Sign in</a> and use the invite there, or <a href={clubPath(Astro.url, '/forgot')}>get a new link</a> if you never set a password.
                 </span>
               )}
             </div>
@@ -83,15 +134,16 @@ const describedBy = (field: keyof typeof errors, hint?: string) => [hint, errors
               <span class="hint" id="handle-hint">{HANDLE.min} to {HANDLE.max} lowercase letters, digits or underscores. Your page is {socialHost}/@handle.</span>
               {errors.handle && <span class="error" id="handle-error">{errors.handle}</span>}
             </div>
-            {invitation && <input type="hidden" name="invite" value={invite} />}
+            {invite && <input type="hidden" name="invite" value={invite} />}
+            {nomination && <input type="hidden" name="nomination" value={nomination} />}
             <div class="trap" aria-hidden="true">
               <label for="signup-trap">Leave this empty</label>
               <input id="signup-trap" name="trap" type="text" tabindex="-1" autocomplete="off" data-1p-ignore data-lpignore="true" />
             </div>
             {failure && <p class="error" role="alert">{failure}</p>}
             <div class="panel-foot">
-              <span class="small">Have an account? <a href={signInPath(Astro.url, afterSignIn)}>Sign in</a> and {invitation ? 'claim the invite' : 'claim a handle'}.</span>
-              <button class="btn" type="submit">Sign up</button>
+              <span class="small">Have an account? <a href={signInPath(Astro.url, afterSignIn)}>Sign in</a> and use the invite there.</span>
+              <button class="btn" type="submit">Join</button>
             </div>
           </form>
         </>
