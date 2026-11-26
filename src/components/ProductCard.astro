@@ -1,0 +1,33 @@
+---
+import { Image } from 'astro:assets';
+import { productCovers } from '../data/product-covers.ts';
+import type { Product } from '../data/products.ts';
+
+/** A product as a card: its cover, the question it answers, and a way in. */
+interface Props {
+  product: Product;
+}
+
+const { product } = Astro.props;
+const cover = productCovers[product.slug];
+---
+
+<a class="product" href={product.href}>
+  {cover && <Image src={cover} alt="" widths={[384, 640, 960]} sizes="(min-width: 720px) 33vw, 100vw" loading="lazy" />}
+  <span class="words">
+    <span class="label">{product.name}</span>
+    <span class="serif q">{product.question}</span>
+    <span class="small">{product.summary}</span>
+    <span class="go small">Try it <span aria-hidden="true">→</span></span>
+  </span>
+</a>
+
+<style>
+  .product { display: grid; grid-template-rows: auto 1fr; height: 100%; border: var(--stroke-hair) solid var(--ink); text-decoration: none; overflow: hidden; }
+  img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; border-bottom: var(--stroke-hair) solid var(--ink); transition: scale var(--motion-settle) var(--motion-ease); }
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) { .product:hover img { scale: 1.02; } }
+  .words { display: grid; align-content: start; gap: var(--space-2); padding: var(--space-5); }
+  .q { font-size: var(--size-head); line-height: 1.1; text-wrap: balance; }
+  .go { justify-self: start; margin-top: var(--space-3); padding: .35em .9em; border: var(--stroke-hair) solid currentColor; border-radius: 999px; font-weight: 600; }
+  @media (hover: hover) { .product:hover .go { background: var(--ink); color: var(--bg); } }
+</style>

@@ -13,6 +13,7 @@
   "dependencies": {
     "@astrojs/cloudflare": "15.0.0-beta.6",
     "@astrojs/react": "^7.1.9",
+    "@paper-design/shaders": "0.0.82",
     "@react-email/components": "^1.0.12",
     "@therestisaccountancy/brand": "link:./brand",
     "astro": "^7.4.13",

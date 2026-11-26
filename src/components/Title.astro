@@ -1,0 +1,10 @@
+---
+import { runs } from '../lib/marked.ts';
+
+/** A post's title with its one marked phrase highlighted. */
+interface Props {
+  text: string;
+}
+---
+
+{runs(Astro.props.text).map((run) => (run.mark ? <span class="mark">{run.text}</span> : run.text))}

@@ -6,6 +6,8 @@ import { programmeSlugs } from './data/programmes.ts';
 import { RESOURCE_KINDS } from './data/resources.ts';
 import { authorHandles } from './data/authors.ts';
 import { columnSlugs } from './data/columns.ts';
+import { coverTopics } from './data/cover-topics.ts';
+import { wellMarked } from './lib/marked.ts';
 
 /* Lessons are Markdown files in src/lessons/<programme>/. A lesson appears in the members' area once its file exists. */
 const lessons = defineCollection({
@@ -38,8 +40,11 @@ const recordings = defineCollection({
  */
 const posts = defineCollection({
   loader: glob({ pattern: '*.md', base: './src/posts' }),
-  schema: z.object({
-    title: z.string(),
+  schema: ({ image }) => z.object({
+    /** May mark one phrase with asterisks: "Who signs off *the AI audit*?" */
+    title: z.string().refine(wellMarked, 'Mark one phrase with a pair of asterisks, or none.'),
+    /** A cover topic from the brand's image system, or the post's own image made with it. Without one, the column's. */
+    cover: z.union([z.enum(coverTopics), image()]).optional(),
     /** One or two sentences under the title, on the post and wherever it is listed. */
     dek: z.string().max(280),
     date: z.coerce.date(),

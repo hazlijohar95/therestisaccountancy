@@ -1,9 +1,13 @@
 ---
-import { authorByHandle, authorPath, type Author } from '../data/authors.ts';
+import { Image } from 'astro:assets';
 import { columnBySlug, columnPath } from '../data/columns.ts';
+import { coverOf } from '../data/covers.ts';
+import { formatDay } from '../lib/format.ts';
 import { postPath, type Post } from '../server/posts.ts';
+import Byline from './Byline.astro';
+import Title from './Title.astro';
 
-/** One post as a card on the home page. The lead story is set larger and keeps its dek; the rest are compact. */
+/** One post as a card on the home page: its cover, then the words. The lead story is set larger and keeps its dek. */
 interface Props {
   post: Post;
   lead?: boolean;
@@ -11,32 +15,35 @@ interface Props {
 
 const { post, lead = false } = Astro.props;
 const column = columnBySlug(post.data.column);
-const byline = post.data.authors.flatMap((h) => authorByHandle(h) ?? []) satisfies Author[];
 ---
 
 <article class:list={['story', { lead }]}>
-  {column && <a class="label column" href={columnPath(column)}>{column.name}</a>}
-  <h3 class="title serif"><a href={postPath(post)}>{post.data.title}</a></h3>
-  <p class="dek">{post.data.dek}</p>
-  <p class="label by">
-    {byline.map((author, i) => (
-      <>
-        {i > 0 && ', '}
-        <a href={authorPath(author)}>{author.name}</a>
-      </>
-    ))}
-    {post.data.access === 'members' && <span> · Members</span>}
+  <a class="cover" href={postPath(post)} tabindex="-1" aria-hidden="true">
+    <Image src={coverOf(post)} alt="" widths={lead ? [640, 960, 1280, 1536] : [384, 640, 960]} sizes={lead ? '(min-width: 1000px) 60vw, 100vw' : '(min-width: 1000px) 25vw, (min-width: 720px) 50vw, 100vw'} loading={lead ? 'eager' : 'lazy'} />
+    {post.data.access === 'members' && <span class="stamp">Members</span>}
+  </a>
+  <p class="meta">
+    <span>{formatDay(post.data.date)}</span>
+    {column && <a href={columnPath(column)}>{column.name}</a>}
   </p>
+  <h3 class="title serif"><a href={postPath(post)}><Title text={post.data.title} /></a></h3>
+  <p class="dek">{post.data.dek}</p>
+  <p class="small"><Byline handles={post.data.authors} /></p>
 </article>
 
 <style>
   .story { display: grid; align-content: start; gap: var(--space-2); }
   .story p, .title { margin: 0; }
   .story a { text-decoration: none; }
+  .cover { position: relative; display: block; margin-bottom: var(--space-2); overflow: hidden; }
+  .cover img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; transition: scale var(--motion-settle) var(--motion-ease); }
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) { .story:hover .cover img { scale: 1.02; } }
+  .stamp { position: absolute; top: var(--space-3); right: var(--space-3); font-size: .7rem; }
+  .meta { display: flex; flex-wrap: wrap; gap: 0 var(--space-3); font: 400 var(--size-label)/1.4 var(--font-mono); text-transform: uppercase; letter-spacing: .04em; }
+  .meta a:hover, .title a:hover { text-decoration: underline; text-decoration-thickness: var(--stroke-hair); }
   .title { font-size: clamp(1.25rem, 1.1rem + .6vw, 1.6rem); line-height: 1.15; text-wrap: balance; }
   .lead .title { font-size: clamp(2rem, 1.2rem + 2.8vw, 3.5rem); line-height: 1.02; }
   .lead .dek { font-size: var(--size-lead); }
-  .title a:hover, .by a:hover, .column:hover { text-decoration: underline; text-decoration-thickness: var(--stroke-hair); }
   .dek { max-width: 32em; }
   .story:not(.lead) .dek { font-size: var(--size-small); }
 </style>

@@ -1,8 +1,11 @@
 ---
-import { authorByHandle, authorPath, type Author } from '../data/authors.ts';
+import { Image } from 'astro:assets';
 import { columnBySlug, columnPath } from '../data/columns.ts';
+import { coverOf } from '../data/covers.ts';
 import { formatDay } from '../lib/format.ts';
 import { postPath, type Post } from '../server/posts.ts';
+import Byline from './Byline.astro';
+import Title from './Title.astro';
 
 /** The one list every index uses: the newsletter, a column, an author, a programme, the podcast. */
 interface Props {
@@ -12,7 +15,6 @@ interface Props {
 }
 
 const { posts, showColumn = true } = Astro.props;
-const byline = (post: Post) => post.data.authors.flatMap((h) => authorByHandle(h) ?? []) satisfies Author[];
 ---
 
 <ol class="posts">
@@ -21,21 +23,19 @@ const byline = (post: Post) => post.data.authors.flatMap((h) => authorByHandle(h
       const column = columnBySlug(post.data.column);
       return (
         <li class="post">
-          <div class="meta small">
-            {showColumn && column && <a class="label" href={columnPath(column)}>{column.name}</a>}
-            <span>{formatDay(post.data.date)}</span>
-            {post.data.access === 'members' && <span class="members">Members</span>}
+          <a class="thumb" href={postPath(post)} tabindex="-1" aria-hidden="true">
+            <Image src={coverOf(post)} alt="" widths={[240, 480]} sizes="160px" loading="lazy" />
+          </a>
+          <div class="words">
+            <div class="meta">
+              <span>{formatDay(post.data.date)}</span>
+              {showColumn && column && <a href={columnPath(column)}>{column.name}</a>}
+              {post.data.access === 'members' && <span class="stamp">Members</span>}
+            </div>
+            <h3 class="title serif"><a href={postPath(post)}><Title text={post.data.title} /></a></h3>
+            <p>{post.data.dek}</p>
+            <p class="small"><Byline handles={post.data.authors} /></p>
           </div>
-          <h3 class="title serif"><a href={postPath(post)}>{post.data.title}</a></h3>
-          <p>{post.data.dek}</p>
-          <p class="small">
-            {byline(post).map((author, i) => (
-              <>
-                {i > 0 && ', '}
-                <a href={authorPath(author)}>{author.name}</a>
-              </>
-            ))}
-          </p>
         </li>
       );
     })
@@ -44,13 +44,17 @@ const byline = (post: Post) => post.data.authors.flatMap((h) => authorByHandle(h
 
 <style>
   .posts { display: grid; margin: 0; padding: 0; list-style: none; border-top: var(--stroke-rule) solid var(--ink); }
-  .post { display: grid; gap: var(--space-2); padding-block: var(--space-5); border-bottom: var(--stroke-hair) solid var(--ink); }
+  .post { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); padding-block: var(--space-5); border-bottom: var(--stroke-hair) solid var(--ink); }
+  .thumb { display: none; }
+  .thumb img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
+  @media (min-width: 600px) { .post { grid-template-columns: 160px minmax(0, 1fr); } .thumb { display: block; } }
+  .words { display: grid; align-content: start; gap: var(--space-2); }
   .post p, .title { margin: 0; }
-  .meta { display: flex; flex-wrap: wrap; gap: 0 var(--space-4); }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); font: 400 var(--size-label)/1.4 var(--font-mono); text-transform: uppercase; letter-spacing: .04em; }
   .meta a { text-decoration: none; }
-  .members { font-weight: 600; }
+  .stamp { font-size: .65rem; }
   .title { font-size: clamp(1.35rem, 1.15rem + .8vw, 1.75rem); line-height: 1.15; }
   .title a { text-decoration: none; }
   .title a:hover { text-decoration: underline; text-decoration-thickness: var(--stroke-hair); }
-  .post p:not(.small) { max-width: 30em; }
+  .words p:not(.small) { max-width: 30em; }
 </style>

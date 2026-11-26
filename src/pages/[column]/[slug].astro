@@ -1,12 +1,16 @@
 ---
+import { Image } from 'astro:assets';
 import { render } from 'astro:content';
+import Byline from '../../components/Byline.astro';
 import Closing from '../../components/Closing.astro';
-import { authorByHandle, authorPath, type Author } from '../../data/authors.ts';
+import Title from '../../components/Title.astro';
 import { join } from '../../data/club.ts';
 import { columnBySlug, columnPath } from '../../data/columns.ts';
+import { coverOf } from '../../data/covers.ts';
 import { programmeBySlug, programmePath, type Programme } from '../../data/programmes.ts';
 import Page from '../../layouts/Page.astro';
 import { formatDay } from '../../lib/format.ts';
+import { plain } from '../../lib/marked.ts';
 import { paidAccess } from '../../server/paths.ts';
 import { postAt } from '../../server/posts.ts';
 
@@ -20,7 +24,6 @@ if (!post || !column) return new Response(null, { status: 404 });
 const member = Astro.locals.member;
 const open = post.data.access === 'free' || (member !== null && paidAccess(member.role, await Astro.locals.billing.access(member.id)));
 const { Content } = await render(post);
-const byline = post.data.authors.flatMap((h) => authorByHandle(h) ?? []) satisfies Author[];
 const topics = post.data.topics.flatMap((slug) => programmeBySlug(slug) ?? []) satisfies Programme[];
 const listen = post.data.listen;
 const platforms = listen
@@ -32,22 +35,13 @@ const platforms = listen
   : [];
 ---
 
-<Page title={post.data.title} description={post.data.dek}>
+<Page title={plain(post.data.title)} description={post.data.dek}>
   <article class="wrap post">
     <header>
-      <p class="label"><a href={columnPath(column)}>{column.name}</a>{post.data.episode && ` · Episode ${post.data.episode}`}</p>
-      <h1 class="headline serif">{post.data.title}</h1>
+      <p class="meta"><a href={columnPath(column)}>{column.name}</a>{post.data.episode && <span>Episode {post.data.episode}</span>}<span>{formatDay(post.data.date)}</span></p>
+      <h1 class="headline serif"><Title text={post.data.title} /></h1>
       <p class="lead">{post.data.dek}</p>
-      <p class="small byline">
-        {byline.map((author, i) => (
-          <>
-            {i > 0 && ', '}
-            <a href={authorPath(author)}>{author.name}</a>
-          </>
-        ))}
-        <span> · {formatDay(post.data.date)}</span>
-        {post.data.access === 'members' && <span> · Members</span>}
-      </p>
+      <p class="small"><Byline handles={post.data.authors} size={32} /></p>
       {
         platforms.length > 0 && (
           <div class="listen">
@@ -56,6 +50,10 @@ const platforms = listen
         )
       }
     </header>
+    <figure class="cover">
+      <Image src={coverOf(post)} alt="" widths={[640, 960, 1280, 1536]} sizes="(min-width: 800px) 720px, 100vw" loading="eager" fetchpriority="high" />
+      {post.data.access === 'members' && <span class="stamp">Members</span>}
+    </figure>
     {
       open ? (
         <div class="body"><Content /></div>
@@ -99,7 +97,11 @@ const platforms = listen
   .post { display: grid; gap: var(--space-7); max-width: calc(35em + var(--gutter) * 2); padding-block: clamp(48px, 6vw, 96px); }
   header { display: grid; gap: var(--space-4); }
   header p, h1 { margin: 0; }
-  .label a { text-decoration: none; }
+  .meta { display: flex; flex-wrap: wrap; gap: 0 var(--space-4); font: 400 var(--size-label)/1.4 var(--font-mono); text-transform: uppercase; letter-spacing: .04em; }
+  .meta a { text-decoration: none; }
+  .cover { position: relative; margin: 0; }
+  .cover img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
+  .stamp { position: absolute; top: var(--space-4); right: var(--space-4); }
   .headline { font-size: clamp(2.25rem, 1.2rem + 3.6vw, 4.25rem); line-height: 1; text-wrap: balance; }
   .listen { display: flex; flex-wrap: wrap; gap: var(--space-3); }
   .body { font-size: var(--size-lead); line-height: 1.6; }
