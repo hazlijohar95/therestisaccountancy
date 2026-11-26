@@ -1,7 +1,7 @@
 ---
 title: "Q&A session with Hazli Johar"
 dek: "In this video, we answer questions from our friends, students, lecturers, entrepreneurs, and more. Due to the high volume of questions, we will split them into several sessions to ensure we address the most important ones."
-date: 2024-06-02
+date: 2024-06-02T21:01:57+00:00
 column: podcast
 cover: practice
 authors: [hazli]

@@ -11,9 +11,11 @@ import Title from './Title.astro';
 interface Props {
   post: Post;
   lead?: boolean;
+  /** On a column's own page its name on every card is noise. */
+  showColumn?: boolean;
 }
 
-const { post, lead = false } = Astro.props;
+const { post, lead = false, showColumn = true } = Astro.props;
 const column = columnBySlug(post.data.column);
 ---
 
@@ -24,7 +26,7 @@ const column = columnBySlug(post.data.column);
   {post.data.access === 'members' && <span class="stamp">Members</span>}
   <p class="meta">
     <span>{formatDay(post.data.date)}</span>
-    {column && <a href={columnPath(column)}>{column.name}</a>}
+    {showColumn && column && <a href={columnPath(column)}>{column.name}</a>}
   </p>
   <h3 class="title serif"><a href={postPath(post)}><Title text={post.data.title} /></a></h3>
   <p class="dek">{post.data.dek}</p>

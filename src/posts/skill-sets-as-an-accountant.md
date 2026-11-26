@@ -1,7 +1,7 @@
 ---
 title: "*Skill sets* as an accountant"
 dek: "In this podcast, we explore the essential skill sets required to excel as a professional accountant, whether in business or public practice. We delve into the key competencies needed to perform effectively and deliver value in the accounting field."
-date: 2024-06-08
+date: 2024-06-08T19:58:53+00:00
 column: podcast
 cover: practice
 authors: [hazli, abu, shukri]

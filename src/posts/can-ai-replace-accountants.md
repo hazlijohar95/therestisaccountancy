@@ -1,7 +1,7 @@
 ---
 title: "Can AI *replace accountants*?"
 dek: "In this podcast, we delve into the question: Can AI replace accountants? While AI's impact on the accounting profession has been gradual compared to other industries, it's increasingly significant."
-date: 2024-07-22
+date: 2024-07-22T20:45:00+00:00
 column: podcast
 cover: ai
 authors: [hazli, abu, shukri]

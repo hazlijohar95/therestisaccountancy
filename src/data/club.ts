@@ -118,6 +118,8 @@ export const podcast = {
   intro: 'Start with the podcast. It is free and public. The episodes ask the questions. The club is where members work out the answers.',
   lead: 'News. Analysis. Interviews. Hosted by Hazli Johar, Abu Musa and Shukri Yusof.',
   find: 'Search for Stick to Accounting on YouTube, Spotify or Apple Podcasts.',
+  /** Where every episode is published. */
+  youtube: 'https://www.youtube.com/@TheRestIsAccountancy',
   hostNames: authors.map((a) => a.name),
 } as const;
 

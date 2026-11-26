@@ -1,7 +1,7 @@
 ---
 title: "Introduction to our podcasters"
 dek: "Welcome to our podcast, The Rest is Accountancy! Our mission is to share and discuss the latest news, in-depth analysis, pressing issues, and reviews of SaaS products related to accounting."
-date: 2024-06-02
+date: 2024-06-02T15:39:09+00:00
 column: podcast
 authors: [hazli, abu, shukri]
 topics: []

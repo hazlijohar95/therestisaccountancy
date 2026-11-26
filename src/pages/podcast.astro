@@ -1,51 +1,87 @@
 ---
-import PostList from '../components/PostList.astro';
-import Hosts from '../components/Hosts.astro';
-import Closing from '../components/Closing.astro';
-import Logo from '../components/Logo.astro';
-import Section from '../components/Section.astro';
+import staReversed from '@therestisaccountancy/brand/logos/sta-lockup-reversed.svg';
+import Story from '../components/Story.astro';
 import { podcast } from '../data/club.ts';
+import { columnBySlug } from '../data/columns.ts';
 import Page from '../layouts/Page.astro';
 import { listOf } from '../lib/format.ts';
 import { postsInColumn } from '../server/posts.ts';
 
+/* The show's page: its artwork, name and line, where to listen, then every episode. Every's /podcast, in our brand. */
+const show = columnBySlug('podcast');
 const episodes = await postsInColumn('podcast');
-const n = (base: number) => base + (episodes.length ? 1 : 0);
-
 ---
 
 <Page title="Podcast" description="Stick to Accounting, the club’s podcast. News, analysis and interviews. Free and public.">
-  <section class="night" aria-labelledby="page-title">
-    <div class="wrap masthead">
-      <p class="label top">The club’s podcast</p>
-      <h1 id="page-title"><Logo brand="podcast" label="Stick to Accounting, Podcast Show" class="podcast-logo" /></h1>
-      <p class="lead">Three hosts. One mic. The numbers behind the news.</p>
-    </div>
+  <header class="wrap show">
+    <div class="art night" aria-hidden="true"><img src={staReversed.src} alt="" width="240" /></div>
+    <h1 class="serif">{show?.name ?? 'Stick to Accounting'}</h1>
+    <p class="line">{show?.tagline}</p>
+    <p class="small">Hosted by {listOf(podcast.hostNames)}.</p>
+    <a class="platform" href={podcast.youtube} rel="noopener">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 7.2a3 3 0 0 0-2.1-2.1C19 4.6 12 4.6 12 4.6s-7 0-8.9.5A3 3 0 0 0 1 7.2 31 31 0 0 0 .5 12a31 31 0 0 0 .5 4.8 3 3 0 0 0 2.1 2.1c1.9.5 8.9.5 8.9.5s7 0 8.9-.5a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-4.8 31 31 0 0 0-.5-4.8ZM9.8 15.1V8.9l5.4 3.1Z" /></svg>
+      <span>Subscribe on YouTube</span>
+    </a>
+    {
+      episodes.length > 1 && (
+        <div class="seg order" role="group" aria-label="Order of episodes" style="--n: 2; --i: 0">
+          <span class="thumb" aria-hidden="true" />
+          <button type="button" aria-pressed="true" data-order="newest">Newest</button>
+          <button type="button" aria-pressed="false" data-order="oldest">Oldest</button>
+        </div>
+      )
+    }
+  </header>
+
+  <section class="wrap episodes" aria-label="Episodes">
+    {
+      episodes.length > 0 ? (
+        <ol class="grid" data-episodes>
+          {episodes.map((post) => <li><Story post={post} showColumn={false} /></li>)}
+        </ol>
+      ) : (
+        <p class="empty">{podcast.find}</p>
+      )
+    }
   </section>
-  <Section id="show" no={1} title="What is it?" intro="Free and public, for anyone in accounting.">
-    <p class="lead">{podcast.lead}</p>
-    <p class="lead">{podcast.intro}</p>
-  </Section>
-  {
-    episodes.length > 0 && (
-      <Section id="episodes" no={2} title="What has it asked?" intro="Newest first.">
-        <PostList posts={episodes} showColumn={false} />
-      </Section>
-    )
-  }
-  <Section id="hosts" no={n(2)} title="Who hosts it?" intro={`${listOf(podcast.hostNames)}.`}>
-    <Hosts />
-  </Section>
-  <Section id="listen" no={n(3)} title="Where can I listen?">
-    <p class="lead">{podcast.find}</p>
-  </Section>
-  <Closing title="The episodes ask. The club answers." lead="Bring the questions from the show to the room, with your own clients and figures." />
 </Page>
 
+<script>
+  /* Newest first is the page as served. Oldest reverses it in place; the cards keep their links and order of reading. */
+  const order = document.querySelector('.order');
+  const list = document.querySelector('[data-episodes]');
+  if (order instanceof HTMLElement && list) {
+    for (const button of order.querySelectorAll<HTMLButtonElement>('button[data-order]')) {
+      button.addEventListener('click', () => {
+        if (button.getAttribute('aria-pressed') === 'true') return;
+        for (const other of order.querySelectorAll('button')) other.setAttribute('aria-pressed', String(other === button));
+        order.style.setProperty('--i', button.dataset.order === 'oldest' ? '1' : '0');
+        for (const card of [...list.children].reverse()) list.append(card);
+      });
+    }
+  }
+</script>
+
 <style>
-  .masthead { display: grid; gap: var(--space-6); padding-block: clamp(32px, 4vw, 48px) clamp(56px, 8vw, 112px); }
-  .top { margin: 0; padding-bottom: var(--space-4); border-bottom: var(--stroke-hair) solid var(--ink); }
-  h1 { margin: var(--space-6) 0 0; }
-  h1 :global(.podcast-logo) { width: min(100%, 640px); }
-  .lead { margin: 0 0 var(--space-4); }
+  .show { display: grid; justify-items: center; gap: var(--space-3); padding-block: clamp(48px, 7vw, 96px) var(--space-7); text-align: center; }
+  .show p, h1 { margin: 0; }
+  .art { display: grid; place-items: center; width: clamp(160px, 18vw, 220px); aspect-ratio: 1; margin-bottom: var(--space-4); padding: var(--space-5); }
+  .art img { width: 100%; height: auto; }
+  h1 { font-size: var(--size-title); line-height: 1; }
+  .line { font-size: var(--size-lead); }
+  .platform { display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); font: 600 var(--size-small)/1 var(--font-sans); text-decoration: none; }
+  .platform svg { width: 1.5em; height: 1.5em; fill: currentColor; }
+  @media (hover: hover) { .platform:hover span { text-decoration: underline; text-decoration-thickness: var(--stroke-hair); } }
+  .order { margin-top: var(--space-5); }
+  .episodes { padding-block: 0 clamp(72px, 9vw, 128px); }
+  .grid { display: grid; margin: 0; padding: var(--space-6) 0 0; list-style: none; border-top: var(--stroke-hair) solid var(--ink); }
+  .grid > li { padding-block: 0 var(--space-7); }
+  @media (min-width: 600px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-6); } }
+  /* Equal columns, with the rule drawn in the middle of each gap, so every cover and title starts on the same line. */
+  @media (min-width: 1000px) {
+    .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: var(--space-7); }
+    .grid > li { position: relative; }
+    .grid > li:not(:nth-child(4n + 1))::before { content: ""; position: absolute; inset: 0 auto var(--space-7) calc(var(--space-7) / -2); border-inline-start: var(--stroke-hair) solid var(--ink); }
+  }
+  .empty { margin: 0; padding-top: var(--space-6); text-align: center; }
 </style>
