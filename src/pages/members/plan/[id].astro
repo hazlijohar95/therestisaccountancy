@@ -3,6 +3,7 @@ import { actions } from 'astro:actions';
 import Masthead from '../../../components/Masthead.astro';
 import Notice from '../../../components/Notice.astro';
 import PlanLetter from '../../../components/PlanLetter.astro';
+import { hostFirstName } from '../../../data/authors.ts';
 import Members from '../../../layouts/Members.astro';
 import { formAction, formatDay } from '../../../lib/format.ts';
 
@@ -20,7 +21,7 @@ if (open?.id === id) return Astro.redirect('/members/plan');
 const plan = answered.find((p) => p.id === id);
 if (!plan) return new Response(null, { status: 404, statusText: 'Not found' });
 
-const host = plan.reply.by ?? 'a host';
+const host = plan.reply.by ?? hostFirstName;
 const isLatest = answered[0]?.id === plan.id;
 ---
 
@@ -43,7 +44,7 @@ const isLatest = answered[0]?.id === plan.id;
         <p><a href="/members/plan">Back to the plan you are writing now</a></p>
       ) : isLatest ? (
         <>
-          <p>When you are ready, write the next one. It starts from this plan, so you only change what has moved. The question for the hosts starts blank.</p>
+          <p>When you are ready, write the next one. It starts from this plan, so you only change what has moved. The question for {hostFirstName} starts blank.</p>
           <form method="POST" action={formAction(Astro.url, actions.startPlan)}>
             <button class="btn" type="submit">Start the next plan</button>
           </form>

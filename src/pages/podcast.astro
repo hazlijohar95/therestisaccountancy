@@ -1,26 +1,41 @@
 ---
 import catalog from '@therestisaccountancy/brand/logos/catalog.json';
-import staReversed from '@therestisaccountancy/brand/logos/sta-lockup-reversed.svg';
+import staLockup from '@therestisaccountancy/brand/logos/sta-lockup-color.svg';
+import Byline from '../components/Byline.astro';
 import Closing from '../components/Closing.astro';
 import Story from '../components/Story.astro';
+import { authorPath, authors, host, hostFirstName, roleOf } from '../data/authors.ts';
 import { podcast } from '../data/club.ts';
 import { columnBySlug } from '../data/columns.ts';
 import Page from '../layouts/Page.astro';
-import { listOf } from '../lib/format.ts';
 import { postsInColumn } from '../server/posts.ts';
 
-/* The show's page: its artwork, name and line, where to listen, then every episode. Every's /podcast, in our brand. */
+/* The show's page: its logo as the title, its line, where to listen, then every episode. Every's /podcast, in our brand. */
 const show = columnBySlug('podcast');
 const episodes = await postsInColumn('podcast');
-const artAspect = catalog.find((e) => e.file === 'assets/logos/sta-lockup-reversed.svg')?.aspect ?? 3.42;
+const logoAspect = catalog.find((e) => e.file === 'assets/logos/sta-lockup-color.svg')?.aspect ?? 3.42;
+/* Everyone who has co-hosted, most episodes first. A new co-host shows here after their first episode. */
+const cohosts = authors
+  .filter((author) => roleOf(author) === 'Co-host')
+  .map((author) => ({ author, count: episodes.filter((e) => e.data.authors.includes(author.handle)).length }))
+  .filter(({ count }) => count > 0)
+  .sort((a, b) => b.count - a.count)
+  .map(({ author }) => author.handle);
 ---
 
 <Page title="Podcast" description="Stick to Accounting, the club’s podcast. News, analysis and interviews. Free and public.">
   <header class="wrap show">
-    <div class="art night" aria-hidden="true"><img src={staReversed.src} alt="" width="240" height={Math.round(240 / artAspect)} /></div>
-    <h1 class="serif">{show?.name ?? 'Stick to Accounting'}</h1>
+    <h1><img src={staLockup.src} alt={show?.name ?? 'Stick to Accounting'} width="480" height={Math.round(480 / logoAspect)} /></h1>
     <p class="line">{show?.tagline}</p>
-    <p class="small">Hosted by {listOf(podcast.hostNames)}.</p>
+    <p class="small">Hosted by <a href={authorPath(host)}>{host.name}</a>. Accountant friends join as co-hosts.</p>
+    {
+      cohosts.length > 0 && (
+        <div class="cohosts">
+          <p class="label">Co-hosts so far</p>
+          <Byline handles={cohosts} size={32} />
+        </div>
+      )
+    }
     <a class="platform" href={podcast.subscribe} rel="noopener">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 7.2a3 3 0 0 0-2.1-2.1C19 4.6 12 4.6 12 4.6s-7 0-8.9.5A3 3 0 0 0 1 7.2 31 31 0 0 0 .5 12a31 31 0 0 0 .5 4.8 3 3 0 0 0 2.1 2.1c1.9.5 8.9.5 8.9.5s7 0 8.9-.5a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-4.8 31 31 0 0 0-.5-4.8ZM9.8 15.1V8.9l5.4 3.1Z" /></svg>
       <span>Subscribe on YouTube</span>
@@ -48,7 +63,7 @@ const artAspect = catalog.find((e) => e.file === 'assets/logos/sta-lockup-revers
       )
     }
   </section>
-  <Closing title="The episodes ask. The club answers." lead="Start with the podcast. It is free and public. The club is where members work out the answers, with the hosts and each other." />
+  <Closing title="The episodes ask. The club answers." lead={`Start with the podcast. It is free and public. The club is where members work out the answers, with ${hostFirstName} and each other.`} />
 </Page>
 
 <script>
@@ -70,10 +85,10 @@ const artAspect = catalog.find((e) => e.file === 'assets/logos/sta-lockup-revers
 <style>
   .show { display: grid; justify-items: center; gap: var(--space-3); padding-block: clamp(48px, 7vw, 96px) var(--space-7); text-align: center; }
   .show p, h1 { margin: 0; }
-  .art { display: grid; place-items: center; width: clamp(160px, 18vw, 220px); aspect-ratio: 1; margin-bottom: var(--space-4); padding: var(--space-5); }
-  .art img { width: 100%; height: auto; }
-  h1 { font-size: var(--size-title); line-height: 1; }
+  h1 { width: clamp(260px, 40vw, 480px); margin-bottom: var(--space-4); line-height: 0; }
+  h1 img { display: block; width: 100%; height: auto; }
   .line { font-size: var(--size-lead); }
+  .cohosts { display: grid; justify-items: center; gap: var(--space-2); margin-top: var(--space-2); }
   .platform { display: inline-flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); font: 600 var(--size-small)/1 var(--font-sans); text-decoration: none; }
   .platform svg { width: 1.5em; height: 1.5em; fill: currentColor; }
   @media (hover: hover) { .platform:hover span { text-decoration: underline; text-decoration-thickness: var(--stroke-hair); } }

@@ -2,6 +2,7 @@
 import { actions, isInputError } from 'astro:actions';
 import PageHead from '../components/PageHead.astro';
 import Section from '../components/Section.astro';
+import { hostFirstName } from '../data/authors.ts';
 import { confidence, FEE_FIGURES, feeChoices, feeFigures, feeState, GROUP_MIN, PUBLISH_MIN, standardClient, type ChoiceKey } from '../data/fees.ts';
 import Page from '../layouts/Page.astro';
 import { postedFields } from '../lib/form.ts';
@@ -40,7 +41,7 @@ const soFar = (e: Edition) =>
   e.responses === 0
     ? `Nobody has answered the ${e.edition} survey yet.`
     : `${capitalised(e.responses === 1 ? 'one person has' : `${numberWord(e.responses)} people have`)} answered the ${e.edition} survey so far.`;
-const until = (e: Edition) => (e.responses >= PUBLISH_MIN ? 'once a host has read every answer' : `once ${PUBLISH_MIN} have answered and a host has read every answer`);
+const until = (e: Edition) => (e.responses >= PUBLISH_MIN ? `once ${hostFirstName} has read every answer` : `once ${PUBLISH_MIN} have answered and ${hostFirstName} has read every answer`);
 const practice: readonly ChoiceKey[] = ['stage', 'years', 'team', 'niche', 'pricing'];
 const open = current.status !== 'published';
 
@@ -48,7 +49,7 @@ const resultsIntro = !report
   ? 'Not out yet.'
   : report.publishedAt
     ? `From ${report.responses} answers, published ${formatDay(report.publishedAt)}.`
-    : `A preview of ${report.responses} answers. Not published, so only hosts can see it.`;
+    : `A preview of ${report.responses} answers. Not published, so only ${hostFirstName} can see it.`;
 ---
 
 <Page title="Fee survey" description="What accountants in Malaysia charge: an anonymous yearly survey of hourly rates, bookkeeping fees and tax return fees, with the results free to read.">
@@ -131,7 +132,7 @@ const resultsIntro = !report
             <div><dt>Median</dt><dd>The middle answer. Half charge more, half charge less.</dd></div>
             <div><dt>Middle half</dt><dd>From the 25th to the 75th percentile, where half of all answers fall. Each line draws it on one scale from RM 0, with a tick at the median.</dd></div>
             <div><dt>Small groups</dt><dd>A group of fewer than {GROUP_MIN} is not shown, so no one answer can be picked out.</dd></div>
-            <div><dt>Checked</dt><dd>A host reads every answer before the results go up and deletes any that are plainly made up.</dd></div>
+            <div><dt>Checked</dt><dd>{hostFirstName} reads every answer before the results go up and deletes any that are plainly made up.</dd></div>
           </dl>
           {
             otherYears.length > 0 && (

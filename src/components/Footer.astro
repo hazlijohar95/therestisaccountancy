@@ -16,7 +16,7 @@ const idOf = (group: string) => `footer-${group.toLowerCase().replaceAll(' ', '-
 <footer>
   <div class="wrap in">
     {signup && <Signup source="footer" />}
-    <div class="map">
+    <div class="map" id="site-map">
       <a href="/" class="home"><Logo brand="club" label={site.name} class="footer-logo" /></a>
       {
         footerGroups.map(({ group, links }) => (

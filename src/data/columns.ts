@@ -19,7 +19,7 @@ export interface Column {
 }
 
 export const columns: readonly Column[] = [
-  { slug: 'essays', name: 'Essays', tagline: 'The hosts on the business of a practice.', cover: 'practice' },
+  { slug: 'essays', name: 'Essays', tagline: 'On the business of a practice.', cover: 'practice' },
   { slug: 'podcast', name: 'Stick to Accounting', tagline: 'The podcast. News, analysis and interviews.', cover: 'podcast' },
   { slug: 'the-brief', name: 'The Brief', tagline: 'Tax, regulation and practice news, digested weekly.', cover: 'tax' },
   { slug: 'tested', name: 'Tested', tagline: 'AI and software, tried on real practice work.', cover: 'ai' },

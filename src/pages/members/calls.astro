@@ -2,6 +2,7 @@
 import { actions, isInputError } from 'astro:actions';
 import Masthead from '../../components/Masthead.astro';
 import Notice from '../../components/Notice.astro';
+import { hostFirstName } from '../../data/authors.ts';
 import Members from '../../layouts/Members.astro';
 import { postedFields } from '../../lib/form.ts';
 import { firstName, formAction, formatTime, formatWeekday } from '../../lib/format.ts';
@@ -28,12 +29,12 @@ const Slot = mine ? 'div' : 'label';
 ---
 
 <Members title="One-to-one">
-  <Masthead label="One-to-one" title="Stuck? Talk it through with a host." narrow>
-    <p>Bring the quote you can't price, the client you can't read or the decision you keep putting off. Say what it is when you book, so the host comes ready.</p>
+  <Masthead label="One-to-one" title={`Stuck? Talk it through with ${hostFirstName}.`} narrow>
+    <p>Bring the quote you can't price, the client you can't read or the decision you keep putting off. Say what it is when you book, so {hostFirstName} comes ready.</p>
   </Masthead>
 
   {Astro.url.searchParams.has('booked') && mine && <Notice>Booked. A confirmation with the calendar invite is on its way to {me.email}.</Notice>}
-  {Astro.url.searchParams.has('cancelled') && !mine && <Notice>Cancelled. The host has been told.</Notice>}
+  {Astro.url.searchParams.has('cancelled') && !mine && <Notice>Cancelled. {hostFirstName} has been told.</Notice>}
   {failure && <Notice tone="error">{failure}</Notice>}
 
   {
@@ -70,7 +71,7 @@ const Slot = mine ? 'div' : 'label';
     {
       days.length === 0 ? (
         <p class="empty">
-          No open times right now. New ones appear here as the hosts add them. Until then, the <a href="/members/community">members' room</a> is open all week.
+          No open times right now. New ones appear here as {hostFirstName} adds them. Until then, the <a href="/members/community">members' room</a> is open all week.
         </p>
       ) : (
         <>
@@ -99,7 +100,7 @@ const Slot = mine ? 'div' : 'label';
               <div class="field">
                 <label for="topic">What are you stuck on?</label>
                 <textarea class="input" id="topic" name="topic" rows="3" maxlength={TOPIC_MAX} required aria-describedby="topic-hint" aria-invalid={fieldErrors.topic ? 'true' : undefined}>{posted('topic')}</textarea>
-                <span class="hint" id="topic-hint">A sentence or two is plenty. Only the hosts see it.</span>
+                <span class="hint" id="topic-hint">A sentence or two is plenty. Only {hostFirstName} sees it.</span>
                 {fieldErrors.topic?.[0] && <span class="error">{fieldErrors.topic[0]}</span>}
               </div>
               <button class="btn" type="submit">Book the call</button>

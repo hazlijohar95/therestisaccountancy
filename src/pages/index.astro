@@ -8,7 +8,7 @@ import ProductCard from '../components/ProductCard.astro';
 import Signup from '../components/Signup.astro';
 import Story from '../components/Story.astro';
 import { photos } from '../data/author-photos.ts';
-import { authorPath, authors } from '../data/authors.ts';
+import { authorPath, host } from '../data/authors.ts';
 import { podcast } from '../data/club.ts';
 import { products } from '../data/products.ts';
 import { programmePath, programmes } from '../data/programmes.ts';
@@ -27,9 +27,8 @@ const topics = programmes
   .map((programme) => ({ programme, posts: posts.filter((p) => p.data.topics.includes(programme.slug)).slice(0, 4) }))
   .filter((topic) => topic.posts.length > 0)
   .slice(0, 4);
-const featured = authors
-  .map((author) => ({ author, posts: posts.filter((p) => p.data.authors.includes(author.handle)).slice(0, 3) }))
-  .find((a) => a.posts.length > 0);
+const hostPosts = posts.filter((p) => p.data.authors.includes(host.handle)).slice(0, 3);
+const featured = hostPosts.length > 0 ? { author: host, posts: hostPosts } : undefined;
 const featuredPhoto = featured && photos[featured.author.handle];
 const episodes = posts.filter((p) => p.data.column === 'podcast').slice(0, 3);
 ---
@@ -75,12 +74,12 @@ const episodes = posts.filter((p) => p.data.column === 'podcast').slice(0, 3);
 
   {
     featured && (
-      <Module id="host" label="From our hosts" href={authorPath(featured.author)}>
+      <Module id="host" label="From the host" href={authorPath(featured.author)}>
         <div class="host">
           <div class="who">
             {featuredPhoto && <Image src={featuredPhoto.src} alt={featuredPhoto.alt} widths={[240, 480]} sizes="240px" loading="lazy" />}
             <p class="serif name">{featured.author.name}</p>
-            <p class="small">{featured.author.role}</p>
+            <p class="small">Host of Stick to Accounting</p>
           </div>
           <div>
             <PostList posts={featured.posts} />

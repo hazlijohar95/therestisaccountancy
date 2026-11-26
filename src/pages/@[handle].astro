@@ -5,7 +5,8 @@ import PageHead from '../components/PageHead.astro';
 import PostList from '../components/PostList.astro';
 import Section from '../components/Section.astro';
 import { photos } from '../data/author-photos.ts';
-import { authors, type Author } from '../data/authors.ts';
+import { authors, roleOf, type Author } from '../data/authors.ts';
+import { tally } from '../lib/format.ts';
 import Page from '../layouts/Page.astro';
 import { postsBy } from '../server/posts.ts';
 
@@ -18,10 +19,15 @@ interface Props {
 const { author } = Astro.props;
 const photo = photos[author.handle];
 const posts = await postsBy(author.handle);
+const role = roleOf(author);
+const first = author.name.split(' ')[0];
+const episodes = posts.filter((post) => post.data.column === 'podcast').length;
+/* The host's line is fixed. A co-host's is counted from the episodes they were on. */
+const lead = role === 'Host' ? 'Host of Stick to Accounting and of the club.' : `Co-host on ${tally(episodes, 'episode')} of Stick to Accounting.`;
 ---
 
-<Page title={author.name} description={`${author.name}, ${author.role.toLowerCase()} at The Rest Is Accountancy and Stick to Accounting.`}>
-  <PageHead label={author.role} title={author.name} lead="Host of Stick to Accounting and of the club." />
+<Page title={author.name} description={`${author.name}, ${role.toLowerCase()} of Stick to Accounting, the podcast of The Rest Is Accountancy.`}>
+  <PageHead label={role} title={author.name} lead={lead} />
   {
     photo && (
       <div class="wrap portrait">
@@ -29,7 +35,7 @@ const posts = await postsBy(author.handle);
       </div>
     )
   }
-  <Section id="posts" no={1} title={`What has ${author.name.split(' ')[0]} written?`} intro={posts.length ? 'Newest first.' : 'Nothing published yet.'}>
+  <Section id="posts" no={1} title={role === 'Host' ? `What has ${first} written?` : `Where has ${first} appeared?`} intro={posts.length ? 'Newest first.' : 'Nothing published yet.'}>
     {posts.length > 0 && <PostList posts={posts} />}
   </Section>
 </Page>

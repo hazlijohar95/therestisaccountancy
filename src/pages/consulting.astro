@@ -3,6 +3,7 @@
 import Closing from '../components/Closing.astro';
 import PageHead from '../components/PageHead.astro';
 import Section from '../components/Section.astro';
+import { host, hostFirstName } from '../data/authors.ts';
 import { programmeBySlug, programmePath, type Programme } from '../data/programmes.ts';
 import { site } from '../data/site.ts';
 import Page from '../layouts/Page.astro';
@@ -14,7 +15,7 @@ const areas = (['pricing', 'advisory', 'ai', 'growth'] as const).flatMap((slug) 
 
 const steps = [
   { term: 'Write to us', detail: 'Your firm, the problem, and when it needs solving. A paragraph is enough.' },
-  { term: 'A call', detail: 'A host calls to understand the firm and its figures, and says plainly whether we can help.' },
+  { term: 'A call', detail: `${hostFirstName} calls to understand the firm and its figures, and says plainly whether we can help.` },
   { term: 'A written scope', detail: 'What we will do, what you will have at the end, and what it costs, before any work starts.' },
 ];
 
@@ -26,8 +27,8 @@ const proof = [
 ];
 ---
 
-<Page title="Consulting" description="Consulting from The Rest Is Accountancy: the hosts work with one firm on one problem, from pricing and advisory to AI and growth.">
-  <PageHead label="Consulting" title="One firm. One problem. Worked through with you." lead="For a practice that wants the hosts on its own figures and clients, not a programme’s worked example.">
+<Page title="Consulting" description={`Consulting from The Rest Is Accountancy: ${host.name} works with one firm on one problem, from pricing and advisory to AI and growth.`}>
+  <PageHead label="Consulting" title="One firm. One problem. Worked through with you." lead={`For a practice that wants ${hostFirstName} on its own figures and clients, not a programme’s worked example.`}>
     <a class="btn" href={enquiry}>Write to us</a>
     <p class="small address">Or write to <a href={enquiry}>{inbox}</a>.</p>
   </PageHead>

@@ -1,34 +1,40 @@
 ---
 import { Image } from 'astro:assets';
 import { photos } from '../data/author-photos.ts';
-import { authorByHandle, authorPath, type Author } from '../data/authors.ts';
+import { authorByHandle, authorPath, host, type Author } from '../data/authors.ts';
 
-/** A post's authors, each with their face. An author without a photo shows their initial. */
+/** A post's people, each with their face, the host first and the co-hosts after "with". Without a photo, an initial shows. */
 interface Props {
   handles: readonly string[];
   size?: number;
 }
 
 const { handles, size = 24 } = Astro.props;
-const authors = handles.flatMap((h) => authorByHandle(h) ?? []) satisfies Author[];
+const people = handles.flatMap((h) => authorByHandle(h) ?? []) satisfies Author[];
+const hosted = people.some((p) => p.handle === host.handle) && people.length > 1;
+const authors = hosted ? [host, ...people.filter((p) => p.handle !== host.handle)] : people;
 ---
 
 <span class="byline" style={`--face: ${size}px`}>
   {
-    authors.map((author) => {
+    authors.map((author, i) => {
       const photo = photos[author.handle];
       return (
+        <>
+        {hosted && i === 1 && <span class="with">with</span>}
         <a href={authorPath(author)}>
           {photo ? <Image class="face" src={photo.src} alt="" widths={[size * 2, size * 3]} sizes={`${size}px`} loading="lazy" /> : <span class="face initial" aria-hidden="true">{author.name.charAt(0)}</span>}
           <span>{author.name}</span>
         </a>
+        </>
       );
     })
   }
 </span>
 
 <style>
-  .byline { display: inline-flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+  .byline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); }
+  .with { margin-inline: calc(var(--space-2) * -1); }
   a { display: inline-flex; align-items: center; gap: var(--space-2); text-decoration: none; }
   a:hover span:last-child { text-decoration: underline; text-decoration-thickness: var(--stroke-hair); }
   .face { flex: none; width: var(--face); height: var(--face); border-radius: 50%; object-fit: cover; filter: grayscale(1); }

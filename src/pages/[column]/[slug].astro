@@ -1,4 +1,5 @@
 ---
+import { hostFirstName } from '../../data/authors.ts';
 import { Image } from 'astro:assets';
 import { render } from 'astro:content';
 import Byline from '../../components/Byline.astro';
@@ -102,7 +103,7 @@ const platforms = listen
       )
     }
   </article>
-  <Closing title="Read it here. Work it through in the club." lead="Each post’s topic is a programme. Members take it from reading to doing, with the hosts and each other." />
+  <Closing title="Read it here. Work it through in the club." lead={`Each post’s topic is a programme. Members take it from reading to doing, with ${hostFirstName} and each other.`} />
 </Page>
 
 <script>
