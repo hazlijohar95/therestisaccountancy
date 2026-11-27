@@ -2,25 +2,28 @@ import { useRouter, useRouterState } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import type { ReactNode } from 'react';
 import { site } from '../../../../src/data/club.ts';
+import { roomPath } from '../../../../src/data/social.ts';
 import { signOut } from '../../functions/auth.ts';
+import { socialHref } from '../../lib/links.ts';
 import { Logo } from './Logo.tsx';
 import s from './MembersLayout.module.css';
 
-const LINKS = [
+/** The members' nav. Community is the members' room on the Floor, which lives on the social host. */
+const links = () => [
   { href: '/members', label: 'Overview' },
   { href: '/members/resources', label: 'Templates' },
   { href: '/members/sessions', label: 'Sessions' },
   { href: '/members/calls', label: 'One-to-one' },
-  { href: '/members/community', label: 'Community' },
+  { href: socialHref(roomPath('club')), label: 'Community' },
   { href: '/members/account', label: 'Account' },
-] as const;
+];
 
 /** The members' area and admin: their own bar with sign-out, the page, and a footer saying who is signed in. */
 export function MembersLayout({ member, children }: { member: { email: string; role: 'member' | 'admin' } | null; children: ReactNode }) {
   const here = useRouterState({ select: (state) => state.location.pathname.replace(/\/$/, '') });
   const router = useRouter();
   const leave = useServerFn(signOut);
-  const links = member?.role === 'admin' ? [...LINKS, { href: '/admin', label: 'Admin' }] : LINKS;
+  const shown = member?.role === 'admin' ? [...links(), { href: '/admin', label: 'Admin' }] : links();
   const current = (href: string) => (here === href || (href !== '/members' && here.startsWith(`${href}/`)) ? 'page' : undefined);
 
   return (
@@ -31,7 +34,7 @@ export function MembersLayout({ member, children }: { member: { email: string; r
             <Logo brand="club" label={`${site.name}, members`} />
           </a>
           <nav className={s.nav} aria-label="Members">
-            {links.map((link) => (
+            {shown.map((link) => (
               <a key={link.href} href={link.href} aria-current={current(link.href)}>
                 {link.label}
               </a>

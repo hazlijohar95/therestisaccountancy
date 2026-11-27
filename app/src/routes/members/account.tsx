@@ -44,8 +44,8 @@ function Account() {
   /* A card renews at the term of the last paid checkout, so paying for the other term is how a member changes it. */
   const renewsByCard = standing !== null && standing.cardOnFile && standing.renews && standing.access === 'paid';
   const choices = [
-    { name: 'replies', label: 'Replies in threads I posted in', hint: 'At most one email per thread every six hours.', on: prefs.replies },
-    { name: 'digest', label: 'A weekly email on Mondays', hint: 'New threads and the sessions coming up. Off unless you turn it on; only sent when there is news.', on: prefs.digest },
+    { name: 'replies', label: 'Replies to what I post in the community', hint: 'At most one email per post every six hours.', on: prefs.replies },
+    { name: 'digest', label: 'A weekly email on Mondays', hint: 'New posts in the community and the sessions coming up. Off unless you turn it on; only sent when there is news.', on: prefs.digest },
   ] as const;
   const details = [
     { term: 'Name', detail: member.name },

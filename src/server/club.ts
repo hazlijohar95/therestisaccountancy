@@ -363,7 +363,7 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
       return row ? ok(toMember(row)) : fail('not-found');
     },
 
-    /** Deletes the member, their progress, links and join request. Their posts stay, without a name. */
+    /** Deletes the member, their progress, links and join request. Their posts and replies on the Floor go with them. */
     removeMember(actorId: number, memberId: number, siteUrl: string): Result<AdminChange, AdminRefusal> {
       return attempt<AdminChange, AdminRefusal>(db, (refuse) => {
         const member = subject(actorId, memberId, refuse);

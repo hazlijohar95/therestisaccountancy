@@ -1,10 +1,10 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { migrate, type Db } from './db.ts';
+import { migrate, SCHEMA_VERSION, type Db } from './db.ts';
 
-/** A node:sqlite database with the club's schema, for tests. Pass ':memory:' for a throwaway one. */
-export function openDatabase(path: string): Db & { close(): void } {
+/** A node:sqlite database with the club's schema, for tests. Pass ':memory:' for a throwaway one, and an older version to seed data the way it was held then. */
+export function openDatabase(path: string, version = SCHEMA_VERSION): Db & { close(): void } {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
   const sqlite = new DatabaseSync(path);
   sqlite.exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;');
@@ -34,6 +34,6 @@ export function openDatabase(path: string): Db & { close(): void } {
     },
     close: () => sqlite.close(),
   };
-  migrate(db);
+  migrate(db, version);
   return db;
 }

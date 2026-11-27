@@ -89,7 +89,7 @@ export function passwordLetter(link: { email: string; name: string; purpose: Lin
         link.rate
           ? `Membership is ${link.rate}. You choose which and pay straight after setting your password, and you can stop any time.`
           : "You're an admin, so there's nothing to pay.",
-        "What we'll email you: replies in threads you post in, reminders for sessions you sign up for, and anything about your membership. Nothing else unless you ask for it.",
+        "What we'll email you: replies to what you post in the community, reminders for sessions you sign up for, and anything about your membership. Nothing else unless you ask for it.",
         'Questions? Reply to this email. It comes straight to me.',
         site.host,
       ],
@@ -160,7 +160,7 @@ const unsubscribeUrl = (settingsUrl: string, to: Subscriber, list: List) => {
   return { url: url.href, list };
 };
 
-/** Tells a member someone replied in a thread they posted in. */
+/** Tells a member someone replied to a post on the Floor that they wrote or replied to. */
 export function replyLetter(to: Subscriber, reply: { title: string; by: string; url: string; settingsUrl: string }): Letter {
   return {
     to: to.email,
@@ -168,15 +168,16 @@ export function replyLetter(to: Subscriber, reply: { title: string; by: string; 
     subject: flat(`${firstName(reply.by)} replied to “${reply.title}”`),
     lines: [
       hi(to.name),
-      `${reply.by} replied in “${reply.title}”.`,
+      `${reply.by} replied to “${reply.title}”.`,
       { href: reply.url, label: 'Read the reply' },
-      "You're getting this because you posted in that thread. You'll hear about it at most once every six hours, however busy it gets.",
+      "You're getting this because you wrote that post or replied to it. You'll hear about it at most once every six hours, however busy it gets.",
     ],
   };
 }
 
 export interface DigestNews {
-  readonly threads: readonly { readonly title: string; readonly channel: string; readonly replies: number; readonly url: string }[];
+  /** Posts on the Floor this week, each with its room's name and a link on the social host. */
+  readonly posts: readonly { readonly title: string; readonly room: string; readonly replies: number; readonly url: string }[];
   readonly replies: number;
   readonly sessions: readonly { readonly title: string; readonly startsAt: string }[];
   readonly communityUrl: string;
@@ -186,11 +187,11 @@ export interface DigestNews {
 
 /** The week in the club, from a host. Only written when something happened or is coming up. */
 export function digestLetter(to: Subscriber, news: DigestNews): Letter {
-  const headline = [news.threads.length ? plural(news.threads.length, 'new thread', 'new threads') : null, news.sessions.length ? plural(news.sessions.length, 'session', 'sessions') + ' coming up' : null]
+  const headline = [news.posts.length ? plural(news.posts.length, 'new post', 'new posts') : null, news.sessions.length ? plural(news.sessions.length, 'session', 'sessions') + ' coming up' : null]
     .filter(Boolean)
     .join(' and ');
-  const threads: Line[] = news.threads.length
-    ? ['New in the community:', ...news.threads.map((t): Line => ({ href: t.url, text: `${t.title} · ${t.channel}, ${plural(t.replies, 'reply', 'replies')}` }))]
+  const posts: Line[] = news.posts.length
+    ? ['New in the community:', ...news.posts.map((p): Line => ({ href: p.url, text: `${p.title} · ${p.room}, ${plural(p.replies, 'reply', 'replies')}` }))]
     : [];
   const replies: Line[] = news.replies ? [{ href: news.communityUrl, text: `${plural(news.replies, 'reply', 'replies')} across the community this week` }] : [];
   const sessions: Line[] = news.sessions.length
@@ -201,7 +202,7 @@ export function digestLetter(to: Subscriber, news: DigestNews): Letter {
     from: fromHost,
     unsubscribe: unsubscribeUrl(news.settingsUrl, to, 'digest'),
     subject: `This week: ${headline || 'news from the club'}`,
-    lines: [hi(to.name), "Here's the week in the club, in case you missed it.", ...threads, ...replies, ...sessions, "You're getting this because you turned on the Monday email.", site.host],
+    lines: [hi(to.name), "Here's the week in the club, in case you missed it.", ...posts, ...replies, ...sessions, "You're getting this because you turned on the Monday email.", site.host],
   };
 }
 

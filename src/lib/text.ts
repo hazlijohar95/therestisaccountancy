@@ -10,6 +10,13 @@ const trimUrl = (raw: string): string => {
   return url;
 };
 
+/** Line endings made plain, edges trimmed, and runs of blank lines kept to one. */
+export const tidy = (body: string) =>
+  body
+    .replace(/\r\n?/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
 /** Paragraphs are separated by a blank line. Single line breaks stay inside a paragraph. */
 export const paragraphs = (body: string): string[] =>
   body

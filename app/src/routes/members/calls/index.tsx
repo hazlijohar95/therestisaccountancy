@@ -1,12 +1,14 @@
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import type { FormEvent } from 'react';
 import { firstName, formatTime, formatWeekday } from '../../../../../src/lib/format.ts';
+import { roomPath } from '../../../../../src/data/social.ts';
 import { Masthead } from '../../../components/club/Masthead.tsx';
 import { Notice } from '../../../components/club/Notice.tsx';
 import { FieldError } from '../../../components/FieldError.tsx';
 import { useAction } from '../../../components/useAction.ts';
 import { bookCall, cancelCall, membersCalls } from '../../../functions/members-calls.ts';
 import { flags } from '../../../components/members/flags.ts';
+import { socialHref } from '../../../lib/links.ts';
 import { clubTitle } from '../../../lib/title.ts';
 import s from './index.module.css';
 import { hostFirstName } from '../../../../../src/data/authors.ts';
@@ -101,7 +103,7 @@ function Calls() {
         </h2>
         {days.length === 0 ? (
           <p className={s.empty}>
-            No open times right now. New ones appear here as {hostFirstName} adds them. Until then, the <a href="/members/community">members' room</a> is open all week.
+            No open times right now. New ones appear here as {hostFirstName} adds them. Until then, the <a href={socialHref(roomPath('club'))}>members' room</a> is open all week.
           </p>
         ) : (
           <>

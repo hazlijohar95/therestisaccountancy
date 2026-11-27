@@ -11,8 +11,8 @@ test('replies, accepted answers, useful marks and follows notify the person they
   const aina = await w.joined('Aina', 'aina@firm.my', 'aina');
   const priya = await w.joined('Priya', 'priya@tax.my', 'priya');
   const { id: postId } = value(w.floor.post(aina.id, post));
-  const { id: replyId } = value(w.floor.reply(priya.id, postId, { body: 'Section 267A.', correction: false }));
-  value(w.floor.reply(aina.id, postId, { body: 'Thanks.', correction: false }));
+  const { id: replyId } = value(w.floor.reply(priya.id, postId, { body: 'Section 267A.', correction: false }, SITE));
+  value(w.floor.reply(aina.id, postId, { body: 'Thanks.', correction: false }, SITE));
   value(w.floor.accept(aina.id, replyId));
   value(w.floor.unaccept(aina.id, replyId));
   value(w.floor.accept(aina.id, replyId));
@@ -39,7 +39,7 @@ test('the bell counts what is unread and still there; viewing marks everything r
   const priya = await w.joined('Priya', 'priya@tax.my', 'priya');
   const abu = await w.joined('Abu', 'abu@firm.my', 'abu');
   const { id: postId } = value(w.floor.post(aina.id, post));
-  value(w.floor.reply(priya.id, postId, { body: 'One.', correction: false }));
+  value(w.floor.reply(priya.id, postId, { body: 'One.', correction: false }, SITE));
   value(w.profiles.follow(abu.id, 'aina'));
   assert.equal(w.notifications.unread(aina.id), 2);
 
@@ -48,7 +48,7 @@ test('the bell counts what is unread and still there; viewing marks everything r
   assert.deepEqual(w.notifications.list(aina.id).map((n) => n.unread), [false, false], 'read ones stay in the list');
 
   w.later(60_000);
-  value(w.floor.reply(abu.id, postId, { body: 'Two.', correction: false }));
+  value(w.floor.reply(abu.id, postId, { body: 'Two.', correction: false }, SITE));
   assert.equal(w.notifications.unread(aina.id), 1);
   assert.equal(w.notifications.list(aina.id)[0]?.unread, true, 'newest first');
 

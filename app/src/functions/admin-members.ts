@@ -107,7 +107,7 @@ export const adminMember = createServerFn({ method: 'GET' })
       const member = await store.club.member(memberId);
       if (!member) return null;
       const completed = await store.club.completedLessons(member.id);
-      const postCount = await store.community.postCount(member.id);
+      const postCount = await store.socialFloor.postCount(member.id);
       const last = await store.activity.last(member.id);
       const standing = await store.billing.standing(member.id);
       const stop = standing.renews ? null : await store.billing.lastStop(member.id);

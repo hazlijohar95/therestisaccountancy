@@ -39,8 +39,7 @@ const world = () => {
       const id = insert(`INSERT INTO live_sessions (title, kind, starts_at, minutes, link, detail, created_at) VALUES ('Clinic', 'Clinics', ?, 60, 'x', '', ?)`, at, at).lastInsertRowid;
       insert('INSERT INTO rsvps (session_id, member_id, created_at) VALUES (?, ?, ?)', id, memberId, at);
     } else if (kind === 'post') {
-      const id = insert(`INSERT INTO threads (channel, title, author_id, created_at, last_post_at) VALUES ('pricing', 'T', ?, ?, ?)`, memberId, at, at).lastInsertRowid;
-      insert('INSERT INTO posts (thread_id, author_id, body, created_at) VALUES (?, ?, ?, ?)', id, memberId, 'Hello', at);
+      insert(`INSERT INTO floor_posts (member_id, room, jurisdiction, title, created_at) VALUES (?, 'club', 'Any', 'Monthly or annual billing?', ?)`, memberId, at);
     } else if (kind === 'lesson') {
       insert('INSERT INTO lesson_progress (member_id, lesson_id, completed_at) VALUES (?, ?, ?)', memberId, `lesson-${at}`, at);
     } else if (kind === 'call') {
@@ -69,14 +68,18 @@ test('each thing a member does counts, and the latest one is what they last did'
   assert.equal(w.store.activity.last(m.id)?.kind, 'lesson', 'the most recent wins, whatever its kind');
 });
 
-test('a deleted post is not activity', async () => {
+test('a reply on the Floor counts as a post, and a removed post or reply is not activity', async () => {
   const w = world();
   const aina = await w.payer('aina@firm.com.my', 'Aina');
-  w.did('post', aina.id, 1);
-  w.db.exec('UPDATE posts SET deleted_at = created_at');
+  const budi = await w.payer('budi@firm.com.my', 'Budi');
+  w.did('post', aina.id, 3);
+  w.db.prepare(`INSERT INTO floor_replies (post_id, member_id, body, created_at) SELECT id, ?, 'Annual, with a discount.', '2026-11-30T10:00:00Z' FROM floor_posts`).run(budi.id);
+  assert.deepEqual(w.store.activity.last(budi.id), { kind: 'post', at: '2026-11-30T10:00:00Z' });
+  w.db.exec('UPDATE floor_posts SET removed_at = created_at; UPDATE floor_replies SET removed_at = created_at');
   assert.equal(w.store.activity.last(aina.id), null);
+  assert.equal(w.store.activity.last(budi.id), null);
   w.later(QUIET_DAYS + 1);
-  assert.deepEqual(w.store.activity.quiet().map((m) => m.name), ['Aina']);
+  assert.deepEqual(w.store.activity.quiet().map((m) => m.name), ['Aina', 'Budi']);
 });
 
 test('only paying members are listed: not unpaid, lapsed past grace, suspended or admins', async () => {

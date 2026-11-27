@@ -4,7 +4,7 @@ import { hostFirstName } from '../data/authors.ts';
 import { site } from '../data/site.ts';
 import { firstName, numberWord } from '../lib/format.ts';
 import { paragraphs } from '../lib/text.ts';
-import { tidy } from './community.ts';
+import { tidy } from '../lib/text.ts';
 import { attempt, integer, optionalText, text, type Db, type Param, type Row } from './db.ts';
 import type { Letter } from './letters.ts';
 import type { Recipient } from './mailings.ts';

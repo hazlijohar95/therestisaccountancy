@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import type { Db } from './db.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
 import { createStore } from './store.ts';
@@ -40,4 +41,26 @@ export function socialWorld() {
     return body;
   };
   return { db, club, profiles, claims, nominations, floor, problems, casebook, shelf, notifications, invites, requests, host, joined, seal, now, later: (ms: number) => (clock = new Date(clock.getTime() + ms)) };
+}
+
+/**
+ * Undoes the migration that moved the club's board onto the Floor, for a test that rewinds the schema past it and runs
+ * the later migrations again. The board comes back empty, so running that migration again moves nothing.
+ */
+export function unmergeBoard(db: Db): void {
+  db.exec(`
+    DROP TABLE floor_reply_notices;
+    CREATE TABLE threads (
+      id INTEGER PRIMARY KEY, channel TEXT NOT NULL, title TEXT NOT NULL, author_id INTEGER REFERENCES members (id) ON DELETE SET NULL,
+      created_at TEXT NOT NULL, last_post_at TEXT NOT NULL, pinned INTEGER NOT NULL DEFAULT 0, locked INTEGER NOT NULL DEFAULT 0, removed_at TEXT
+    );
+    CREATE TABLE posts (
+      id INTEGER PRIMARY KEY, thread_id INTEGER NOT NULL REFERENCES threads (id) ON DELETE CASCADE,
+      author_id INTEGER REFERENCES members (id) ON DELETE SET NULL, body TEXT NOT NULL, created_at TEXT NOT NULL, edited_at TEXT, deleted_at TEXT
+    );
+    CREATE TABLE reply_notices (
+      member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE, thread_id INTEGER NOT NULL REFERENCES threads (id) ON DELETE CASCADE,
+      sent_at TEXT NOT NULL, PRIMARY KEY (member_id, thread_id)
+    );
+  `);
 }

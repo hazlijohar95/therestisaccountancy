@@ -1,12 +1,14 @@
 import { RATING_IDS, RENEWAL_REMINDER_DAYS, type Rating } from '../data/social.ts';
 import { integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import { daysLeft } from './social-claims.ts';
+import { createSocialFloor, type Viewer } from './social-floor.ts';
 import { NOTICE_KINDS } from './social-notify.ts';
 import { activeSql, authorOf, type Author } from './social-profiles.ts';
 
 /*
  * Reading notifications. Rows keep ids, and each is read against what is true now: a notification whose actor has
- * gone, or whose post was removed, is left out, and a co-sign request or a renewal says whether it still needs you.
+ * gone, or whose post was removed or sits in a room the member can no longer open, is left out, and a co-sign request
+ * or a renewal says whether it still needs you.
  */
 
 interface Seen {
@@ -37,6 +39,7 @@ const RENEWAL_WINDOW_DAYS = RENEWAL_REMINDER_DAYS[0];
 const iso = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 export function createSocialNotifications(db: Db, now: () => Date = () => new Date()) {
+  const floor = createSocialFloor(db, now);
   const actorOf = (row: Row): Author | null => {
     const actorId = row.actor_id === null ? null : integer(row, 'actor_id');
     if (actorId === null) return null;
@@ -45,10 +48,9 @@ export function createSocialNotifications(db: Db, now: () => Date = () => new Da
   };
 
   const subject = (row: Row) => integer(row, 'subject_id');
-  const livePost = (postId: number) => db.prepare('SELECT title FROM floor_posts WHERE id = ? AND removed_at IS NULL').get(postId);
 
-  /** The notification as it reads now, or null when what it is about has gone. */
-  const resolve = (row: Row): Notice | null => {
+  /** The notification as it reads now to its member, or null when what it is about has gone or is shut to them. */
+  const resolve = (row: Row, reader: Viewer): Notice | null => {
     const seen: Seen = { id: integer(row, 'id'), createdAt: text(row, 'created_at'), unread: optionalText(row, 'read_at') === null };
     const kind = oneOf(row, 'kind', NOTICE_KINDS);
     const detail = text(row, 'detail');
@@ -57,9 +59,9 @@ export function createSocialNotifications(db: Db, now: () => Date = () => new Da
       case 'accepted':
       case 'useful': {
         const actor = actorOf(row);
-        const post = livePost(subject(row));
-        if (!actor || !post) return null;
-        const about = { actor, postId: subject(row), title: text(post, 'title') };
+        const title = floor.titleFor(reader, subject(row));
+        if (!actor || title === null) return null;
+        const about = { actor, postId: subject(row), title };
         return kind === 'useful' ? { ...seen, kind, ...about, target: detail === 'reply' ? 'reply' : 'post' } : { ...seen, kind, ...about };
       }
       case 'follow': {
@@ -100,7 +102,10 @@ export function createSocialNotifications(db: Db, now: () => Date = () => new Da
   const rows = (memberId: number, where: string, limit: number) =>
     db.prepare(`SELECT * FROM notifications WHERE member_id = ? ${where} ORDER BY created_at DESC, id DESC LIMIT ?`).all(memberId, limit);
 
-  const list = (memberId: number): Notice[] => rows(memberId, '', LIST_LIMIT).flatMap((row) => resolve(row) ?? []);
+  const list = (memberId: number): Notice[] => {
+    const reader = floor.viewer(memberId);
+    return rows(memberId, '', LIST_LIMIT).flatMap((row) => resolve(row, reader) ?? []);
+  };
 
   return {
     /** The latest notifications, newest first, as they read now. */
@@ -108,7 +113,8 @@ export function createSocialNotifications(db: Db, now: () => Date = () => new Da
 
     /** Unread notifications that still read as something. The bell shows this. */
     unread(memberId: number): number {
-      return rows(memberId, 'AND read_at IS NULL', LIST_LIMIT).filter((row) => resolve(row) !== null).length;
+      const reader = floor.viewer(memberId);
+      return rows(memberId, 'AND read_at IS NULL', LIST_LIMIT).filter((row) => resolve(row, reader) !== null).length;
     },
 
     /** The member opens their notifications: the list as it stood, unread ones still flagged, and now all of it read. */

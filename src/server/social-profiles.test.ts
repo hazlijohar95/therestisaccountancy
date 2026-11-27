@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createClub } from './club.ts';
-import { migrate, SCHEMA_VERSION } from './db.ts';
+import { migrate } from './db.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
-import { at, DAY, SITE, socialWorld } from './social-fixtures.ts';
+import { at, DAY, SITE, socialWorld, unmergeBoard } from './social-fixtures.ts';
 import { createSocialProfiles, sealOf, trackOf, type ProfileFields } from './social-profiles.ts';
 
 const PASSWORD = 'correct horse battery';
@@ -104,9 +104,10 @@ test('accounts that joined before invites keep working and are recorded as open'
   const owner = await w.host;
   const aina = await w.joined('Aina', 'aina@firm.my', 'aina');
   value(w.profiles.claimHandle(owner.id, 'owner'));
-  /* Back to the schema before invites, with profiles made the old way, then upgrade again. */
+  /* Back to the schema before invites (migration 23), with profiles made the old way, then upgrade again. */
+  unmergeBoard(w.db);
   w.db.exec('DROP TABLE renewal_stops; DROP TABLE sign_ins; DROP TABLE social_requests; DROP TABLE social_invites; DROP TRIGGER profiles_need_an_entry; DROP TABLE social_entries;');
-  w.db.prepare('DELETE FROM schema_version WHERE version >= ?').run(SCHEMA_VERSION - 2);
+  w.db.prepare('DELETE FROM schema_version WHERE version >= 23').run();
   w.db.prepare(`INSERT INTO members (email, name, joined_via, password_hash) VALUES ('old@firm.my', 'Old Timer', 'social', 'x')`).run();
   w.db.prepare(`INSERT INTO profiles (member_id, handle, created_at, updated_at) SELECT id, 'oldtimer', '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z' FROM members WHERE email = 'old@firm.my'`).run();
   migrate(w.db);

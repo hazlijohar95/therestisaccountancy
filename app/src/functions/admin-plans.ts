@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { PLAN_REPLY_MAX } from '../../../src/data/plan.ts';
 import { capitalised, formatDay, formatMoment, numberWord } from '../../../src/lib/format.ts';
-import { tidy } from '../../../src/server/community.ts';
+import { tidy } from '../../../src/lib/text.ts';
 import { planAnsweredLetter, waited, type ReplyRefusal } from '../../../src/server/plans.ts';
 import { id } from '../lib/fields.ts';
 import { admit, toClub } from '../lib/access.server.ts';

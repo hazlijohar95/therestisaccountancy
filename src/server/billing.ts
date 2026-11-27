@@ -1,8 +1,9 @@
 import { DEFAULT_TERM, STOP_NOTE_MAX, STOP_REASONS, TERMS, terms, type StopReason, type Term } from '../data/membership.ts';
-import { adminEmails, STATUS_SQL } from './club.ts';
+import { adminEmails, ROLES, STATUS_SQL } from './club.ts';
 import { integer, oneOf, optionalText, text, type Db } from './db.ts';
 import { renewalOffLetter, type Letter } from './letters.ts';
 import type { Recipient } from './mailings.ts';
+import { paidAccess } from './paths.ts';
 
 /** Whether a member may use the members' area. Grace keeps a renewing member in for a few days past the paid term. */
 export const ACCESS = ['paid', 'grace', 'unpaid'] as const;
@@ -81,6 +82,12 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
   return {
     standing,
     access: (memberId: number): Access => standing(memberId).access,
+
+    /** Whether the member may open what membership pays for, the Floor's members' room included: an admin always, a member while paid or in grace. */
+    club(memberId: number): boolean {
+      const row = db.prepare('SELECT role FROM members WHERE id = ?').get(memberId);
+      return row !== undefined && paidAccess(oneOf(row, 'role', ROLES), standing(memberId).access);
+    },
 
     /**
      * Notes a purchase made in CHIP for a member, before they pay it. The term is fixed here, with its price, and is

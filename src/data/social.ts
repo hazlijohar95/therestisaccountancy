@@ -105,17 +105,37 @@ export const VOUCHES_TO_TICK = 3;
 /** Days before a tick lapses when its member is reminded. Once each, nearest last. */
 export const RENEWAL_REMINDER_DAYS = [60, 14] as const;
 
-/** Rooms on the Floor. The practitioners' room needs a ticked practising licence. */
+/**
+ * Who may open a room: anyone, someone with a ticked practising licence, or the club's paying members. The team opens
+ * every room.
+ */
+export const ROOM_ACCESS = ['anyone', 'licensed', 'club'] as const;
+export type RoomAccess = (typeof ROOM_ACCESS)[number];
+/** Why a room is shut to someone: the access it needs that they lack. */
+export type RoomLock = Exclude<RoomAccess, 'anyone'>;
+
+/** Rooms on the Floor. The members' room is the club's own, for members while their membership is paid. */
 export const ROOMS = [
-  { id: 'open', name: 'Open floor', locked: false },
-  { id: 'study', name: 'Study hall', locked: false },
-  { id: 'tax-my', name: 'Tax · Malaysia', locked: false },
-  { id: 'audit', name: 'Audit', locked: false },
-  { id: 'careers', name: 'Careers', locked: false },
-  { id: 'practice', name: 'Practitioners’ room', locked: true },
-] as const;
-export type RoomId = (typeof ROOMS)[number]['id'];
+  { id: 'open', name: 'Open floor', access: 'anyone' },
+  { id: 'study', name: 'Study hall', access: 'anyone' },
+  { id: 'tax-my', name: 'Tax · Malaysia', access: 'anyone' },
+  { id: 'audit', name: 'Audit', access: 'anyone' },
+  { id: 'careers', name: 'Careers', access: 'anyone' },
+  { id: 'practice', name: 'Practitioners’ room', access: 'licensed' },
+  { id: 'club', name: 'Members’ room', access: 'club' },
+] as const satisfies readonly { id: string; name: string; access: RoomAccess }[];
+export type Room = (typeof ROOMS)[number];
+export type RoomId = Room['id'];
 export const ROOM_IDS = ROOMS.map((room) => room.id);
+
+export function roomOf(id: RoomId): Room {
+  const found = ROOMS.find((room) => room.id === id);
+  if (!found) throw new TypeError(`${id} is not a room`);
+  return found;
+}
+
+/** A room's feed, as a social path. */
+export const roomPath = (id: RoomId) => `/?room=${id}`;
 
 /** A post's jurisdiction: one we know, or 'Any' when the answer does not change at the border. */
 export const POST_JURISDICTIONS = ['MY', 'SG', 'AU', 'UK', 'Any'] as const;

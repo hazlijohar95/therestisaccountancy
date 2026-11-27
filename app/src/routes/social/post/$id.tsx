@@ -2,7 +2,7 @@ import { createFileRoute, notFound, useNavigate } from '@tanstack/react-router';
 import { SocialLink } from '../../../components/social/SocialLink.tsx';
 import { useEffect, useState, type FormEvent } from 'react';
 import { z } from 'zod';
-import { FLOOR_LIMITS, POST_JURISDICTIONS, ROOMS } from '../../../../../src/data/social.ts';
+import { FLOOR_LIMITS, POST_JURISDICTIONS, roomOf, ROOMS } from '../../../../../src/data/social.ts';
 import { DRAFT_KEY } from '../../../../../src/lib/drafts.ts';
 import { formatMoment } from '../../../../../src/lib/format.ts';
 import type { PostCard as Post, ReplyCard, Viewer } from '../../../../../src/server/social-floor.ts';
@@ -18,7 +18,7 @@ import { UsefulButton } from '../../../components/social/UsefulButton.tsx';
 import { FieldError } from '../../../components/FieldError.tsx';
 import { useAction } from '../../../components/useAction.ts';
 import { acceptReply, editFloorPost, editFloorReply, floorReply, removeFloorPost, removeFloorReply, threadPage, unacceptReply } from '../../../functions/social-floor.ts';
-import { socialHref } from '../../../lib/links.ts';
+import { clubHref, socialHref } from '../../../lib/links.ts';
 import { failureOf } from '../../../lib/outcome.ts';
 import { socialTitle } from '../../../lib/title.ts';
 
@@ -39,7 +39,7 @@ export const Route = createFileRoute('/social/post/$id')({
   staticData: { section: 'floor' },
   head: ({ loaderData }) => ({
     meta: [
-      ...socialTitle(loaderData?.state === 'open' ? loaderData.post.title : loaderData ? 'Practitioners’ room' : 'Not found'),
+      ...socialTitle(loaderData?.state === 'open' ? loaderData.post.title : loaderData ? roomOf(loaderData.room).name : 'Not found'),
       ...(loaderData?.state === 'open' && loaderData.post.body ? [{ name: 'description', content: loaderData.post.body.slice(0, 160) }] : []),
     ],
   }),
@@ -97,19 +97,34 @@ function Thread() {
     return (
       <div className="page thread">
         <Back />
-        <div className="card empty">
-          <h1 className="head">This post is in the practitioners’ room.</h1>
-          <p>Practitioners talk shop there. It needs a ticked practising licence to read.</p>
-          {view.signedIn ? (
-            <a className="btn sm" href={socialHref('/verify?step=licence')}>
-              Get ticked
+        {view.locked === 'licensed' ? (
+          <div className="card empty">
+            <h1 className="head">This post is in the practitioners’ room.</h1>
+            <p>Practitioners talk shop there. It needs a ticked practising licence to read.</p>
+            {view.signedIn ? (
+              <a className="btn sm" href={socialHref('/verify?step=licence')}>
+                Get ticked
+              </a>
+            ) : (
+              <a className="btn sm" href={signIn}>
+                Sign in
+              </a>
+            )}
+          </div>
+        ) : (
+          <div className="card empty">
+            <h1 className="head">This post is in the members’ room.</h1>
+            <p>The members’ room is for club members. Join the club to read it and post there.</p>
+            <a className="btn sm" href={clubHref('/join')}>
+              Join the club
             </a>
-          ) : (
-            <a className="btn sm" href={signIn}>
-              Sign in
-            </a>
-          )}
-        </div>
+            {!view.signedIn && (
+              <p className="small">
+                Already a member? <a href={signIn}>Sign in</a>.
+              </p>
+            )}
+          </div>
+        )}
       </div>
     );
 
@@ -130,7 +145,7 @@ function Thread() {
       )}
       <NoticeLine />
       {search.edit === 'post' && post.editable ? (
-        <EditPost post={post} viewer={viewer} />
+        <EditPost post={post} />
       ) : (
         <PostCard post={post} full signedIn={signedIn}>
           {(post.editable || post.mine || viewer.admin) && (
@@ -190,12 +205,12 @@ function Thread() {
           </div>
         )}
       </section>
-      <p className="small">In {ROOMS.find((room) => room.id === post.room)?.name ?? ''}. Ticks confirm credentials. They never vouch for advice.</p>
+      <p className="small">In {roomOf(post.room).name}. Ticks confirm credentials. They never vouch for advice.</p>
     </div>
   );
 }
 
-function EditPost({ post, viewer }: { post: Post; viewer: Viewer }) {
+function EditPost({ post }: { post: Post }) {
   const [draft, setDraft] = useState({ title: post.title, body: post.body, room: post.room, jurisdiction: post.jurisdiction });
   const save = useAction(editFloorPost);
   const navigate = useNavigate();
@@ -215,7 +230,8 @@ function EditPost({ post, viewer }: { post: Post; viewer: Viewer }) {
   };
   const title = save.field('title', { id: 'edit-title-error' });
   const body = save.field('body', { id: 'edit-body-error' });
-  const rooms = ROOMS.filter((room) => !room.locked || viewer.practitioner);
+  /* A post moves only between rooms open to the same people, so its replies never reach readers they were not written for. */
+  const rooms = ROOMS.filter((room) => room.access === roomOf(post.room).access);
   return (
     <form className="post edit-form" method="POST" onSubmit={submit} noValidate>
       <h1 className="head">Edit your post</h1>

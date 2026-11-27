@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { migrate } from './db.ts';
-import { digestWeek, onboardingStep, REPLY_NOTICE_GAP_MS } from './mailings.ts';
+import { digestWeek, onboardingStep } from './mailings.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
+import { unmergeBoard } from './social-fixtures.ts';
 import { createStore } from './store.ts';
 
 const PASSWORD = 'correct horse battery';
@@ -18,7 +19,7 @@ const world = () => {
   const now = () => clock;
   const db = openDatabase(':memory:');
   migrate(db);
-  const { club, community, mailings, schedule, billing } = createStore(db, now);
+  const { club, mailings, schedule, billing } = createStore(db, now);
   const join = async (email: string, name: string) => {
     club.recordJoinRequest({ name, email, stage: 'I run a practice' });
     const request = club.joinRequests({ decided: false }).find((r) => r.email === email);
@@ -28,40 +29,22 @@ const world = () => {
     assert.ok(accepted);
     return accepted.member;
   };
-  return { db, club, join, now, community, mailings, schedule, billing, later: (ms: number) => (clock = new Date(clock.getTime() + ms)) };
+  return { db, club, join, now, mailings, schedule, billing, later: (ms: number) => (clock = new Date(clock.getTime() + ms)) };
 };
 
-test('a reply tells everyone else who posted in the thread, at most once every six hours', async () => {
+test('the digest goes only to active members with the club who asked for it, once a week', async () => {
   const w = await world();
   const aina = await w.join('aina@firm.com.my', 'Aina');
   const abu = await w.join('abu@firm.com.my', 'Abu');
-  const siti = await w.join('siti@firm.com.my', 'Siti');
-  const place = w.community.startThread(aina, { channel: 'pricing', title: 'Fixed fees for audits', body: 'How do you price them?' });
-  const told = (member: { id: number; role: 'member' | 'admin' }, body: string) => {
-    const { notices } = value(w.community.reply(member, place.threadId, { body }));
-    assert.equal(notices.title, 'Fixed fees for audits');
-    return notices.recipients.map((r) => r.name).sort();
-  };
-
-  assert.deepEqual(told(abu, 'Per entity.'), ['Aina'], 'the replier is not told');
-  assert.deepEqual(told(siti, 'Per hour, sadly.'), ['Abu'], 'Aina, told minutes ago, is skipped');
-  assert.deepEqual(told(abu, 'Try fixed.'), ['Siti']);
-  assert.deepEqual(told(abu, 'Try fixed.'), [], 'the same reply again posts once and tells nobody twice');
-
-  w.later(REPLY_NOTICE_GAP_MS + 1);
-  w.mailings.setPrefs(abu.id, { replies: false, digest: true });
-  assert.deepEqual(told(siti, 'Per hour, still.'), ['Aina'], 'a member who turned replies off is skipped');
-  assert.deepEqual(w.mailings.prefs(abu.id), { replies: false, digest: true });
-});
-
-test('the digest goes only to active members who asked for it, once a week', async () => {
-  const w = await world();
-  const aina = await w.join('aina@firm.com.my', 'Aina');
-  await w.join('abu@firm.com.my', 'Abu');
   w.club.appointAdmin({ email: 'new@club.test', name: 'Not yet active' });
+  w.billing.opened('p-aina', aina.id, 'checkout', 'month');
+  assert.ok(w.billing.paid('p-aina', false));
   assert.deepEqual(w.mailings.digestRecipients(), [], 'nobody gets it without asking');
+  w.mailings.setPrefs(abu.id, { replies: true, digest: true });
+  assert.deepEqual(w.mailings.digestRecipients(), [], 'a member who never paid has no members’ room to hear about');
   w.mailings.setPrefs(aina.id, { replies: true, digest: true });
-  const [subscriber] = w.mailings.digestRecipients();
+  const [subscriber, ...rest] = w.mailings.digestRecipients();
+  assert.deepEqual(rest, []);
   assert.equal(subscriber?.name, 'Aina');
   assert.equal(w.mailings.unsubscribe(subscriber?.key ?? '', 'digest'), true);
   assert.deepEqual(w.mailings.digestRecipients(), [], 'one click stops it');
@@ -181,6 +164,7 @@ test('the migration leaves out members who had already paid, but not members sti
   billing.opened('p-paid', paid.id, 'checkout', 'month');
   assert.ok(billing.paid('p-paid', false));
   /* Back to the schema before the getting-started emails (migration 16), undoing the social ones after it, then upgrade again. */
+  unmergeBoard(w.db);
   w.db.exec('DROP TABLE renewal_stops; DROP TABLE sign_ins; DROP TABLE social_requests; DROP TABLE social_invites; DROP TRIGGER profiles_need_an_entry; DROP TABLE social_entries;');
   w.db.exec('DROP TABLE notifications; DROP TABLE saves; DROP TABLE shelf_items; DROP TABLE roles; DROP TABLE casebook;');
   w.db.exec('DROP TABLE ratings; DROP TABLE answers; DROP TABLE problems;');

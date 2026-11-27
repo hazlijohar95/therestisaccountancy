@@ -1,5 +1,5 @@
-import { channelBySlug, threadPath } from '../data/community.ts';
 import { terms } from '../data/membership.ts';
+import { roomOf, roomPath } from '../data/social.ts';
 import { tally } from '../lib/format.ts';
 import { openStore } from './instance.ts';
 import { GRACE_MS } from './billing.ts';
@@ -106,14 +106,14 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
 
     const week = digestWeek(at);
     if (week && (await store.mailings.claimDigest(week))) {
-      const board = await store.community.since(new Date(at.getTime() - WEEK_MS));
+      const floor = await store.socialFloor.digest(new Date(at.getTime() - WEEK_MS));
       const sessions = (await store.schedule.upcoming(null)).filter((s) => new Date(s.startsAt).getTime() < at.getTime() + WEEK_MS);
-      if (board.threads.length || board.replies || sessions.length) {
+      if (floor.posts.length || floor.replies || sessions.length) {
         const news = {
-          threads: board.threads.map((t) => ({ title: t.title, channel: channelBySlug(t.channel)?.name ?? t.channel, replies: t.replies, url: url(threadPath(t.id)) })),
-          replies: board.replies,
+          posts: floor.posts.map((p) => ({ title: p.title, room: roomOf(p.room).name, replies: p.replies, url: socialUrl(siteUrl, `/post/${p.id}`) })),
+          replies: floor.replies,
           sessions: sessions.map((s) => ({ title: s.title, startsAt: s.startsAt })),
-          communityUrl: url('/members/community'),
+          communityUrl: socialUrl(siteUrl, roomPath('club')),
           sessionsUrl: url('/members/sessions'),
           settingsUrl: url('/members/account#email'),
         };

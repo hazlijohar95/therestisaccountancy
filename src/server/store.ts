@@ -2,7 +2,6 @@ import { createActivity } from './activity.ts';
 import { createBilling } from './billing.ts';
 import { createCalls } from './calls.ts';
 import { createClub } from './club.ts';
-import { createCommunity } from './community.ts';
 import type { Db } from './db.ts';
 import { createFees } from './fees.ts';
 import { createIncidents } from './incidents.ts';
@@ -28,7 +27,6 @@ export function createStore(db: Db, now: () => Date = () => new Date()) {
   return {
     club: createClub(db, now),
     activity: createActivity(db, now),
-    community: createCommunity(db, now),
     limits: createLimits(db, now),
     mailings: createMailings(db, now),
     schedule: createSchedule(db, now),

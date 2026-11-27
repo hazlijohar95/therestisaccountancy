@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { paragraphs, pieces } from './text.ts';
+import { paragraphs, pieces, tidy } from './text.ts';
 
 test('blank lines split paragraphs; single line breaks stay inside one', () => {
   assert.deepEqual(paragraphs('one\nstill one\n\n  \n\ntwo'), ['one\nstill one', 'two']);
@@ -26,4 +26,8 @@ test('a closing parenthesis stays when it belongs to the address', () => {
 
 test('nothing else becomes a link, and markup stays text', () => {
   assert.deepEqual(pieces('javascript:alert(1) <b>hi</b> www.example.com'), [{ kind: 'text', text: 'javascript:alert(1) <b>hi</b> www.example.com' }]);
+});
+
+test('tidy makes line endings plain, trims the edges and keeps one blank line at most', () => {
+  assert.equal(tidy('  first\r\n\r\n\r\n\r\nsecond\rthird  '), 'first\n\nsecond\nthird');
 });

@@ -33,7 +33,8 @@ const iso = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
 /** Every dated thing a member did, from rows that already exist. */
 const EVENTS = `
   SELECT member_id, 'session' AS kind, created_at AS at FROM rsvps
-  UNION ALL SELECT author_id, 'post', created_at FROM posts WHERE author_id IS NOT NULL AND deleted_at IS NULL
+  UNION ALL SELECT member_id, 'post', created_at FROM floor_posts WHERE removed_at IS NULL
+  UNION ALL SELECT member_id, 'post', created_at FROM floor_replies WHERE removed_at IS NULL
   UNION ALL SELECT member_id, 'lesson', completed_at FROM lesson_progress
   UNION ALL SELECT booked_by, 'call', booked_at FROM call_slots WHERE booked_by IS NOT NULL AND booked_at IS NOT NULL
   UNION ALL SELECT member_id, 'plan', updated_at FROM plans`;

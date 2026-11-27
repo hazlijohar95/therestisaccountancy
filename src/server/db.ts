@@ -616,16 +616,41 @@ const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX renewal_stops_by_member ON renewal_stops (member_id, at);
   `,
+  `
+  ALTER TABLE floor_posts ADD COLUMN from_thread INTEGER;
+  INSERT INTO floor_posts (member_id, room, jurisdiction, title, body, created_at, edited_at, from_thread)
+    SELECT t.author_id, 'club', 'Any', t.title, p.body, t.created_at, p.edited_at, t.id
+    FROM threads t JOIN posts p ON p.id = (SELECT min(id) FROM posts WHERE thread_id = t.id)
+    WHERE t.author_id IS NOT NULL AND t.removed_at IS NULL AND p.deleted_at IS NULL
+    ORDER BY t.created_at, t.id;
+  INSERT INTO floor_replies (post_id, member_id, body, created_at, edited_at)
+    SELECT f.id, p.author_id, p.body, p.created_at, p.edited_at
+    FROM posts p JOIN floor_posts f ON f.from_thread = p.thread_id
+    WHERE p.author_id IS NOT NULL AND p.deleted_at IS NULL AND p.id > (SELECT min(id) FROM posts WHERE thread_id = p.thread_id)
+    ORDER BY p.created_at, p.id;
+  ALTER TABLE floor_posts DROP COLUMN from_thread;
+
+  DROP TABLE reply_notices;
+  DROP TABLE posts;
+  DROP TABLE threads;
+
+  CREATE TABLE floor_reply_notices (
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    post_id INTEGER NOT NULL REFERENCES floor_posts (id) ON DELETE CASCADE,
+    sent_at TEXT NOT NULL,
+    PRIMARY KEY (member_id, post_id)
+  );
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
 
-/** Brings the schema up to date. Safe to run on every start. */
-export function migrate(db: Db): void {
+/** Brings the schema up to date, or up to version `to` for a test that seeds data the way an older schema held it. Safe to run on every start. */
+export function migrate(db: Db, to = MIGRATIONS.length): void {
   db.exec('CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY)');
   const applied = count(db.prepare('SELECT count(*) AS n FROM schema_version').get());
   if (applied > MIGRATIONS.length) throw new Error(`The database is at schema ${applied}, newer than this code (${MIGRATIONS.length}).`);
-  MIGRATIONS.slice(applied).forEach((sql, i) => {
+  MIGRATIONS.slice(applied, to).forEach((sql, i) => {
     db.transaction(() => {
       db.exec(sql);
       db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(applied + i + 1);
