@@ -10,7 +10,7 @@
     "preview": "vite preview --host localhost --port 5181",
     "audio": "node scripts/build-audio.ts",
     "typecheck": "cf workers types && tsc -b",
-    "test": "node --test \"worker/**/*.test.ts\"",
+    "test": "node --test \"worker/**/*.test.ts\" \"src/**/*.test.ts\"",
     "check:bundle": "node scripts/check-bundle.ts"
   },
   "dependencies": {

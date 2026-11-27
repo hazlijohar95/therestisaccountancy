@@ -172,9 +172,15 @@ export function createLearner(db: Db, now: () => Date = () => new Date(), warn: 
 
   const learnerRow = () => db.prepare("SELECT * FROM learner WHERE id = 1").get()!;
 
-  const listening = (courseId: string, version: number) => {
+  /**
+   * What was heard of one version, and where to resume. Ranges that no longer read count as none heard and are logged:
+   * the next accepted report rewrites them, so one bad row never stops a listener earning credit.
+   */
+  const listening = (courseId: string, version: number): { ranges: Range[]; position: number } => {
     const row = db.prepare("SELECT * FROM listening WHERE course_id = ? AND version = ?").get(courseId, version);
-    return row ? { ranges: check.ranges(json(row, "ranges"), "ranges"), position: real(row, "position") } : { ranges: [] as Range[], position: 0 };
+    if (!row) return { ranges: [], position: 0 };
+    const [ranges] = readable([row], (r) => check.ranges(json(r, "ranges"), "ranges"), warn, () => `heard ranges on "${courseId}" version ${version}`);
+    return { ranges: ranges ?? [], position: real(row, "position") };
   };
 
   const answered = (courseId: string, version: number): number[] =>
@@ -222,10 +228,7 @@ export function createLearner(db: Db, now: () => Date = () => new Date(), warn: 
     /** The whole record. A part whose stored shape no longer reads is left out and logged, so the rest still loads. */
     snapshot(): AppState {
       const row = learnerRow();
-      const own = readable([row], (r) => {
-        const saved = optionalText(r, "requirement");
-        return saved === null ? null : check.requirement(JSON.parse(saved));
-      }, warn, () => "requirement")[0];
+      const own = readable([row], (r) => (optionalText(r, "requirement") === null ? null : check.requirement(json(r, "requirement"))), warn, () => "requirement")[0];
       const courses = Object.entries(pins()).map(([courseId, version]) => ({ course_id: courseId, version }));
       return {
         learner: text(row, "name"),

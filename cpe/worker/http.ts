@@ -58,8 +58,15 @@ export function match(pattern: string, path: string): Map<string, string> | null
   if (want.length !== got.length) return null;
   const params = new Map<string, string>();
   for (let i = 0; i < want.length; i++) {
-    if (want[i]!.startsWith(":")) params.set(want[i]!.slice(1), decodeURIComponent(got[i]!));
-    else if (want[i] !== got[i]) return null;
+    if (!want[i]!.startsWith(":")) {
+      if (want[i] !== got[i]) return null;
+      continue;
+    }
+    try {
+      params.set(want[i]!.slice(1), decodeURIComponent(got[i]!));
+    } catch {
+      return null; // A malformed escape is no path of ours: 404, not a crash.
+    }
   }
   return params;
 }

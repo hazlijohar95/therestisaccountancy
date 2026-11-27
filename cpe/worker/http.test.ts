@@ -78,4 +78,5 @@ test("a path the app builds for a route is matched back to the same parameters, 
   assert.equal(match("/api/sittings/:id", "/api/sittings"), null, "a missing segment is not a match");
   assert.equal(match("/api/sittings/:id", "/api/review/x"), null);
   assert.throws(() => pathOf("/api/sittings/:id", {}), /needs :id/);
+  assert.equal(match("/api/verify/:id", "/api/verify/%E0"), null, "a malformed escape is not a match, not a crash");
 });

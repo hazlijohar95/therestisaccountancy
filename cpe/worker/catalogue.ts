@@ -203,16 +203,25 @@ export function createCatalogue(db: Db, now: () => Date = () => new Date(), warn
       return db.prepare("SELECT * FROM shows ORDER BY rowid").all().map(toShow);
     },
 
-    /** The newest published version of every course, in the order courses were added. */
+    /**
+     * The newest published version of every course, in the order courses were added. A version that no longer reads is
+     * logged and passed over for the one before it, so one bad row hides nothing that can still be played.
+     */
     latest(): Published[] {
       const rows = db
         .prepare(
           `SELECT v.* FROM versions v JOIN courses c ON c.id = v.course_id
-           WHERE v.status = 'published' AND v.version = (SELECT max(version) FROM versions WHERE course_id = v.course_id AND status = 'published')
-           ORDER BY c.rowid`,
+           WHERE v.status = 'published' ORDER BY c.rowid, v.version DESC`,
         )
         .all();
-      return readable(rows, (row) => asPublished(toEntry(row)), warn, versionName).flatMap((p) => (p ? [p] : []));
+      const chosen = new Map<string, Published>();
+      for (const row of rows) {
+        const courseId = text(row, "course_id");
+        if (chosen.has(courseId)) continue;
+        const [p] = readable([row], (r) => asPublished(toEntry(r)), warn, versionName);
+        if (p) chosen.set(courseId, p);
+      }
+      return [...chosen.values()];
     },
 
     /** One published version, for playing, grading or pinning a listener to it. Null for drafts and unknown versions. */

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { loaded, step, type Gate, type GateEvent } from "./domain/gate.ts";
 import { progressOf } from "./domain/progress.ts";
 import { merge, seconds, type Range, type Rate } from "./domain/rules.ts";
 import type { Course } from "./domain/types.ts";
@@ -57,16 +58,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const session = useSession();
   const actions = useActions();
   const audio = useRef<HTMLAudioElement | null>(null);
-  const last = useRef<number | null>(null);
   const [course, setCourse] = useState<Course | null>(null);
   const [preview, setPreview] = useState(false);
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [rate, setRateState] = useState<Rate>(1);
-  const [pending, setPending] = useState<number | null>(null);
-  const [queued, setQueued] = useState<readonly number[]>([]);
   const [handsFree, setHandsFreeState] = useState(initialHandsFree);
-  const [ended, setEnded] = useState(false);
   const handsFreeRef = useRef(handsFree);
   handsFreeRef.current = handsFree;
   /** Only a member can answer review questions, so for anyone else (the landing page's samples) they never stop playback. */
@@ -80,6 +77,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   answeredRef.current = progress?.checkpoints ?? [];
   const acceptedRef = useRef<readonly Range[]>([]);
   acceptedRef.current = progress?.ranges ?? [];
+
+  /*
+   * Review questions: domain/gate.ts decides, this carries out what it returns. The ref holds the current gate so
+   * events that arrive between renders (timeupdate fires several times a second) each see the one before.
+   */
+  const gateRef = useRef<Gate>(loaded(0));
+  const [gate, setGate] = useState<Gate>(gateRef.current);
+  const dispatch = useCallback((event: GateEvent) => {
+    const { gate: after, effects } = step(gateRef.current, event);
+    gateRef.current = after;
+    setGate(after);
+    const el = audio.current;
+    if (!el) return;
+    for (const effect of effects) {
+      if (effect.type === "play") {
+        void el.play();
+      } else {
+        el.pause();
+        if (effect.seek !== undefined) el.currentTime = effect.seek;
+      }
+    }
+  }, []);
+  const reset = (at: number) => {
+    gateRef.current = loaded(at);
+    setGate(gateRef.current);
+  };
 
   useEffect(() => {
     const el = new Audio();
@@ -140,35 +163,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const el = audio.current;
     if (!el || !course) return;
     const onTime = () => {
-      const t = el.currentTime;
-      const prev = last.current;
-      last.current = t;
-      setTime(t);
-      if (!askRef.current || prev === null || t <= prev || t - prev > 1.5 * el.playbackRate) return;
-      const hit = course.checkpointTimes.findIndex((at, i) => !answeredRef.current.includes(i) && prev <= at && at <= t);
-      if (hit < 0) return;
-      // Hands-free, or playing in the background where nobody can answer: queue it and keep playing.
-      if (handsFreeRef.current || document.visibilityState === "hidden") {
-        setQueued((q) => (q.includes(hit) ? q : [...q, hit].sort((a, b) => a - b)));
-        return;
-      }
-      const at = course.checkpointTimes[hit]!;
-      el.pause();
-      el.currentTime = at;
-      last.current = at;
-      setPending(hit);
+      setTime(el.currentTime);
+      dispatch({
+        type: "time",
+        to: el.currentTime,
+        rate: el.playbackRate,
+        checkpointTimes: course.checkpointTimes,
+        answered: answeredRef.current,
+        ask: askRef.current,
+        // Hands-free, or playing in the background where nobody can answer: queue it and keep playing.
+        defer: handsFreeRef.current || document.visibilityState === "hidden",
+      });
     };
     const onSeeking = () => {
-      last.current = null;
+      dispatch({ type: "seeking" });
       setTime(el.currentTime);
     };
     const onSeeked = () => {
-      last.current = el.currentTime;
+      dispatch({ type: "seeked", at: el.currentTime });
       reportRef.current();
     };
     const onPlay = () => {
       setPlaying(true);
-      setEnded(false);
+      dispatch({ type: "playing" });
     };
     const onPause = () => {
       setPlaying(false);
@@ -176,7 +193,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
     const onEnded = () => {
       onPause();
-      setEnded(true);
+      dispatch({ type: "ended" });
     };
     el.addEventListener("timeupdate", onTime);
     el.addEventListener("seeking", onSeeking);
@@ -192,7 +209,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       el.removeEventListener("pause", onPause);
       el.removeEventListener("ended", onEnded);
     };
-  }, [course, preview]);
+  }, [course, preview, dispatch]);
 
   const play = useCallback(
     (next: Course, at?: number, options: { preview?: boolean } = {}) => {
@@ -206,14 +223,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         el.playbackRate = rate;
         const resume = at ?? progressOf(state, next).position;
         el.currentTime = resume < next.duration - 1 ? resume : 0;
-        last.current = el.currentTime;
+        reset(el.currentTime);
         lastSent.current = { heard: -1, position: -1 };
         setTime(el.currentTime);
         setCourse(next);
         setPreview(asPreview);
-        setPending(null);
-        setQueued([]);
-        setEnded(false);
       } else if (at !== undefined) {
         el.currentTime = at;
       }
@@ -225,37 +239,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [course, courseId, preview, rate, state],
   );
 
-  /** Whether the question on screen came from a pause, so answering it should play on. Queued ones never resume. */
-  const pausedFor = useRef<number | null>(null);
-  useEffect(() => {
-    pausedFor.current = pending !== null && !queued.includes(pending) ? pending : pausedFor.current;
-  }, [pending, queued]);
-
-  // At the end of the episode, queued questions come up one by one.
-  useEffect(() => {
-    if (ended && pending === null && queued.length > 0) setPending(queued[0]!);
-  }, [ended, pending, queued]);
-
-  const clearPending = useCallback(() => {
-    const done = pending;
-    const rest = queued.filter((q) => q !== done);
-    setQueued(rest);
-    if (done !== null && pausedFor.current === done) {
-      pausedFor.current = null;
-      setPending(null);
-      void audio.current?.play();
-      return;
-    }
-    // A queued question leads to the next one waiting, if any.
-    setPending(rest.length > 0 ? rest[0]! : null);
-  }, [pending, queued]);
-
   /*
    * Lock-screen and headset controls. A question that paused the episode cannot be answered from the lock screen, so
    * pressing play there queues it for later and plays on, rather than doing nothing.
    */
-  const pendingRef = useRef(pending);
-  pendingRef.current = pending;
   useEffect(() => {
     const el = audio.current;
     if (!el || !course || !("mediaSession" in navigator)) return;
@@ -273,18 +260,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setPosition();
     };
     const handlers: [MediaSessionAction, MediaSessionActionHandler][] = [
-      [
-        "play",
-        () => {
-          const waiting = pendingRef.current;
-          if (waiting !== null) {
-            setQueued((q) => (q.includes(waiting) ? q : [...q, waiting].sort((a, b) => a - b)));
-            pausedFor.current = null;
-            setPending(null);
-          }
-          void el.play();
-        },
-      ],
+      ["play", () => dispatch({ type: "remote-play" })],
       ["pause", () => el.pause()],
       ["seekbackward", (d) => seekBy(-(d.seekOffset ?? 15))],
       ["seekforward", (d) => seekBy(d.seekOffset ?? 15)],
@@ -327,7 +303,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
     };
-  }, [course]);
+  }, [course, dispatch]);
 
   const value = useMemo<Player>(
     () => ({
@@ -335,11 +311,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       time,
       playing,
       rate,
-      pending,
+      pending: gate.pending,
       play,
       toggle: () => {
         const el = audio.current;
-        if (!el || !course || pending !== null) return;
+        if (!el || !course || gate.pending !== null) return;
         if (el.paused) void el.play();
         else el.pause();
       },
@@ -352,8 +328,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setRateState(r);
         if (audio.current) audio.current.playbackRate = r;
       },
-      clearPending,
-      queued,
+      clearPending: () => dispatch({ type: "answered" }),
+      queued: gate.queued,
       handsFree,
       setHandsFree: (on) => {
         setHandsFreeState(on);
@@ -363,14 +339,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           // Storage blocked: the setting lasts for this visit.
         }
       },
-      answerQueued: () => {
-        if (queued.length && pending === null) {
-          audio.current?.pause();
-          setPending(queued[0]!);
-        }
-      },
+      answerQueued: () => dispatch({ type: "answer-queued" }),
     }),
-    [course, time, playing, rate, pending, play, clearPending, queued, handsFree],
+    [course, time, playing, rate, gate, play, dispatch, handsFree],
   );
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;

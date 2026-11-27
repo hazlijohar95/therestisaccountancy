@@ -4,6 +4,7 @@ import { ledgerLines, toCsv } from "../src/domain/ledger.ts";
 import { acceptHeard, BANK_SECONDS, MAX_RATE, refill, seconds } from "../src/domain/rules.ts";
 import { createCatalogue } from "./catalogue.ts";
 import { createLearner, type Assessed } from "./learner.ts";
+import { readable } from "./db.ts";
 import { memoryDb } from "./node-db.ts";
 
 /** A learner on a fake clock, and a course built from the first seeded sample. */
@@ -214,7 +215,30 @@ test("an unreadable part of a record is logged and left out, and the rest still 
   db.prepare("UPDATE listening SET ranges = ?").run("not json");
   const state = learner.snapshot();
   assert.equal(state.requirement.isExample, true, "falls back to the example");
-  assert.deepEqual(state.progress, {});
+  assert.deepEqual(state.progress["five-threats"]?.ranges, [], "unreadable ranges count as none heard");
+  assert.equal(state.progress["five-threats"]?.position, 30, "the resume position survives");
   assert.equal(state.logged.length, 1);
   assert.equal(warnings.length, 2);
+});
+
+test("a listener whose heard ranges no longer read can still report, and the report rewrites them", () => {
+  const db = memoryDb();
+  let clock = Date.parse("2026-11-26T10:00:00Z");
+  const learner = createLearner(db, () => new Date(clock), () => {});
+  learner.heard("five-threats", 1, 600, [], 0);
+  db.prepare("UPDATE listening SET ranges = ?").run("not json");
+  clock += 10_000;
+  assert.deepEqual(learner.heard("five-threats", 1, 600, [[0, 10]], 10).ranges, [[0, 10]]);
+  assert.deepEqual(learner.snapshot().progress["five-threats"]?.ranges, [[0, 10]]);
+});
+
+test("a bug in reading a row is not mistaken for unreadable data", () => {
+  const db = memoryDb();
+  const learner = createLearner(db, () => new Date("2026-11-26T10:00:00Z"), () => assert.fail("nothing should be skipped"));
+  learner.log({ date: "2026-05-01", title: "Seminar", provider: "Somewhere", field: "Ethics", hours: 2 });
+  assert.throws(
+    () => readable([{ id: "x" }], () => { throw new TypeError("a bug"); }, () => assert.fail("not a data problem"), () => "row"),
+    TypeError,
+  );
+  assert.equal(learner.snapshot().logged.length, 1);
 });

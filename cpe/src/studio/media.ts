@@ -36,7 +36,12 @@ export async function upload(courseId: string, file: File, onProgress: (share: n
     const count = Math.max(1, Math.ceil(file.size / start.partSize));
     for (let n = 0; n < count; n++) {
       const chunk = file.slice(n * start.partSize, (n + 1) * start.partSize);
-      parts.push(await api("PUT /api/studio/uploads/:uploadId/:part", { params: { ...at.params, part: String(n + 1) }, query: at.query, body: chunk }));
+      const part = await api("PUT /api/studio/uploads/:uploadId/:part", { params: { ...at.params, part: String(n + 1) }, query: at.query, body: chunk }).catch((error: unknown) => {
+        throw new Error(`Part ${n + 1} of ${count} did not upload: ${error instanceof Error ? error.message : "no answer"}`);
+      });
+      // Storage answers through the Worker; an odd answer is caught here, not later when the upload is completed.
+      if (typeof part?.etag !== "string" || part.partNumber !== n + 1) throw new Error(`Part ${n + 1} of ${count} answered oddly.`);
+      parts.push({ partNumber: part.partNumber, etag: part.etag });
       onProgress((n + 1) / count);
     }
     const done = await api("POST /api/studio/uploads/:uploadId/complete", { params: at.params, body: { key: start.key, parts } });
