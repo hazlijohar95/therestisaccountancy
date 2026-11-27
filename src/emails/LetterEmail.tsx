@@ -1,4 +1,4 @@
-import { Body, Button, Container, Font, Head, Html, Img, Link, Preview, Section, Text } from '@react-email/components';
+import { Body, Button, Column, Container, Font, Head, Html, Img, Link, Preview, Row, Section, Text } from '@react-email/components';
 import { site } from '../data/site.ts';
 import type { Letter, Line } from '../server/letters.ts';
 import { inSettings } from '../server/mailings.ts';
@@ -28,6 +28,12 @@ const styles = {
   tagline: { margin: '0 0 24px', maxWidth: '320px', color: color.fg2, fontSize: '13px', lineHeight: '1.5' },
   small: { margin: '0 0 8px', color: color.fg3, fontSize: '11px', lineHeight: '1.5', letterSpacing: '0.3px' },
   quiet: { color: color.fg3, textDecoration: 'underline' },
+  steps: { margin: '8px 0 24px', maxWidth: '520px' },
+  step: { borderTop: `1px solid ${color.stroke}` },
+  stepNo: { width: '56px', padding: '18px 0', verticalAlign: 'top' as const, color: color.fg3, fontFamily: serif, fontSize: '28px', lineHeight: '1' },
+  stepBody: { padding: '18px 0', verticalAlign: 'top' as const },
+  stepTitle: { color: color.fg, fontSize: '17px', fontWeight: 600, lineHeight: '1.3', textDecoration: 'none' },
+  stepDetail: { margin: '4px 0 0', color: color.fg2, fontSize: '14px', lineHeight: '1.5' },
 };
 
 /** Narrow screens: tighter gutters and a smaller headline. Clients that ignore it keep the desktop sizes. */
@@ -62,6 +68,18 @@ export function LetterEmail({ subject, lines, unsubscribe }: { subject: string; 
             {lines.map((line, i) =>
               typeof line === 'string' ? (
                 <Text key={i} style={styles.text}>{line}</Text>
+              ) : 'steps' in line ? (
+                <Section key={i} style={styles.steps}>
+                  {line.steps.map((step, n) => (
+                    <Row key={step.href} style={styles.step}>
+                      <Column style={styles.stepNo}>{String(n + 1).padStart(2, '0')}</Column>
+                      <Column style={styles.stepBody}>
+                        <Link href={step.href} style={styles.stepTitle}>{step.title}</Link>
+                        <Text style={styles.stepDetail}>{step.detail}</Text>
+                      </Column>
+                    </Row>
+                  ))}
+                </Section>
               ) : line.label ? (
                 <Button key={i} href={line.href} style={styles.button}>{line.label}</Button>
               ) : line.text ? (

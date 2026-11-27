@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { TERMS, joiningRate } from '../data/membership.ts';
+import { doneSteps, FIRST_STEPS, firstSteps } from '../data/onboarding.ts';
 import { renderLetter } from '../emails/render.tsx';
 import type { Member, PasswordLink } from './club.ts';
-import { passwordLetter, passwordLetterFor, paymentDueLetter, renewalLetter, renewalNoticeLetter } from './letters.ts';
+import { passwordLetter, passwordLetterFor, paymentDueLetter, renewalLetter, renewalNoticeLetter, welcomeLetter } from './letters.ts';
 
 const aina = { email: 'aina@firm.com.my', name: 'Aina Rahman' };
 const payUrl = 'https://club.test/members/pay';
@@ -123,4 +124,25 @@ test('the renewal notice lists the sessions coming up', async () => {
   assert.deepEqual(letter.lines.slice(at + 1, at + 3), ['Pricing clinic, 12 Jan 2027, 7:00 pm', 'Year-end close, 19 Jan 2027, 7:00 pm']);
   const { text } = await renderLetter(letter);
   assert.ok(text.includes('Coming up:') && text.includes('Pricing clinic, 12 Jan 2027, 7:00 pm'));
+});
+
+test('the welcome email lists every first step, linked, and comes from the host', async () => {
+  const letter = welcomeLetter({ name: 'Aina Rahman', email: 'aina@firm.com.my' }, 'https://club.test');
+  assert.equal(letter.subject, "You're in.");
+  assert.equal(letter.from, 'Hazli from The Rest Is Accountancy');
+  const { text, html } = await renderLetter(letter);
+  assert.ok(text.includes('Hi Aina,'));
+  assert.ok(text.includes('Five steps get the most out of it'));
+  for (const step of FIRST_STEPS) {
+    assert.ok(html.includes(firstSteps[step].label), step);
+    assert.ok(html.includes(`https://club.test${firstSteps[step].path}`), `${step} is linked`);
+  }
+  assert.ok(html.includes('>Open your dashboard<'));
+  assert.ok(html.includes('https://cpe.therestisaccountancy.com'));
+});
+
+test('a first step is done on the evidence: a plan only once it is sent', () => {
+  const none = { sessions: 0, lessons: 0, calls: 0, planSent: false, listed: false };
+  assert.deepEqual(doneSteps(none), { session: false, lesson: false, plan: false, call: false, listing: false });
+  assert.deepEqual(doneSteps({ ...none, sessions: 2, planSent: true, listed: true }), { session: true, lesson: false, plan: true, call: false, listing: true });
 });
