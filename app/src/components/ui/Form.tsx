@@ -3,9 +3,10 @@ import type { Field as Wired } from '../../lib/form.ts';
 import { FieldError } from '../FieldError.tsx';
 import s from './Form.module.css';
 
-/** A form laid out as one column: fields, then its outcome, then the button, left-aligned. */
-export function Form({ className, ...props }: ComponentPropsWithoutRef<'form'>) {
-  return <form method="POST" {...props} className={className ? `${s.form} ${className}` : s.form} />;
+/** A form laid out as one column: fields, then its outcome, then the button, left-aligned. wide fits two fields abreast or a long answer. */
+export function Form({ className, wide = false, ...props }: ComponentPropsWithoutRef<'form'> & { wide?: boolean }) {
+  const classes = [s.form, wide && s.wide, className].filter(Boolean).join(' ');
+  return <form method="POST" {...props} className={classes} />;
 }
 
 /** A labelled input: the label, the input, a hint, and its error when it has one. */

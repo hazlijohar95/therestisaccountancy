@@ -1,20 +1,13 @@
-.block { display: grid; gap: var(--space-6); padding-block: clamp(48px, 6vw, 80px) 0; }
-.state { display: grid; gap: var(--space-3); max-width: 60ch; }
-.state p, .state form { margin: 0; }
 .sections { margin: 0; padding: 0; list-style: none; border-top: var(--stroke-rule) solid var(--ink); }
 .section { display: grid; gap: var(--space-4); padding-block: var(--space-5) var(--space-6); border-bottom: var(--stroke-hair) solid var(--ink); }
 .heading { display: flex; gap: var(--space-3); align-items: baseline; font: 600 var(--size-body)/1.3 var(--font-sans); }
 .n { flex: none; min-width: 1.6em; font-size: 1.25rem; line-height: 1; }
 .field { max-width: 720px; }
 textarea.textarea { min-height: 10rem; resize: vertical; line-height: 1.5; }
-.error { color: var(--alert); font-weight: 600; }
 .send { display: grid; gap: var(--space-3); padding-top: var(--space-6); }
 .send p { margin: 0; }
-.row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); margin: 0; }
 .unsaved { display: grid; gap: var(--space-4); max-width: 720px; padding-block: var(--space-5); border-block: var(--stroke-rule) solid var(--alert); }
-.unsaved p { margin: 0; color: var(--alert); font-weight: 600; }
-.scroll { overflow-x: auto; }
-.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (min-width: 900px) {
   .section { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); column-gap: var(--space-7); }
 }
+.unsaved p { margin: 0; color: var(--alert); font-weight: 600; }

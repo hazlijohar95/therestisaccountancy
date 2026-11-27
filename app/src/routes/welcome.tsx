@@ -2,25 +2,26 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { LINK_DAYS, type LinkPurpose } from '../../../src/data/links.ts';
 import { Page } from '../components/club/Page.tsx';
-import { FieldError } from '../components/FieldError.tsx';
+import { Field, Form } from '../components/ui/Form.tsx';
+import { Notice } from '../components/ui/Notice.tsx';
+import { PageHead } from '../components/ui/PageHead.tsx';
 import { useAction } from '../components/useAction.ts';
 import { passwordLink, setPassword } from '../functions/public-account.ts';
 import { socialHref } from '../lib/links.ts';
 import { linkTextParam } from '../lib/search-params.ts';
 import { clubTitle, noindex } from '../lib/title.ts';
-import s from './welcome.module.css';
 
 const copy = {
   welcome: {
     label: 'Invitation',
     title: (name: string) => `Welcome, ${name}.`,
-    lead: (email: string) => `Set a password for ${email}. You will use it with that email to sign in.`,
+    lead: (email: string) => `Set a password for ${email}. You sign in with both.`,
     submit: 'Set password and enter',
   },
   reset: {
     label: 'Password reset',
     title: (name: string) => `Welcome back, ${name}.`,
-    lead: (email: string) => `Choose a new password for ${email}. Setting it signs you out on every other device.`,
+    lead: (email: string) => `Choose a new password for ${email}. It signs you out on every other device.`,
     submit: 'Set new password and enter',
   },
 } as const satisfies Record<LinkPurpose, { label: string; title: (name: string) => string; lead: (email: string) => string; submit: string }>;
@@ -49,19 +50,21 @@ function Welcome() {
   if (!holder) {
     return (
       <Page>
-        <section className="night" aria-labelledby="page-title">
-          <div className={`wrap ${s.in}`}>
-            <div>
-              <p className={`label ${s.top}`}>Members</p>
-              <h1 className={`headline serif ${s.headline}`} id="page-title">
-                This link no longer works.
-              </h1>
-              <p className={`lead ${s.lead}`}>
-                Each link works once. An invitation lasts {LINK_DAYS.welcome} days and a reset link {LINK_DAYS.reset} days. <a href="/forgot">Get a new link by email</a>, or <a href="/sign-in">sign in</a> if you have set a password since.
-              </p>
-            </div>
-          </div>
-        </section>
+        <PageHead
+          label="Members"
+          title="This link no longer works."
+          lead={`Each link works once. Invitations last ${LINK_DAYS.welcome} days, reset links ${LINK_DAYS.reset}. Already set a password? Sign in.`}
+          actions={
+            <>
+              <a className="btn" href="/forgot">
+                Get a new link
+              </a>
+              <a className="btn ghost" href="/sign-in">
+                Sign in
+              </a>
+            </>
+          }
+        />
       </Page>
     );
   }
@@ -82,20 +85,15 @@ function Welcome() {
 
   return (
     <Page>
-      <section className="night" aria-labelledby="page-title">
-        <div className={`wrap ${s.in}`}>
-          <div>
-            <p className={`label ${s.top}`}>{text.label}</p>
-            <h1 className={`headline serif ${s.headline}`} id="page-title">
-              {text.title(holder.firstName)}
-            </h1>
-            <p className={`lead ${s.lead}`}>{text.lead(holder.email)}</p>
-          </div>
-          <form method="POST" className={s.form} onSubmit={submit}>
+      <PageHead
+        label={text.label}
+        title={text.title(holder.firstName)}
+        lead={text.lead(holder.email)}
+        aside={
+          <Form onSubmit={submit}>
             <input type="hidden" name="token" value={token} />
             <input type="hidden" name="email" value={holder.email} autoComplete="username" />
-            <div className="field">
-              <label htmlFor="password">Password</label>
+            <Field label="Password" id="password" hint={`At least ${minLength} characters. A short sentence works well.`} field={passwordField}>
               <input
                 ref={password}
                 className="input"
@@ -107,36 +105,21 @@ function Welcome() {
                 required
                 {...passwordField.input}
               />
-              <span className="hint" id="password-hint">
-                At least {minLength} characters. A short sentence works well.
-              </span>
-              <FieldError field={passwordField} className={s.error} />
-            </div>
-            <div className="field">
-              <label htmlFor="confirm">The same password again</label>
-              <input
-                ref={confirm}
-                className="input"
-                id="confirm"
-                name="confirm"
-                type="password"
-                autoComplete="new-password"
-                required
-                {...confirmField.input}
-              />
-              <FieldError field={confirmField} className={s.error} />
-            </div>
+            </Field>
+            <Field label="The same password again" id="confirm" field={confirmField}>
+              <input ref={confirm} className="input" id="confirm" name="confirm" type="password" autoComplete="new-password" required {...confirmField.input} />
+            </Field>
             {send.failure && (
-              <p className={`error ${s.error}`} role="alert">
+              <Notice tone="error" inline>
                 {send.failure}
-              </p>
+              </Notice>
             )}
             <button className="btn" type="submit" disabled={send.busy || leaving}>
               {text.submit}
             </button>
-          </form>
-        </div>
-      </section>
+          </Form>
+        }
+      />
     </Page>
   );
 }

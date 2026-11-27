@@ -1,5 +1,6 @@
-.notice { display: grid; gap: var(--space-3); margin-block: var(--space-7) 0; padding-block: var(--space-5); border-block: var(--stroke-rule) solid var(--ink); }
-.notice p { margin: 0; }
+.notice { display: grid; gap: var(--space-4); margin-block: var(--space-7) 0; padding-block: var(--space-5); border-block: var(--stroke-rule) solid var(--ink); }
+.head { display: flex; align-items: start; gap: var(--space-3); margin: 0; font-weight: 600; }
+.head svg { flex: none; margin-top: .15em; }
 .alert { color: var(--alert); }
 .copy { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 .copy :global(.input) { flex: 1 1 16rem; font-family: var(--font-mono); font-size: var(--size-small); }

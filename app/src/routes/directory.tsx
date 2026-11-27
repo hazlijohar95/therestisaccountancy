@@ -3,9 +3,13 @@ import type { FormEvent } from 'react';
 import { services, states } from '../../../src/data/directory.ts';
 import { numberWord } from '../../../src/lib/format.ts';
 import { Page } from '../components/club/Page.tsx';
-import { PageHead } from '../components/club/PageHead.tsx';
 import { ListingEntry } from '../components/club/ListingEntry.tsx';
-import { Section } from '../components/public/Section.tsx';
+import { Empty } from '../components/ui/Empty.tsx';
+import { Field, Form } from '../components/ui/Form.tsx';
+import { PageHead } from '../components/ui/PageHead.tsx';
+import { Points } from '../components/ui/Points.tsx';
+import { Actions, Section } from '../components/ui/Section.tsx';
+import { Stat } from '../components/ui/Stat.tsx';
 import { directoryPage } from '../functions/public-directory.ts';
 import { linkTextParam } from '../lib/search-params.ts';
 import { clubTitle } from '../lib/title.ts';
@@ -28,12 +32,12 @@ export const Route = createFileRoute('/directory')({
 });
 
 const checks = [
-  { term: 'We check', detail: 'That each accountant here is a member of the club, and that the practice is real and theirs: its name, its town and any website.' },
-  { term: 'We do not check', detail: 'The quality of their work. The club does not vouch for anyone listed, and does not check qualifications, registrations or insurance.' },
-  { term: 'They declare', detail: 'That they hold the qualifications, registrations and professional indemnity cover that the services they list require.' },
-  { term: 'Before you engage', detail: 'Ask to see what they hold. Agree the work and the fee in writing, and keep the engagement letter.' },
-  { term: 'Who stays listed', detail: 'Members only. A practice leaves the directory when its accountant leaves the club.' },
-];
+  { icon: 'check', text: <><b>We check</b> that each accountant is a club member, and that the practice is real and theirs: its name, town and any website.</> },
+  { icon: 'alert', text: <><b>We do not check</b> their work, qualifications, registrations or insurance. The club vouches for no one listed.</> },
+  { icon: 'file', text: <><b>They declare</b> the qualifications, registrations and professional indemnity cover their services require.</> },
+  { icon: 'lock', text: <><b>Before you engage,</b> ask to see what they hold. Agree the work and fee in writing. Keep the engagement letter.</> },
+  { icon: 'users', text: <><b>Members only.</b> A practice leaves when its accountant leaves the club.</> },
+] as const;
 
 function Directory() {
   const { total, matches, anywhere, summary, state, service } = Route.useLoaderData();
@@ -53,98 +57,90 @@ function Directory() {
     void navigate({ to: '/directory', search: { ...(next.state && { state: next.state }), ...(next.service && { service: next.service }) }, hash: 'practices' });
   };
 
-  const rail =
-    total > 0 ? (
-      <form key={`${state}|${service}`} className={s.filter} method="get" action="/directory#practices" role="search" aria-label="Filter the practices" onSubmit={filter}>
-        <div className="field">
-          <label htmlFor="state">State</label>
-          <select className="input" id="state" name="state" defaultValue={state ?? ''}>
-            <option value="">All of Malaysia</option>
-            {states.map((name) => (
-              <option key={name}>{name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="service">The work you need</label>
-          <select className="input" id="service" name="service" defaultValue={service ?? ''}>
-            <option value="">Any service</option>
-            {services.map((option) => (
-              <option key={option.slug} value={option.slug}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className={s.go}>
-          <button className="btn" type="submit">
-            Show practices
-          </button>
-          {filtered && <a href="/directory#practices">Clear the filter</a>}
-        </div>
-      </form>
-    ) : null;
-
   return (
     <Page>
       <PageHead
         label="Find an accountant"
         title="Find an accountant for your business."
-        lead="Every practice here is run by a member of The Rest Is Accountancy, a club for accountants in practice. Pick your state and the work you need, then contact them directly. Your enquiry goes straight to them."
+        lead="Every practice here is run by a member of the club. Pick your state and the work you need, then contact them directly."
+        aside={total > 0 ? <Stat value={total} label={total === 1 ? 'practice listed' : 'practices listed'} /> : undefined}
       />
 
-      <Section id="practices" no={1} title="Practices" rail={rail}>
-        <div className={s.results}>
-          {total === 0 ? (
-            <p className={s.empty}>No practices are listed yet. Members of the club are adding theirs, so check back soon.</p>
-          ) : (
-            <>
-              <p className={`${s.count} serif`}>{summary}</p>
-              {nothing && (
-                <p className={s.empty}>
-                  Try another state or service, or <a href="/directory#practices">clear the filter</a> to see all {numberWord(total)}.
+      <Section id="practices" title="Practices" meta={total > 0 ? summary : undefined}>
+        {total === 0 ? (
+          <Empty icon="users">No practices listed yet. Members are adding theirs, so check back soon.</Empty>
+        ) : (
+          <>
+            <Form key={`${state}|${service}`} method="get" action="/directory#practices" role="search" aria-label="Filter the practices" onSubmit={filter}>
+              <Field label="State" id="state">
+                <select className="input" id="state" name="state" defaultValue={state ?? ''}>
+                  <option value="">All of Malaysia</option>
+                  {states.map((name) => (
+                    <option key={name}>{name}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="The work you need" id="service">
+                <select className="input" id="service" name="service" defaultValue={service ?? ''}>
+                  <option value="">Any service</option>
+                  {services.map((option) => (
+                    <option key={option.slug} value={option.slug}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Actions>
+                <button className="btn" type="submit">
+                  Show practices
+                </button>
+                {filtered && <a href="/directory#practices">Clear the filter</a>}
+              </Actions>
+            </Form>
+            {nothing && (
+              <Empty
+                icon="info"
+                action={
+                  <a className="btn ghost" href="/directory#practices">
+                    See all {numberWord(total)}
+                  </a>
+                }
+              >
+                Try another state or service.
+              </Empty>
+            )}
+            {matches.length > 0 && (
+              <ol className={s.entries} aria-label={state ? `Practices in ${state}` : 'Practices'}>
+                {matches.map((listing) => (
+                  <li key={listing.memberId}>
+                    <ListingEntry listing={listing} />
+                  </li>
+                ))}
+              </ol>
+            )}
+            {anywhere.length > 0 && (
+              <>
+                <p className={`label ${s.group}`} id="anywhere-title">
+                  Based elsewhere, taking clients anywhere in Malaysia
                 </p>
-              )}
-              {matches.length > 0 && (
-                <ol className={s.entries} aria-label={state ? `Practices in ${state}` : 'Practices'}>
-                  {matches.map((listing) => (
+                <ol className={s.entries} aria-labelledby="anywhere-title">
+                  {anywhere.map((listing) => (
                     <li key={listing.memberId}>
                       <ListingEntry listing={listing} />
                     </li>
                   ))}
                 </ol>
-              )}
-              {anywhere.length > 0 && (
-                <>
-                  <p className={`label ${s.group}`} id="anywhere-title">
-                    Based elsewhere, taking clients anywhere in Malaysia
-                  </p>
-                  <ol className={s.entries} aria-labelledby="anywhere-title">
-                    {anywhere.map((listing) => (
-                      <li key={listing.memberId}>
-                        <ListingEntry listing={listing} />
-                      </li>
-                    ))}
-                  </ol>
-                </>
-              )}
-            </>
-          )}
-        </div>
+              </>
+            )}
+          </>
+        )}
       </Section>
 
-      <Section id="checks" no={2} title="What does the club check?" intro="Enough for you to know who you are dealing with. Not their work.">
-        <dl className="facts">
-          {checks.map(({ term, detail }) => (
-            <div key={term}>
-              <dt>{term}</dt>
-              <dd>{detail}</dd>
-            </div>
-          ))}
-        </dl>
-        <p className={`small ${s.aside}`}>
-          Are you an accountant? Members of the club can list their practice here. <a href="/membership">About membership</a>.
-        </p>
+      <Section id="checks" title="What does the club check?" meta="Who you are dealing with. Not their work.">
+        <Points items={checks} />
+        <Actions>
+          <a href="/membership">Are you an accountant? Members list their practice here.</a>
+        </Actions>
       </Section>
     </Page>
   );

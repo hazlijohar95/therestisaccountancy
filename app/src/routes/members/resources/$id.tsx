@@ -1,5 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
+import { PageHead } from '../../../components/ui/PageHead.tsx';
+import { Actions } from '../../../components/ui/Section.tsx';
 import { membersResource } from '../../../functions/members-learning.ts';
 import { clubTitle } from '../../../lib/title.ts';
 import s from './$id.module.css';
@@ -93,20 +95,20 @@ function Template() {
 
   return (
     <>
-      <section className={`night ${s.head}`}>
-        <div className={`wrap ${s.masthead}`}>
-          <p className={`label ${s.top}`}>
-            <a href="/members/resources">Templates</a> / <a href={t.programme.href}>{t.programme.name}</a> · Module {t.module} · {t.topic}
-          </p>
-          <h1 className={`headline serif ${s.headline}`} id="template-title">
-            {t.title}
-          </h1>
-          <p className={`lead ${s.lead}`}>{t.summary}</p>
-        </div>
-      </section>
+      <div className={s.head}>
+        <PageHead
+          label={
+            <span>
+              <a href="/members/resources">Templates</a> / <a href={t.programme.href}>{t.programme.name}</a> · Module {t.module} · {t.topic}
+            </span>
+          }
+          title={t.title}
+          lead={t.summary}
+        />
+      </div>
       <div className={`wrap ${s.layout}`}>
         <aside className={s.rail} aria-label="Use this template">
-          <div className={s.tools}>
+          <Actions>
             <button className="btn" type="button" hidden={!tools.copy} onClick={() => sheet.current && void copyTemplate(sheet.current).then(say)}>
               Copy
             </button>
@@ -116,7 +118,7 @@ function Template() {
             <button className="btn ghost" type="button" hidden={!tools.print} onClick={() => window.print()}>
               Print
             </button>
-          </div>
+          </Actions>
           <p className={`small ${s.status}`} role="status" aria-live="polite">
             {status}
           </p>
@@ -129,7 +131,7 @@ function Template() {
             </section>
           )}
         </aside>
-        <article className={s.template} aria-labelledby="template-title" data-template="" ref={sheet} dangerouslySetInnerHTML={{ __html: t.body }} />
+        <article className={s.template} aria-labelledby="page-title" data-template="" ref={sheet} dangerouslySetInnerHTML={{ __html: t.body }} />
       </div>
       <nav className={`wrap ${s.back}`} aria-label="More templates">
         <a href={t.programme.href}>

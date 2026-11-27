@@ -1,11 +1,15 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import type { Decision } from '../../../../src/server/listings.ts';
-import { FieldError } from '../../components/FieldError.tsx';
 import { useAction } from '../../components/useAction.ts';
 import { ListingEntry } from '../../components/club/ListingEntry.tsx';
-import { Masthead } from '../../components/club/Masthead.tsx';
-import { Notice } from '../../components/club/Notice.tsx';
+import { Empty } from '../../components/ui/Empty.tsx';
+import { Field, Form } from '../../components/ui/Form.tsx';
+import { List, Meta, Row } from '../../components/ui/List.tsx';
+import { Notice } from '../../components/ui/Notice.tsx';
+import { PageHead } from '../../components/ui/PageHead.tsx';
+import { Points } from '../../components/ui/Points.tsx';
+import { Section } from '../../components/ui/Section.tsx';
 import { adminListings, approveListing, returnListing } from '../../functions/admin-listings.ts';
 import { wireField } from '../../lib/form.ts';
 import { clubTitle } from '../../lib/title.ts';
@@ -38,7 +42,7 @@ function Listings() {
   const [shown, setShown] = useState<ReactNode>(null);
   const [noteError, setNoteError] = useState<NoteError | null>(null);
   const groups = [
-    { id: 'waiting', title: 'Waiting for a check', items: data.waiting, open: true, empty: 'Nothing waiting. New and changed listings appear here, oldest first.' },
+    { id: 'waiting', title: 'Waiting for a check', items: data.waiting, open: true, empty: 'Nothing waiting. New and changed listings land here, oldest first.' },
     { id: 'rest', title: 'Everything else', items: data.rest, open: false, empty: 'No other listings yet.' },
   ];
 
@@ -61,42 +65,46 @@ function Listings() {
 
   return (
     <>
-      <Masthead label="Admin · Directory" title={data.title}>
-        <p>
-          A check answers two questions. Is this person a member? Is the practice real and theirs: the name, the town, the website? You are not vouching for their work, and the
-          directory says so. Approve it and it goes up. Return it with a note and the member gets your note by email.
-        </p>
-      </Masthead>
+      <PageHead label="Admin · Directory" title={data.title} lead="Approve a listing and it goes up. Return it with a note and the member gets the note by email." />
 
       {shown}
 
+      <Section title="What a check asks">
+        <Points
+          items={[
+            { icon: 'users', text: 'Is this person a member?' },
+            { icon: 'check', text: 'Are the practice, town and website real and theirs?' },
+            { icon: 'info', text: 'You are not vouching for their work. The directory says so.' },
+          ]}
+        />
+      </Section>
+
       {groups.map((group) => (
-        <section className={`wrap ${s.block}`} aria-labelledby={`${group.id}-title`} key={group.id}>
-          <h2 className="head" id={`${group.id}-title`}>
-            {group.title}
-          </h2>
+        <Section title={group.title} key={group.id}>
           {group.items.length === 0 ? (
-            <p className={s.empty}>{group.empty}</p>
+            <Empty icon="file">{group.empty}</Empty>
           ) : (
-            <ol className={s.checks}>
+            <List ordered>
               {group.items.map((l) => {
                 const member = l.listing.memberId;
                 const retrying = noteError?.member === member;
                 const note = wireField(retrying ? noteError.message : undefined, { id: `note-${member}-error`, hint: `note-${member}-hint` });
                 return (
-                  <li className={s.check} key={member}>
-                    <p className={`small ${s.who}`}>
+                  <Row
+                    key={member}
+                    title={
                       <Link to="/admin/members/$id" params={{ id: String(member) }}>
                         {l.listing.name}
-                      </Link>{' '}
-                      · {l.email} · {l.standing}
-                      {l.href && (
-                        <>
-                          {' '}
-                          · <a href={l.href}>See it in the directory</a>
-                        </>
-                      )}
-                    </p>
+                      </Link>
+                    }
+                    meta={
+                      <>
+                        <Meta icon="mail">{l.email}</Meta>
+                        <span>{l.standing}</span>
+                        {l.href && <a href={l.href}>See it in the directory</a>}
+                      </>
+                    }
+                  >
                     {l.review.state === 'returned' && <blockquote className={s.note}>{l.review.note}</blockquote>}
                     {group.open ? (
                       <ListingEntry listing={l.listing} />
@@ -128,34 +136,23 @@ function Listings() {
                       {l.review.state !== 'returned' && (
                         <details className={s.sendBack} open={retrying || undefined}>
                           <summary>{l.review.state === 'listed' ? 'Take it down with a note' : 'Return with a note'}</summary>
-                          <form method="POST" className="field" onSubmit={(event) => void onReturn(event, member, l.seen)}>
-                            <label htmlFor={`note-${member}`}>What needs to change</label>
-                            <textarea
-                              className="input"
-                              id={`note-${member}`}
-                              name="note"
-                              rows={3}
-                              required
-                              maxLength={data.noteMax}
-                              {...note.input}
-                            />
-                            <span className="hint" id={`note-${member}-hint`}>
-                              The member gets this by email, word for word.
-                            </span>
-                            <FieldError field={note} className={s.error} />
+                          <Form onSubmit={(event) => void onReturn(event, member, l.seen)}>
+                            <Field label="What needs to change" id={`note-${member}`} hint="The member gets this by email, word for word." field={note}>
+                              <textarea className="input" id={`note-${member}`} name="note" rows={3} required maxLength={data.noteMax} {...note.input} />
+                            </Field>
                             <button className="btn ghost" type="submit" disabled={busy}>
                               {l.review.state === 'listed' ? 'Take it down' : 'Return it'}
                             </button>
-                          </form>
+                          </Form>
                         </details>
                       )}
                     </div>
-                  </li>
+                  </Row>
                 );
               })}
-            </ol>
+            </List>
           )}
-        </section>
+        </Section>
       ))}
     </>
   );

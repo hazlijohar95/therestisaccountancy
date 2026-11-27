@@ -138,7 +138,7 @@ function PostPage() {
           </aside>
         )}
       </article>
-      <Closing title="Read it here. Work it through in the club." lead={`Each post’s topic is a programme. Members take it from reading to doing, with ${hostFirstName} and each other.`} />
+      <Closing title="Read it here. Work it through in the club." lead={`Each post’s topic is a programme. Members work it through with ${hostFirstName} and each other.`} />
     </Page>
   );
 }

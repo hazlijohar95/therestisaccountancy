@@ -77,7 +77,7 @@ function Pay() {
         lead={lapsed ? `Your last ${standing.term} ended ${until}.` : current ? `Paid until ${until}. New time starts after that.` : 'One step left. Pick how you pay.'}
       />
 
-      {back === 'failed' && <Notice tone="error">Payment failed. Nothing was charged.</Notice>}
+      {back === 'failed' && <Notice tone="error">Payment failed. Nothing was charged. Try again, or pick another bank.</Notice>}
       {back === 'paid' && standing.access !== 'paid' && <Notice tone="info">CHIP is still confirming. Refresh in a minute.</Notice>}
       {error && <Notice tone="error">{error}</Notice>}
 

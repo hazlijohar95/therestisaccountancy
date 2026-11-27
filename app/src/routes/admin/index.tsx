@@ -1,13 +1,18 @@
 import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { LINK_DAYS } from '../../../../src/data/links.ts';
-import { capitalised, tally } from '../../../../src/lib/format.ts';
+import { tally } from '../../../../src/lib/format.ts';
 import { pageHref } from '../../../../src/lib/paging.ts';
 import { useAction } from '../../components/useAction.ts';
 import { LinkNotice } from '../../components/admin/LinkNotice.tsx';
-import { Masthead } from '../../components/club/Masthead.tsx';
-import { Notice } from '../../components/club/Notice.tsx';
 import { Pager } from '../../components/club/Pager.tsx';
+import { Badge } from '../../components/ui/Badge.tsx';
+import { Empty } from '../../components/ui/Empty.tsx';
+import { Notice } from '../../components/ui/Notice.tsx';
+import { PageHead } from '../../components/ui/PageHead.tsx';
+import { Section } from '../../components/ui/Section.tsx';
+import { Stats } from '../../components/ui/Stat.tsx';
+import { Table } from '../../components/ui/Table.tsx';
 import { adminOverview, declineRequest, inviteRequest } from '../../functions/admin-members.ts';
 import { socialHref } from '../../lib/links.ts';
 import { countParam, textParam } from '../../lib/search-params.ts';
@@ -50,7 +55,7 @@ function Admin() {
     if (invited.kind === 'link') return setShown(<LinkNotice issued={invited.issued} />);
     setShown(
       <Notice tone={invited.emailed ? 'ok' : 'error'}>
-        {invited.name} already has an account from Social, so nothing new was made. They can pay for the club now.{' '}
+        {invited.name} already has a Social account, so no new one was made. They can pay for the club now.{' '}
         {invited.emailed ? `We emailed ${invited.email} to say so.` : `The email to ${invited.email} did not send. Tell them yourself.`}
       </Notice>,
     );
@@ -70,169 +75,156 @@ function Admin() {
 
   return (
     <>
-      <Masthead label="Admin" title={waiting}>
-        <p>
-          Invite someone and the club makes them a member with a private link to set a password, emailed to them. It works once and lasts {LINK_DAYS.welcome} days.
-          Open a member to edit them, send a reset link, suspend or remove them.
-        </p>
-        <p className={s.tools}>
-          <Link to="/admin/sessions">Sessions</Link>
-          <Link to="/admin/calls">One-to-one</Link>
-          <Link to="/admin/plans">Plans</Link>
-          <Link to="/admin/listings">Directory</Link>
-          <Link to="/admin/fees">Fee survey</Link>
-          <a href="/admin/members.csv" download>
-            Download members (CSV)
-          </a>
-        </p>
-      </Masthead>
+      <PageHead
+        label="Admin"
+        title={waiting}
+        lead={`Invite emails a one-time link to set a password, good for ${LINK_DAYS.welcome} days. Open a member to edit, reset, suspend or remove them.`}
+        actions={
+          <>
+            <Link className="btn ghost" to="/admin/sessions">
+              Sessions
+            </Link>
+            <Link className="btn ghost" to="/admin/calls">
+              One-to-one
+            </Link>
+            <Link className="btn ghost" to="/admin/plans">
+              Plans
+            </Link>
+            <Link className="btn ghost" to="/admin/listings">
+              Directory
+            </Link>
+            <Link className="btn ghost" to="/admin/fees">
+              Fee survey
+            </Link>
+            <a className="btn ghost" href="/admin/members.csv" download>
+              Members CSV
+            </a>
+          </>
+        }
+      />
 
       {sessionsHeld && (
         <Notice tone="error">
-          No live session is scheduled between a day and two weeks from now, so getting-started emails are on hold
-          {sessionsHeld.waiting > 0 && ` for ${tally(sessionsHeld.waiting, 'new member', 'new members')}`}. <Link to="/admin/sessions">Schedule one</Link>
+          Getting-started emails are on hold{sessionsHeld.waiting > 0 && ` for ${tally(sessionsHeld.waiting, 'new member', 'new members')}`}. No live session is scheduled
+          between a day and two weeks from now. <Link to="/admin/sessions">Schedule one</Link>
         </Notice>
       )}
 
-      {data.queues.length === 0 ? (
-        <p className={`wrap ${s.calm}`}>Nothing is waiting on you.</p>
-      ) : (
-        <section className={`wrap ${s.block}`} aria-labelledby="queues-title">
-          <h2 className="head" id="queues-title">
-            Waiting on you
-          </h2>
-          <div className={s.scroll}>
-            <table className={`ledger ${s.ledger}`}>
-              <thead>
-                <tr>
-                  <th>Queue</th>
-                  <th>Waiting</th>
-                  <th>Oldest has waited</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.queues.map((q) => (
-                  <tr key={q.id}>
-                    <td>
-                      <a href={q.where.site === 'social' ? socialHref(q.where.path) : q.where.path}>{q.label}</a>
-                    </td>
-                    <td>{q.count}</td>
-                    <td>
-                      {capitalised(q.waited)}
-                      {q.stale && <strong className={s.stale}> · too long</strong>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
+      <Section title="Waiting on you">
+        {data.queues.length === 0 ? (
+          <Empty icon="check">Nothing is waiting on you.</Empty>
+        ) : (
+          <Stats
+            items={data.queues.map((q) => ({
+              label: q.label,
+              value: (
+                <a href={q.where.site === 'social' ? socialHref(q.where.path) : q.where.path}>
+                  {q.count}
+                  <span className="visually-hidden"> {q.label.toLowerCase()}</span>
+                </a>
+              ),
+              note: (
+                <span className={s.waited}>
+                  Oldest waited {q.waited}
+                  {q.stale && <Badge tone="solid">Too long</Badge>}
+                </span>
+              ),
+            }))}
+          />
+        )}
+      </Section>
 
       {shown}
 
-      <section className={`wrap ${s.block}`} aria-labelledby="pending-title">
-        <h2 className="head" id="pending-title">
-          Waiting for a decision
-        </h2>
+      <Section title="Join requests" id="pending-title">
         {pending.length === 0 ? (
-          <p className={s.empty}>Nothing waiting. New requests from the join form appear here.</p>
+          <Empty icon="mail">No requests waiting. New ones from the join form land here.</Empty>
         ) : (
-          <div className={s.scroll}>
-            <table className={`ledger ${s.ledger}`}>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Where they are</th>
-                  <th>Received</th>
-                  <th>
-                    <span className={s.sr}>Decision</span>
-                  </th>
+          <Table words label="Join requests">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Where they are</th>
+                <th>Received</th>
+                <th>
+                  <span className="visually-hidden">Decision</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {pending.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.name}</td>
+                  <td>{r.email}</td>
+                  <td>{r.stage}</td>
+                  <td>{r.received}</td>
+                  <td className={s.decide}>
+                    <form
+                      method="POST"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void onInvite(r.id);
+                      }}
+                    >
+                      <button className="btn" type="submit" disabled={busy}>
+                        Invite
+                      </button>
+                    </form>
+                    <form
+                      method="POST"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void onDecline(r.id);
+                      }}
+                    >
+                      <button className="btn ghost" type="submit" disabled={busy}>
+                        Decline
+                      </button>
+                    </form>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {pending.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.name}</td>
-                    <td>{r.email}</td>
-                    <td>{r.stage}</td>
-                    <td>{r.received}</td>
-                    <td className={s.decide}>
-                      <form
-                        method="POST"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          void onInvite(r.id);
-                        }}
-                      >
-                        <button className="btn" type="submit" disabled={busy}>
-                          Invite
-                        </button>
-                      </form>
-                      <form
-                        method="POST"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          void onDecline(r.id);
-                        }}
-                      >
-                        <button className="btn ghost" type="submit" disabled={busy}>
-                          Decline
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         )}
-      </section>
+      </Section>
 
       {quiet.length > 0 && (
-        <section className={`wrap ${s.block}`} aria-labelledby="quiet-title">
-          <h2 className="head" id="quiet-title">
-            Gone quiet
-          </h2>
-          <p>Paying members who have not said yes to a session, posted, finished a lesson, booked a call or worked on their plan in {quietDays} days. Quietest first.</p>
-          <div className={s.scroll}>
-            <table className={`ledger ${s.ledger}`}>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Last did</th>
-                  <th>Paid until</th>
-                  <th>Renews</th>
+        <Section title="Gone quiet">
+          <p className={`small ${s.note}`}>Paying members with no RSVP, post, finished lesson, booked call or plan work in {quietDays} days. Quietest first.</p>
+          <Table words label="Gone quiet">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Last did</th>
+                <th>Paid until</th>
+                <th>Renews</th>
+              </tr>
+            </thead>
+            <tbody>
+              {quiet.map((m) => (
+                <tr key={m.id}>
+                  <td>
+                    <Link to="/admin/members/$id" params={{ id: String(m.id) }}>
+                      {m.name}
+                    </Link>
+                  </td>
+                  <td>{m.email}</td>
+                  <td>{m.last}</td>
+                  <td>{m.paidUntil}</td>
+                  <td>{m.renews}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {quiet.map((m) => (
-                  <tr key={m.id}>
-                    <td>
-                      <Link to="/admin/members/$id" params={{ id: String(m.id) }}>
-                        {m.name}
-                      </Link>
-                    </td>
-                    <td>{m.email}</td>
-                    <td>{m.last}</td>
-                    <td>{m.paidUntil}</td>
-                    <td>{m.renews}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+              ))}
+            </tbody>
+          </Table>
+        </Section>
       )}
 
-      <section className={`wrap ${s.block}`} aria-labelledby="members-title">
-        <h2 className="head" id="members-title">
-          Members
-        </h2>
+      <Section title="Members" id="members-title">
         <form method="GET" action="/admin#members-title" className={s.search} role="search" onSubmit={onSearch}>
-          <label className={s.sr} htmlFor="q">
+          <label className="visually-hidden" htmlFor="q">
             Search members
           </label>
           <input className="input" id="q" name="q" type="search" key={query} defaultValue={query} placeholder="Name or email" maxLength={100} />
@@ -248,38 +240,38 @@ function Admin() {
           ))}
         </nav>
         {members.length === 0 ? (
-          <p className={s.empty}>{query ? `No member matches “${query}”.` : 'No members with that status.'}</p>
+          <Empty icon="users">{query ? `No member matches “${query}”.` : 'No members with that status.'}</Empty>
         ) : (
-          <div className={s.scroll}>
-            <table className={`ledger ${s.ledger}`}>
-              <thead>
-                <tr>
-                  <th>No.</th>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Since</th>
+          <Table words label="Members">
+            <thead>
+              <tr>
+                <th>No.</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Since</th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.map((m) => (
+                <tr key={m.id}>
+                  <td>{m.number}</td>
+                  <td>
+                    <Link to="/admin/members/$id" params={{ id: String(m.id) }}>
+                      {m.name}
+                    </Link>
+                  </td>
+                  <td>{m.email}</td>
+                  <td>{m.role}</td>
+                  <td>
+                    <Badge>{m.status}</Badge>
+                  </td>
+                  <td>{m.since}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {members.map((m) => (
-                  <tr key={m.id}>
-                    <td>{m.number}</td>
-                    <td>
-                      <Link to="/admin/members/$id" params={{ id: String(m.id) }}>
-                        {m.name}
-                      </Link>
-                    </td>
-                    <td>{m.email}</td>
-                    <td>{m.role}</td>
-                    <td>{m.status}</td>
-                    <td>{m.since}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </Table>
         )}
         <Pager
           page={data.page}
@@ -291,36 +283,33 @@ function Admin() {
             </Link>
           )}
         />
-      </section>
+      </Section>
 
       {decided.length > 0 && (
-        <section className={`wrap ${s.block}`} aria-labelledby="decided-title">
-          <h2 className="head" id="decided-title">
-            Recent decisions
-          </h2>
-          <div className={s.scroll}>
-            <table className={`ledger ${s.ledger}`}>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Where they are</th>
-                  <th>Decision</th>
+        <Section title="Recent decisions">
+          <Table words label="Recent decisions">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Where they are</th>
+                <th>Decision</th>
+              </tr>
+            </thead>
+            <tbody>
+              {decided.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.name}</td>
+                  <td>{r.email}</td>
+                  <td>{r.stage}</td>
+                  <td>
+                    <Badge tone={r.decision === 'Invited' ? 'solid' : 'plain'}>{r.decision}</Badge>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {decided.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.name}</td>
-                    <td>{r.email}</td>
-                    <td>{r.stage}</td>
-                    <td>{r.decision}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+              ))}
+            </tbody>
+          </Table>
+        </Section>
       )}
     </>
   );

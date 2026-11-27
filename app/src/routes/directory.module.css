@@ -1,9 +1,3 @@
-.filter { display: grid; gap: var(--space-4); max-width: 420px; margin-top: var(--space-5); }
-.go { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5); }
-.results { display: grid; align-content: start; gap: var(--space-5); }
-.count { margin: 0; font-size: var(--size-head); line-height: 1.15; text-wrap: balance; }
-.empty { margin: 0; padding-block: var(--space-5); border-block: var(--stroke-hair) solid var(--ink); max-width: 30em; }
 .entries { margin: 0; padding: 0; list-style: none; border-top: var(--stroke-rule) solid var(--ink); }
 .entries > li { border-bottom: var(--stroke-hair) solid var(--ink); }
-.group { margin: var(--space-6) 0 0; }
-.aside { margin: var(--space-6) 0 0; max-width: 30em; }
+.group { margin: var(--space-4) 0 0; }

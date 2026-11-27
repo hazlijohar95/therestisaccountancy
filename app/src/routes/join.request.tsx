@@ -1,13 +1,12 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { join, joinSection } from '../../../src/data/club.ts';
 import { Page } from '../components/club/Page.tsx';
-import { PageHead } from '../components/club/PageHead.tsx';
-import { Notice } from '../components/club/Notice.tsx';
-import { FieldError } from '../components/FieldError.tsx';
+import { Field, Form } from '../components/ui/Form.tsx';
+import { Notice } from '../components/ui/Notice.tsx';
+import { PageHead } from '../components/ui/PageHead.tsx';
 import { joinResult } from '../functions/public-account.ts';
 import { wireField } from '../lib/form.ts';
 import { clubTitle, noindex } from '../lib/title.ts';
-import s from './join.request.module.css';
 
 /* Where a plain post of the membership request lands: the thanks, or the form again with what was wrong. Shown once. */
 export const Route = createFileRoute('/join/request')({
@@ -34,59 +33,57 @@ function JoinRequest() {
   const email = wireField(fields['email'], { id: 'join-email-error' });
   return (
     <Page>
-      <PageHead label={joinSection.label} title="Not sent yet." />
-      <Notice tone="error" id="join-error">
-        {result.message}
-      </Notice>
-      <div className="wrap">
-        <form className={s.form} method="POST" action="/join" noValidate>
-          <div className="field">
-            <label htmlFor="join-name">Your name</label>
-            <input
-              className="input"
-              id="join-name"
-              name="name"
-              autoComplete="name"
-              maxLength={60}
-              required
-              defaultValue={posted['name'] ?? ''}
-              {...name.input}
-              autoFocus={fields['name'] !== undefined}
-            />
-            <FieldError field={name} />
-          </div>
-          <div className="field">
-            <label htmlFor="join-email">Work email</label>
-            <input
-              className="input"
-              id="join-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              defaultValue={posted['email'] ?? ''}
-              {...email.input}
-              autoFocus={fields['email'] !== undefined && fields['name'] === undefined}
-            />
-            <FieldError field={email} />
-          </div>
-          <div className="field">
-            <label htmlFor="join-stage">Where you are</label>
-            <select className="input" id="join-stage" name="stage" defaultValue={posted['stage'] ?? joinSection.stages[0]}>
-              {joinSection.stages.map((stage) => (
-                <option key={stage}>{stage}</option>
-              ))}
-            </select>
-          </div>
-          <div className={s.trap} aria-hidden="true">
-            <label htmlFor="join-trap">Leave this empty</label>
-            <input id="join-trap" name="trap" type="text" tabIndex={-1} autoComplete="off" data-1p-ignore data-lpignore="true" />
-          </div>
-          <button className="btn" type="submit">
-            {join.label}
-          </button>
-        </form>
-      </div>
+      <PageHead
+        label={joinSection.label}
+        title="Not sent yet."
+        aside={
+          <Form action="/join" noValidate>
+            <Field label="Your name" id="join-name" field={name}>
+              <input
+                className="input"
+                id="join-name"
+                name="name"
+                autoComplete="name"
+                maxLength={60}
+                required
+                defaultValue={posted['name'] ?? ''}
+                {...name.input}
+                autoFocus={fields['name'] !== undefined}
+              />
+            </Field>
+            <Field label="Work email" id="join-email" field={email}>
+              <input
+                className="input"
+                id="join-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                defaultValue={posted['email'] ?? ''}
+                {...email.input}
+                autoFocus={fields['email'] !== undefined && fields['name'] === undefined}
+              />
+            </Field>
+            <Field label="Where you are" id="join-stage">
+              <select className="input" id="join-stage" name="stage" defaultValue={posted['stage'] ?? joinSection.stages[0]}>
+                {joinSection.stages.map((stage) => (
+                  <option key={stage}>{stage}</option>
+                ))}
+              </select>
+            </Field>
+            <div className="visually-hidden" aria-hidden="true">
+              <label htmlFor="join-trap">Leave this empty</label>
+              <input id="join-trap" name="trap" type="text" tabIndex={-1} autoComplete="off" data-1p-ignore data-lpignore="true" />
+            </div>
+            <Notice tone="error" inline id="join-error">
+              {result.message}
+            </Notice>
+            <button className="btn" type="submit">
+              {join.label}
+            </button>
+          </Form>
+        }
+      />
     </Page>
   );
 }

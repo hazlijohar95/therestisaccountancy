@@ -1,9 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { FieldError } from '../../components/FieldError.tsx';
 import { useAction } from '../../components/useAction.ts';
-import { Masthead } from '../../components/club/Masthead.tsx';
-import { Notice } from '../../components/club/Notice.tsx';
+import { Empty } from '../../components/ui/Empty.tsx';
+import { Field, Form } from '../../components/ui/Form.tsx';
+import { List, Meta, Row } from '../../components/ui/List.tsx';
+import { Notice } from '../../components/ui/Notice.tsx';
+import { PageHead } from '../../components/ui/PageHead.tsx';
+import { Points } from '../../components/ui/Points.tsx';
+import { Section } from '../../components/ui/Section.tsx';
+import { Confirm } from '../../components/ui/Table.tsx';
 import { addSession, adminSessions, cancelSession, type SessionForm } from '../../functions/admin-sessions.ts';
 import { failureOf } from '../../lib/outcome.ts';
 import { clubTitle } from '../../lib/title.ts';
@@ -50,99 +55,88 @@ function Sessions() {
 
   return (
     <>
-      <Masthead label="Admin" title="Sessions">
-        <p>Put a session on the calendar and members see it, say whether they are coming, and get a calendar file and a reminder the day before. Times are Malaysia time.</p>
-      </Masthead>
+      <PageHead label="Admin" title="Sessions" lead="Times are Malaysia time." />
 
       {shown}
 
-      <section className={`wrap ${s.block}`} aria-labelledby="upcoming-title">
-        <h2 className="head" id="upcoming-title">
-          On the calendar
-        </h2>
+      <Section title="On the calendar">
         {sessions.length === 0 ? (
-          <p className={s.empty}>Nothing scheduled.</p>
+          <Empty icon="calendar">Nothing scheduled.</Empty>
         ) : (
-          <ol className={s.sessions}>
+          <List ordered>
             {sessions.map((session) => (
-              <li className={s.session} key={session.id}>
-                <div className="small">{session.when}</div>
-                <h3 className={s.title}>{session.title}</h3>
-                <p className="small">{session.coming}</p>
-                <details className={s.confirm}>
-                  <summary>Call it off</summary>
-                  <form
-                    method="POST"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      void onCancel(session.id);
-                    }}
-                  >
-                    <span className="small">Everyone coming gets an email saying it is off.</span>
-                    <button className="btn" type="submit" disabled={busy}>
-                      Call it off
-                    </button>
-                  </form>
-                </details>
-              </li>
+              <Row
+                key={session.id}
+                title={session.title}
+                meta={
+                  <>
+                    <Meta icon="clock">{session.when}</Meta>
+                    <Meta icon="users">{session.coming}</Meta>
+                  </>
+                }
+                trail={
+                  <Confirm summary="Call it off">
+                    <form
+                      method="POST"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void onCancel(session.id);
+                      }}
+                    >
+                      <span className="small">Everyone coming gets an email.</span>
+                      <button className="btn" type="submit" disabled={busy}>
+                        Call it off
+                      </button>
+                    </form>
+                  </Confirm>
+                }
+              />
             ))}
-          </ol>
+          </List>
         )}
-      </section>
+      </Section>
 
-      <section className={`wrap ${s.block}`} aria-labelledby="add-title">
-        <h2 className="head" id="add-title">
-          Add a session
-        </h2>
-        <form method="POST" className={s.form} onSubmit={onAdd}>
-          <div className="field">
-            <label htmlFor="title">Title</label>
+      <Section title="Add a session">
+        <Points
+          items={[
+            { icon: 'users', text: 'Members see it and say if they are coming' },
+            { icon: 'calendar', text: 'They get a calendar file' },
+            { icon: 'mail', text: 'A reminder the day before' },
+          ]}
+        />
+        <Form wide onSubmit={onAdd}>
+          <Field label="Title" id="title" field={title}>
             <input className="input" id="title" name="title" required maxLength={120} {...title.input} />
-            <FieldError field={title} className={s.error} />
-          </div>
-          <div className="field">
-            <label htmlFor="kind">Kind</label>
+          </Field>
+          <Field label="Kind" id="kind">
             <select className="input" id="kind" name="kind">
               {kinds.map((kind) => (
                 <option key={kind}>{kind}</option>
               ))}
             </select>
-          </div>
+          </Field>
           <div className={s.pair}>
-            <div className="field">
-              <label htmlFor="date">Date</label>
+            <Field label="Date" id="date" field={date}>
               <input className="input" id="date" name="date" type="date" min={today} required {...date.input} />
-              <FieldError field={date} className={s.error} />
-            </div>
-            <div className="field">
-              <label htmlFor="time">Start, Malaysia time</label>
+            </Field>
+            <Field label="Start, Malaysia time" id="time" field={time}>
               <input className="input" id="time" name="time" type="time" required {...time.input} />
-              <FieldError field={time} className={s.error} />
-            </div>
+            </Field>
           </div>
-          <div className="field">
-            <label htmlFor="minutes">Length in minutes</label>
+          <Field label="Length in minutes" id="minutes" field={minutes}>
             <input className="input" id="minutes" name="minutes" type="number" min="15" max="480" step="5" required defaultValue="60" {...minutes.input} />
-            <FieldError field={minutes} className={s.error} />
-          </div>
-          <div className="field">
-            <label htmlFor="link">Call link</label>
+          </Field>
+          <Field label="Call link" id="link" hint="Only members see it." field={link}>
             <input className="input" id="link" name="link" type="url" placeholder="https://" required {...link.input} />
-            <span className="hint">Only members see it.</span>
-            <FieldError field={link} className={s.error} />
-          </div>
-          <div className="field">
-            <label htmlFor="detail">
-              What it covers <span className="hint">(optional)</span>
-            </label>
+          </Field>
+          <Field label="What it covers" id="detail" hint="Optional." field={detail}>
             <textarea className="input" id="detail" name="detail" rows={4} maxLength={1000} {...detail.input} />
-            <FieldError field={detail} className={s.error} />
-          </div>
+          </Field>
           <button className="btn" type="submit" disabled={busy}>
             Add session
           </button>
-        </form>
-      </section>
+        </Form>
+      </Section>
     </>
   );
 }

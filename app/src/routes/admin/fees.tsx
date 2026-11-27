@@ -2,9 +2,14 @@ import { createFileRoute, Link, redirect } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { pageHref } from '../../../../src/lib/paging.ts';
 import { useAction } from '../../components/useAction.ts';
-import { Masthead } from '../../components/club/Masthead.tsx';
-import { Notice } from '../../components/club/Notice.tsx';
 import { Pager } from '../../components/club/Pager.tsx';
+import { Empty } from '../../components/ui/Empty.tsx';
+import { Notice } from '../../components/ui/Notice.tsx';
+import { PageHead } from '../../components/ui/PageHead.tsx';
+import { Points } from '../../components/ui/Points.tsx';
+import { Section } from '../../components/ui/Section.tsx';
+import { Progress } from '../../components/ui/Steps.tsx';
+import { Confirm, Table } from '../../components/ui/Table.tsx';
 import { adminFees, deleteFeeResponse, publishFees, unpublishFees } from '../../functions/admin-fees.ts';
 import { countParam } from '../../lib/search-params.ts';
 import { clubTitle } from '../../lib/title.ts';
@@ -34,6 +39,7 @@ function Fees() {
   const busy = publish.busy || unpublish.busy || remove.busy;
   const [shown, setShown] = useState<ReactNode>(null);
   const { shown: year, editions, answers } = data;
+  const current = editions.find((e) => e.edition === year);
 
   const onPublish = async (edition: number) => {
     const outcome = await publish.run({ edition });
@@ -71,32 +77,39 @@ function Fees() {
 
   return (
     <>
-      <Masthead label="Admin" title="Fee survey">
-        <p>
-          Answers are anonymous. The form asks for no name or email, and nothing that says who sent them is kept. A year’s results go up on <a href="/fees">the fee survey page</a>{' '}
-          only when a host publishes it, which needs {data.publishMin} answers. Read them first and delete any that are plainly made up. Publishing this year’s stops it taking
-          answers until you take it down again.
-        </p>
-      </Masthead>
+      <PageHead
+        label="Admin"
+        title="Fee survey"
+        lead={
+          <>
+            Results go up on <a href="/fees">the fee survey page</a> only when a host publishes them.
+          </>
+        }
+      />
 
       {shown}
 
-      <section className={`wrap ${s.block}`} aria-labelledby="years-title">
-        <h2 className="head" id="years-title">
-          By year
-        </h2>
-        <div className={s.scroll}>
-          <table className={`ledger ${s.years}`}>
+      <Section title="By year">
+        <Points
+          items={[
+            { icon: 'lock', text: 'Anonymous. No name or email asked, nothing kept that says who sent it' },
+            { icon: 'users', text: `Publishing needs ${data.publishMin} answers` },
+            { icon: 'alert', text: 'Read them first and delete any plainly made up' },
+            { icon: 'repeat', text: 'Publishing this year stops new answers until you take it down' },
+          ]}
+        />
+        <div className={s.years}>
+          <Table label="Fee survey by year">
             <thead>
               <tr>
                 <th>Year</th>
                 <th>Answers</th>
                 <th>Status</th>
                 <th>
-                  <span className={s.sr}>Results</span>
+                  <span className="visually-hidden">Results</span>
                 </th>
                 <th>
-                  <span className={s.sr}>Download</span>
+                  <span className="visually-hidden">Download</span>
                 </th>
               </tr>
             </thead>
@@ -148,23 +161,21 @@ function Fees() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </Table>
         </div>
-      </section>
+      </Section>
 
-      <section className={`wrap ${s.block}`} aria-labelledby="answers-title">
-        <h2 className="head" id="answers-title">
-          {year} answers, newest first
-        </h2>
+      <Section title={`${year} answers, newest first`} id="answers-title">
+        {current && !current.published && <Progress value={Math.min(current.responses, data.publishMin)} max={data.publishMin} label="Answers toward publishing" />}
         {answers.length === 0 ? (
-          <p className={s.empty}>No answers for {year} yet. They appear here as people send them from the fee survey page.</p>
+          <Empty icon="file">No answers for {year} yet. They land here as people send them from the fee survey page.</Empty>
         ) : (
           <>
-            <p className={`small ${s.small}`}>
-              A figure far from most answers for that fee is <mark className="mark">marked</mark>, so the ones worth a second look stand out.
+            <p className={`small ${s.note}`}>
+              A figure far from most answers for that fee is <mark className="mark">marked</mark>. Those are worth a second look.
             </p>
-            <div className={s.scroll}>
-              <table className={`ledger ${s.answers}`}>
+            <div className={s.answers}>
+              <Table label={`${year} answers`}>
                 <thead>
                   <tr>
                     <th>Received</th>
@@ -175,7 +186,7 @@ function Fees() {
                     ))}
                     <th>Sure (1 to 5)</th>
                     <th>
-                      <span className={s.sr}>Delete</span>
+                      <span className="visually-hidden">Delete</span>
                     </th>
                   </tr>
                 </thead>
@@ -189,7 +200,7 @@ function Fees() {
                         fee.unusual ? (
                           <td key={fee.figure}>
                             <mark className="mark">{fee.text}</mark>
-                            <span className={s.sr}> (far from most answers)</span>
+                            <span className="visually-hidden"> (far from most answers)</span>
                           </td>
                         ) : (
                           <td key={fee.figure}>{fee.text}</td>
@@ -197,8 +208,7 @@ function Fees() {
                       )}
                       <td>{r.confidence}</td>
                       <td>
-                        <details className={s.confirm}>
-                          <summary>Delete</summary>
+                        <Confirm summary="Delete">
                           <form
                             method="POST"
                             onSubmit={(event) => {
@@ -210,12 +220,12 @@ function Fees() {
                               Delete for good
                             </button>
                           </form>
-                        </details>
+                        </Confirm>
                       </td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </Table>
             </div>
             <Pager
               page={data.page}
@@ -229,7 +239,7 @@ function Fees() {
             />
           </>
         )}
-      </section>
+      </Section>
     </>
   );
 }

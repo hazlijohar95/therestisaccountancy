@@ -3,12 +3,15 @@ import type { FormEvent } from 'react';
 import { z } from 'zod';
 import { isSocialHost, safeNext } from '../../../src/server/paths.ts';
 import { Page } from '../components/club/Page.tsx';
+import { Field, Form } from '../components/ui/Form.tsx';
+import { Notice } from '../components/ui/Notice.tsx';
+import { PageHead } from '../components/ui/PageHead.tsx';
+import { Points } from '../components/ui/Points.tsx';
 import { useAction } from '../components/useAction.ts';
 import { signIn } from '../functions/auth.ts';
 import { wireField } from '../lib/form.ts';
 import { socialHref } from '../lib/links.ts';
 import { clubTitle, noindex } from '../lib/title.ts';
-import s from './sign-in.module.css';
 
 export const Route = createFileRoute('/sign-in')({
   validateSearch: z.object({ next: z.string().optional(), out: z.literal(1).optional() }),
@@ -47,56 +50,38 @@ function SignIn() {
 
   return (
     <Page>
-      <section className="night" aria-labelledby="page-title">
-        <div className={`wrap ${s.in}`}>
-          <div>
-            <p className={`label ${s.top}`}>{forSocial ? 'Social' : 'Members'}</p>
-            <h1 className={`headline serif ${s.headline}`} id="page-title">
-              {forSocial ? 'Sign in to Social.' : 'Sign in to the club.'}
-            </h1>
-            <p className={`lead ${s.lead}`}>
-              {forSocial
-                ? 'One account for Social and the club. Just joined? Use the link we emailed to set a password first.'
-                : 'New member? Use the link in your invitation to set a password first.'}
-            </p>
-          </div>
-          <form method="POST" className={s.form} onSubmit={submit} noValidate>
-            {search.out && (
-              <p className={s.note} role="status">
-                You have signed out.
-              </p>
-            )}
-            <div className="field">
-              <label htmlFor="email">Email</label>
+      <PageHead
+        label={forSocial ? 'Social' : 'Members'}
+        title={forSocial ? 'Sign in to Social.' : 'Sign in to the club.'}
+        lead={forSocial ? 'One account for Social and the club. Just joined? Set a password from the link we emailed first.' : 'New member? Set a password from your invitation link first.'}
+        aside={
+          <Form onSubmit={submit} noValidate>
+            {search.out && <Notice inline>You have signed out.</Notice>}
+            <Field label="Email" id="email">
               <input className="input" id="email" name="email" type="email" autoComplete="username" required {...problem.input} />
-            </div>
-            <div className="field">
-              <label htmlFor="password">Password</label>
+            </Field>
+            <Field label="Password" id="password">
               <input className="input" id="password" name="password" type="password" autoComplete="current-password" required />
-            </div>
+            </Field>
             {problem.error && (
-              <p className={`error ${s.error}`} id={problem.errorId} role="alert">
+              <Notice tone="error" inline id={problem.errorId}>
                 {problem.error}
-              </p>
+              </Notice>
             )}
             <button className="btn" type="submit" disabled={send.busy}>
               Sign in
             </button>
-            <p className={s.small}>
-              Forgot your password, or lost your invitation? <a href="/forgot">Get a new link by email</a>.
-            </p>
-            {forSocial ? (
-              <p className={s.small}>
-                New here? Social is invite-only. Use the link you were sent, or <a href={socialHref('/request')}>request to join</a>.
-              </p>
-            ) : (
-              <p className={s.small}>
-                Not a member yet? <a href="/join">Request membership</a>.
-              </p>
-            )}
-          </form>
-        </div>
-      </section>
+            <Points
+              items={[
+                { icon: 'mail', text: <a href="/forgot">Forgot your password or lost your invitation? Get a new link.</a> },
+                forSocial
+                  ? { icon: 'users', text: <>Social is invite-only. Use your link, or <a href={socialHref('/request')}>request to join</a>.</> }
+                  : { icon: 'users', text: <a href="/join">Not a member? Request membership.</a> },
+              ]}
+            />
+          </Form>
+        }
+      />
     </Page>
   );
 }
