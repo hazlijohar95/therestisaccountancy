@@ -1,0 +1,3 @@
+.points { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: var(--space-4) var(--space-5); margin: 0; padding: 0; list-style: none; }
+.points li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-3); align-items: start; font-size: var(--size-small); }
+.points svg { margin-top: .05em; }
