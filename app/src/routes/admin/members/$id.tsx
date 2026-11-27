@@ -1,11 +1,12 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { useActing } from '../../../components/admin/acting.ts';
 import { LinkNotice } from '../../../components/admin/LinkNotice.tsx';
+import { FieldError } from '../../../components/FieldError.tsx';
+import { useAction } from '../../../components/useAction.ts';
 import { Masthead } from '../../../components/club/Masthead.tsx';
 import { Notice } from '../../../components/club/Notice.tsx';
 import { adminMember, issueLink, reinstateMember, removeMember, suspendMember, updateMember } from '../../../functions/admin-members.ts';
+import { failureOf } from '../../../lib/outcome.ts';
 import { clubTitle } from '../../../lib/title.ts';
 import s from './$id.module.css';
 
@@ -21,62 +22,57 @@ const access = {
   suspended: 'They cannot sign in or use a link, and their sessions have ended. Reinstating lets them sign in with their existing password.',
 } as const;
 
-type Fields = Readonly<Record<string, string>>;
-
 function AdminMember() {
   const { member, self, roles, facts } = Route.useLoaderData();
   const navigate = useNavigate();
-  const update = useServerFn(updateMember);
-  const newLink = useServerFn(issueLink);
-  const suspend = useServerFn(suspendMember);
-  const reinstate = useServerFn(reinstateMember);
-  const remove = useServerFn(removeMember);
-  const { busy, act } = useActing();
+  const update = useAction(updateMember, { refresh: 'always' });
+  const newLink = useAction(issueLink, { refresh: 'always' });
+  const suspend = useAction(suspendMember, { refresh: 'always' });
+  const reinstate = useAction(reinstateMember, { refresh: 'always' });
+  const remove = useAction(removeMember, { refresh: 'always' });
+  const busy = [update, newLink, suspend, reinstate, remove].some((x) => x.busy);
   const [shown, setShown] = useState<ReactNode>(null);
-  const [detailErrors, setDetailErrors] = useState<Fields>({});
-  const [removeErrors, setRemoveErrors] = useState<Fields>({});
-
-  /* A refusal about one field shows beside it; any other shows under the masthead. */
-  const refusedWith = (outcome: { message: string; fields: Fields }, setFields: (fields: Fields) => void) => {
-    setFields(outcome.fields);
-    setShown(Object.keys(outcome.fields).length ? null : <Notice tone="error">{outcome.message}</Notice>);
-  };
+  const name = update.field('name');
+  const email = update.field('email', { hint: 'email-hint' });
+  const confirmed = remove.field('confirm');
 
   const onSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const role = form.get('role');
-    const outcome = await act(() =>
-      update({ data: { member: member.id, name: String(form.get('name') ?? ''), email: String(form.get('email') ?? ''), ...(role === 'member' || role === 'admin' ? { role } : {}) } }),
-    );
-    if (!outcome.ok) return refusedWith(outcome, setDetailErrors);
-    setDetailErrors({});
+    const outcome = await update.run({ member: member.id, name: String(form.get('name') ?? ''), email: String(form.get('email') ?? ''), ...(role === 'member' || role === 'admin' ? { role } : {}) });
+    if (!outcome) return;
+    if (!outcome.ok) return setShown(failureOf(outcome) && <Notice tone="error">{outcome.message}</Notice>);
     setShown(<Notice>Saved.</Notice>);
   };
 
   const onLink = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const outcome = await act(() => newLink({ data: { member: member.id } }));
+    const outcome = await newLink.run({ member: member.id });
+    if (!outcome) return;
     setShown(outcome.ok ? <LinkNotice issued={outcome.value} /> : <Notice tone="error">{outcome.message}</Notice>);
   };
 
   const onSuspend = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const outcome = await act(() => suspend({ data: { member: member.id } }));
+    const outcome = await suspend.run({ member: member.id });
+    if (!outcome) return;
     setShown(outcome.ok ? <Notice>Suspended. They are signed out everywhere.</Notice> : <Notice tone="error">{outcome.message}</Notice>);
   };
 
   const onReinstate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const outcome = await act(() => reinstate({ data: { member: member.id } }));
+    const outcome = await reinstate.run({ member: member.id });
+    if (!outcome) return;
     setShown(outcome.ok ? <Notice>Reinstated. They can sign in with their password.</Notice> : <Notice tone="error">{outcome.message}</Notice>);
   };
 
   const onRemove = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const confirm = String(new FormData(event.currentTarget).get('confirm') ?? '');
-    const outcome = await act(() => remove({ data: { member: member.id, confirm } }));
-    if (!outcome.ok) return refusedWith(outcome, setRemoveErrors);
+    const outcome = await remove.run({ member: member.id, confirm });
+    if (!outcome) return;
+    if (!outcome.ok) return setShown(failureOf(outcome) && <Notice tone="error">{outcome.message}</Notice>);
     await navigate({ to: '/admin', search: { removed: true } });
   };
 
@@ -113,12 +109,8 @@ function AdminMember() {
         <form method="POST" className={s.form} onSubmit={onSave} key={`${member.name} ${member.email} ${member.role}`}>
           <div className="field">
             <label htmlFor="name">Name</label>
-            <input className="input" id="name" name="name" defaultValue={member.name} maxLength={60} required aria-invalid={detailErrors['name'] ? true : undefined} aria-describedby={detailErrors['name'] ? 'name-error' : undefined} />
-            {detailErrors['name'] && (
-              <span className={`error ${s.error}`} id="name-error">
-                {detailErrors['name']}
-              </span>
-            )}
+            <input className="input" id="name" name="name" defaultValue={member.name} maxLength={60} required {...name.input} />
+            <FieldError field={name} className={s.error} />
           </div>
           <div className="field">
             <label htmlFor="email">Email</label>
@@ -129,17 +121,12 @@ function AdminMember() {
               type="email"
               defaultValue={member.email}
               required
-              aria-invalid={detailErrors['email'] ? true : undefined}
-              aria-describedby={detailErrors['email'] ? 'email-hint email-error' : 'email-hint'}
+              {...email.input}
             />
             <span className="hint" id="email-hint">
               They sign in with this. Tell them when it changes.
             </span>
-            {detailErrors['email'] && (
-              <span className={`error ${s.error}`} id="email-error">
-                {detailErrors['email']}
-              </span>
-            )}
+            <FieldError field={email} className={s.error} />
           </div>
           {self ? (
             <p className={`small ${s.small}`}>You are an admin. Another admin can change your role.</p>
@@ -204,14 +191,10 @@ function AdminMember() {
           </p>
           <form method="POST" className={s.form} onSubmit={onRemove}>
             <label className={s.check}>
-              <input type="checkbox" name="confirm" value="yes" required aria-invalid={removeErrors['confirm'] ? true : undefined} aria-describedby={removeErrors['confirm'] ? 'confirm-error' : undefined} />
+              <input type="checkbox" name="confirm" value="yes" required {...confirmed.input} />
               <span>I understand {member.name} will be deleted for good.</span>
             </label>
-            {removeErrors['confirm'] && (
-              <span className={`error ${s.error}`} id="confirm-error">
-                {removeErrors['confirm']}
-              </span>
-            )}
+            <FieldError field={confirmed} className={s.error} />
             <button className="btn" type="submit" disabled={busy}>
               Remove member
             </button>

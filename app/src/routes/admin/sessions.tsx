@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { useActing } from '../../components/admin/acting.ts';
-import { errorAttributes, FieldError, type Fields } from '../../components/admin/FieldError.tsx';
+import { FieldError } from '../../components/FieldError.tsx';
+import { useAction } from '../../components/useAction.ts';
 import { Masthead } from '../../components/club/Masthead.tsx';
 import { Notice } from '../../components/club/Notice.tsx';
 import { addSession, adminSessions, cancelSession, type SessionForm } from '../../functions/admin-sessions.ts';
+import { failureOf } from '../../lib/outcome.ts';
 import { clubTitle } from '../../lib/title.ts';
 import s from './sessions.module.css';
 
@@ -19,26 +19,32 @@ const told = (n: number) => (n === 0 ? 'Nobody had said they were coming.' : n =
 
 function Sessions() {
   const { sessions, today, kinds } = Route.useLoaderData();
-  const add = useServerFn(addSession);
-  const cancel = useServerFn(cancelSession);
-  const { busy, act } = useActing();
+  const add = useAction(addSession, { refresh: 'always' });
+  const cancel = useAction(cancelSession, { refresh: 'always' });
+  const busy = add.busy || cancel.busy;
   const [shown, setShown] = useState<ReactNode>(null);
-  const [errors, setErrors] = useState<Fields>({});
+  const title = add.field('title');
+  const date = add.field('date');
+  const time = add.field('time');
+  const minutes = add.field('minutes');
+  const link = add.field('link');
+  const detail = add.field('detail');
 
   const onAdd = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
     const posted = new FormData(form);
     const field = (name: keyof SessionForm) => String(posted.get(name) ?? '');
-    const outcome = await act(() => add({ data: { title: field('title'), kind: field('kind'), date: field('date'), time: field('time'), minutes: field('minutes'), link: field('link'), detail: field('detail') } }));
-    setErrors(outcome.ok ? {} : outcome.fields);
-    if (!outcome.ok) return setShown(Object.keys(outcome.fields).length ? null : <Notice tone="error">{outcome.message}</Notice>);
+    const outcome = await add.run({ title: field('title'), kind: field('kind'), date: field('date'), time: field('time'), minutes: field('minutes'), link: field('link'), detail: field('detail') });
+    if (!outcome) return;
+    if (!outcome.ok) return setShown(failureOf(outcome) && <Notice tone="error">{outcome.message}</Notice>);
     form.reset();
     setShown(<Notice>Session added. Members see it now.</Notice>);
   };
 
   const onCancel = async (session: number) => {
-    const outcome = await act(() => cancel({ data: { session } }));
+    const outcome = await cancel.run({ session });
+    if (!outcome) return;
     setShown(outcome.ok ? <Notice>Session called off. {told(outcome.value)}</Notice> : <Notice tone="error">{outcome.message}</Notice>);
   };
 
@@ -91,8 +97,8 @@ function Sessions() {
         <form method="POST" className={s.form} onSubmit={onAdd}>
           <div className="field">
             <label htmlFor="title">Title</label>
-            <input className="input" id="title" name="title" required maxLength={120} {...errorAttributes(errors, 'title')} />
-            <FieldError errors={errors} name="title" className={s.error} />
+            <input className="input" id="title" name="title" required maxLength={120} {...title.input} />
+            <FieldError field={title} className={s.error} />
           </div>
           <div className="field">
             <label htmlFor="kind">Kind</label>
@@ -105,32 +111,32 @@ function Sessions() {
           <div className={s.pair}>
             <div className="field">
               <label htmlFor="date">Date</label>
-              <input className="input" id="date" name="date" type="date" min={today} required {...errorAttributes(errors, 'date')} />
-              <FieldError errors={errors} name="date" className={s.error} />
+              <input className="input" id="date" name="date" type="date" min={today} required {...date.input} />
+              <FieldError field={date} className={s.error} />
             </div>
             <div className="field">
               <label htmlFor="time">Start, Malaysia time</label>
-              <input className="input" id="time" name="time" type="time" required {...errorAttributes(errors, 'time')} />
-              <FieldError errors={errors} name="time" className={s.error} />
+              <input className="input" id="time" name="time" type="time" required {...time.input} />
+              <FieldError field={time} className={s.error} />
             </div>
           </div>
           <div className="field">
             <label htmlFor="minutes">Length in minutes</label>
-            <input className="input" id="minutes" name="minutes" type="number" min="15" max="480" step="5" required defaultValue="60" {...errorAttributes(errors, 'minutes')} />
-            <FieldError errors={errors} name="minutes" className={s.error} />
+            <input className="input" id="minutes" name="minutes" type="number" min="15" max="480" step="5" required defaultValue="60" {...minutes.input} />
+            <FieldError field={minutes} className={s.error} />
           </div>
           <div className="field">
             <label htmlFor="link">Call link</label>
-            <input className="input" id="link" name="link" type="url" placeholder="https://" required {...errorAttributes(errors, 'link')} />
+            <input className="input" id="link" name="link" type="url" placeholder="https://" required {...link.input} />
             <span className="hint">Only members see it.</span>
-            <FieldError errors={errors} name="link" className={s.error} />
+            <FieldError field={link} className={s.error} />
           </div>
           <div className="field">
             <label htmlFor="detail">
               What it covers <span className="hint">(optional)</span>
             </label>
-            <textarea className="input" id="detail" name="detail" rows={4} maxLength={1000} {...errorAttributes(errors, 'detail')} />
-            <FieldError errors={errors} name="detail" className={s.error} />
+            <textarea className="input" id="detail" name="detail" rows={4} maxLength={1000} {...detail.input} />
+            <FieldError field={detail} className={s.error} />
           </div>
           <button className="btn" type="submit" disabled={busy}>
             Add session

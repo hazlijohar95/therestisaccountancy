@@ -1,8 +1,7 @@
 import { createFileRoute, Link, redirect } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
 import { useState, type ReactNode } from 'react';
 import { pageHref } from '../../../../src/lib/paging.ts';
-import { useActing } from '../../components/admin/acting.ts';
+import { useAction } from '../../components/useAction.ts';
 import { Masthead } from '../../components/club/Masthead.tsx';
 import { Notice } from '../../components/club/Notice.tsx';
 import { Pager } from '../../components/club/Pager.tsx';
@@ -29,15 +28,16 @@ export const Route = createFileRoute('/admin/fees')({
 function Fees() {
   const data = Route.useLoaderData();
   const search = Route.useSearch();
-  const publish = useServerFn(publishFees);
-  const unpublish = useServerFn(unpublishFees);
-  const remove = useServerFn(deleteFeeResponse);
-  const { busy, act } = useActing();
+  const publish = useAction(publishFees, { refresh: 'always' });
+  const unpublish = useAction(unpublishFees, { refresh: 'always' });
+  const remove = useAction(deleteFeeResponse, { refresh: 'always' });
+  const busy = publish.busy || unpublish.busy || remove.busy;
   const [shown, setShown] = useState<ReactNode>(null);
   const { shown: year, editions, answers } = data;
 
   const onPublish = async (edition: number) => {
-    const outcome = await act(() => publish({ data: { edition } }));
+    const outcome = await publish.run({ edition });
+    if (!outcome) return;
     setShown(
       outcome.ok ? (
         <Notice>
@@ -50,7 +50,8 @@ function Fees() {
   };
 
   const onUnpublish = async (edition: number) => {
-    const outcome = await act(() => unpublish({ data: { edition } }));
+    const outcome = await unpublish.run({ edition });
+    if (!outcome) return;
     setShown(
       outcome.ok ? (
         <Notice>
@@ -63,7 +64,8 @@ function Fees() {
   };
 
   const onDelete = async (answer: number) => {
-    const outcome = await act(() => remove({ data: { answer } }));
+    const outcome = await remove.run({ answer });
+    if (!outcome) return;
     setShown(outcome.ok ? <Notice>Answer deleted. It no longer counts in the results.</Notice> : <Notice tone="error">{outcome.message}</Notice>);
   };
 

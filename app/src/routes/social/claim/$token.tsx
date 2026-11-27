@@ -3,7 +3,7 @@ import { SocialLink } from '../../../components/social/SocialLink.tsx';
 import { z } from 'zod';
 import { listOf } from '../../../../../src/lib/format.ts';
 import { pageStatus } from '../../../components/social/status.ts';
-import { useAction } from '../../../components/social/useAction.ts';
+import { useAction } from '../../../components/useAction.ts';
 import { claimNomination, claimPage, declineNomination } from '../../../functions/social-nominations.ts';
 import { socialHref } from '../../../lib/links.ts';
 import { noindex, socialTitle } from '../../../lib/title.ts';
@@ -26,7 +26,7 @@ function Claim() {
   const { token } = Route.useParams();
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const claim = useAction(claimNomination, { refresh: false });
+  const claim = useAction(claimNomination, { refresh: 'never' });
   const decline = useAction(declineNomination);
   const done = search.done === 'declined' && !invitation;
   const confirming = search.confirm === 'decline' || decline.refusal !== null;

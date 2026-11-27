@@ -5,7 +5,8 @@ import { formatDay, formatMonth } from '../../../../../src/lib/format.ts';
 import { CopyLink } from '../../../components/social/CopyLink.tsx';
 import { SocialLink } from '../../../components/social/SocialLink.tsx';
 import { Tick } from '../../../components/social/Tick.tsx';
-import { useAction } from '../../../components/social/useAction.ts';
+import { FieldError } from '../../../components/FieldError.tsx';
+import { useAction } from '../../../components/useAction.ts';
 import {
   approveAccount,
   approveClaim,
@@ -22,7 +23,8 @@ import {
   teamInvite,
   withdrawTeamInvite,
 } from '../../../functions/social-review.ts';
-import type { Outcome } from '../../../lib/outcome.ts';
+import type { Field } from '../../../lib/form.ts';
+import { failureOf, type Outcome } from '../../../lib/outcome.ts';
 import { socialHref, socialSignInHref } from '../../../lib/links.ts';
 import { noindex, socialTitle } from '../../../lib/title.ts';
 
@@ -106,7 +108,7 @@ function Review() {
 
   const settle: Settle = (outcome, decided) => {
     if (!outcome) return;
-    setFailure(outcome.ok || Object.keys(outcome.fields).length ? null : outcome.message);
+    setFailure(failureOf(outcome));
     setDone(outcome.ok ? decided : null);
     if (!outcome.ok) return;
     setInvited(null);
@@ -294,6 +296,8 @@ function Invites({
   onRefused: (message: string | null) => void;
 }) {
   const invite = useAction(teamInvite);
+  const email = invite.field('email', { id: 'invite-email-error' });
+  const name = invite.field('name', { id: 'invite-name-error' });
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -301,7 +305,7 @@ function Invites({
     const fields = new FormData(form);
     const outcome = await invite.run({ email: String(fields.get('email') ?? ''), name: String(fields.get('name') ?? '') });
     if (!outcome) return;
-    if (!outcome.ok) return onRefused(Object.keys(outcome.fields).length ? null : outcome.message);
+    if (!outcome.ok) return onRefused(failureOf(outcome));
     form.reset();
     onInvited(outcome.value);
   };
@@ -318,14 +322,9 @@ function Invites({
             type="email"
             required
             autoComplete="off"
-            aria-invalid={invite.error('email') ? true : undefined}
-            aria-describedby={invite.error('email') ? 'invite-email-error' : undefined}
+            {...email.input}
           />
-          {invite.error('email') && (
-            <span className="error" id="invite-email-error">
-              {invite.error('email')}
-            </span>
-          )}
+          <FieldError field={email} />
         </div>
         <div className="field">
           <label htmlFor="invite-name">Name · optional</label>
@@ -335,14 +334,9 @@ function Invites({
             name="name"
             maxLength={60}
             autoComplete="off"
-            aria-invalid={invite.error('name') ? true : undefined}
-            aria-describedby={invite.error('name') ? 'invite-name-error' : undefined}
+            {...name.input}
           />
-          {invite.error('name') && (
-            <span className="error" id="invite-name-error">
-              {invite.error('name')}
-            </span>
-          )}
+          <FieldError field={name} />
         </div>
         <div className="panel-foot">
           <span className="small">They pick a handle and set a password. Sending again replaces the earlier link.</span>
@@ -570,7 +564,7 @@ function Who({ who }: { who: Person }) {
 interface Rejecter {
   run: (reason: string) => Promise<Outcome<null> | null>;
   busy: boolean;
-  error: string | undefined;
+  reason: (options: { id: string }) => Field;
   form: RefObject<HTMLFormElement | null>;
 }
 
@@ -598,12 +592,12 @@ function Decide({
 }) {
   const [approving, setApproving] = useState(false);
   const reasonId = `reason-${field}-${id}`;
-  const { error } = reject;
+  const reason = reject.reason({ id: `${reasonId}-error` });
 
   const submitReject = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const reason = String(new FormData(event.currentTarget).get('reason') ?? '');
-    settle(await reject.run(reason), 'rejected');
+    const text = String(new FormData(event.currentTarget).get('reason') ?? '');
+    settle(await reject.run(text), 'rejected');
   };
 
   return (
@@ -632,14 +626,9 @@ function Decide({
           rows={2}
           maxLength={CLAIM_LIMITS.reason}
           placeholder={placeholder}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? `${reasonId}-error` : undefined}
+          {...reason.input}
         />
-        {error && (
-          <span className="error" id={`${reasonId}-error`}>
-            {error}
-          </span>
-        )}
+        <FieldError field={reason} />
         <button className="btn sm ghost" type="submit" disabled={approving || reject.busy}>
           Reject<span className="sr-only">: {what}</span>
         </button>
@@ -678,7 +667,7 @@ function AccountItem({ entry, settle }: { entry: Queue['queue']['accounts'][numb
         approveLabel="Proven"
         placeholder="The code was not in the bio."
         approve={() => approve.run({ account: item.id })}
-        reject={{ run: (reason) => reject.run({ account: item.id, reason }), busy: reject.busy, error: reject.error('reason'), form: reject.form }}
+        reject={{ run: (reason) => reject.run({ account: item.id, reason }), busy: reject.busy, reason: (options) => reject.field('reason', options), form: reject.form }}
         settle={settle}
       />
     </li>
@@ -732,7 +721,7 @@ function ClaimItem({ entry, settle }: { entry: Queue['queue']['credentials'][num
         approveLabel="Approve tick"
         placeholder="We could not find you on the register."
         approve={() => approve.run({ claim: item.id })}
-        reject={{ run: (reason) => reject.run({ claim: item.id, reason }), busy: reject.busy, error: reject.error('reason'), form: reject.form }}
+        reject={{ run: (reason) => reject.run({ claim: item.id, reason }), busy: reject.busy, reason: (options) => reject.field('reason', options), form: reject.form }}
         settle={settle}
       />
     </li>

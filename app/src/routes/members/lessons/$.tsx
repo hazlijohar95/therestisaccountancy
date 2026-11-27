@@ -1,8 +1,8 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
-import { useState, type FormEvent } from 'react';
+import { createFileRoute } from '@tanstack/react-router';
+import type { FormEvent } from 'react';
 import { Notice } from '../../../components/club/Notice.tsx';
 import { TemplateList } from '../../../components/members/TemplateList.tsx';
+import { useAction } from '../../../components/useAction.ts';
 import { lessonDone, membersLesson } from '../../../functions/members-learning.ts';
 import { clubTitle } from '../../../lib/title.ts';
 import s from './$.module.css';
@@ -15,15 +15,11 @@ export const Route = createFileRoute('/members/lessons/$')({
 
 function Lesson() {
   const lesson = Route.useLoaderData();
-  const router = useRouter();
-  const mark = useServerFn(lessonDone);
-  const [error, setError] = useState<string | null>(null);
+  const mark = useAction(lessonDone);
 
   const toggle = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const outcome = await mark({ data: { lesson: lesson.id, done: !lesson.done } });
-    setError(outcome.ok ? null : outcome.message);
-    if (outcome.ok) await router.invalidate();
+    await mark.run({ lesson: lesson.id, done: !lesson.done });
   };
 
   return (
@@ -37,7 +33,7 @@ function Lesson() {
           <p className="small">{lesson.minutes} minute read</p>
         </div>
       </section>
-      {error && <Notice tone="error">{error}</Notice>}
+      {mark.refusal && <Notice tone="error">{mark.refusal.message}</Notice>}
       <article className={`wrap ${s.body}`}>
         <div className={s.prose} dangerouslySetInnerHTML={{ __html: lesson.html }} />
         {lesson.templates.length > 0 && (

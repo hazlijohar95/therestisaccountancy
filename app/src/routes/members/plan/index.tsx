@@ -1,13 +1,14 @@
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent } from 'react';
 import { PLAN_ANSWER_MAX, planSections, type PlanSectionSlug } from '../../../../../src/data/plan.ts';
 import { capitalised, formatDay, formatMoment, numberWord } from '../../../../../src/lib/format.ts';
 import { Masthead } from '../../../components/club/Masthead.tsx';
 import { Notice } from '../../../components/club/Notice.tsx';
 import { PlanLetter } from '../../../components/club/PlanLetter.tsx';
+import { FieldError } from '../../../components/FieldError.tsx';
+import { useAction } from '../../../components/useAction.ts';
 import { membersPlan, savePlan, sendPlan, startPlan, takeBackPlan } from '../../../functions/members-plans.ts';
-import type { Outcome } from '../../../lib/outcome.ts';
+import { wireField } from '../../../lib/form.ts';
 import { flags } from '../../../components/members/flags.ts';
 import { clubTitle } from '../../../lib/title.ts';
 import s from './index.module.css';
@@ -23,22 +24,24 @@ export const Route = createFileRoute('/members/plan/')({
   component: PlanPage,
 });
 
-type Failed = Extract<Outcome<unknown>, { ok: false }>;
-
 function PlanPage() {
   const { open, answered } = Route.useLoaderData();
   const search = Route.useSearch();
   const navigate = useNavigate();
   const router = useRouter();
-  const send = { save: useServerFn(savePlan), send: useServerFn(sendPlan), back: useServerFn(takeBackPlan), start: useServerFn(startPlan) };
+  const save = useAction(savePlan, { refresh: 'never' });
+  const send = useAction(sendPlan, { refresh: 'never' });
+  const back = useAction(takeBackPlan, { refresh: 'never' });
+  const start = useAction(startPlan, { refresh: 'never' });
+  /* The four actions share one notice slot, so only the last one's refusal is kept. */
+  const refusal = save.refusal ?? send.refusal ?? back.refusal ?? start.refusal;
   /* A refused save or send keeps what was typed; text not saved because the plan is with the hosts is shown back. */
-  const [refusal, setRefusal] = useState<{ outcome: Failed; posted: Record<string, string> | null } | null>(null);
+  const [posted, setPosted] = useState<Record<string, string> | null>(null);
 
   const latest = answered[0] ?? null;
   const draft = open?.status === 'draft' ? open : null;
-  const posted = refusal?.posted ?? null;
-  const tooLong = refusal !== null && posted !== null && Object.keys(refusal.outcome.fields).length > 0;
-  const failure = refusal && !tooLong ? refusal.outcome.message : null;
+  const tooLong = refusal !== null && posted !== null && Object.keys(refusal.fields).length > 0;
+  const failure = refusal && !tooLong ? refusal.message : null;
   /* An earlier outcome is not repeated over a fresh error. */
   const settled = refusal === null;
   const writing = draft !== null || (open === null && (latest === null || posted !== null));
@@ -54,21 +57,26 @@ function PlanPage() {
 
   const missing = new Set<PlanSectionSlug>(unsent && draft ? draft.missing : []);
   const answerOf = (slug: PlanSectionSlug) => (posted ? (posted[slug] ?? '') : (draft?.answers[slug] ?? ''));
-  const errorOf = (slug: PlanSectionSlug) => (tooLong ? refusal.outcome.fields[slug] : undefined) ?? (missing.has(slug) ? 'Write this section before you send it.' : null);
+  const errorOf = (slug: PlanSectionSlug) => (tooLong ? refusal.fields[slug] : undefined) ?? (missing.has(slug) ? 'Write this section before you send it.' : null);
   const unsaved = open?.status === 'sent' && posted ? planSections.filter((section) => (posted[section.slug] ?? '').trim() !== '') : [];
   const sections = numberWord(planSections.length);
   const written = planSections.length - (draft ? draft.missing.length : planSections.length);
   const progress = written === 0 ? 'No sections written yet.' : `${capitalised(numberWord(written))} of ${sections} sections written.`;
   const number = (i: number) => String(i + 1).padStart(2, '0');
 
+  const clear = (except?: { clear: () => void }) => {
+    for (const action of [save, send, back, start]) if (action !== except) action.clear();
+  };
   /* Each action lands on a plain address, so a refresh never posts twice. */
   const land = async (flag: Flag) => {
-    setRefusal(null);
+    clear();
+    setPosted(null);
     await navigate({ to: '/members/plan', search: { [flag]: true } });
     await router.invalidate();
   };
-  const refuse = async (outcome: Failed, typed: Record<string, string> | null) => {
-    setRefusal({ outcome, posted: typed });
+  const refuse = async (by: { clear: () => void }, typed: Record<string, string> | null) => {
+    clear(by);
+    setPosted(typed);
     await router.invalidate();
   };
 
@@ -78,16 +86,20 @@ function PlanPage() {
     const typed = Object.fromEntries(planSections.map(({ slug }) => [slug, String(form.get(slug) ?? '')]));
     const sending = event.nativeEvent instanceof SubmitEvent && event.nativeEvent.submitter instanceof HTMLButtonElement && event.nativeEvent.submitter.value === 'send';
     if (sending) {
-      const outcome = await send.send({ data: typed });
-      return outcome.ok ? land(outcome.value.sent ? 'sent' : 'unsent') : refuse(outcome, typed);
+      const outcome = await send.run(typed);
+      if (!outcome) return;
+      return outcome.ok ? land(outcome.value.sent ? 'sent' : 'unsent') : refuse(send, typed);
     }
-    const outcome = await send.save({ data: typed });
-    return outcome.ok ? land('saved') : refuse(outcome, typed);
+    const outcome = await save.run(typed);
+    if (!outcome) return;
+    return outcome.ok ? land('saved') : refuse(save, typed);
   };
   const act = (action: 'back' | 'start') => async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const outcome = await (action === 'back' ? send.back() : send.start());
-    return outcome.ok ? land(action === 'back' ? 'back' : 'started') : refuse(outcome, null);
+    const by = action === 'back' ? back : start;
+    const outcome = await by.run(undefined);
+    if (!outcome) return;
+    return outcome.ok ? land(action === 'back' ? 'back' : 'started') : refuse(by, null);
   };
 
   return (
@@ -122,8 +134,8 @@ function PlanPage() {
           <form method="POST" onSubmit={write}>
             <ol className={s.sections}>
               {planSections.map((section, i) => {
-                const error = errorOf(section.slug);
                 const hint = `${section.slug}-hint`;
+                const error = wireField(errorOf(section.slug), { id: `${section.slug}-error`, hint });
                 return (
                   <li key={section.slug} className={s.section}>
                     <label className={s.heading} htmlFor={section.slug}>
@@ -144,14 +156,9 @@ function PlanPage() {
                         rows={7}
                         maxLength={PLAN_ANSWER_MAX}
                         defaultValue={answerOf(section.slug)}
-                        aria-describedby={error ? `${hint} ${section.slug}-error` : hint}
-                        aria-invalid={error ? true : undefined}
+                        {...error.input}
                       />
-                      {error && (
-                        <span className={`error ${s.error}`} id={`${section.slug}-error`}>
-                          {error}
-                        </span>
-                      )}
+                      <FieldError field={error} className={s.error} />
                     </div>
                   </li>
                 );

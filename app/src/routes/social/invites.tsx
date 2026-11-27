@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { INVITE_DAYS, MEMBER_INVITES } from '../../../../src/data/social.ts';
 import { formatDay } from '../../../../src/lib/format.ts';
 import type { InviteState } from '../../../../src/server/social-invites.ts';
-import { useAction } from '../../components/social/useAction.ts';
+import { useAction } from '../../components/useAction.ts';
 import { useCopy } from '../../components/social/useCopy.ts';
 import { createInvite, invitesPage, revokeInvite } from '../../functions/social-invites.ts';
 import { socialHref, socialSignInHref } from '../../lib/links.ts';

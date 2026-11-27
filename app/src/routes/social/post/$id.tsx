@@ -15,9 +15,11 @@ import { PostText } from '../../../components/PostText.tsx';
 import { ReportDialog } from '../../../components/social/ReportDialog.tsx';
 import { pageStatus } from '../../../components/social/status.ts';
 import { UsefulButton } from '../../../components/social/UsefulButton.tsx';
-import { fieldError, useAction } from '../../../components/social/useAction.ts';
+import { FieldError } from '../../../components/FieldError.tsx';
+import { useAction } from '../../../components/useAction.ts';
 import { acceptReply, editFloorPost, editFloorReply, floorReply, removeFloorPost, removeFloorReply, threadPage, unacceptReply } from '../../../functions/social-floor.ts';
 import { socialHref } from '../../../lib/links.ts';
+import { failureOf } from '../../../lib/outcome.ts';
 import { socialTitle } from '../../../lib/title.ts';
 
 export const Route = createFileRoute('/social/post/$id')({
@@ -204,35 +206,28 @@ function EditPost({ post, viewer }: { post: Post; viewer: Viewer }) {
     const outcome = await save.run({ post: post.id, ...draft });
     if (!outcome) return;
     if (!outcome.ok) {
-      if (Object.keys(outcome.fields).length === 0) say({ tone: 'error', text: outcome.message });
+      const message = failureOf(outcome);
+      if (message) say({ tone: 'error', text: message });
       return;
     }
     say(null);
     await navigate({ to: '/social/post/$id', params: { id: String(post.id) }, search: { sort: search.sort } });
   };
-  const title = fieldError(save.refusal, 'title', { id: 'edit-title-error' });
-  const body = fieldError(save.refusal, 'body', { id: 'edit-body-error' });
+  const title = save.field('title', { id: 'edit-title-error' });
+  const body = save.field('body', { id: 'edit-body-error' });
   const rooms = ROOMS.filter((room) => !room.locked || viewer.practitioner);
   return (
     <form className="post edit-form" method="POST" onSubmit={submit} noValidate>
       <h1 className="head">Edit your post</h1>
       <div className="field">
         <label htmlFor="edit-title">Title</label>
-        <input className="input" id="edit-title" name="title" required maxLength={FLOOR_LIMITS.title} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} aria-invalid={title.invalid} aria-describedby={title.describedBy} autoFocus />
-        {title.error && (
-          <span className="error" id={title.errorId}>
-            {title.error}
-          </span>
-        )}
+        <input className="input" id="edit-title" name="title" required maxLength={FLOOR_LIMITS.title} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} {...title.input} autoFocus />
+        <FieldError field={title} />
       </div>
       <div className="field">
         <label htmlFor="edit-body">Details · optional</label>
-        <textarea className="input" id="edit-body" name="body" rows={6} maxLength={FLOOR_LIMITS.body} value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} aria-invalid={body.invalid} aria-describedby={body.describedBy} />
-        {body.error && (
-          <span className="error" id={body.errorId}>
-            {body.error}
-          </span>
-        )}
+        <textarea className="input" id="edit-body" name="body" rows={6} maxLength={FLOOR_LIMITS.body} value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} {...body.input} />
+        <FieldError field={body} />
       </div>
       <div className="row2">
         <div className="field">
@@ -272,7 +267,7 @@ function EditPost({ post, viewer }: { post: Post; viewer: Viewer }) {
 }
 
 function RemovePost({ post }: { post: Post }) {
-  const remove = useAction(removeFloorPost, { refresh: false });
+  const remove = useAction(removeFloorPost, { refresh: 'never' });
   const navigate = useNavigate();
   const say = useSay();
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -406,18 +401,14 @@ function EditReply({ reply, postId }: { reply: ReplyCard; postId: number }) {
     say(null);
     await navigate({ to: '/social/post/$id', params: { id: String(postId) }, search: { sort: search.sort }, hash: `reply-${reply.id}` });
   };
-  const field = fieldError(save.refusal, 'body', { id: `edit-reply-${reply.id}-error` });
+  const field = save.field('body', { id: `edit-reply-${reply.id}-error` });
   return (
     <form className="edit-form" method="POST" onSubmit={submit} noValidate>
       <label className="label-text" htmlFor={`edit-reply-${reply.id}`}>
         Edit your reply
       </label>
-      <textarea className="input" id={`edit-reply-${reply.id}`} name="body" rows={4} maxLength={FLOOR_LIMITS.body} value={body} onChange={(e) => setBody(e.target.value)} aria-invalid={field.invalid} aria-describedby={field.describedBy} autoFocus />
-      {field.error && (
-        <span className="error" id={field.errorId}>
-          {field.error}
-        </span>
-      )}
+      <textarea className="input" id={`edit-reply-${reply.id}`} name="body" rows={4} maxLength={FLOOR_LIMITS.body} value={body} onChange={(e) => setBody(e.target.value)} {...field.input} autoFocus />
+      <FieldError field={field} />
       <div className="actions">
         <SocialLink className="btn sm ghost" to="/social/post/$id" params={{ id: String(postId) }} search={{ sort: search.sort }} hash={`reply-${reply.id}`}>
           Cancel
@@ -451,18 +442,14 @@ function ReplyForm({ post, sealed }: { post: Post; sealed: boolean }) {
     await navigate({ to: '/social/post/$id', params: { id: String(post.id) }, search: { sort: 'new' }, hash: `reply-${outcome.value.id}` });
     document.getElementById(`reply-${outcome.value.id}`)?.scrollIntoView({ block: 'center' });
   };
-  const field = fieldError(send.refusal, 'body', { id: 'reply-body-error' });
+  const field = send.field('body', { id: 'reply-body-error' });
   return (
     <form className="reply-form card" method="POST" onSubmit={submit} noValidate>
       <label htmlFor="reply-body" className="label-text">
         Your reply
       </label>
-      <textarea className="input" id="reply-body" name="body" rows={4} maxLength={FLOOR_LIMITS.body} placeholder="What you’d do, and why." value={body} onChange={(e) => setBody(e.target.value)} aria-invalid={field.invalid} aria-describedby={field.describedBy} />
-      {field.error && (
-        <span className="error" id={field.errorId}>
-          {field.error}
-        </span>
-      )}
+      <textarea className="input" id="reply-body" name="body" rows={4} maxLength={FLOOR_LIMITS.body} placeholder="What you’d do, and why." value={body} onChange={(e) => setBody(e.target.value)} {...field.input} />
+      <FieldError field={field} />
       {sealed && (
         <label className="check">
           <input type="checkbox" name="correction" checked={correction} onChange={(e) => setCorrection(e.target.checked)} />

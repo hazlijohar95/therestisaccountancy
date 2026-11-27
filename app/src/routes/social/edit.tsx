@@ -3,7 +3,8 @@ import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent } from 'react';
 import { HANDLE, JURISDICTIONS, PROFILE_LIMITS, SECTORS, socialHost, TOPICS } from '../../../../src/data/social.ts';
-import { fieldError, useAction } from '../../components/social/useAction.ts';
+import { FieldError } from '../../components/FieldError.tsx';
+import { useAction } from '../../components/useAction.ts';
 import { signOut } from '../../functions/auth.ts';
 import { editPage, saveProfile } from '../../functions/social-profiles.ts';
 import { socialHref, socialSignInHref } from '../../lib/links.ts';
@@ -81,7 +82,7 @@ function ProfileForm({ profile }: { profile: Loaded['profile'] }) {
     creator: profile?.creator ?? false,
     listed: profile?.listed ?? true,
   });
-  const save = useAction(saveProfile, { refresh: false });
+  const save = useAction(saveProfile, { refresh: 'never' });
   const navigate = useNavigate();
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -95,11 +96,10 @@ function ProfileForm({ profile }: { profile: Loaded['profile'] }) {
     }
     await navigate({ to: '/social/@{$handle}', params: { handle: outcome.value.handle } });
   };
-  const refusal = save.refusal;
-  const handle = fieldError(refusal, 'handle', { hint: 'handle-hint' });
-  const headline = fieldError(refusal, 'headline', { hint: 'headline-hint' });
-  const sector = fieldError(refusal, 'sector');
-  const city = fieldError(refusal, 'city');
+  const handle = save.field('handle', { hint: 'handle-hint' });
+  const headline = save.field('headline', { hint: 'headline-hint' });
+  const sector = save.field('sector');
+  const city = save.field('city');
   const failure = save.failure;
   return (
     <form className="panel card" method="POST" onSubmit={submit} noValidate>
@@ -107,34 +107,26 @@ function ProfileForm({ profile }: { profile: Loaded['profile'] }) {
         <div className="field">
           <label htmlFor="handle">Handle</label>
           <div className="prefix">
-            <input className="input" id="handle" name="handle" required minLength={HANDLE.min} maxLength={HANDLE.max} autoCapitalize="none" spellCheck={false} value={form.handle} onChange={(e) => setForm({ ...form, handle: e.target.value })} aria-invalid={handle.invalid} aria-describedby={handle.describedBy} />
+            <input className="input" id="handle" name="handle" required minLength={HANDLE.min} maxLength={HANDLE.max} autoCapitalize="none" spellCheck={false} value={form.handle} onChange={(e) => setForm({ ...form, handle: e.target.value })} {...handle.input} />
           </div>
           <span className="hint" id="handle-hint">
             {HANDLE.min} to {HANDLE.max} lowercase letters, digits or underscores. Your page is {socialHost}/@handle. You cannot change it later.
           </span>
-          {handle.error && (
-            <span className="error" id={handle.errorId}>
-              {handle.error}
-            </span>
-          )}
+          <FieldError field={handle} />
         </div>
       )}
       <div className="field">
         <label htmlFor="headline">Headline</label>
-        <textarea className="input" id="headline" name="headline" rows={2} maxLength={PROFILE_LIMITS.headline} placeholder="Tax agent. Explains Malaysian tax one case at a time." value={form.headline} onChange={(e) => setForm({ ...form, headline: e.target.value })} aria-invalid={headline.invalid} aria-describedby={headline.describedBy} />
+        <textarea className="input" id="headline" name="headline" rows={2} maxLength={PROFILE_LIMITS.headline} placeholder="Tax agent. Explains Malaysian tax one case at a time." value={form.headline} onChange={(e) => setForm({ ...form, headline: e.target.value })} {...headline.input} />
         <span className="hint" id="headline-hint">
           Up to {PROFILE_LIMITS.headline} characters. One line on what you post about.
         </span>
-        {headline.error && (
-          <span className="error" id={headline.errorId}>
-            {headline.error}
-          </span>
-        )}
+        <FieldError field={headline} />
       </div>
       <div className="row2">
         <div className="field">
           <label htmlFor="sector">Where you work</label>
-          <select className="input" id="sector" name="sector" value={form.sector} onChange={(e) => setForm({ ...form, sector: SECTORS.find((s) => s === e.target.value) ?? '' })} aria-invalid={sector.invalid} aria-describedby={sector.describedBy}>
+          <select className="input" id="sector" name="sector" value={form.sector} onChange={(e) => setForm({ ...form, sector: SECTORS.find((s) => s === e.target.value) ?? '' })} {...sector.input}>
             <option value="">Not saying</option>
             {SECTORS.map((value) => (
               <option key={value} value={value}>
@@ -142,20 +134,12 @@ function ProfileForm({ profile }: { profile: Loaded['profile'] }) {
               </option>
             ))}
           </select>
-          {sector.error && (
-            <span className="error" id={sector.errorId}>
-              {sector.error}
-            </span>
-          )}
+          <FieldError field={sector} />
         </div>
         <div className="field">
           <label htmlFor="city">City</label>
-          <input className="input" id="city" name="city" maxLength={PROFILE_LIMITS.city} autoComplete="address-level2" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} aria-invalid={city.invalid} aria-describedby={city.describedBy} />
-          {city.error && (
-            <span className="error" id={city.errorId}>
-              {city.error}
-            </span>
-          )}
+          <input className="input" id="city" name="city" maxLength={PROFILE_LIMITS.city} autoComplete="address-level2" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} {...city.input} />
+          <FieldError field={city} />
         </div>
       </div>
       <fieldset className="plain-fieldset">

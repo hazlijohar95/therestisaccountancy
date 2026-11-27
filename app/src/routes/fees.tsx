@@ -1,12 +1,13 @@
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, type FormEvent } from 'react';
 import { confidence, FEE_FIGURES, feeChoices, feeFigures, feeState, GROUP_MIN, PUBLISH_MIN, standardClient, type ChoiceKey } from '../../../src/data/fees.ts';
 import { capitalised, formatDay, numberWord } from '../../../src/lib/format.ts';
 import type { Edition, Spread } from '../../../src/server/fees.ts';
 import { Page } from '../components/club/Page.tsx';
 import { PageHead } from '../components/club/PageHead.tsx';
+import { FieldError } from '../components/FieldError.tsx';
 import { Section } from '../components/public/Section.tsx';
+import { useAction } from '../components/useAction.ts';
 import { answerFeeSurvey, feesPage } from '../functions/public-fees.ts';
 import { linkTextParam } from '../lib/search-params.ts';
 import { clubTitle } from '../lib/title.ts';
@@ -42,11 +43,6 @@ const soFar = (e: Edition) =>
     : `${capitalised(e.responses === 1 ? 'one person has' : `${numberWord(e.responses)} people have`)} answered the ${e.edition} survey so far.`;
 const until = (e: Edition) => (e.responses >= PUBLISH_MIN ? `once ${hostFirstName} has read every answer` : `once ${PUBLISH_MIN} have answered and ${hostFirstName} has read every answer`);
 const practice: readonly ChoiceKey[] = ['stage', 'years', 'team', 'niche', 'pricing'];
-
-interface Failure {
-  readonly message: string;
-  readonly fields: Readonly<Record<string, string>>;
-}
 
 function Fees() {
   const { current, report, otherYears } = Route.useLoaderData();
@@ -233,33 +229,30 @@ function Fees() {
 }
 
 function Survey({ current, showSoFar }: { current: Edition; showSoFar: boolean }) {
-  const send = useServerFn(answerFeeSurvey);
+  const send = useAction(answerFeeSurvey, { refresh: 'never' });
   const navigate = useNavigate();
   const router = useRouter();
-  const [failure, setFailure] = useState<Failure | null>(null);
-  const [busy, setBusy] = useState(false);
+  const { refusal } = send;
   const form = useRef<HTMLFormElement>(null);
-  const errorOf = (name: string) => failure?.fields[name];
-  /* A refusal about the fields shows beside them; any other, such as a closed survey, shows at the top of the form. */
-  const general = failure && Object.keys(failure.fields).length === 0 ? failure.message : null;
+  const state = send.field('state');
+  const feesError = send.field('fees');
+  const confidenceField = send.field('confidence', { hint: 'confidence-hint' });
 
   useEffect(() => {
-    if (!failure) return;
+    if (!refusal) return;
     const first = form.current?.querySelector<HTMLElement>(`.${s.error}`);
     /* The fees' shared error sits above the three fee fields, so it takes the first of them. */
-    const control = first?.closest('fieldset, .field')?.querySelector<HTMLElement>('input, select') ?? (failure.fields['fees'] ? form.current?.querySelector<HTMLElement>('#hourly') : null);
+    const control = first?.closest('fieldset, .field')?.querySelector<HTMLElement>('input, select') ?? (refusal.fields['fees'] ? form.current?.querySelector<HTMLElement>('#hourly') : null);
     (control ?? first)?.scrollIntoView({ block: 'center' });
     control?.focus({ preventScroll: true });
-  }, [failure]);
+  }, [refusal]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const fields: Record<string, string> = {};
     for (const [name, value] of new FormData(event.currentTarget)) if (typeof value === 'string') fields[name] = value;
-    setBusy(true);
-    const outcome = await send({ data: fields });
-    setBusy(false);
-    if (!outcome.ok) return setFailure(outcome);
+    const outcome = await send.run(fields);
+    if (!outcome?.ok) return;
     await navigate({ to: '/fees', search: { answered: true }, hash: 'answer' });
     /* The count in the thanks includes this answer. */
     await router.invalidate();
@@ -268,18 +261,18 @@ function Survey({ current, showSoFar }: { current: Edition; showSoFar: boolean }
   return (
     <form ref={form} method="POST" className={s.survey} onSubmit={submit}>
       {showSoFar && <p className="small">{soFar(current)}</p>}
-      {general && (
+      {send.failure && (
         <p className={`error ${s.error}`} role="alert">
-          {general}
+          {send.failure}
         </p>
       )}
 
       <div className={s.part}>
         <h3 className="label">Your practice</h3>
         {practice.map((key) => {
-          const error = errorOf(key);
+          const answer = send.field(key);
           return (
-            <fieldset key={key} className={s.choice} aria-describedby={error ? `${key}-error` : undefined}>
+            <fieldset key={key} className={s.choice} aria-describedby={answer.input['aria-describedby']}>
               <legend>{feeChoices[key].label}</legend>
               <div className={s.options}>
                 {feeChoices[key].options.map((o) => (
@@ -289,17 +282,13 @@ function Survey({ current, showSoFar }: { current: Edition; showSoFar: boolean }
                   </label>
                 ))}
               </div>
-              {error && (
-                <span className={`error ${s.error}`} id={`${key}-error`}>
-                  {error}
-                </span>
-              )}
+              <FieldError field={answer} className={s.error} />
             </fieldset>
           );
         })}
         <div className="field">
           <label htmlFor="state">{feeState.label}</label>
-          <select className="input" id="state" name="state" required defaultValue="" aria-invalid={errorOf('state') ? true : undefined} aria-describedby={errorOf('state') ? 'state-error' : undefined}>
+          <select className="input" id="state" name="state" required defaultValue="" {...state.input}>
             <option value="" disabled>
               Choose a state
             </option>
@@ -307,11 +296,7 @@ function Survey({ current, showSoFar }: { current: Edition; showSoFar: boolean }
               <option key={state}>{state}</option>
             ))}
           </select>
-          {errorOf('state') && (
-            <span className={`error ${s.error}`} id="state-error">
-              {errorOf('state')}
-            </span>
-          )}
+          <FieldError field={state} className={s.error} />
         </div>
       </div>
 
@@ -321,15 +306,15 @@ function Survey({ current, showSoFar }: { current: Edition; showSoFar: boolean }
           <p className="label">The client</p>
           <p>{standardClient}</p>
           <p className="small">Answer each fee for this client, so every answer is about the same work. Leave out any you do not charge, but give at least one.</p>
-          {errorOf('fees') && (
+          {feesError.error && (
             <p className={`error ${s.error}`} role="alert">
-              {errorOf('fees')}
+              {feesError.error}
             </p>
           )}
         </div>
         {FEE_FIGURES.map((figure) => {
           const copy = feeFigures[figure];
-          const error = errorOf(figure);
+          const fee = send.field(figure, { hint: `${figure}-hint` });
           return (
             <div key={figure} className="field">
               <label htmlFor={figure}>{copy.question}</label>
@@ -343,22 +328,18 @@ function Survey({ current, showSoFar }: { current: Edition; showSoFar: boolean }
                   min={copy.min}
                   max={copy.max}
                   step="1"
-                  aria-describedby={error ? `${figure}-hint ${figure}-error` : `${figure}-hint`}
-                  aria-invalid={error ? true : undefined}
+                  aria-describedby={fee.input['aria-describedby']}
+                  aria-invalid={fee.input['aria-invalid']}
                 />
               </div>
               <span className="hint" id={`${figure}-hint`}>
                 {copy.hint}
               </span>
-              {error && (
-                <span className={`error ${s.error}`} id={`${figure}-error`}>
-                  {error}
-                </span>
-              )}
+              <FieldError field={fee} className={s.error} />
             </div>
           );
         })}
-        <fieldset className={s.choice} aria-describedby={errorOf('confidence') ? 'confidence-hint confidence-error' : 'confidence-hint'}>
+        <fieldset className={s.choice} aria-describedby={confidenceField.input['aria-describedby']}>
           <legend>{confidence.label}</legend>
           <span className="hint" id="confidence-hint">
             {confidence.hint}
@@ -371,11 +352,7 @@ function Survey({ current, showSoFar }: { current: Edition; showSoFar: boolean }
               </label>
             ))}
           </div>
-          {errorOf('confidence') && (
-            <span className={`error ${s.error}`} id="confidence-error">
-              {errorOf('confidence')}
-            </span>
-          )}
+          <FieldError field={confidenceField} className={s.error} />
         </fieldset>
       </div>
 
@@ -383,7 +360,7 @@ function Survey({ current, showSoFar }: { current: Edition; showSoFar: boolean }
         <label htmlFor="fees-trap">Leave this empty</label>
         <input id="fees-trap" name="trap" type="text" tabIndex={-1} autoComplete="off" data-1p-ignore data-lpignore="true" />
       </div>
-      <button className="btn" type="submit" disabled={busy}>
+      <button className="btn" type="submit" disabled={send.busy}>
         Send my answers
       </button>
     </form>

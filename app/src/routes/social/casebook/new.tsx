@@ -4,9 +4,11 @@ import { AREAS, BANDS, CASEBOOK_LIMITS, EMPLOYER_KINDS, ENGAGEMENT_ROLES, FRAMEW
 import { identifying } from '../../../../../src/lib/guard.ts';
 import { SocialLink } from '../../../components/social/SocialLink.tsx';
 import { Tick } from '../../../components/social/Tick.tsx';
-import { useAction } from '../../../components/social/useAction.ts';
+import { FieldError } from '../../../components/FieldError.tsx';
+import { useAction } from '../../../components/useAction.ts';
 import { addEntry, addRole, casebookPage, removeEntry, removeRole } from '../../../functions/social-casebook.ts';
 import { socialSignInHref } from '../../../lib/links.ts';
+import { failureOf } from '../../../lib/outcome.ts';
 import { noindex, socialTitle } from '../../../lib/title.ts';
 
 const COSIGN_LINE = { pending: 'Waiting on', signed: 'Co-signed by', declined: 'Declined by' } as const;
@@ -159,6 +161,7 @@ function Casebook() {
 
 function EntryForm({ years, onDone, onRefused }: { years: string[]; onDone: () => void; onRefused: (message: string | null) => void }) {
   const add = useAction(addEntry);
+  const note = add.field('note');
   const blank: Draft = {
     service: SERVICES[0],
     industry: INDUSTRIES[0],
@@ -188,7 +191,7 @@ function EntryForm({ years, onDone, onRefused }: { years: string[]; onDone: () =
     const form = event.currentTarget;
     const outcome = await add.run(draftOf(form));
     if (!outcome) return;
-    if (!outcome.ok) return onRefused(Object.keys(outcome.fields).length ? null : outcome.message);
+    if (!outcome.ok) return onRefused(failureOf(outcome));
     form.reset();
     setDraft(blank);
     onDone();
@@ -231,7 +234,7 @@ function EntryForm({ years, onDone, onRefused }: { years: string[]; onDone: () =
             maxLength={CASEBOOK_LIMITS.note}
             placeholder="Pushed back on a stock provision that relied on one supplier quote."
             aria-describedby="e-guard"
-            aria-invalid={warnings.length || add.error('note') ? true : undefined}
+            aria-invalid={warnings.length || note.error ? true : undefined}
           />
           <div className="guard" id="e-guard" aria-live="polite">
             {warnings.length ? (
@@ -296,6 +299,9 @@ function EntryForm({ years, onDone, onRefused }: { years: string[]; onDone: () =
 
 function RoleForm({ thisYear, onDone, onRefused }: { thisYear: number; onDone: () => void; onRefused: (message: string | null) => void }) {
   const add = useAction(addRole);
+  const title = add.field('title', { id: 'r-title-error' });
+  const from = add.field('from', { id: 'r-from-error' });
+  const to = add.field('to', { id: 'r-to-error' });
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -303,7 +309,7 @@ function RoleForm({ thisYear, onDone, onRefused }: { thisYear: number; onDone: (
     const one = (name: string) => String(data.get(name) ?? '');
     const outcome = await add.run({ from: one('from'), to: one('to'), title: one('title'), employer: one('employer') });
     if (!outcome) return;
-    if (!outcome.ok) return onRefused(Object.keys(outcome.fields).length ? null : outcome.message);
+    if (!outcome.ok) return onRefused(failureOf(outcome));
     form.reset();
     onDone();
   };
@@ -319,14 +325,9 @@ function RoleForm({ thisYear, onDone, onRefused }: { thisYear: number; onDone: (
             name="title"
             maxLength={ROLE_LIMITS.title}
             placeholder="Audit senior to manager"
-            aria-invalid={add.error('title') ? true : undefined}
-            aria-describedby={add.error('title') ? 'r-title-error' : undefined}
+            {...title.input}
           />
-          {add.error('title') && (
-            <span className="error" id="r-title-error">
-              {add.error('title')}
-            </span>
-          )}
+          <FieldError field={title} />
         </div>
         <div className="field">
           <label htmlFor="r-employer">Kind of employer</label>
@@ -346,14 +347,9 @@ function RoleForm({ thisYear, onDone, onRefused }: { thisYear: number; onDone: (
             min={ROLE_LIMITS.earliest}
             max={thisYear}
             placeholder={String(thisYear - 3)}
-            aria-invalid={add.error('from') ? true : undefined}
-            aria-describedby={add.error('from') ? 'r-from-error' : undefined}
+            {...from.input}
           />
-          {add.error('from') && (
-            <span className="error" id="r-from-error">
-              {add.error('from')}
-            </span>
-          )}
+          <FieldError field={from} />
         </div>
         <div className="field">
           <label htmlFor="r-to">To · blank if you are still there</label>
@@ -364,14 +360,9 @@ function RoleForm({ thisYear, onDone, onRefused }: { thisYear: number; onDone: (
             inputMode="numeric"
             min={ROLE_LIMITS.earliest}
             max={thisYear}
-            aria-invalid={add.error('to') ? true : undefined}
-            aria-describedby={add.error('to') ? 'r-to-error' : undefined}
+            {...to.input}
           />
-          {add.error('to') && (
-            <span className="error" id="r-to-error">
-              {add.error('to')}
-            </span>
-          )}
+          <FieldError field={to} />
         </div>
       </div>
       <div className="panel-foot">

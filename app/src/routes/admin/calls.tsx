@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { useActing } from '../../components/admin/acting.ts';
-import { errorAttributes, FieldError, type Fields } from '../../components/admin/FieldError.tsx';
+import { FieldError } from '../../components/FieldError.tsx';
+import { useAction } from '../../components/useAction.ts';
 import { Masthead } from '../../components/club/Masthead.tsx';
 import { Notice } from '../../components/club/Notice.tsx';
 import { adminCalls, cancelSlot, openSlot, type SlotForm } from '../../functions/admin-calls.ts';
+import { failureOf } from '../../lib/outcome.ts';
 import { clubTitle } from '../../lib/title.ts';
 import s from './calls.module.css';
 
@@ -17,26 +17,30 @@ export const Route = createFileRoute('/admin/calls')({
 
 function Calls() {
   const { slots, lastLink, today, minutes } = Route.useLoaderData();
-  const open = useServerFn(openSlot);
-  const cancel = useServerFn(cancelSlot);
-  const { busy, act } = useActing();
+  const open = useAction(openSlot, { refresh: 'always' });
+  const cancel = useAction(cancelSlot, { refresh: 'always' });
+  const busy = open.busy || cancel.busy;
   const [shown, setShown] = useState<ReactNode>(null);
-  const [errors, setErrors] = useState<Fields>({});
+  const date = open.field('date');
+  const time = open.field('time');
+  const lengthField = open.field('minutes');
+  const link = open.field('link');
 
   const onOpen = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
     const posted = new FormData(form);
     const field = (name: keyof SlotForm) => String(posted.get(name) ?? '');
-    const outcome = await act(() => open({ data: { date: field('date'), time: field('time'), minutes: field('minutes'), link: field('link') } }));
-    setErrors(outcome.ok ? {} : outcome.fields);
-    if (!outcome.ok) return setShown(Object.keys(outcome.fields).length ? null : <Notice tone="error">{outcome.message}</Notice>);
+    const outcome = await open.run({ date: field('date'), time: field('time'), minutes: field('minutes'), link: field('link') });
+    if (!outcome) return;
+    if (!outcome.ok) return setShown(failureOf(outcome) && <Notice tone="error">{outcome.message}</Notice>);
     form.reset();
     setShown(<Notice>Slot opened. Members can book it now.</Notice>);
   };
 
   const onCancel = async (slot: number) => {
-    const outcome = await act(() => cancel({ data: { slot } }));
+    const outcome = await cancel.run({ slot });
+    if (!outcome) return;
     setShown(outcome.ok ? <Notice>Slot cancelled. {outcome.value ? `${outcome.value} has been emailed.` : 'Nobody had booked it.'}</Notice> : <Notice tone="error">{outcome.message}</Notice>);
   };
 
@@ -109,28 +113,28 @@ function Calls() {
           <div className={s.pair}>
             <div className="field">
               <label htmlFor="date">Date</label>
-              <input className="input" id="date" name="date" type="date" min={today} required {...errorAttributes(errors, 'date')} />
-              <FieldError errors={errors} name="date" className={s.error} />
+              <input className="input" id="date" name="date" type="date" min={today} required {...date.input} />
+              <FieldError field={date} className={s.error} />
             </div>
             <div className="field">
               <label htmlFor="time">Start, Malaysia time</label>
-              <input className="input" id="time" name="time" type="time" required {...errorAttributes(errors, 'time')} />
-              <FieldError errors={errors} name="time" className={s.error} />
+              <input className="input" id="time" name="time" type="time" required {...time.input} />
+              <FieldError field={time} className={s.error} />
             </div>
           </div>
           <div className="field">
             <label htmlFor="minutes">Length in minutes</label>
-            <input className="input" id="minutes" name="minutes" type="number" min={minutes.min} max={minutes.max} step="5" required defaultValue="30" {...errorAttributes(errors, 'minutes')} />
+            <input className="input" id="minutes" name="minutes" type="number" min={minutes.min} max={minutes.max} step="5" required defaultValue="30" {...lengthField.input} />
             <span className="hint">
               Between {minutes.min} and {minutes.max}.
             </span>
-            <FieldError errors={errors} name="minutes" className={s.error} />
+            <FieldError field={lengthField} className={s.error} />
           </div>
           <div className="field">
             <label htmlFor="link">Call link</label>
-            <input className="input" id="link" name="link" type="url" placeholder="https://" required defaultValue={lastLink} {...errorAttributes(errors, 'link')} />
+            <input className="input" id="link" name="link" type="url" placeholder="https://" required defaultValue={lastLink} {...link.input} />
             <span className="hint">Only the member who books it sees it. Filled in with the link you used last.</span>
-            <FieldError errors={errors} name="link" className={s.error} />
+            <FieldError field={link} className={s.error} />
           </div>
           <button className="btn" type="submit" disabled={busy}>
             Open the slot

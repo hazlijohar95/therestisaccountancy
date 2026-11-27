@@ -1,6 +1,6 @@
 import { markUseful, unmarkUseful } from '../../functions/social-floor.ts';
 import { useSay } from './Notice.tsx';
-import { useAction } from './useAction.ts';
+import { useAction } from '../useAction.ts';
 
 /** The useful mark on a post or reply. A button for a signed-in reader who did not write it; a count for everyone else. */
 export function UsefulButton({ target, id, useful, pressed, canMark }: { target: 'post' | 'reply'; id: number; useful: number; pressed: boolean; canMark: boolean }) {

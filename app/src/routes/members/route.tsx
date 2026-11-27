@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
 import { needsPayment } from '../../../../src/server/paths.ts';
 import { MembersLayout } from '../../components/club/MembersLayout.tsx';
 import { gate } from '../../functions/gate.ts';
-import { clubAway } from '../../lib/access.ts';
+import { clubAway, decideDirect } from '../../lib/access.ts';
 import { noindex } from '../../lib/title.ts';
 
 /*
@@ -10,9 +10,12 @@ import { noindex } from '../../lib/title.ts';
  * Each page's server function checks again, since it can be called without this route.
  */
 export const Route = createFileRoute('/members')({
-  beforeLoad: async ({ location }) => {
-    const denial = await gate({ data: needsPayment(location.pathname) ? 'paid' : 'member' });
-    if (denial) throw redirect({ href: clubAway[denial](location.pathname + location.searchStr) });
+  beforeLoad: async ({ context, location }) => {
+    const here = location.pathname + location.searchStr;
+    const signedIn = decideDirect('member', context.member);
+    if (!signedIn.ok) throw redirect({ href: clubAway[signedIn.denial](here) });
+    const denial = needsPayment(location.pathname) ? await gate({ data: 'paid' }) : null;
+    if (denial) throw redirect({ href: clubAway[denial](here) });
   },
   head: () => ({ meta: [noindex] }),
   component: Members,

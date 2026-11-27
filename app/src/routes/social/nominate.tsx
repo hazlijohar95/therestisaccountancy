@@ -3,7 +3,8 @@ import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { useState, type FormEvent } from 'react';
 import { accountHandle, CLAIM_LIMITS, PLATFORMS, TOPICS, type Platform, type Topic } from '../../../../src/data/social.ts';
 import { Tick } from '../../components/social/Tick.tsx';
-import { fieldError, useAction } from '../../components/social/useAction.ts';
+import { FieldError } from '../../components/FieldError.tsx';
+import { useAction } from '../../components/useAction.ts';
 import { nominate, nominatePage } from '../../functions/social-nominations.ts';
 import { socialHref, socialSignInHref } from '../../lib/links.ts';
 import { socialTitle } from '../../lib/title.ts';
@@ -19,7 +20,7 @@ function Nominate() {
   const { signedIn } = Route.useLoaderData();
   const [form, setForm] = useState<{ platform: Platform; handle: string; topics: readonly Topic[]; whyUrl: string }>({ platform: 'LinkedIn', handle: '', topics: [], whyUrl: '' });
   const [listed, setListed] = useState<string | null>(null);
-  const send = useAction(nominate, { refresh: false });
+  const send = useAction(nominate, { refresh: 'never' });
   const navigate = useNavigate();
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -34,10 +35,9 @@ function Nominate() {
     /* A new nomination and a counted one read the same, so the address never tells a member that someone else nominated. */
     await navigate({ to: '/social/list', search: { nominated: outcome.value.outcome } });
   };
-  const refusal = send.refusal;
-  const platform = fieldError(refusal, 'platform', { id: 'nominate-platform-error' });
-  const handle = fieldError(refusal, 'handle', { id: 'nominate-handle-error', hint: 'nominate-handle-hint' });
-  const whyUrl = fieldError(refusal, 'whyUrl', { id: 'nominate-whyUrl-error' });
+  const platform = send.field('platform', { id: 'nominate-platform-error' });
+  const handle = send.field('handle', { id: 'nominate-handle-error', hint: 'nominate-handle-hint' });
+  const whyUrl = send.field('whyUrl', { id: 'nominate-whyUrl-error' });
   const failure = send.failure;
 
   return (
@@ -62,15 +62,11 @@ function Nominate() {
                   </label>
                 ))}
               </div>
-              {platform.error && (
-                <span className="error" id={platform.errorId}>
-                  {platform.error}
-                </span>
-              )}
+              <FieldError field={platform} />
             </fieldset>
             <div className="field">
               <label htmlFor="nominate-handle">Their handle</label>
-              <input className="input" id="nominate-handle" name="handle" required autoComplete="off" autoCapitalize="none" spellCheck={false} placeholder="@taxwithtan" value={form.handle} onChange={(e) => setForm({ ...form, handle: e.target.value })} aria-invalid={handle.invalid} aria-describedby={handle.describedBy} />
+              <input className="input" id="nominate-handle" name="handle" required autoComplete="off" autoCapitalize="none" spellCheck={false} placeholder="@taxwithtan" value={form.handle} onChange={(e) => setForm({ ...form, handle: e.target.value })} {...handle.input} />
               <span className="hint" id="nominate-handle-hint">
                 The handle, or paste their profile’s address.
               </span>
@@ -101,12 +97,8 @@ function Nominate() {
             </fieldset>
             <div className="field">
               <label htmlFor="nominate-why">One post that convinced you · optional</label>
-              <input className="input" id="nominate-why" name="whyUrl" type="url" inputMode="url" maxLength={CLAIM_LIMITS.url} placeholder="Paste a link" value={form.whyUrl} onChange={(e) => setForm({ ...form, whyUrl: e.target.value })} aria-invalid={whyUrl.invalid} aria-describedby={whyUrl.describedBy} />
-              {whyUrl.error && (
-                <span className="error" id={whyUrl.errorId}>
-                  {whyUrl.error}
-                </span>
-              )}
+              <input className="input" id="nominate-why" name="whyUrl" type="url" inputMode="url" maxLength={CLAIM_LIMITS.url} placeholder="Paste a link" value={form.whyUrl} onChange={(e) => setForm({ ...form, whyUrl: e.target.value })} {...whyUrl.input} />
+              <FieldError field={whyUrl} />
             </div>
             {failure && (
               <p className="error" role="alert">

@@ -1,8 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { LINK_DAYS, type LinkPurpose } from '../../../src/data/links.ts';
 import { Page } from '../components/club/Page.tsx';
+import { FieldError } from '../components/FieldError.tsx';
+import { useAction } from '../components/useAction.ts';
 import { passwordLink, setPassword } from '../functions/public-account.ts';
 import { socialHref } from '../lib/links.ts';
 import { linkTextParam } from '../lib/search-params.ts';
@@ -32,24 +33,18 @@ export const Route = createFileRoute('/welcome')({
   component: Welcome,
 });
 
-interface Failure {
-  readonly message: string;
-  readonly fields: Readonly<Record<string, string>>;
-}
-
 function Welcome() {
   const { holder, minLength } = Route.useLoaderData();
   const token = Route.useSearch().token ?? '';
-  const send = useServerFn(setPassword);
-  const [failure, setFailure] = useState<Failure | null>(null);
-  const [busy, setBusy] = useState(false);
+  const send = useAction(setPassword, { refresh: 'never' });
+  const [leaving, setLeaving] = useState(false);
   const password = useRef<HTMLInputElement>(null);
   const confirm = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (failure?.fields['password']) password.current?.focus();
-    else if (failure?.fields['confirm']) confirm.current?.focus();
-  }, [failure]);
+    if (send.refusal?.fields['password']) password.current?.focus();
+    else if (send.refusal?.fields['confirm']) confirm.current?.focus();
+  }, [send.refusal]);
 
   if (!holder) {
     return (
@@ -72,20 +67,15 @@ function Welcome() {
   }
 
   const text = copy[holder.purpose];
-  const passwordError = failure?.fields['password'];
-  const confirmError = failure?.fields['confirm'];
-  /* A refusal about the fields shows beside them; any other, such as a spent link, shows under the form. */
-  const error = failure && Object.keys(failure.fields).length === 0 ? failure.message : null;
+  const passwordField = send.field('password', { hint: 'password-hint' });
+  const confirmField = send.field('confirm');
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    setBusy(true);
-    const outcome = await send({ data: { token, password: String(form.get('password') ?? ''), confirm: String(form.get('confirm') ?? '') } });
-    if (!outcome.ok) {
-      setBusy(false);
-      return setFailure(outcome);
-    }
+    const outcome = await send.run({ token, password: String(form.get('password') ?? ''), confirm: String(form.get('confirm') ?? '') });
+    if (!outcome?.ok) return;
+    setLeaving(true);
     /* Someone only on the social site goes back there, not to the club's members' area and its payment page. A full load, so every part of the page sees the new session. */
     window.location.assign(outcome.value.clubApproved ? `/members?${outcome.value.purpose}` : socialHref('/me'));
   };
@@ -115,17 +105,12 @@ function Welcome() {
                 autoComplete="new-password"
                 minLength={minLength}
                 required
-                aria-invalid={passwordError ? true : undefined}
-                aria-describedby={passwordError ? 'password-hint password-error' : 'password-hint'}
+                {...passwordField.input}
               />
               <span className="hint" id="password-hint">
                 At least {minLength} characters. A short sentence works well.
               </span>
-              {passwordError && (
-                <span className={`error ${s.error}`} id="password-error">
-                  {passwordError}
-                </span>
-              )}
+              <FieldError field={passwordField} className={s.error} />
             </div>
             <div className="field">
               <label htmlFor="confirm">The same password again</label>
@@ -137,21 +122,16 @@ function Welcome() {
                 type="password"
                 autoComplete="new-password"
                 required
-                aria-invalid={confirmError ? true : undefined}
-                aria-describedby={confirmError ? 'confirm-error' : undefined}
+                {...confirmField.input}
               />
-              {confirmError && (
-                <span className={`error ${s.error}`} id="confirm-error">
-                  {confirmError}
-                </span>
-              )}
+              <FieldError field={confirmField} className={s.error} />
             </div>
-            {error && (
+            {send.failure && (
               <p className={`error ${s.error}`} role="alert">
-                {error}
+                {send.failure}
               </p>
             )}
-            <button className="btn" type="submit" disabled={busy}>
+            <button className="btn" type="submit" disabled={send.busy || leaving}>
               {text.submit}
             </button>
           </form>

@@ -1,13 +1,13 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
+import { createFileRoute } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { anyTerm, everyRate, TERMS, terms } from '../../../../src/data/membership.ts';
 import { formatDay } from '../../../../src/lib/format.ts';
 import { Masthead } from '../../components/club/Masthead.tsx';
+import { FieldError } from '../../components/FieldError.tsx';
+import { useAction } from '../../components/useAction.ts';
 import { changePassword, membersAccount, setEmailPrefs } from '../../functions/members-account.ts';
 import { setRenews } from '../../functions/members-billing.ts';
 import { formText } from '../../lib/form.ts';
-import type { Outcome } from '../../lib/outcome.ts';
 import { clubTitle } from '../../lib/title.ts';
 import s from './account.module.css';
 
@@ -19,13 +19,14 @@ export const Route = createFileRoute('/members/account')({
 
 function Account() {
   const { member, standing, prefs, minPassword: MIN_PASSWORD_LENGTH } = Route.useLoaderData();
-  const router = useRouter();
-  const sendRenews = useServerFn(setRenews);
-  const sendPrefs = useServerFn(setEmailPrefs);
-  const sendPassword = useServerFn(changePassword);
-  const [renewal, setRenewal] = useState<Outcome<{ renews: boolean }> | null>(null);
-  const [saved, setSaved] = useState<Outcome<unknown> | null>(null);
-  const [password, setPassword] = useState<Outcome<null> | null>(null);
+  const renews = useAction(setRenews, { refresh: 'always' });
+  const prefsForm = useAction(setEmailPrefs, { refresh: 'never' });
+  const passwordForm = useAction(changePassword, { refresh: 'never' });
+  const [renewal, setRenewal] = useState<{ renews: boolean } | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [changed, setChanged] = useState(false);
+  const newPassword = passwordForm.field('password', { hint: 'password-hint' });
+  const confirm = passwordForm.field('confirm');
 
   const until = standing?.paidUntil ? formatDay(standing.paidUntil) : null;
   const plan = !standing
@@ -51,27 +52,28 @@ function Account() {
     { term: 'Member number', detail: member.number },
     { term: 'Member since', detail: formatDay(member.joinedAt) },
   ];
-  const fieldErrors = password && !password.ok ? password.fields : {};
-  const passwordError = password && !password.ok && Object.keys(password.fields).length === 0 ? password.message : null;
 
   const toggleRenewal = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!standing) return;
-    const outcome = await sendRenews({ data: { renews: !standing.renews } });
-    setRenewal(outcome);
-    await router.invalidate();
+    const outcome = await renews.run({ renews: !standing.renews });
+    if (!outcome) return;
+    setRenewal(outcome.ok ? outcome.value : null);
   };
   const savePrefs = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    setSaved(await sendPrefs({ data: { replies: form.has('replies'), digest: form.has('digest') } }));
+    const outcome = await prefsForm.run({ replies: form.has('replies'), digest: form.has('digest') });
+    if (!outcome) return;
+    setSaved(outcome.ok);
   };
   const savePassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const element = event.currentTarget;
     const form = new FormData(element);
-    const outcome = await sendPassword({ data: { current: formText(form, 'current'), password: formText(form, 'password'), confirm: formText(form, 'confirm') } });
-    setPassword(outcome);
+    const outcome = await passwordForm.run({ current: formText(form, 'current'), password: formText(form, 'password'), confirm: formText(form, 'confirm') });
+    if (!outcome) return;
+    setChanged(outcome.ok);
     if (outcome.ok) element.reset();
   };
 
@@ -117,9 +119,9 @@ function Account() {
               </form>
             )}
           </div>
-          {renewal?.ok && (
+          {renewal && (
             <p className={s.ok} role="status">
-              {renewal.value.renews ? 'Renewal is on.' : `Renewal is off. You keep access until ${until}.`}
+              {renewal.renews ? 'Renewal is on.' : `Renewal is off. You keep access until ${until}.`}
             </p>
           )}
           {renewsByCard && (
@@ -144,14 +146,14 @@ function Account() {
               </span>
             </label>
           ))}
-          {saved?.ok && (
+          {saved && (
             <p className={s.ok} role="status">
               Saved.
             </p>
           )}
-          {saved && !saved.ok && (
+          {prefsForm.refusal && (
             <p className={`error ${s.error}`} role="alert">
-              {saved.message}
+              {prefsForm.refusal.message}
             </p>
           )}
           <button className="btn" type="submit">
@@ -180,17 +182,12 @@ function Account() {
               autoComplete="new-password"
               minLength={MIN_PASSWORD_LENGTH}
               required
-              aria-invalid={fieldErrors['password'] ? true : undefined}
-              aria-describedby={fieldErrors['password'] ? 'password-hint password-error' : 'password-hint'}
+              {...newPassword.input}
             />
             <span className="hint" id="password-hint">
               At least {MIN_PASSWORD_LENGTH} characters.
             </span>
-            {fieldErrors['password'] && (
-              <span className={`error ${s.error}`} id="password-error">
-                {fieldErrors['password']}
-              </span>
-            )}
+            <FieldError field={newPassword} className={s.error} />
           </div>
           <div className="field">
             <label htmlFor="confirm">The new password again</label>
@@ -201,21 +198,16 @@ function Account() {
               type="password"
               autoComplete="new-password"
               required
-              aria-invalid={fieldErrors['confirm'] ? true : undefined}
-              aria-describedby={fieldErrors['confirm'] ? 'confirm-error' : undefined}
+              {...confirm.input}
             />
-            {fieldErrors['confirm'] && (
-              <span className={`error ${s.error}`} id="confirm-error">
-                {fieldErrors['confirm']}
-              </span>
-            )}
+            <FieldError field={confirm} className={s.error} />
           </div>
-          {passwordError && (
+          {passwordForm.failure && (
             <p className={`error ${s.error}`} role="alert">
-              {passwordError}
+              {passwordForm.failure}
             </p>
           )}
-          {password?.ok && (
+          {changed && (
             <p className={s.ok} role="status">
               Your password has been changed. Anywhere else you were signed in is now signed out.
             </p>

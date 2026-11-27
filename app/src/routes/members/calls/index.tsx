@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
-import { useState, type FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import { firstName, formatTime, formatWeekday } from '../../../../../src/lib/format.ts';
 import { Masthead } from '../../../components/club/Masthead.tsx';
 import { Notice } from '../../../components/club/Notice.tsx';
+import { FieldError } from '../../../components/FieldError.tsx';
+import { useAction } from '../../../components/useAction.ts';
 import { bookCall, cancelCall, membersCalls } from '../../../functions/members-calls.ts';
-import type { Outcome } from '../../../lib/outcome.ts';
 import { flags } from '../../../components/members/flags.ts';
 import { clubTitle } from '../../../lib/title.ts';
 import s from './index.module.css';
@@ -23,28 +23,27 @@ function Calls() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   const router = useRouter();
-  const book = useServerFn(bookCall);
-  const cancel = useServerFn(cancelCall);
-  const [outcome, setOutcome] = useState<Outcome<unknown> | null>(null);
-  const fields = outcome && !outcome.ok ? outcome.fields : {};
-  const failure = outcome && !outcome.ok && Object.keys(outcome.fields).length === 0 ? outcome.message : null;
+  const book = useAction(bookCall, { refresh: 'never' });
+  const cancel = useAction(cancelCall, { refresh: 'never' });
+  const slotField = book.field('slot');
+  const topic = book.field('topic', { hint: 'topic-hint' });
+  /* Only one of the two forms shows at a time, so at most one of them has a failure to show. */
+  const failure = book.failure ?? cancel.failure;
   const started = mine !== null && new Date(mine.startsAt).getTime() <= Date.now();
 
   /* Each lands on a plain address, so a refresh never posts twice and the notice says what happened. */
   const submitBooking = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const result = await book({ data: { slot: String(form.get('slot') ?? ''), topic: String(form.get('topic') ?? '') } });
-    setOutcome(result);
-    if (!result.ok) return;
+    const result = await book.run({ slot: String(form.get('slot') ?? ''), topic: String(form.get('topic') ?? '') });
+    if (!result?.ok) return;
     await navigate({ to: '/members/calls', search: { booked: true } });
     await router.invalidate();
   };
   const submitCancel = (slot: number) => async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const result = await cancel({ data: { slot } });
-    setOutcome(result);
-    if (!result.ok) return;
+    const result = await cancel.run({ slot });
+    if (!result?.ok) return;
     await navigate({ to: '/members/calls', search: { cancelled: true } });
     await router.invalidate();
   };
@@ -135,7 +134,7 @@ function Calls() {
             </div>
             {!mine && (
               <form id="book" method="POST" className={s.book} onSubmit={submitBooking}>
-                {fields['slot'] && <span className={`error ${s.error}`}>{fields['slot']}</span>}
+                {slotField.error && <span className={`error ${s.error}`}>{slotField.error}</span>}
                 <div className="field">
                   <label htmlFor="topic">What are you stuck on?</label>
                   <textarea
@@ -145,17 +144,12 @@ function Calls() {
                     rows={3}
                     maxLength={topicMax}
                     required
-                    aria-describedby={fields['topic'] ? 'topic-hint topic-error' : 'topic-hint'}
-                    aria-invalid={fields['topic'] ? true : undefined}
+                    {...topic.input}
                   />
                   <span className="hint" id="topic-hint">
                     A sentence or two is plenty. Only {hostFirstName} sees it.
                   </span>
-                  {fields['topic'] && (
-                    <span className={`error ${s.error}`} id="topic-error">
-                      {fields['topic']}
-                    </span>
-                  )}
+                  <FieldError field={topic} className={s.error} />
                 </div>
                 <button className="btn" type="submit">
                   Book the call
