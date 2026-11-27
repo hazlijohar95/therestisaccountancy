@@ -30,11 +30,13 @@ export const QUIET_DAYS = 30;
 const DAY_MS = 86_400_000;
 const iso = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
 
-/** Every dated thing a member did, from rows that already exist. */
+/** Every dated thing a member did, from rows that already exist. Posts and replies share a term: SQLite on Workers allows five per compound SELECT. */
 const EVENTS = `
   SELECT member_id, 'session' AS kind, created_at AS at FROM rsvps
-  UNION ALL SELECT member_id, 'post', created_at FROM floor_posts WHERE removed_at IS NULL
-  UNION ALL SELECT member_id, 'post', created_at FROM floor_replies WHERE removed_at IS NULL
+  UNION ALL SELECT member_id, 'post', created_at FROM (
+    SELECT member_id, created_at FROM floor_posts WHERE removed_at IS NULL
+    UNION ALL SELECT member_id, created_at FROM floor_replies WHERE removed_at IS NULL
+  )
   UNION ALL SELECT member_id, 'lesson', completed_at FROM lesson_progress
   UNION ALL SELECT booked_by, 'call', booked_at FROM call_slots WHERE booked_by IS NOT NULL AND booked_at IS NOT NULL
   UNION ALL SELECT member_id, 'plan', updated_at FROM plans`;
