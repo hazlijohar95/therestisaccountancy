@@ -1,8 +1,8 @@
 import { Button } from "@base-ui/react/button";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api.ts";
 import { Arrow, Close, Plus } from "../components/Icons.tsx";
-import type { StudioCourse, StudioIndex, StudioVersion } from "../domain/api.ts";
+import type { StudioCourse, StudioVersion } from "../domain/api.ts";
 import { fields, formatHours, formatTime, playable } from "../domain/courses.ts";
 import type { Checkpoint, CourseScript, Question, Show } from "../domain/types.ts";
 import { CourseView } from "../pages/CoursePage.tsx";
@@ -38,24 +38,27 @@ export function Studio({ id }: { id: string | null }) {
   return <CourseEditor key={id} id={id} />;
 }
 
-function useLoad<T>(path: string): [T | null, string | null, (v: T) => void] {
+/** Loads a Studio page's data, again whenever `key` changes. */
+function useLoad<T>(load: () => Promise<T>, key: string): [T | null, string | null, (v: T) => void] {
   const [value, setValue] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const loader = useRef(load);
+  loader.current = load;
   useEffect(() => {
     let live = true;
-    api<T>("GET", path).then(
+    loader.current().then(
       (v) => live && setValue(v),
       (e: unknown) => live && setError(e instanceof Error ? e.message : "Could not load."),
     );
     return () => {
       live = false;
     };
-  }, [path]);
+  }, [key]);
   return [value, error, setValue];
 }
 
 function StudioHome() {
-  const [index, error] = useLoad<StudioIndex>("/api/studio");
+  const [index, error] = useLoad(() => api("GET /api/studio"), "index");
   if (error) return <p className="notice">{error}</p>;
   if (!index) return <div className="page" aria-busy="true" />;
   return (
@@ -111,7 +114,7 @@ const blankScript = (show: Show | undefined): CourseScript => ({
 });
 
 function NewCourse() {
-  const [index] = useLoad<StudioIndex>("/api/studio");
+  const [index] = useLoad(() => api("GET /api/studio"), "index");
   const [script, setScript] = useState<CourseScript | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -121,7 +124,7 @@ function NewCourse() {
   const create = async () => {
     setError(null);
     try {
-      await api<StudioCourse>("POST", "/api/studio/courses", { script });
+      await api("POST /api/studio/courses", { body: { script } });
       navigate(`/studio/${script.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Not created.");
@@ -142,7 +145,7 @@ function NewCourse() {
 }
 
 function CourseEditor({ id }: { id: string }) {
-  const [view, error, setView] = useLoad<StudioCourse>(`/api/studio/courses/${id}`);
+  const [view, error, setView] = useLoad(() => api("GET /api/studio/courses/:id", { params: { id } }), id);
   const [script, setScript] = useState<CourseScript | null>(null);
   const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
@@ -176,7 +179,7 @@ function CourseEditor({ id }: { id: string }) {
         {view.live && <VersionFacts v={view.live} />}
         <p className="lead">Published versions are fixed. Editing starts version {(view.live?.version ?? 0) + 1} as a draft.</p>
         {status && <p className={status.tone === "bad" ? "notice" : "muted"}>{status.text}</p>}
-        <Button className="pill pill--cpe" onClick={() => run(() => api<StudioCourse>("POST", `/api/studio/courses/${id}/draft`))} data-test="start-draft">
+        <Button className="pill pill--cpe" onClick={() => run(() => api("POST /api/studio/courses/:id/draft", { params: { id } }))} data-test="start-draft">
           Edit as a new version <Arrow />
         </Button>
       </div>
@@ -189,7 +192,7 @@ function CourseEditor({ id }: { id: string }) {
   };
   const saveScript = () =>
     run(async () => {
-      const next = await api<StudioCourse>("PUT", `/api/studio/courses/${id}/draft`, { script });
+      const next = await api("PUT /api/studio/courses/:id/draft", { params: { id }, body: { script } });
       setDirty(false);
       return next;
     }, "Draft saved.");
@@ -201,7 +204,7 @@ function CourseEditor({ id }: { id: string }) {
       try {
         const { duration, peaks } = await measure(file);
         const url = await upload(id, file, setUploading);
-        return await api<StudioCourse>("PUT", `/api/studio/courses/${id}/draft`, { audio: { url, duration, peaks } });
+        return await api("PUT /api/studio/courses/:id/draft", { params: { id }, body: { audio: { url, duration, peaks } } });
       } finally {
         setUploading(null);
       }
@@ -229,7 +232,7 @@ function CourseEditor({ id }: { id: string }) {
           </Button>
           <Button
             className="pill pill--cpe"
-            onClick={() => run(() => api<StudioCourse>("POST", `/api/studio/courses/${id}/publish`), `Version ${draft.version} is live.`)}
+            onClick={() => run(() => api("POST /api/studio/courses/:id/publish", { params: { id } }), `Version ${draft.version} is live.`)}
             disabled={dirty || view.problems.length > 0}
             data-test="publish"
           >
@@ -285,7 +288,7 @@ function CourseEditor({ id }: { id: string }) {
               className="textbtn"
               onClick={() =>
                 void run(async () => {
-                  await api("DELETE", `/api/studio/courses/${id}/draft`);
+                  await api("DELETE /api/studio/courses/:id/draft", { params: { id } });
                   setDirty(false);
                   navigate("/studio");
                 })
@@ -323,7 +326,7 @@ function CourseEditor({ id }: { id: string }) {
                 segments={draft.script.segments}
                 timing={draft.timing}
                 aligner={view.aligner}
-                onSave={async (timing) => setView(await api<StudioCourse>("PUT", `/api/studio/courses/${id}/draft`, { timing }))}
+                onSave={async (timing) => setView(await api("PUT /api/studio/courses/:id/draft", { params: { id }, body: { timing } }))}
               />
             )}
           </Section>

@@ -9,7 +9,7 @@ export function VerifyPage({ id }: { id: string }) {
   const [result, setResult] = useState<Verified | "missing" | "error" | null>(null);
   useEffect(() => {
     let live = true;
-    api<Verified>("GET", `/api/verify/${encodeURIComponent(id)}`).then(
+    api("GET /api/verify/:id", { params: { id } }).then(
       (v) => live && setResult(v),
       (e: unknown) => live && setResult(e instanceof Refused && e.status === 404 ? "missing" : "error"),
     );

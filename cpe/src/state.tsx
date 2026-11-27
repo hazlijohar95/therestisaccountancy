@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "./api.ts";
-import type { Catalogue, Graded, HeardReport, LegacyImport, ReviewAnswer, Session, Sitting } from "./domain/api.ts";
+import type { Graded, HeardReport, LegacyImport, ReviewAnswer, Session, Sitting } from "./domain/api.ts";
 import { emptyState, type AppState, type CourseProgress, type LoggedEntry, type Requirement } from "./domain/progress.ts";
 import type { Course, Show } from "./domain/types.ts";
 
@@ -27,7 +27,7 @@ export interface Actions {
   unlog: (id: string) => Promise<void>;
 }
 
-const StoreContext = createContext<Store>({ session: { status: "loading" }, catalogue: null, state: emptyState });
+const StoreContext = createContext<Store>({ session: { status: "loading" }, catalogue: null, state: emptyState(new Date()) });
 const ActionsContext = createContext<Actions | null>(null);
 
 /** The prototype's record, shaped for the server's import. Anything unreadable is left out. */
@@ -63,7 +63,7 @@ function readLegacy(courses: readonly Course[]): LegacyImport | null {
 }
 
 export function StateProvider({ children }: { children: ReactNode }) {
-  const [store, setStore] = useState<Store>({ session: { status: "loading" }, catalogue: null, state: emptyState });
+  const [store, setStore] = useState<Store>(() => ({ session: { status: "loading" }, catalogue: null, state: emptyState(new Date()) }));
   const setState = useCallback((state: AppState) => setStore((s) => ({ ...s, state })), []);
   const setProgress = useCallback(
     (courseId: string, p: CourseProgress) => setStore((s) => ({ ...s, state: { ...s.state, progress: { ...s.state.progress, [courseId]: p } } })),
@@ -74,11 +74,11 @@ export function StateProvider({ children }: { children: ReactNode }) {
     let live = true;
     (async () => {
       try {
-        const [session, catalogue] = await Promise.all([api<Session>("GET", "/api/session"), api<Catalogue>("GET", "/api/catalogue")]);
-        let state = session.status === "member" ? session.state : emptyState;
+        const [session, catalogue] = await Promise.all([api("GET /api/session"), api("GET /api/catalogue")]);
+        let state = session.status === "member" ? session.state : emptyState(new Date());
         const legacy = session.status === "member" ? readLegacy(catalogue.courses) : null;
         if (legacy) {
-          state = await api<AppState>("POST", "/api/import", legacy);
+          state = await api("POST /api/import", { body: legacy });
           try {
             localStorage.removeItem(LEGACY_KEY);
           } catch {
@@ -98,24 +98,24 @@ export function StateProvider({ children }: { children: ReactNode }) {
   const actions = useMemo<Actions>(
     () => ({
       reportHeard: async (report, keepalive = false) => {
-        const p = await api<CourseProgress>("POST", "/api/heard", report, { keepalive });
+        const p = await api("POST /api/heard", { body: report, keepalive });
         setProgress(report.courseId, p);
       },
       answerReview: async (course, checkpoint, pick) => {
-        const answer = await api<ReviewAnswer>("POST", "/api/review", { courseId: course.id, version: course.version, checkpoint, pick });
+        const answer = await api("POST /api/review", { body: { courseId: course.id, version: course.version, checkpoint, pick } });
         if (answer.correct) setProgress(course.id, answer.progress);
         return answer;
       },
-      sit: (course) => api<Sitting>("POST", "/api/sittings", { courseId: course.id, version: course.version }),
+      sit: (course) => api("POST /api/sittings", { body: { courseId: course.id, version: course.version } }),
       submit: async (course, sittingId, picks) => {
-        const graded = await api<Graded>("POST", `/api/sittings/${encodeURIComponent(sittingId)}`, { courseId: course.id, version: course.version, picks });
+        const graded = await api("POST /api/sittings/:id", { params: { id: sittingId }, body: { courseId: course.id, version: course.version, picks } });
         setState(graded.state);
         return graded;
       },
-      setName: async (name) => setState(await api<AppState>("PUT", "/api/name", { name })),
-      setRequirement: async (requirement) => setState(await api<AppState>("PUT", "/api/requirement", { requirement })),
-      log: async (entry) => setState(await api<AppState>("POST", "/api/logged", entry)),
-      unlog: async (id) => setState(await api<AppState>("DELETE", `/api/logged/${encodeURIComponent(id)}`)),
+      setName: async (name) => setState(await api("PUT /api/name", { body: { name } })),
+      setRequirement: async (requirement) => setState(await api("PUT /api/requirement", { body: { requirement } })),
+      log: async (entry) => setState(await api("POST /api/logged", { body: entry })),
+      unlog: async (id) => setState(await api("DELETE /api/logged/:id", { params: { id } })),
     }),
     [setProgress, setState],
   );

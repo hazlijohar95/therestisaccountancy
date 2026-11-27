@@ -67,11 +67,16 @@ export interface AppState {
   logged: readonly LoggedEntry[];
 }
 
-const year = new Date().getFullYear();
+/**
+ * The requirement shown until a learner saves their own: the calendar year of `today`. The caller passes the date,
+ * because a Worker's clock reads 1970 while a module loads, so a year taken at import would be wrong on the server.
+ */
+export function exampleRequirement(today: Date): Requirement {
+  const year = today.getFullYear();
+  return { start: `${year}-01-01`, end: `${year}-12-31`, target: 40, minimums: { Ethics: 4 }, isExample: true };
+}
 
-export const exampleRequirement: Requirement = { start: `${year}-01-01`, end: `${year}-12-31`, target: 40, minimums: { Ethics: 4 }, isExample: true };
-
-export const emptyState: AppState = { learner: "", progress: {}, certificates: [], requirement: exampleRequirement, logged: [] };
+export const emptyState = (today: Date): AppState => ({ learner: "", progress: {}, certificates: [], requirement: exampleRequirement(today), logged: [] });
 
 const blank: CourseProgress = { version: 0, ranges: [], position: 0, checkpoints: [], attempts: [] };
 

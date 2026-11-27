@@ -1,5 +1,4 @@
 import { api } from "../api.ts";
-import type { UploadStart } from "../domain/api.ts";
 
 /** Bars in a waveform, the same count the sample courses were measured with. */
 const BARS = 160;
@@ -30,25 +29,20 @@ export async function measure(file: Blob): Promise<{ duration: number; peaks: nu
 /** Uploads audio to R2 through the Worker in parts, so a long file never has to go in one request. Returns its URL. */
 export async function upload(courseId: string, file: File, onProgress: (share: number) => void): Promise<string> {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  const start = await api<UploadStart>("POST", "/api/studio/uploads", { courseId, ext });
-  const q = `?key=${encodeURIComponent(start.key)}`;
-  const base = `/api/studio/uploads/${encodeURIComponent(start.uploadId)}`;
+  const start = await api("POST /api/studio/uploads", { body: { courseId, ext } });
+  const at = { params: { uploadId: start.uploadId }, query: { key: start.key } };
   const parts: { partNumber: number; etag: string }[] = [];
   try {
     const count = Math.max(1, Math.ceil(file.size / start.partSize));
     for (let n = 0; n < count; n++) {
       const chunk = file.slice(n * start.partSize, (n + 1) * start.partSize);
-      const res = await fetch(`${base}/${n + 1}${q}`, { method: "PUT", body: chunk, credentials: "same-origin" });
-      if (!res.ok) throw new Error(`Part ${n + 1} of ${count} did not upload (${res.status}).`);
-      const part: unknown = await res.json();
-      if (typeof part !== "object" || part === null || !("etag" in part) || typeof part.etag !== "string") throw new Error("The upload answered oddly.");
-      parts.push({ partNumber: n + 1, etag: part.etag });
+      parts.push(await api("PUT /api/studio/uploads/:uploadId/:part", { params: { ...at.params, part: String(n + 1) }, query: at.query, body: chunk }));
       onProgress((n + 1) / count);
     }
-    const done = await api<{ url: string }>("POST", `${base}/complete`, { key: start.key, parts });
+    const done = await api("POST /api/studio/uploads/:uploadId/complete", { params: at.params, body: { key: start.key, parts } });
     return done.url;
   } catch (error) {
-    await fetch(`${base}${q}`, { method: "DELETE", credentials: "same-origin" }).catch(() => {});
+    await api("DELETE /api/studio/uploads/:uploadId", at).catch(() => {});
     throw error;
   }
 }

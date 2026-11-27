@@ -47,6 +47,7 @@ Edit a script in `worker/seed/catalog.ts` and rerun the command. New courses are
 ## How it is built
 
 - `worker/` is the server: the API router (`index.ts`), the Studio routes (`studio.ts`), the catalogue and learner stores (`catalogue.ts`, `learner.ts`, as Durable Objects in `objects.ts`), audio streaming and uploads (`audio.ts`), and segment alignment (`alignment.ts`). `worker/seed/` holds the sample courses' scripts, with answers. It reaches only the Worker bundle.
+- `src/domain/routes.ts` is the API contract: every route with what it takes and replies. The Worker's handlers (`route()` in `worker/http.ts`) and the app's `api()` are both typed from it, so changing a reply breaks the build on whichever side is out of date. Identity from the club follows `../src/server/cpe-contract.ts`, which the club's `CpeIdentity` entrypoint implements.
 - `src/domain/rules.ts` holds the credit rules, shared by the server, which decides credit, and the app, which shows it. A course's phase is derived from the server's evidence: the ranges heard, the review questions answered, and the attempts made.
 - `src/domain/ledger.ts` turns certificates and logged entries into ledger lines, the standing against the cycle, and the CSV export.
 - `src/player.tsx` runs one shared audio element. It reports the element's own played ranges to the server, so seeking never counts. Playback stops at each unanswered review question, unless hands-free is on.

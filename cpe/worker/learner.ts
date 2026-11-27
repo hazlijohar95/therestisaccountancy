@@ -2,7 +2,7 @@ import type { AppState, Attempt, Certificate, CourseProgress, LoggedEntry, Requi
 import { exampleRequirement } from "../src/domain/progress.ts";
 import { acceptHeard, passes, readyForAssessment, refill, type Range } from "../src/domain/rules.ts";
 import type { Field, Level, Question } from "../src/domain/types.ts";
-import { integer, json, migrate, oneOf, optionalText, real, text, type Db, type Row } from "./db.ts";
+import { integer, json, migrate, oneOf, optionalText, readable, real, text, type Db, type Row, type Warn } from "./db.ts";
 import { randomPermutation, unguessable } from "./shuffle.ts";
 import * as check from "./validate.ts";
 
@@ -166,7 +166,7 @@ function certificateId(courseId: string, at: Date): string {
   return `TRIA-${code}-${at.toISOString().slice(0, 10).replaceAll("-", "")}-${unguessable(10)}`;
 }
 
-export function createLearner(db: Db, now: () => Date = () => new Date()) {
+export function createLearner(db: Db, now: () => Date = () => new Date(), warn: Warn = console.error) {
   migrate(db, MIGRATIONS);
   const iso = () => now().toISOString();
 
@@ -219,15 +219,20 @@ export function createLearner(db: Db, now: () => Date = () => new Date()) {
   const learner = {
     pins,
 
+    /** The whole record. A part whose stored shape no longer reads is left out and logged, so the rest still loads. */
     snapshot(): AppState {
       const row = learnerRow();
-      const requirementJson = optionalText(row, "requirement");
+      const own = readable([row], (r) => {
+        const saved = optionalText(r, "requirement");
+        return saved === null ? null : check.requirement(JSON.parse(saved));
+      }, warn, () => "requirement")[0];
+      const courses = Object.entries(pins()).map(([courseId, version]) => ({ course_id: courseId, version }));
       return {
         learner: text(row, "name"),
-        progress: Object.fromEntries(Object.entries(pins()).map(([courseId, version]) => [courseId, progress(courseId, version)])),
-        certificates: db.prepare("SELECT * FROM certificates ORDER BY issued_at").all().map(toCertificate),
-        requirement: requirementJson === null ? exampleRequirement : check.requirement(JSON.parse(requirementJson)),
-        logged: db.prepare("SELECT * FROM logged ORDER BY date, created_at").all().map(toLogged),
+        progress: Object.fromEntries(readable(courses, (c) => [text(c, "course_id"), progress(text(c, "course_id"), integer(c, "version"))] as const, warn, (c) => `progress on "${String(c.course_id)}"`)),
+        certificates: readable(db.prepare("SELECT * FROM certificates ORDER BY issued_at").all(), toCertificate, warn, (r) => `certificate ${String(r.id)}`),
+        requirement: own ?? exampleRequirement(now()),
+        logged: readable(db.prepare("SELECT * FROM logged ORDER BY date, created_at").all(), toLogged, warn, (r) => `logged entry ${String(r.id)}`),
       };
     },
 

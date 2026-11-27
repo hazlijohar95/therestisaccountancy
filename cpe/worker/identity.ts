@@ -1,21 +1,12 @@
 /**
  * Who is signed in comes from the club, always. CPE forwards the browser's cookie over a service binding to the club
- * Worker's CpeIdentity entrypoint (site/src/worker.ts) and never reads the session itself.
+ * Worker's CpeIdentity entrypoint (app/src/server.ts) and never reads the session itself. The contract both sides
+ * compile against is src/server/cpe-contract.ts.
  */
 
-export interface ClubIdentity {
-  readonly id: number;
-  readonly name: string;
-  readonly email: string;
-  readonly role: "member" | "admin";
-  /** Paid membership, or an admin. */
-  readonly paid: boolean;
-}
+import { isIdentity, type ClubBinding, type ClubIdentity } from "../../src/server/cpe-contract.ts";
 
-/** The club's entrypoint, as this Worker calls it. */
-export interface ClubBinding {
-  member(cookie: string | null): Promise<ClubIdentity | null>;
-}
+export { isIdentity, type ClubBinding, type ClubIdentity };
 
 export interface CpeEnv {
   ASSETS: Fetcher;
@@ -27,12 +18,6 @@ export interface CpeEnv {
   /** Optional. With it, the Studio can time a transcript against its audio with ElevenLabs forced alignment. */
   ELEVENLABS_API_KEY?: string;
 }
-
-export const isIdentity = (v: unknown): v is ClubIdentity => {
-  if (typeof v !== "object" || v === null) return false;
-  const o = Object.fromEntries(Object.entries(v));
-  return typeof o.id === "number" && typeof o.name === "string" && typeof o.email === "string" && (o.role === "member" || o.role === "admin") && typeof o.paid === "boolean";
-};
 
 /*
  * A signed-in identity is kept for a short while in this isolate, keyed by a hash of the cookie, so the heard report

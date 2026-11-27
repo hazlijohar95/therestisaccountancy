@@ -1,6 +1,6 @@
 import type { StudioVersion, VersionStatus } from "../src/domain/api.ts";
 import type { Audio, CourseScript, Field, Level, Show, Timing } from "../src/domain/types.ts";
-import { integer, json, migrate, oneOf, optionalText, real, text, type Db, type Row } from "./db.ts";
+import { integer, json, migrate, oneOf, optionalText, readable, real, text, type Db, type Row, type Warn } from "./db.ts";
 import { scripts as seedScripts, shows as seedShows } from "./seed/catalog.ts";
 import seedTimings from "./seed/timings.json" with { type: "json" };
 import * as check from "./validate.ts";
@@ -100,6 +100,8 @@ const toEntry = (row: Row): Entry => ({
   publishedAt: optionalText(row, "published_at"),
 });
 
+const versionName = (row: Row) => `version ${String(row.version)} of course "${String(row.course_id)}"`;
+
 const toShow = (row: Row): Show => check.show({ id: row.id, title: row.title, blurb: row.blurb, art: row.art });
 
 /** Why a version cannot be published yet, in words an author can act on. Empty when it can. */
@@ -118,7 +120,27 @@ export function publishProblems(entry: Pick<Entry, "script" | "audio" | "timing"
   return problems;
 }
 
-export function createCatalogue(db: Db, now: () => Date = () => new Date()) {
+/** The sample courses' scripts and the timings measured from their rendered audio. */
+export interface SeedSource {
+  readonly shows: readonly Show[];
+  readonly scripts: readonly CourseScript[];
+  readonly timings: Readonly<Record<string, SeedTiming | undefined>>;
+}
+
+export interface SeedTiming {
+  readonly duration: number;
+  readonly segments: readonly { start: number; end: number }[];
+  readonly peaks: readonly number[];
+}
+
+/** Why a sample course cannot be seeded from its timings, or null when it can. */
+export function seedProblem(script: CourseScript, timing: SeedTiming | undefined): string | null {
+  if (!timing) return `Seed audio for "${script.id}" is missing. Run pnpm audio.`;
+  if (timing.segments.length !== script.segments.length) return `Seed audio for "${script.id}" is stale: ${timing.segments.length} timed segments for ${script.segments.length} in the script. Run pnpm audio.`;
+  return null;
+}
+
+export function createCatalogue(db: Db, now: () => Date = () => new Date(), warn: Warn = console.error) {
   migrate(db, MIGRATIONS);
   const iso = () => now().toISOString();
 
@@ -152,18 +174,26 @@ export function createCatalogue(db: Db, now: () => Date = () => new Date()) {
   };
 
   const catalogue = {
-    /** Puts the sample courses in an empty catalogue, with their audio served from the app's static files. Safe on every start. */
-    seed(): void {
-      const timings: Record<string, { duration: number; segments: readonly { start: number; end: number }[]; peaks: readonly number[] } | undefined> = seedTimings;
+    /**
+     * Puts the sample courses in the catalogue where they are missing, with their audio served from the app's static
+     * files. Safe on every start. A course already in the catalogue is never checked or touched again, and a sample whose
+     * timings no longer fit its script is skipped and logged rather than failing the start: the catalogue serves
+     * everyone. `pnpm test` refuses stale timings before they ship.
+     */
+    seed(source: SeedSource = { shows: seedShows, scripts: seedScripts, timings: seedTimings }): void {
       db.transaction(() => {
-        for (const show of seedShows) {
+        for (const show of source.shows) {
           db.prepare("INSERT OR IGNORE INTO shows (id, title, blurb, art) VALUES (?, ?, ?, ?)").run(show.id, show.title, show.blurb, show.art);
         }
-        for (const script of seedScripts) {
-          const t = timings[script.id];
-          if (!t || t.segments.length !== script.segments.length) throw new Error(`Seed audio for "${script.id}" is missing or stale.`);
-          const inserted = db.prepare("INSERT OR IGNORE INTO courses (id, show_id, created_at) VALUES (?, ?, ?)").run(script.id, script.showId, iso()).changes;
-          if (!inserted) continue;
+        for (const script of source.scripts) {
+          if (db.prepare("SELECT 1 FROM courses WHERE id = ?").get(script.id)) continue;
+          const problem = seedProblem(script, source.timings[script.id]);
+          if (problem) {
+            warn(problem);
+            continue;
+          }
+          const t = source.timings[script.id]!;
+          db.prepare("INSERT INTO courses (id, show_id, created_at) VALUES (?, ?, ?)").run(script.id, script.showId, iso());
           write(script.id, 1, "published", script, { url: `/audio/${script.id}.m4a`, duration: t.duration, peaks: t.peaks }, { duration: t.duration, segments: t.segments }, "seed");
         }
       });
@@ -175,17 +205,14 @@ export function createCatalogue(db: Db, now: () => Date = () => new Date()) {
 
     /** The newest published version of every course, in the order courses were added. */
     latest(): Published[] {
-      return db
+      const rows = db
         .prepare(
           `SELECT v.* FROM versions v JOIN courses c ON c.id = v.course_id
            WHERE v.status = 'published' AND v.version = (SELECT max(version) FROM versions WHERE course_id = v.course_id AND status = 'published')
            ORDER BY c.rowid`,
         )
-        .all()
-        .flatMap((row) => {
-          const p = asPublished(toEntry(row));
-          return p ? [p] : [];
-        });
+        .all();
+      return readable(rows, (row) => asPublished(toEntry(row)), warn, versionName).flatMap((p) => (p ? [p] : []));
     },
 
     /** One published version, for playing, grading or pinning a listener to it. Null for drafts and unknown versions. */
@@ -199,10 +226,12 @@ export function createCatalogue(db: Db, now: () => Date = () => new Date()) {
       const rows = db.prepare("SELECT c.id, c.show_id, c.rowid FROM courses c ORDER BY c.rowid").all();
       return rows.map((row) => {
         const id = text(row, "id");
-        const versions = db
-          .prepare("SELECT version, status, updated_at, published_at, script FROM versions WHERE course_id = ? ORDER BY version DESC")
-          .all(id)
-          .map((v) => ({ version: integer(v, "version"), status: oneOf(v, "status", ["draft", "published"] as const), updatedAt: text(v, "updated_at"), publishedAt: optionalText(v, "published_at"), title: check.script(json(v, "script")).title }));
+        const versions = readable(
+          db.prepare("SELECT course_id, version, status, updated_at, published_at, script FROM versions WHERE course_id = ? ORDER BY version DESC").all(id),
+          (v) => ({ version: integer(v, "version"), status: oneOf(v, "status", ["draft", "published"] as const), updatedAt: text(v, "updated_at"), publishedAt: optionalText(v, "published_at"), title: check.script(json(v, "script")).title }),
+          warn,
+          versionName,
+        );
         return { id, showId: text(row, "show_id"), title: versions[0]?.title ?? id, versions: versions.map(({ title: _t, ...v }) => v) };
       });
     },

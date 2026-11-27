@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { admin, paidMember, Reply } from "./http.ts";
+import { pathOf, split } from "../src/domain/routes.ts";
+import { admin, match, paidMember, Reply } from "./http.ts";
 import { identify, IDENTITY_TTL_MS, isIdentity, type ClubIdentity } from "./identity.ts";
 
 /** A club binding that answers with this identity, and remembers the cookie it was handed. */
@@ -61,4 +62,20 @@ test("a signed-in identity is reused for a while, then asked again; signed out i
   await identify(anon, out.env, now);
   await identify(anon, out.env, now);
   assert.equal(out.seen.length, 2, "a signed-out answer is asked for every time");
+});
+
+test("a path the app builds for a route is matched back to the same parameters, however odd the values", () => {
+  const params = { id: "TRIA-SC/20261126 ?#%", uploadId: "a b", part: "3" };
+  for (const route of ["POST /api/sittings/:id", "PUT /api/studio/uploads/:uploadId/:part", "POST /api/studio/courses/:id/draft"] as const) {
+    const [, pattern] = split(route);
+    const names = pattern.split("/").filter((s) => s.startsWith(":")).map((s) => s.slice(1));
+    const path = pathOf(pattern, { params, query: { key: "courses/x/Y.m4a" } });
+    const url = new URL(path, "https://cpe.example");
+    const got = match(pattern, url.pathname);
+    assert.deepEqual(got && Object.fromEntries(got), Object.fromEntries(names.map((n) => [n, new Map(Object.entries(params)).get(n)])));
+    assert.equal(url.searchParams.get("key"), "courses/x/Y.m4a");
+  }
+  assert.equal(match("/api/sittings/:id", "/api/sittings"), null, "a missing segment is not a match");
+  assert.equal(match("/api/sittings/:id", "/api/review/x"), null);
+  assert.throws(() => pathOf("/api/sittings/:id", {}), /needs :id/);
 });

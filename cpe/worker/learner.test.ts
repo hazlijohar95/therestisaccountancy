@@ -197,3 +197,24 @@ test("the ledger and its CSV read straight from the server's record, with each l
   assert.deepEqual(csv.slice(1).map(source), ["unverified", "self-reported", "earned"], "in date order");
   assert.ok(csv[3]!.endsWith(`"${graded.certificate.id}"`), "an earned line carries its certificate id");
 });
+
+test("the example requirement is the clock's year, read when asked, not when the module loaded", () => {
+  const learner = createLearner(memoryDb(), () => new Date("2027-03-02T10:00:00Z"));
+  assert.deepEqual(learner.snapshot().requirement, { start: "2027-01-01", end: "2027-12-31", target: 40, minimums: { Ethics: 4 }, isExample: true });
+});
+
+test("an unreadable part of a record is logged and left out, and the rest still loads", () => {
+  const db = memoryDb();
+  const warnings: string[] = [];
+  const learner = createLearner(db, () => new Date("2026-11-26T10:00:00Z"), (m) => warnings.push(m));
+  learner.setRequirement({ start: "2026-01-01", end: "2026-12-31", target: 20, minimums: {} });
+  learner.log({ date: "2026-05-01", title: "Seminar", provider: "Somewhere", field: "Ethics", hours: 2 });
+  learner.importLegacy({ logged: [], certificates: [], positions: [{ courseId: "five-threats", version: 1, position: 30 }] });
+  db.prepare("UPDATE learner SET requirement = ? WHERE id = 1").run(JSON.stringify({ start: 5 }));
+  db.prepare("UPDATE listening SET ranges = ?").run("not json");
+  const state = learner.snapshot();
+  assert.equal(state.requirement.isExample, true, "falls back to the example");
+  assert.deepEqual(state.progress, {});
+  assert.equal(state.logged.length, 1);
+  assert.equal(warnings.length, 2);
+});

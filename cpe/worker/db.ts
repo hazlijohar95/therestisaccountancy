@@ -3,6 +3,8 @@
  * production and node:sqlite in tests. Both are synchronous, so a transaction can check after it writes.
  */
 
+import { Invalid } from "./validate.ts";
+
 export type Value = string | number | bigint | null | Uint8Array | ArrayBuffer;
 export type Param = string | number | null;
 export type Row = Record<string, Value>;
@@ -89,4 +91,26 @@ export function oneOf<const T extends string>(row: Row, column: string, allowed:
 /** A JSON column, parsed. Its shape is the writer's: every JSON column here is written by this code only. */
 export function json(row: Row, column: string): unknown {
   return JSON.parse(text(row, column));
+}
+
+/** Where a store reports data it had to skip. console.error in production, which Workers observability keeps. */
+export type Warn = (message: string) => void;
+
+/** A row whose stored shape the code no longer reads: a TypeError from the readers above, bad JSON, or a validator's refusal. */
+const unreadable = (error: unknown): error is Error => error instanceof TypeError || error instanceof SyntaxError || error instanceof Invalid;
+
+/**
+ * Reads every row it can and skips, with a warning, the ones whose stored shape no longer reads. One old or damaged
+ * row then costs only itself, not every listing that includes it. Anything else, such as a SQL error, still throws.
+ */
+export function readable<T>(rows: readonly Row[], read: (row: Row) => T, warn: Warn, what: (row: Row) => string): T[] {
+  return rows.flatMap((row) => {
+    try {
+      return [read(row)];
+    } catch (error) {
+      if (!unreadable(error)) throw error;
+      warn(`Skipped unreadable ${what(row)}: ${error.message}`);
+      return [];
+    }
+  });
 }
