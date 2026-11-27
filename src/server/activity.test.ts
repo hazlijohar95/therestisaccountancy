@@ -91,7 +91,7 @@ test('only paying members are listed: not unpaid, lapsed past grace, suspended o
   const admin = await club.ensureAdmin({ email: 'admin@club.test', name: 'Admin', password: PASSWORD });
   w.db.prepare("INSERT INTO subscriptions (member_id, paid_until) VALUES (?, '2027-12-01T10:00:00Z')").run(admin.id);
   club.suspendMember(admin.id, suspended.id, 'https://club.test/');
-  const keeper = await w.payer('keeper@firm.com.my', 'Keeper');
+  await w.payer('keeper@firm.com.my', 'Keeper');
   const grace = await w.payer('grace@firm.com.my', 'Grace', 'month');
   w.later(31);
   assert.equal(w.store.billing.access(lapsed.id), 'grace', 'a month from 1 December ends on 1 January');
@@ -118,7 +118,7 @@ test('never-active members come first, then the longest quiet, ties by id', asyn
   const a = await w.payer('a@firm.com.my', 'A');
   const b = await w.payer('b@firm.com.my', 'B');
   const c = await w.payer('c@firm.com.my', 'C');
-  const d = await w.payer('d@firm.com.my', 'D');
+  await w.payer('d@firm.com.my', 'D');
   const e = await w.payer('e@firm.com.my', 'E');
   w.later(90);
   w.did('post', a.id, 40);
