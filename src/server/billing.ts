@@ -53,6 +53,8 @@ export interface Settled {
   readonly memberId: number;
   readonly term: Term;
   readonly standing: Standing;
+  /** The member, when this was their first payment ever: they are owed the welcome email. */
+  readonly welcome: Recipient | null;
 }
 
 const DAY_MS = 86_400_000;
@@ -133,6 +135,7 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
         const payment = db.prepare(`SELECT * FROM payments WHERE purchase_id = ? AND status != 'paid'`).get(purchaseId);
         if (!payment) return null;
         const memberId = integer(payment, 'member_id');
+        const first = joining(memberId);
         const kind = oneOf(payment, 'kind', ['checkout', 'renewal'] as const);
         const term = oneOf(payment, 'term', TERMS);
         const at = now();
@@ -148,7 +151,8 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
            ON CONFLICT (member_id) DO UPDATE SET paid_until = excluded.paid_until, card_token = coalesce(excluded.card_token, card_token),
              term = coalesce(?, term), renews = CASE WHEN excluded.card_token IS NULL THEN renews ELSE 1 END, last_attempt_at = NULL`,
         ).run(memberId, until, token, chosen, chosen);
-        return { memberId, term, standing: standing(memberId) };
+        const member = first ? db.prepare('SELECT name, email FROM members WHERE id = ?').get(memberId) : undefined;
+        return { memberId, term, standing: standing(memberId), welcome: member ? { name: text(member, 'name'), email: text(member, 'email') } : null };
       });
     },
 
@@ -178,7 +182,7 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
             memberId,
           );
         }
-        return { memberId, term, standing: standing(memberId) };
+        return { memberId, term, standing: standing(memberId), welcome: null };
       });
     },
 

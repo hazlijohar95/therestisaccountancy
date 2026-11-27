@@ -111,9 +111,12 @@ test('the first month costs RM 5 until a payment goes through, and the rate afte
   w.chip.pays('c2');
   const paid = await settle(w.chip.gateway, w.billing, 'c2');
   assert.equal(paid?.standing.paidUntil, '2026-02-28T10:00:00Z', 'RM 5 buys a whole month');
+  assert.deepEqual(paid?.welcome, { name: 'Aina', email: 'aina@firm.com.my' }, 'the first payment is owed the welcome email');
   assert.equal(w.billing.joining(w.member.id), false);
   await checkout(w.chip.gateway, w.billing, w.member, 'month', SITE);
   assert.equal(amounts().at(-1), 9900);
+  w.chip.pays('c3');
+  assert.equal((await settle(w.chip.gateway, w.billing, 'c3'))?.welcome, null, 'only the first payment is welcomed');
 
   w.billing.reversed('c2');
   assert.equal(w.billing.price(w.member.id, 'month'), 9900, 'a refunded first month is not had again');
@@ -144,6 +147,7 @@ test('a yearly member is renewed with one charge of a year’s price', async () 
 
   assert.equal(await renew(w.chip.gateway, w.billing, due, SITE), 'paid');
   assert.deepEqual(w.chip.asked.slice(1), [{ id: 'c2', product: 'The Rest Is Accountancy membership, one year', amount: 99000, saving: false }]);
+  assert.equal(w.billing.joining(w.member.id), false);
   assert.deepEqual(w.chip.charged, ['c2']);
   assert.equal(due.token, token);
   assert.equal(w.billing.standing(w.member.id).paidUntil, '2028-01-31T10:00:00Z');

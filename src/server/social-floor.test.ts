@@ -530,7 +530,7 @@ test('a reply emails the post’s author and earlier repliers who can still open
   const first = reply(abu.id, 'Per entity.');
   assert.deepEqual(to(first.letters), ['aina@firm.my'], 'the replier is not told');
   assert.equal(first.letters[0]?.subject, 'Abu replied to “Fixed fees for audits”');
-  assert.ok(first.letters[0]?.lines.some((line) => typeof line === 'object' && line.href === `https://social.therestisaccountancy.com/post/${post.id}#reply-${first.id}`), 'the link opens the reply on the social host');
+  assert.ok(first.letters[0]?.lines.some((line) => typeof line === 'object' && 'href' in line && line.href === `https://social.therestisaccountancy.com/post/${post.id}#reply-${first.id}`), 'the link opens the reply on the social host');
   assert.deepEqual(to(reply(quiet.id, 'Per hour.').letters), ['abu@firm.my'], 'Aina, told minutes ago, waits');
   assert.deepEqual(to(reply(siti.id, 'Per hour, sadly.').letters), [], 'Abu too; Quiet turned these off');
   assert.deepEqual(to(reply(abu.id, 'Try fixed.').letters), ['siti@firm.my']);

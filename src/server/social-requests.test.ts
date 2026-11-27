@@ -34,7 +34,7 @@ test('an approved request makes the account, records how it joined, and lets the
   assert.deepEqual(w.requests.queue(), []);
 
   const setPassword = letter?.lines.find((line) => typeof line === 'object');
-  assert.ok(typeof setPassword === 'object');
+  assert.ok(typeof setPassword === 'object' && 'href' in setPassword);
   const accepted = await w.club.setPasswordFromLink(new URL(setPassword.href).searchParams.get('token') ?? '', PASSWORD);
   assert.ok(accepted);
   assert.equal(w.profiles.mayClaim(member.id), true);
@@ -118,7 +118,7 @@ test('approval writes to the account by its own name, with a link that sets the 
   assert.equal(read, 'We read your request to join, and you are in.');
   assert.equal(expiry, 'Then pick your handle. The link works once and runs out on 10 Dec 2026. If it does, ask for a new one on the sign-in page.');
   assert.equal(free, 'Social is free. There is nothing to pay.');
-  assert.ok(typeof setPassword === 'object' && setPassword.label === 'Set your password');
+  assert.ok(typeof setPassword === 'object' && 'href' in setPassword && setPassword.label === 'Set your password');
   const link = new URL(setPassword.href);
   assert.equal(`${link.origin}${link.pathname}`, 'https://therestisaccountancy.com/welcome');
   const accepted = await w.club.setPasswordFromLink(link.searchParams.get('token') ?? '', PASSWORD);
