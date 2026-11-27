@@ -36,6 +36,9 @@ export interface Roll {
 
 /** Reminders go out once a session is this close. */
 export const REMINDER_LEAD_MS = 24 * 3_600_000;
+/** Getting-started emails name sessions this far ahead, and at most this many. */
+const ONBOARDING_HORIZON_MS = 14 * 86_400_000;
+const ONBOARDING_SESSIONS = 3;
 
 const iso = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
 const NOT_OVER = `cancelled_at IS NULL AND julianday(starts_at) + minutes / 1440.0 > julianday(?)`;
@@ -75,6 +78,20 @@ export function createSchedule(db: Db, now: () => Date = () => new Date()) {
   return {
     /** Sessions not yet over, soonest first. A session counts until it ends, so one in progress still shows. */
     upcoming,
+
+    /**
+     * The sessions a getting-started email may name: past the reminder window, because their reminder has gone and the
+     * email promises one, and within two weeks. With none, those emails wait rather than invite members to nothing.
+     */
+    forOnboarding(): LiveSession[] {
+      const at = now().getTime();
+      return upcoming(null)
+        .filter((s) => {
+          const startsIn = new Date(s.startsAt).getTime() - at;
+          return startsIn > REMINDER_LEAD_MS && startsIn < ONBOARDING_HORIZON_MS;
+        })
+        .slice(0, ONBOARDING_SESSIONS);
+    },
 
     /** The sessions still to come, each with the active members coming, for the admin. */
     rolls(): Roll[] {

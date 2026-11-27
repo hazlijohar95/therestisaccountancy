@@ -1,4 +1,5 @@
 import { channelBySlug, threadPath } from '../data/community.ts';
+import { tally } from '../lib/format.ts';
 import { openStore } from './instance.ts';
 import { GRACE_MS } from './billing.ts';
 import { callLetters } from './calls.ts';
@@ -10,13 +11,9 @@ import { digestWeek, type OnboardingStep } from './mailings.ts';
 import { renew } from './payments.ts';
 import { report } from './report.ts';
 import { socialUrl } from './paths.ts';
-import { REMINDER_LEAD_MS } from './schedule.ts';
 import { tickRenewalLetter } from './social-letters.ts';
 
 const WEEK_MS = 7 * 86_400_000;
-/** Getting-started emails name sessions this far ahead, and at most this many. */
-const ONBOARDING_HORIZON_MS = 2 * WEEK_MS;
-const ONBOARDING_SESSIONS = 3;
 /** Letters go a few at a time, so a long list never trips the sending limits all at once. */
 const SENDING_AT_ONCE = 5;
 
@@ -88,15 +85,8 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
         await store.socialClaims.evidenceDeleted(claimId);
       }
     });
-    /*
-     * With no session to name, the emails wait rather than go: an invitation to nothing is worse than none. Sessions
-     * inside the reminder window are left out, because their reminder has gone and the email promises one.
-     */
     await step('getting-started emails', async () => {
-      const startsIn = (s: { startsAt: string }) => new Date(s.startsAt).getTime() - at.getTime();
-      const sessions = (await store.schedule.upcoming(null))
-        .filter((s) => startsIn(s) > REMINDER_LEAD_MS && startsIn(s) < ONBOARDING_HORIZON_MS)
-        .slice(0, ONBOARDING_SESSIONS);
+      const sessions = await store.schedule.forOnboarding();
       if (!sessions.length) return;
       const news = { sessions: sessions.map((s) => ({ title: s.title, startsAt: s.startsAt })), sessionsUrl: url('/members/sessions'), settingsUrl: url('/members/account#email') };
       for (const to of await store.mailings.dueOnboarding()) {
@@ -124,6 +114,13 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
     }
 
     if (summaryDue(at)) {
+      /* The emails waiting for a session are the one failure nothing else reports, so the summary says so once a day. */
+      await step('session alarm', async () => {
+        if ((await store.schedule.forOnboarding()).length) return;
+        const waiting = await store.mailings.onboardingWaiting();
+        const detail = `No live session is scheduled between a day and two weeks from now, so getting-started emails are on hold${waiting ? ` for ${tally(waiting, 'new member', 'new members')}` : ''}`;
+        if (await store.incidents.recordOnce('schedule', detail)) console.warn(`[schedule] ${detail}`);
+      });
       const { incidents, lastId } = await store.incidents.unreported();
       const admins = await store.club.adminEmails();
       if (incidents.length && admins.length) summary = { letter: incidentsLetter(admins, incidents, url('/admin')), lastId };

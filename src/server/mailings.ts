@@ -98,6 +98,26 @@ export function noticeReply(db: Db, at: Date, threadId: number, replierId: numbe
   return { title: text(thread, 'title'), recipients: recipients.map(toSubscriber) };
 }
 
+/** Inside a transaction or not: the members owed a getting-started email at `at`, and the step each is owed. Changes nothing. */
+function owedOnboarding(db: Db, at: Date): { readonly row: Row; readonly step: OnboardingStep }[] {
+  const rows = db
+    .prepare(
+      `SELECT m.id, m.email, m.name, m.unsubscribe_key, m.onboarding_sent, m.onboarding_last_at,
+         (SELECT min(p.paid_at) FROM payments p WHERE p.member_id = m.id AND p.status = 'paid' AND p.reversed_at IS NULL) AS first_paid_at
+       FROM members m JOIN subscriptions s ON s.member_id = m.id
+       WHERE m.role = 'member' AND ${STATUS_SQL.active} AND m.email_onboarding = 1 AND m.onboarding_sent < ? AND s.paid_until > ?
+         AND NOT EXISTS (SELECT 1 FROM rsvps r WHERE r.member_id = m.id)`,
+    )
+    .all(ONBOARDING_DAYS.length, iso(at));
+  return rows.flatMap((row) => {
+    const firstPaid = optionalText(row, 'first_paid_at');
+    if (firstPaid === null) return [];
+    const lastAt = optionalText(row, 'onboarding_last_at');
+    const step = onboardingStep(new Date(firstPaid), integer(row, 'onboarding_sent'), lastAt === null ? null : new Date(lastAt), at);
+    return step === null ? [] : [{ row, step }];
+  });
+}
+
 /** Who gets which optional email, and the records that keep each from going twice. */
 export function createMailings(db: Db, now: () => Date = () => new Date()) {
 
@@ -133,26 +153,17 @@ export function createMailings(db: Db, now: () => Date = () => new Date()) {
       return db.transaction(() => {
         keyed(db);
         const at = now();
-        const rows = db
-          .prepare(
-            `SELECT m.id, m.email, m.name, m.unsubscribe_key, m.onboarding_sent, m.onboarding_last_at,
-               (SELECT min(p.paid_at) FROM payments p WHERE p.member_id = m.id AND p.status = 'paid' AND p.reversed_at IS NULL) AS first_paid_at
-             FROM members m JOIN subscriptions s ON s.member_id = m.id
-             WHERE m.role = 'member' AND ${STATUS_SQL.active} AND m.email_onboarding = 1 AND m.onboarding_sent < ? AND s.paid_until > ?
-               AND NOT EXISTS (SELECT 1 FROM rsvps r WHERE r.member_id = m.id)`,
-          )
-          .all(ONBOARDING_DAYS.length, iso(at));
         const mark = db.prepare('UPDATE members SET onboarding_sent = onboarding_sent + 1, onboarding_last_at = ? WHERE id = ?');
-        return rows.flatMap((row) => {
-          const firstPaid = optionalText(row, 'first_paid_at');
-          if (firstPaid === null) return [];
-          const lastAt = optionalText(row, 'onboarding_last_at');
-          const step = onboardingStep(new Date(firstPaid), integer(row, 'onboarding_sent'), lastAt === null ? null : new Date(lastAt), at);
-          if (step === null) return [];
+        return owedOnboarding(db, at).map(({ row, step }) => {
           mark.run(iso(at), integer(row, 'id'));
-          return [{ ...toSubscriber(row), memberId: integer(row, 'id'), step }];
+          return { ...toSubscriber(row), memberId: integer(row, 'id'), step };
         });
       });
+    },
+
+    /** How many members are owed a getting-started email now, without sending or marking any. */
+    onboardingWaiting(): number {
+      return owedOnboarding(db, now()).length;
     },
 
     /** Hands back a getting-started email that did not send, so the next hourly run tries it again. */

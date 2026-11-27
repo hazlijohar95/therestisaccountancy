@@ -195,3 +195,26 @@ test('the migration leaves out members who had already paid, but not members sti
   assert.equal(sent(paid.id), 3, 'a member who paid before the emails existed is not told they joined recently');
   assert.equal(sent(later.id), 0, 'a member invited but not yet paid still gets them once they pay');
 });
+
+test('onboardingWaiting counts who is owed an email without marking anyone, and dueOnboarding then still sends them', async () => {
+  const w = world();
+  const pay = (memberId: number, purchase: string) => {
+    w.billing.opened(purchase, memberId, 'checkout', 'month');
+    assert.ok(w.billing.paid(purchase, false));
+  };
+  const aina = await w.join('aina@firm.com.my', 'Aina');
+  const abu = await w.join('abu@firm.com.my', 'Abu');
+  await w.join('unpaid@firm.com.my', 'Unpaid');
+  pay(aina.id, 'p-aina');
+  pay(abu.id, 'p-abu');
+  assert.equal(w.mailings.onboardingWaiting(), 0, 'nothing is owed the day they pay');
+
+  w.later(DAY_MS);
+  assert.equal(w.mailings.onboardingWaiting(), 2);
+  assert.equal(w.mailings.onboardingWaiting(), 2, 'counting twice marks nothing');
+  assert.equal(w.db.prepare('SELECT sum(onboarding_sent) AS n FROM members').get()?.['n'], 0);
+  assert.equal(w.db.prepare('SELECT count(*) AS n FROM members WHERE unsubscribe_key IS NULL').get()?.['n'], 3, 'and gives no one a key');
+
+  assert.equal(w.mailings.dueOnboarding().length, 2);
+  assert.equal(w.mailings.onboardingWaiting(), 0, 'once sent, no one is waiting');
+});

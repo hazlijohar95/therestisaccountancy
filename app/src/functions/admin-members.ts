@@ -6,6 +6,7 @@ import { roleLabel, statusLabel } from '../../../src/data/members.ts';
 import { formatDay } from '../../../src/lib/format.ts';
 import { pageCount } from '../../../src/lib/paging.ts';
 import { MEMBER_STATUSES, ROLES, memberNumber, type EditRefusal, type InviteRefusal, type LinkRefusal } from '../../../src/server/club.ts';
+import { QUIET_DAYS, type ActivityKind, type LastActivity } from '../../../src/server/activity.ts';
 import { deleteMemberEvidence } from '../../../src/server/evidence.ts';
 import { clubApprovedLetter } from '../../../src/server/letters.ts';
 import { send } from '../../../src/server/mail.ts';
@@ -20,6 +21,16 @@ import { deliver, pagingFor, type Issued } from './admin.server.ts';
 
 const PAGE_SIZE = 50;
 const DECIDED_SHOWN = 20;
+
+const activityVerbs: Record<ActivityKind, string> = {
+  session: 'Said yes to a session',
+  post: 'Posted',
+  lesson: 'Finished a lesson',
+  call: 'Booked a call',
+  plan: 'Worked on their plan',
+};
+
+const lastDid = (last: LastActivity | null) => (last ? `${activityVerbs[last.kind]}, ${formatDay(last.at)}` : 'Nothing yet');
 
 const memberRefusals: Record<EditRefusal, string> = {
   'not-found': 'There is no such member.',
@@ -47,7 +58,10 @@ export interface OverviewSearch {
   readonly page?: number | undefined;
 }
 
-/** The admin's front page: join requests waiting and decided, and one page of members, searched and filtered. */
+/**
+ * The admin's front page: join requests waiting and decided, paying members gone quiet, whether getting-started emails
+ * are held for want of a session, and one page of members, searched and filtered.
+ */
 export const adminOverview = createServerFn({ method: 'GET' })
   .validator((input: OverviewSearch) => input)
   .handler(async ({ data }) => {
@@ -60,6 +74,8 @@ export const adminOverview = createServerFn({ method: 'GET' })
       const decided = await store.club.joinRequests({ decided: true, limit: DECIDED_SHOWN });
       const { items, total } = await store.club.members({ query, status, limit: paging.size, offset: paging.offset });
       const counts = await store.club.memberCounts();
+      const quiet = await store.activity.quiet();
+      const sessionsHeld = (await store.schedule.forOnboarding()).length ? null : { waiting: await store.mailings.onboardingWaiting() };
       const filters = [
         { status: undefined, label: `All ${counts.invited + counts.active + counts.suspended}` },
         ...MEMBER_STATUSES.map((s) => ({ status: s, label: `${statusLabel[s]} ${counts[s]}` })),
@@ -70,6 +86,9 @@ export const adminOverview = createServerFn({ method: 'GET' })
         page: paging.page,
         pages: pageCount(total, paging.size),
         filters,
+        sessionsHeld,
+        quietDays: QUIET_DAYS,
+        quiet: quiet.map((m) => ({ id: m.id, name: m.name, email: m.email, last: lastDid(m.last), paidUntil: formatDay(m.paidUntil), renews: m.renews ? 'On' : 'Off' })),
         pending: pending.map((r) => ({ id: r.id, name: r.name, email: r.email, stage: r.stage, received: formatDay(r.createdAt) })),
         decided: decided.map((r) => ({ id: r.id, name: r.name, email: r.email, stage: r.stage, decision: r.status === 'invited' ? 'Invited' : 'Declined' })),
         members: items.map((m) => ({ id: m.id, number: memberNumber(m), name: m.name, email: m.email, role: roleLabel[m.role], status: statusLabel[m.status], since: formatDay(m.joinedAt) })),
@@ -89,11 +108,13 @@ export const adminMember = createServerFn({ method: 'GET' })
       if (!member) return null;
       const completed = await store.club.completedLessons(member.id);
       const postCount = await store.community.postCount(member.id);
+      const last = await store.activity.last(member.id);
       const standing = await store.billing.standing(member.id);
       return {
         member,
         lessonsDone: completed.size,
         postCount,
+        last,
         standing: { paidUntil: standing.paidUntil, access: standing.access, renews: standing.renews, cardOnFile: standing.cardOnFile, term: standing.term },
       };
     });
@@ -117,6 +138,7 @@ export const adminMember = createServerFn({ method: 'GET' })
         { term: 'Since', detail: formatDay(member.joinedAt) },
         { term: 'Lessons done', detail: String(found.lessonsDone) },
         { term: 'Community posts', detail: String(found.postCount) },
+        { term: 'Last active', detail: lastDid(found.last) },
       ],
     };
   });
