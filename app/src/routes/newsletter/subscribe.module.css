@@ -1,2 +1,0 @@
-.form { display: grid; gap: var(--space-5); max-width: 440px; padding-block: var(--space-7) clamp(80px, 10vw, 144px); }
-.form > :global(.btn) { justify-self: start; }

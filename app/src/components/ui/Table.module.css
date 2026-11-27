@@ -1,5 +1,8 @@
 .scroll { position: relative; overflow-x: auto; }
 .scroll:focus-visible { outline-offset: 2px; }
+.words :global(.ledger) { min-width: 640px; }
+.words :global(.ledger) :is(td, th):not(:first-child) { text-align: start; white-space: normal; }
+.words td { overflow-wrap: anywhere; }
 .confirm summary { width: fit-content; cursor: pointer; text-decoration: underline; text-underline-offset: .2em; }
 .confirm form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin: var(--space-3) 0 0; }
 .confirm :global(.btn) { min-height: 36px; padding: .4em .8em; font-size: var(--size-small); }

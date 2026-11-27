@@ -1,9 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { Masthead } from '../../../components/club/Masthead.tsx';
 import { TemplateList } from '../../../components/members/TemplateList.tsx';
+import { Empty } from '../../../components/ui/Empty.tsx';
+import { PageHead } from '../../../components/ui/PageHead.tsx';
+import { Points } from '../../../components/ui/Points.tsx';
+import { Section } from '../../../components/ui/Section.tsx';
 import { membersResources } from '../../../functions/members-learning.ts';
 import { clubTitle } from '../../../lib/title.ts';
-import s from './index.module.css';
 
 export const Route = createFileRoute('/members/resources/')({
   loader: () => membersResources(),
@@ -15,31 +17,32 @@ function Templates() {
   const groups = Route.useLoaderData();
   return (
     <>
-      <Masthead label="Templates" title="Ready to use with your own clients." narrow>
-        <p>Checklists, letters, scripts and worksheets, written alongside the programmes. Copy one into Word or Google Docs, fill in everything in brackets, and make it yours before a client sees it.</p>
-      </Masthead>
-      <section className={`wrap ${s.library}`} aria-label="Templates by programme">
-        {groups.length === 0 ? (
-          <p className={s.empty}>No templates yet. They appear here as each programme's are written.</p>
-        ) : (
-          groups.map((group) => (
-            <section key={group.slug} className={s.group} aria-labelledby={`t-${group.slug}`}>
-              <div className={s.rail}>
-                <span className={`serif ${s.n}`}>{group.number}</span>
-                <div>
-                  <h2 className="head" id={`t-${group.slug}`}>
-                    {group.name}
-                  </h2>
-                  <p className="small">
-                    {group.promise} <a href={`/members/programmes/${group.slug}`}>Open the programme</a>
-                  </p>
-                </div>
-              </div>
-              <TemplateList items={group.items} withModule />
-            </section>
-          ))
-        )}
-      </section>
+      <PageHead
+        label="Templates"
+        title="Ready to use with your own clients."
+        lead="Checklists, letters, scripts and worksheets, written alongside the programmes."
+        aside={
+          <Points
+            items={[
+              { icon: 'file', text: 'Copy one into Word or Google Docs' },
+              { icon: 'check', text: 'Fill in everything in brackets' },
+              { icon: 'users', text: 'Make it yours before a client sees it' },
+            ]}
+          />
+        }
+      />
+      {groups.length === 0 ? (
+        <Section title="Templates">
+          <Empty icon="file">No templates yet. They appear here as each programme's are written.</Empty>
+        </Section>
+      ) : (
+        groups.map((group) => (
+          <Section key={group.slug} title={group.name} meta={<a href={`/members/programmes/${group.slug}`}>Open the programme</a>}>
+            <p className="small">{group.promise}</p>
+            <TemplateList items={group.items} withModule />
+          </Section>
+        ))
+      )}
     </>
   );
 }

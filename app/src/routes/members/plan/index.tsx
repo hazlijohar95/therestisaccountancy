@@ -1,18 +1,22 @@
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
+import { hostFirstName } from '../../../../../src/data/authors.ts';
 import { PLAN_ANSWER_MAX, planSections, type PlanSectionSlug } from '../../../../../src/data/plan.ts';
 import { capitalised, formatDay, formatMoment, numberWord } from '../../../../../src/lib/format.ts';
-import { Masthead } from '../../../components/club/Masthead.tsx';
-import { Notice } from '../../../components/club/Notice.tsx';
 import { PlanLetter } from '../../../components/club/PlanLetter.tsx';
 import { FieldError } from '../../../components/FieldError.tsx';
+import { flags } from '../../../components/members/flags.ts';
+import { Icon } from '../../../components/ui/Icon.tsx';
+import { List, Meta, Row } from '../../../components/ui/List.tsx';
+import { Notice } from '../../../components/ui/Notice.tsx';
+import { PageHead } from '../../../components/ui/PageHead.tsx';
+import { Actions, Section } from '../../../components/ui/Section.tsx';
+import { Progress, Steps, type Step } from '../../../components/ui/Steps.tsx';
 import { useAction } from '../../../components/useAction.ts';
 import { membersPlan, savePlan, sendPlan, startPlan, takeBackPlan } from '../../../functions/members-plans.ts';
 import { wireField } from '../../../lib/form.ts';
-import { flags } from '../../../components/members/flags.ts';
 import { clubTitle } from '../../../lib/title.ts';
 import s from './index.module.css';
-import { hostFirstName } from '../../../../../src/data/authors.ts';
 
 const FLAGS = ['saved', 'sent', 'unsent', 'back', 'started'] as const;
 type Flag = (typeof FLAGS)[number];
@@ -23,6 +27,21 @@ export const Route = createFileRoute('/members/plan/')({
   head: () => ({ meta: clubTitle('Your plan') }),
   component: PlanPage,
 });
+
+const sections = numberWord(planSections.length);
+
+/** Where a plan is between writing it and reading the answer. */
+type Stage = { readonly at: 'writing' } | { readonly at: 'sent'; readonly sentAt: string } | { readonly at: 'answered'; readonly sentAt: string; readonly by: string | null; readonly on: string };
+
+function track(stage: Stage): Step[] {
+  const current = { writing: 0, sent: 2, answered: 3 }[stage.at];
+  const step = (i: number) => (i < current ? 'done' : i === current ? 'current' : 'todo');
+  return [
+    { label: 'Write', detail: `${capitalised(sections)} sections`, state: step(0) },
+    { label: 'Send', detail: stage.at === 'writing' ? `To ${hostFirstName}, once every section is written` : `Sent ${formatDay(stage.sentAt)}`, state: step(1) },
+    { label: 'Answer', detail: stage.at === 'answered' ? `${stage.by ?? hostFirstName}, ${formatDay(stage.on)}` : 'In writing, by email. Until then you can take it back.', state: step(2) },
+  ];
+}
 
 function PlanPage() {
   const { open, answered } = Route.useLoaderData();
@@ -59,9 +78,7 @@ function PlanPage() {
   const answerOf = (slug: PlanSectionSlug) => (posted ? (posted[slug] ?? '') : (draft?.answers[slug] ?? ''));
   const errorOf = (slug: PlanSectionSlug) => (tooLong ? refusal.fields[slug] : undefined) ?? (missing.has(slug) ? 'Write this section before you send it.' : null);
   const unsaved = open?.status === 'sent' && posted ? planSections.filter((section) => (posted[section.slug] ?? '').trim() !== '') : [];
-  const sections = numberWord(planSections.length);
   const written = planSections.length - (draft ? draft.missing.length : planSections.length);
-  const progress = written === 0 ? 'No sections written yet.' : `${capitalised(numberWord(written))} of ${sections} sections written.`;
   const number = (i: number) => String(i + 1).padStart(2, '0');
 
   const clear = (except?: { clear: () => void }) => {
@@ -104,19 +121,15 @@ function PlanPage() {
 
   return (
     <>
-      <Masthead
+      <PageHead
         label={
           <span>
             <a href="/members/programmes/growth">Growth</a> / Your plan
           </span>
         }
         title="The firm you want, written down."
-        narrow
-      >
-        <p>
-          {capitalised(sections)} sections, in your own words. Save as you go, and send it to {hostFirstName} once every section is written. {hostFirstName} reads it and answers in writing. It is the last module of Growth, and the lessons before it lead up to it.
-        </p>
-      </Masthead>
+        lead={`The last module of Growth. ${capitalised(sections)} sections in your own words, answered in writing by ${hostFirstName}.`}
+      />
 
       {notice && <Notice>{notice}</Notice>}
       {unsent && <Notice tone="error">Saved as a draft, not sent. Write the sections marked below, then send it.</Notice>}
@@ -124,13 +137,10 @@ function PlanPage() {
       {failure && <Notice tone="error">{failure}</Notice>}
 
       {writing && (
-        <section className={`wrap ${s.block}`} aria-labelledby="draft-title">
-          <div className={s.state}>
-            <h2 className="head" id="draft-title">
-              {draft ? 'Your draft' : 'Start your plan'}
-            </h2>
-            <p className="small">{draft ? `${progress} Last saved ${formatMoment(draft.updatedAt)}.` : 'Nothing is kept until you save. Write as much or as little as you like to begin with.'}</p>
-          </div>
+        <Section title={draft ? 'Your draft' : 'Start your plan'} meta={draft && `Saved ${formatMoment(draft.updatedAt)}`}>
+          <Steps label="Your plan" items={track({ at: 'writing' })} />
+          <Progress value={written} max={planSections.length} label="Sections written" />
+          {!draft && <p className="small">Nothing is kept until you save.</p>}
           <form method="POST" onSubmit={write}>
             <ol className={s.sections}>
               {planSections.map((section, i) => {
@@ -158,40 +168,37 @@ function PlanPage() {
                         defaultValue={answerOf(section.slug)}
                         {...error.input}
                       />
-                      <FieldError field={error} className={s.error} />
+                      <FieldError field={error} />
                     </div>
                   </li>
                 );
               })}
             </ol>
             <div className={s.send}>
-              <div className={s.row}>
+              <Actions>
                 <button className="btn" type="submit" value="send">
                   Send to {hostFirstName}
                 </button>
                 <button className="btn ghost" type="submit" value="save">
                   Save draft
                 </button>
-              </div>
-              <p className="small">Sending needs all {sections} sections. Until {hostFirstName} answers, you can take it back to change it.</p>
+              </Actions>
+              <p className="small">
+                Sending needs all {sections} sections. You can take it back to change it until {hostFirstName} answers.
+              </p>
             </div>
           </form>
-        </section>
+        </Section>
       )}
 
       {open?.status === 'sent' && (
-        <section className={`wrap ${s.block}`} aria-labelledby="sent-title">
-          <div className={s.state}>
-            <h2 className="head" id="sent-title">
-              With {hostFirstName}
-            </h2>
-            <p>Sent on {formatDay(open.sentAt)}. {hostFirstName} reads it and answers in writing, and you get the answer by email. Until then, you can take it back to change it.</p>
-            <form method="POST" onSubmit={act('back')}>
-              <button className="btn ghost" type="submit">
-                Take it back to change it
-              </button>
-            </form>
-          </div>
+        <Section title={`With ${hostFirstName}`}>
+          <Steps label="Your plan" items={track({ at: 'sent', sentAt: open.sentAt })} />
+          <form method="POST" onSubmit={act('back')}>
+            <button className="btn ghost" type="submit">
+              Take it back to change it
+            </button>
+          </form>
           {unsaved.length > 0 && (
             <div className={s.unsaved}>
               <p>What you just typed was not saved. Copy anything you want to keep.</p>
@@ -204,66 +211,47 @@ function PlanPage() {
             </div>
           )}
           <PlanLetter plan={open} level={3} />
-        </section>
+        </Section>
       )}
 
       {!writing && open === null && latest && (
-        <section className={`wrap ${s.block}`} aria-label="Your last plan">
-          <div className={s.state}>
-            <h2 className="head">Answered</h2>
-            <p>
-              {latest.reply.by ?? hostFirstName} answered your plan on {formatDay(latest.reply.at)}.
-            </p>
-            <p className={s.row}>
+        <>
+          <Section title="Answered">
+            <Steps label="Your plan" items={track({ at: 'answered', sentAt: latest.sentAt, by: latest.reply.by, on: latest.reply.at })} />
+            <Actions>
               <a className="btn" href={`/members/plan/${latest.id}`}>
                 Read the answer
               </a>
-            </p>
-          </div>
-          <div className={s.state}>
-            <h2 className="head">The next plan</h2>
-            <p>When you are ready, write the next one. It starts from this plan, so you only change what has moved. The question for {hostFirstName} starts blank.</p>
+            </Actions>
+          </Section>
+          <Section title="The next plan">
+            <p className="small">It starts from this plan, so you only change what has moved. The question for {hostFirstName} starts blank.</p>
             <form method="POST" onSubmit={act('start')}>
               <button className="btn ghost" type="submit">
                 Start the next plan
               </button>
             </form>
-          </div>
-        </section>
+          </Section>
+        </>
       )}
 
       {answered.length > 0 && (
-        <section className={`wrap ${s.block}`} aria-labelledby="past-title">
-          <h2 className="head" id="past-title">
-            Answered plans
-          </h2>
-          <div className={s.scroll}>
-            <table className="ledger">
-              <thead>
-                <tr>
-                  <th>Sent</th>
-                  <th>Answered</th>
-                  <th>By</th>
-                  <th>
-                    <span className={s.sr}>Plan</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {answered.map((p) => (
-                  <tr key={p.id}>
-                    <td>{formatDay(p.sentAt)}</td>
-                    <td>{formatDay(p.reply.at)}</td>
-                    <td>{p.reply.by ?? hostFirstName}</td>
-                    <td>
-                      <a href={`/members/plan/${p.id}`}>Read</a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <Section title="Answered plans">
+          <List>
+            {answered.map((p) => (
+              <Row
+                key={p.id}
+                lead={<Icon name="file" />}
+                title={<a href={`/members/plan/${p.id}`}>Sent {formatDay(p.sentAt)}</a>}
+                meta={
+                  <Meta icon="check">
+                    Answered {formatDay(p.reply.at)} by {p.reply.by ?? hostFirstName}
+                  </Meta>
+                }
+              />
+            ))}
+          </List>
+        </Section>
       )}
     </>
   );

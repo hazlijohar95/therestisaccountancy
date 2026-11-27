@@ -1,9 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { FieldError } from '../../components/FieldError.tsx';
 import { useAction } from '../../components/useAction.ts';
-import { Masthead } from '../../components/club/Masthead.tsx';
-import { Notice } from '../../components/club/Notice.tsx';
+import { Badge } from '../../components/ui/Badge.tsx';
+import { Empty } from '../../components/ui/Empty.tsx';
+import { Field, Form } from '../../components/ui/Form.tsx';
+import { DateTile, List, Meta, Row } from '../../components/ui/List.tsx';
+import { Notice } from '../../components/ui/Notice.tsx';
+import { PageHead } from '../../components/ui/PageHead.tsx';
+import { Points } from '../../components/ui/Points.tsx';
+import { Section } from '../../components/ui/Section.tsx';
+import { Confirm } from '../../components/ui/Table.tsx';
 import { adminCalls, cancelSlot, openSlot, type SlotForm } from '../../functions/admin-calls.ts';
 import { failureOf } from '../../lib/outcome.ts';
 import { clubTitle } from '../../lib/title.ts';
@@ -46,101 +52,99 @@ function Calls() {
 
   return (
     <>
-      <Masthead label="Admin" title="One-to-one calls">
-        <p>
-          Open a slot and members can book it until two hours before it starts. Whoever books says what they are stuck on, and you get that by email with a calendar invite, then a
-          reminder the day before. Times are Malaysia time.
-        </p>
-      </Masthead>
+      <PageHead label="Admin" title="One-to-one calls" lead="Times are Malaysia time." />
 
       {shown}
 
-      <section className={`wrap ${s.block}`} aria-labelledby="upcoming-title">
-        <h2 className="head" id="upcoming-title">
-          Coming up
-        </h2>
+      <Section title="Coming up">
         {slots.length === 0 ? (
-          <p className={s.empty}>No slots open. Open one below and members see it straight away.</p>
+          <Empty icon="calendar">No slots open. Open one below and members see it at once.</Empty>
         ) : (
-          <ol className={s.slots}>
+          <List ordered>
             {slots.map((slot) => (
-              <li className={s.slot} key={slot.id}>
-                <div className="small">
-                  <time dateTime={slot.startsAt}>{slot.when}</time> · {slot.minutes} min · with {slot.host}
-                </div>
-                {slot.booking ? (
+              <Row
+                key={slot.id}
+                lead={<DateTile at={slot.startsAt} />}
+                title={slot.booking ? slot.booking.name : 'Not booked yet'}
+                meta={
                   <>
-                    <h3 className={s.title}>{slot.booking.name}</h3>
-                    <p className={s.topic}>{slot.booking.topic}</p>
-                    <p className="small">
-                      <a href={`mailto:${slot.booking.email}`}>{slot.booking.email}</a> · booked {slot.booking.bookedAt}
-                    </p>
+                    {slot.booking ? <Badge tone="solid">Booked</Badge> : <Badge>Open</Badge>}
+                    <Meta icon="clock">
+                      <time dateTime={slot.startsAt}>{slot.when}</time>, {slot.minutes} min
+                    </Meta>
+                    <Meta icon="users">With {slot.host}</Meta>
                   </>
-                ) : (
-                  <h3 className={s.title}>Not booked yet</h3>
+                }
+                trail={
+                  <Confirm summary="Cancel the slot">
+                    <form
+                      method="POST"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void onCancel(slot.id);
+                      }}
+                    >
+                      <span className="small">{slot.booking ? `${slot.booking.name} gets an email saying it is off.` : 'Nobody has booked it, so nobody is told.'}</span>
+                      <button className="btn" type="submit" disabled={busy}>
+                        Cancel the slot
+                      </button>
+                    </form>
+                  </Confirm>
+                }
+              >
+                {slot.booking && (
+                  <>
+                    <p>{slot.booking.topic}</p>
+                    <div className={`small ${s.facts}`}>
+                      <Meta icon="mail">
+                        <a href={`mailto:${slot.booking.email}`}>{slot.booking.email}</a>
+                      </Meta>
+                      <span>Booked {slot.booking.bookedAt}</span>
+                    </div>
+                  </>
                 )}
-                <p className={`small ${s.link}`}>
-                  <a href={slot.link} rel="noopener">
-                    {slot.link}
-                  </a>
-                </p>
-                <details className={s.confirm}>
-                  <summary>Cancel the slot</summary>
-                  <form
-                    method="POST"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      void onCancel(slot.id);
-                    }}
-                  >
-                    <span className="small">{slot.booking ? `${slot.booking.name} gets an email saying it is off.` : 'Nobody has booked it, so nobody is told.'}</span>
-                    <button className="btn" type="submit" disabled={busy}>
-                      Cancel the slot
-                    </button>
-                  </form>
-                </details>
-              </li>
+                <div className={`small ${s.link}`}>
+                  <Meta icon="play">
+                    <a href={slot.link} rel="noopener">
+                      {slot.link}
+                    </a>
+                  </Meta>
+                </div>
+              </Row>
             ))}
-          </ol>
+          </List>
         )}
-      </section>
+      </Section>
 
-      <section className={`wrap ${s.block}`} aria-labelledby="open-title">
-        <h2 className="head" id="open-title">
-          Open a slot
-        </h2>
-        <form method="POST" className={s.form} onSubmit={onOpen} key={lastLink}>
+      <Section title="Open a slot">
+        <Points
+          items={[
+            { icon: 'clock', text: 'Bookable until two hours before it starts' },
+            { icon: 'file', text: 'Whoever books says what they are stuck on' },
+            { icon: 'mail', text: 'You get that by email with a calendar invite' },
+            { icon: 'repeat', text: 'Then a reminder the day before' },
+          ]}
+        />
+        <Form wide onSubmit={onOpen} key={lastLink}>
           <div className={s.pair}>
-            <div className="field">
-              <label htmlFor="date">Date</label>
+            <Field label="Date" id="date" field={date}>
               <input className="input" id="date" name="date" type="date" min={today} required {...date.input} />
-              <FieldError field={date} className={s.error} />
-            </div>
-            <div className="field">
-              <label htmlFor="time">Start, Malaysia time</label>
+            </Field>
+            <Field label="Start, Malaysia time" id="time" field={time}>
               <input className="input" id="time" name="time" type="time" required {...time.input} />
-              <FieldError field={time} className={s.error} />
-            </div>
+            </Field>
           </div>
-          <div className="field">
-            <label htmlFor="minutes">Length in minutes</label>
+          <Field label="Length in minutes" id="minutes" hint={`Between ${minutes.min} and ${minutes.max}.`} field={lengthField}>
             <input className="input" id="minutes" name="minutes" type="number" min={minutes.min} max={minutes.max} step="5" required defaultValue="30" {...lengthField.input} />
-            <span className="hint">
-              Between {minutes.min} and {minutes.max}.
-            </span>
-            <FieldError field={lengthField} className={s.error} />
-          </div>
-          <div className="field">
-            <label htmlFor="link">Call link</label>
+          </Field>
+          <Field label="Call link" id="link" hint="Only the member who books sees it. Filled in with your last link." field={link}>
             <input className="input" id="link" name="link" type="url" placeholder="https://" required defaultValue={lastLink} {...link.input} />
-            <span className="hint">Only the member who books it sees it. Filled in with the link you used last.</span>
-            <FieldError field={link} className={s.error} />
-          </div>
+          </Field>
           <button className="btn" type="submit" disabled={busy}>
             Open the slot
           </button>
-        </form>
-      </section>
+        </Form>
+      </Section>
     </>
   );
 }

@@ -1,10 +1,13 @@
 import type { ReactNode } from 'react';
 import s from './Table.module.css';
 
-/** A ledger table that scrolls sideways on its own when it is wider than the page. Pass thead and tbody. */
-export function Table({ label, children }: { label: string; children: ReactNode }) {
+/**
+ * A ledger table that scrolls sideways on its own when it is wider than the page. Pass thead and tbody.
+ * Columns after the first are figures, right-aligned; words sets them as text instead: names, emails, statuses.
+ */
+export function Table({ label, words = false, children }: { label: string; words?: boolean; children: ReactNode }) {
   return (
-    <div className={s.scroll} role="region" aria-label={label} tabIndex={0}>
+    <div className={words ? `${s.scroll} ${s.words}` : s.scroll} role="region" aria-label={label} tabIndex={0}>
       <table className="ledger">{children}</table>
     </div>
   );

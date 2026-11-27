@@ -1,11 +1,16 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { capitalised, firstName } from '../../../../src/lib/format.ts';
-import { FieldError } from '../../components/FieldError.tsx';
 import { useAction } from '../../components/useAction.ts';
-import { Masthead } from '../../components/club/Masthead.tsx';
-import { Notice } from '../../components/club/Notice.tsx';
 import { PlanLetter } from '../../components/club/PlanLetter.tsx';
+import { Empty } from '../../components/ui/Empty.tsx';
+import { Field, Form } from '../../components/ui/Form.tsx';
+import { Meta } from '../../components/ui/List.tsx';
+import { Notice } from '../../components/ui/Notice.tsx';
+import { PageHead } from '../../components/ui/PageHead.tsx';
+import { Points } from '../../components/ui/Points.tsx';
+import { Section } from '../../components/ui/Section.tsx';
+import { Table } from '../../components/ui/Table.tsx';
 import { adminPlans, answerPlan } from '../../functions/admin-plans.ts';
 import { wireField } from '../../lib/form.ts';
 import { failureOf } from '../../lib/outcome.ts';
@@ -45,66 +50,65 @@ function Plans() {
 
   return (
     <>
-      <Masthead label="Admin" title={data.title}>
-        <p>
-          A member sends their plan once every section is written. Read it, then answer in writing. They get your answer by email, from you, and the plan closes. Until you
-          answer, they can take it back to change it.
-        </p>
-      </Masthead>
+      <PageHead label="Admin" title={data.title} lead="Read each plan, then answer in writing." />
 
       {sent?.ok && <Notice>Answer sent. The member has it by email, from you.</Notice>}
       {failure && <Notice tone="error">{failure}</Notice>}
       {refusal && !failure && <Notice tone="error">Your answer was not sent. The note under it says why.</Notice>}
       {unsent && (
-        <section className={`wrap ${s.block}`}>
-          <div className={`field ${s.unsent}`}>
-            <label htmlFor="unsent">Your answer, not sent. Copy it if you want to keep it.</label>
-            <textarea className="input" id="unsent" rows={8} readOnly value={unsent} />
+        <Section title="Not sent">
+          <div className={s.wide}>
+            <Field label="Your answer, not sent. Copy it to keep it." id="unsent">
+              <textarea className="input" id="unsent" rows={8} readOnly value={unsent} />
+            </Field>
           </div>
-        </section>
+        </Section>
       )}
 
-      <section className={`wrap ${s.block}`} aria-labelledby="waiting-title">
-        <h2 className="head" id="waiting-title">
-          Waiting for an answer
-        </h2>
+      <Section title="Waiting for an answer">
+        <Points
+          items={[
+            { icon: 'file', text: 'Members send a plan once every section is written' },
+            { icon: 'mail', text: 'Your answer goes to them by email, from you' },
+            { icon: 'lock', text: 'Answering closes the plan' },
+            { icon: 'repeat', text: 'Until then they can take it back to change it' },
+          ]}
+        />
         {waiting.length === 0 ? (
-          <p className={s.empty}>Nothing waiting. Plans appear here as members send them, the one waiting longest first.</p>
+          <Empty icon="file">Nothing waiting. Plans land here as members send them, the longest waiting first.</Empty>
         ) : (
           <>
-            <div className={s.scroll}>
-              <table className={`ledger ${s.ledger}`}>
-                <thead>
-                  <tr>
-                    <th>Member</th>
-                    <th>Sent</th>
-                    <th>Waiting</th>
-                    <th>
-                      <span className={s.sr}>Plan</span>
-                    </th>
+            <Table label="Plans waiting">
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Sent</th>
+                  <th>Waiting</th>
+                  <th>
+                    <span className="visually-hidden">Plan</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {waiting.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <Link to="/admin/members/$id" params={{ id: String(p.member.id) }}>
+                        {p.member.name}
+                      </Link>
+                    </td>
+                    <td>{p.sent}</td>
+                    <td>{capitalised(p.waited)}</td>
+                    <td>
+                      <a href={`#plan-${p.id}`}>Read and answer</a>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {waiting.map((p) => (
-                    <tr key={p.id}>
-                      <td>
-                        <Link to="/admin/members/$id" params={{ id: String(p.member.id) }}>
-                          {p.member.name}
-                        </Link>
-                      </td>
-                      <td>{p.sent}</td>
-                      <td>{capitalised(p.waited)}</td>
-                      <td>
-                        <a href={`#plan-${p.id}`}>Read and answer</a>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </Table>
             {waiting.map((p) => {
-              const hint = `reply-${p.id}-hint`;
-              const reply = wireField(refusal?.plan === p.id ? refusal.fields['reply'] : undefined, { id: `reply-${p.id}-error`, hint });
+              const id = `reply-${p.id}`;
+              const reply = wireField(refusal?.plan === p.id ? refusal.fields['reply'] : undefined, { id: `${id}-error`, hint: `${id}-hint` });
               return (
                 <article className={s.plan} id={`plan-${p.id}`} aria-labelledby={`plan-${p.id}-title`} key={p.id}>
                   <header className={s.who}>
@@ -113,53 +117,42 @@ function Plans() {
                         {p.member.name}
                       </Link>
                     </h3>
-                    <p className="small">
-                      Sent {p.sentMoment}. Waiting {p.waited}.
-                    </p>
+                    <div className={`small ${s.meta}`}>
+                      <Meta icon="file">Sent {p.sentMoment}</Meta>
+                      <Meta icon="clock">Waiting {p.waited}</Meta>
+                    </div>
                   </header>
                   <PlanLetter plan={p} level={4} />
                   {refusal?.plan === p.id && failure && (
-                    <p className={s.error} role="alert">
+                    <Notice tone="error" inline>
                       {failure}
-                    </p>
+                    </Notice>
                   )}
-                  <form method="POST" className={s.reply} onSubmit={(event) => void onAnswer(event, p)}>
-                    <div className="field">
-                      <label htmlFor={`reply-${p.id}`}>Your answer to {firstName(p.member.name)}</label>
-                      <textarea
-                        className="input"
-                        id={`reply-${p.id}`}
-                        name="reply"
-                        rows={10}
-                        required
-                        maxLength={data.replyMax}
-                        {...reply.input}
-                      />
-                      <span className="hint" id={hint}>
-                        Plain text. Leave a blank line between paragraphs. It goes to them by email, from you, and closes the plan, so it cannot be changed after.
-                      </span>
-                      <FieldError field={reply} className={s.error} />
-                    </div>
+                  <Form wide className={s.reply} onSubmit={(event) => void onAnswer(event, p)}>
+                    <Field
+                      label={`Your answer to ${firstName(p.member.name)}`}
+                      id={id}
+                      hint="Plain text, a blank line between paragraphs. Sending emails it from you and closes the plan. It cannot be changed after."
+                      field={reply}
+                    >
+                      <textarea className="input" id={id} name="reply" rows={10} required maxLength={data.replyMax} {...reply.input} />
+                    </Field>
                     <button className="btn" type="submit" disabled={send.busy}>
                       Send the answer
                     </button>
-                  </form>
+                  </Form>
                 </article>
               );
             })}
           </>
         )}
-      </section>
+      </Section>
 
-      <section className={`wrap ${s.block}`} aria-labelledby="answered-title">
-        <h2 className="head" id="answered-title">
-          Answered
-        </h2>
+      <Section title="Answered" meta={answered.length > 0 && answered.length === data.answeredShown ? `The ${data.answeredShown} most recent` : undefined}>
         {answered.length === 0 ? (
-          <p className={s.empty}>No plans answered yet.</p>
+          <Empty icon="file">No plans answered yet.</Empty>
         ) : (
           <div className={s.answered}>
-            {answered.length === data.answeredShown && <p className="small">The {data.answeredShown} most recent.</p>}
             {answered.map((p) => (
               <details className={s.done} key={p.id}>
                 <summary>
@@ -181,7 +174,7 @@ function Plans() {
             ))}
           </div>
         )}
-      </section>
+      </Section>
     </>
   );
 }

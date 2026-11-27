@@ -1,10 +1,15 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent, type ReactNode } from 'react';
+import { capitalised } from '../../../../../src/lib/format.ts';
 import { LinkNotice } from '../../../components/admin/LinkNotice.tsx';
 import { FieldError } from '../../../components/FieldError.tsx';
 import { useAction } from '../../../components/useAction.ts';
-import { Masthead } from '../../../components/club/Masthead.tsx';
-import { Notice } from '../../../components/club/Notice.tsx';
+import { Badge } from '../../../components/ui/Badge.tsx';
+import { Check, Field, Form } from '../../../components/ui/Form.tsx';
+import { Notice } from '../../../components/ui/Notice.tsx';
+import { PageHead } from '../../../components/ui/PageHead.tsx';
+import { Points } from '../../../components/ui/Points.tsx';
+import { Actions, Section } from '../../../components/ui/Section.tsx';
 import { adminMember, issueLink, reinstateMember, removeMember, suspendMember, updateMember } from '../../../functions/admin-members.ts';
 import { failureOf } from '../../../lib/outcome.ts';
 import { clubTitle } from '../../../lib/title.ts';
@@ -17,7 +22,7 @@ export const Route = createFileRoute('/admin/members/$id')({
 });
 
 const access = {
-  invited: 'They have not set a password yet. A new invitation link replaces any earlier one.',
+  invited: 'No password set yet. A new invitation link replaces any earlier one.',
   active: 'They can sign in. A reset link lets them choose a new password and signs them out everywhere else.',
   suspended: 'They cannot sign in or use a link, and their sessions have ended. Reinstating lets them sign in with their existing password.',
 } as const;
@@ -78,20 +83,19 @@ function AdminMember() {
 
   return (
     <>
-      <Masthead label="Admin / Member" title={member.name}>
-        <p>
-          <Link to="/admin" hash="members-title">
+      <PageHead
+        label="Admin / Member"
+        title={member.name}
+        actions={
+          <Link className="btn ghost" to="/admin" hash="members-title">
             All members
           </Link>
-        </p>
-      </Masthead>
+        }
+      />
 
       {shown}
 
-      <section className={`wrap ${s.block}`} aria-labelledby="facts-title">
-        <h2 className="head" id="facts-title">
-          On record
-        </h2>
+      <Section title="On record">
         <dl className={`facts ${s.facts}`}>
           {facts.map(({ term, detail }) => (
             <div key={term}>
@@ -100,39 +104,20 @@ function AdminMember() {
             </div>
           ))}
         </dl>
-      </section>
+      </Section>
 
-      <section className={`wrap ${s.block}`} aria-labelledby="details-title">
-        <h2 className="head" id="details-title">
-          Details
-        </h2>
-        <form method="POST" className={s.form} onSubmit={onSave} key={`${member.name} ${member.email} ${member.role}`}>
-          <div className="field">
-            <label htmlFor="name">Name</label>
+      <Section title="Details">
+        <Form onSubmit={onSave} key={`${member.name} ${member.email} ${member.role}`}>
+          <Field label="Name" id="name" field={name}>
             <input className="input" id="name" name="name" defaultValue={member.name} maxLength={60} required {...name.input} />
-            <FieldError field={name} className={s.error} />
-          </div>
-          <div className="field">
-            <label htmlFor="email">Email</label>
-            <input
-              className="input"
-              id="email"
-              name="email"
-              type="email"
-              defaultValue={member.email}
-              required
-              {...email.input}
-            />
-            <span className="hint" id="email-hint">
-              They sign in with this. Tell them when it changes.
-            </span>
-            <FieldError field={email} className={s.error} />
-          </div>
+          </Field>
+          <Field label="Email" id="email" hint="They sign in with this. Tell them when it changes." field={email}>
+            <input className="input" id="email" name="email" type="email" defaultValue={member.email} required {...email.input} />
+          </Field>
           {self ? (
-            <p className={`small ${s.small}`}>You are an admin. Another admin can change your role.</p>
+            <p className={`small ${s.note}`}>You are an admin. Another admin can change your role.</p>
           ) : (
-            <div className="field">
-              <label htmlFor="role">Role</label>
+            <Field label="Role" id="role" hint="Admins can invite, edit, suspend and remove members, and moderate the community.">
               <select className="input" id="role" name="role" defaultValue={member.role}>
                 {roles.map((role) => (
                   <option key={role.value} value={role.value}>
@@ -140,21 +125,17 @@ function AdminMember() {
                   </option>
                 ))}
               </select>
-              <span className="hint">Admins can invite, edit, suspend and remove members, and moderate the community.</span>
-            </div>
+            </Field>
           )}
           <button className="btn" type="submit" disabled={busy}>
             Save
           </button>
-        </form>
-      </section>
+        </Form>
+      </Section>
 
-      <section className={`wrap ${s.block}`} aria-labelledby="access-title">
-        <h2 className="head" id="access-title">
-          Access
-        </h2>
+      <Section title="Access" meta={<Badge tone={member.status === 'suspended' ? 'solid' : 'plain'}>{capitalised(member.status)}</Badge>}>
         <p className={s.note}>{access[member.status]}</p>
-        <div className={s.actions}>
+        <Actions>
           {member.status !== 'suspended' && (
             <form method="POST" onSubmit={onLink}>
               <button className="btn" type="submit" disabled={busy}>
@@ -177,29 +158,28 @@ function AdminMember() {
               </form>
             )
           )}
-        </div>
-      </section>
+        </Actions>
+      </Section>
 
       {!self && (
-        <section className={`wrap ${s.block}`} aria-labelledby="remove-title">
-          <h2 className="head" id="remove-title">
-            Remove
-          </h2>
-          <p className={s.note}>
-            Removing deletes their account, lesson progress, open links and join request. It cannot be undone. Their posts and replies in the community go with them, and so do other
-            members' replies under their posts. To keep their record, suspend them instead.
-          </p>
-          <form method="POST" className={s.form} onSubmit={onRemove}>
-            <label className={s.check}>
-              <input type="checkbox" name="confirm" value="yes" required {...confirmed.input} />
-              <span>I understand {member.name} will be deleted for good.</span>
-            </label>
-            <FieldError field={confirmed} className={s.error} />
+        <Section title="Remove">
+          <Points
+            items={[
+              { icon: 'alert', text: 'Deletes their account, lesson progress, open links and join request' },
+              { icon: 'users', text: "Their community posts and replies go too, and so do other members' replies under their posts" },
+              { icon: 'lock', text: 'Cannot be undone. To keep their record, suspend them instead.' },
+            ]}
+          />
+          <Form onSubmit={onRemove}>
+            <div className="field">
+              <Check name="confirm" value="yes" required {...confirmed.input} label={`I understand ${member.name} will be deleted for good.`} />
+              <FieldError field={confirmed} />
+            </div>
             <button className="btn" type="submit" disabled={busy}>
               Remove member
             </button>
-          </form>
-        </section>
+          </Form>
+        </Section>
       )}
     </>
   );

@@ -1,7 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
 import type { FormEvent } from 'react';
-import { Notice } from '../../../components/club/Notice.tsx';
 import { TemplateList } from '../../../components/members/TemplateList.tsx';
+import { Badge } from '../../../components/ui/Badge.tsx';
+import { Meta } from '../../../components/ui/List.tsx';
+import { Notice } from '../../../components/ui/Notice.tsx';
+import { PageHead } from '../../../components/ui/PageHead.tsx';
+import { Section } from '../../../components/ui/Section.tsx';
 import { useAction } from '../../../components/useAction.ts';
 import { lessonDone, membersLesson } from '../../../functions/members-learning.ts';
 import { clubTitle } from '../../../lib/title.ts';
@@ -24,28 +28,27 @@ function Lesson() {
 
   return (
     <>
-      <section className="night">
-        <div className={`wrap ${s.masthead}`}>
-          <p className={`label ${s.top}`}>
+      <PageHead
+        label={
+          <span>
             <a href={lesson.programme.href}>{lesson.programme.name}</a> / Module {lesson.module} · {lesson.programme.topic}
-          </p>
-          <h1 className={`headline serif ${s.headline}`}>{lesson.title}</h1>
-          <p className="small">{lesson.minutes} minute read</p>
-        </div>
-      </section>
+          </span>
+        }
+        title={lesson.title}
+        lead={<Meta icon="clock">{lesson.minutes} minute read</Meta>}
+      />
       {mark.refusal && <Notice tone="error">{mark.refusal.message}</Notice>}
       <article className={`wrap ${s.body}`}>
         <div className={s.prose} dangerouslySetInnerHTML={{ __html: lesson.html }} />
-        {lesson.templates.length > 0 && (
-          <section className={s.templates} aria-labelledby="templates-title">
-            <h2 className="label" id="templates-title">
-              Templates for this module
-            </h2>
-            <TemplateList items={lesson.templates} />
-          </section>
-        )}
+      </article>
+      {lesson.templates.length > 0 && (
+        <Section title="Templates for this module">
+          <TemplateList items={lesson.templates} />
+        </Section>
+      )}
+      <div className={`wrap ${s.end}`}>
         <form method="POST" className={s.done} onSubmit={toggle}>
-          <p>{lesson.done ? 'You marked this lesson done.' : 'Finished it?'}</p>
+          <p>{lesson.done ? <Badge tone="solid">Done</Badge> : 'Finished it?'}</p>
           <button className={lesson.done ? 'btn ghost' : 'btn'} type="submit">
             {lesson.done ? 'Mark as not done' : 'Mark as done'}
           </button>
@@ -66,7 +69,7 @@ function Lesson() {
             </a>
           )}
         </nav>
-      </article>
+      </div>
     </>
   );
 }

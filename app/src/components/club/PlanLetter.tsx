@@ -2,6 +2,7 @@ import { planSections } from '../../../../src/data/plan.ts';
 import { formatDay } from '../../../../src/lib/format.ts';
 import type { PlanAnswers, PlanReply } from '../../../../src/server/plans.ts';
 import { PostText } from '../PostText.tsx';
+import { Badge } from '../ui/Badge.tsx';
 import s from './PlanLetter.module.css';
 
 const number = (i: number) => String(i + 1).padStart(2, '0');
@@ -22,7 +23,7 @@ export function PlanLetter({ plan, level = 2 }: { plan: { readonly answers: Plan
                 </span>
                 {section.heading}
               </Heading>
-              {answer ? <PostText text={answer} /> : <p className={`small ${s.blank}`}>Not written yet.</p>}
+              {answer ? <PostText text={answer} /> : <p className={s.blank}><Badge>Not written yet</Badge></p>}
             </li>
           );
         })}

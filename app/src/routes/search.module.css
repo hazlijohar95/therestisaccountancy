@@ -1,11 +1,2 @@
-.results { display: grid; gap: var(--space-6); padding-block: var(--space-7) var(--space-9); }
-.results:not(:has(*)) { display: none; }
 .find { display: flex; gap: var(--space-3); width: min(100%, 720px); }
 .find input { flex: 1; min-width: 0; }
-.count { margin: 0; }
-.group { display: grid; gap: var(--space-3); max-width: 720px; }
-.group h2 { margin: 0; padding-bottom: var(--space-2); border-bottom: var(--stroke-hair) solid var(--ink); }
-.group ul { display: grid; gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
-.group li { display: grid; gap: var(--space-1); }
-.group li a { font: 400 var(--size-lead)/1.25 var(--font-serif); text-decoration: none; }
-@media (hover: hover) { .group li a:hover { text-decoration: underline; text-decoration-thickness: var(--stroke-hair); text-underline-offset: 4px; } }

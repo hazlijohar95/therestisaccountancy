@@ -1,12 +1,12 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { Page } from '../../components/club/Page.tsx';
-import { PageHead } from '../../components/club/PageHead.tsx';
-import { Notice } from '../../components/club/Notice.tsx';
+import { Field, Form } from '../../components/ui/Form.tsx';
+import { Notice } from '../../components/ui/Notice.tsx';
+import { PageHead } from '../../components/ui/PageHead.tsx';
 import { wireField } from '../../lib/form.ts';
 import { subscribe } from '../../functions/public-forms.server.ts';
 import { newsletterResult } from '../../functions/public-newsletter.ts';
 import { clubTitle, noindex } from '../../lib/title.ts';
-import s from './subscribe.module.css';
 
 /* Every sign-up form posts here, so it works from the static pages. The post answers with a 303 back here, where the result shows once. */
 export const Route = createFileRoute('/newsletter/subscribe')({
@@ -28,7 +28,7 @@ function Subscribe() {
         <PageHead
           label="Newsletter"
           title="Check your inbox to confirm."
-          lead={`If ${result.email} is not on the list already, a link to confirm it is on its way. Nothing after a few minutes? Check your spam folder.`}
+          lead={`If ${result.email} is not on the list already, a confirmation link is on its way. Nothing yet? Check spam.`}
         />
       </Page>
     );
@@ -36,31 +36,35 @@ function Subscribe() {
   const email = wireField(result.fields['email'], { id: 'newsletter-error' });
   return (
     <Page signup={false}>
-      <PageHead label="Newsletter" title="Not subscribed yet." />
-      <Notice tone="error" id="newsletter-error">
-        {result.fields['email'] ?? result.message}
-      </Notice>
-      <form className={`wrap ${s.form}`} method="POST" action="/newsletter/subscribe">
-        <div className="field">
-          <label htmlFor="newsletter-email">Email</label>
-          <input
-            className="input"
-            id="newsletter-email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            defaultValue={result.posted['email'] ?? ''}
-            aria-invalid={email.input['aria-invalid']}
-            aria-describedby="newsletter-error"
-            autoFocus
-          />
-          <input type="hidden" name="source" value="newsletter" />
-        </div>
-        <button className="btn" type="submit">
-          Subscribe
-        </button>
-      </form>
+      <PageHead
+        label="Newsletter"
+        title="Not subscribed yet."
+        aside={
+          <Form action="/newsletter/subscribe">
+            <Field label="Email" id="newsletter-email">
+              <input
+                className="input"
+                id="newsletter-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                defaultValue={result.posted['email'] ?? ''}
+                aria-invalid={email.input['aria-invalid']}
+                aria-describedby="newsletter-error"
+                autoFocus
+              />
+              <input type="hidden" name="source" value="newsletter" />
+            </Field>
+            <Notice tone="error" inline id="newsletter-error">
+              {result.fields['email'] ?? result.message}
+            </Notice>
+            <button className="btn" type="submit">
+              Subscribe
+            </button>
+          </Form>
+        }
+      />
     </Page>
   );
 }

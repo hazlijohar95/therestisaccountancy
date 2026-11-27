@@ -4,9 +4,16 @@ import { confidence, FEE_FIGURES, feeChoices, feeFigures, feeState, GROUP_MIN, P
 import { capitalised, formatDay, numberWord } from '../../../src/lib/format.ts';
 import type { Edition, Spread } from '../../../src/server/fees.ts';
 import { Page } from '../components/club/Page.tsx';
-import { PageHead } from '../components/club/PageHead.tsx';
 import { FieldError } from '../components/FieldError.tsx';
-import { Section } from '../components/public/Section.tsx';
+import { Empty } from '../components/ui/Empty.tsx';
+import { Check, Field } from '../components/ui/Form.tsx';
+import { Notice } from '../components/ui/Notice.tsx';
+import { PageHead } from '../components/ui/PageHead.tsx';
+import { Points } from '../components/ui/Points.tsx';
+import { Section } from '../components/ui/Section.tsx';
+import { Stat } from '../components/ui/Stat.tsx';
+import { Progress } from '../components/ui/Steps.tsx';
+import { Table } from '../components/ui/Table.tsx';
 import { useAction } from '../components/useAction.ts';
 import { answerFeeSurvey, feesPage } from '../functions/public-fees.ts';
 import { linkTextParam } from '../lib/search-params.ts';
@@ -59,16 +66,18 @@ function Fees() {
       <PageHead
         label="Fee survey"
         title="What do accountants in Malaysia charge?"
-        lead="Few accountants know what anyone else charges, so most set their fees blind. Once a year the club asks practitioners what they charge, anonymously, and publishes what it learns for anyone to read."
-      >
-        {open && !thanked && (
-          <a className="btn" href="#answer">
-            Answer the {current.edition} survey
-          </a>
-        )}
-      </PageHead>
+        lead="Once a year, practitioners tell the club what they charge, anonymously. The results are free for anyone to read."
+        actions={
+          open &&
+          !thanked && (
+            <a className="btn" href="#answer">
+              Answer the {current.edition} survey
+            </a>
+          )
+        }
+      />
 
-      <Section id="results" no={1} title={report ? `The ${report.edition} results` : 'The results'} intro={resultsIntro}>
+      <Section id="results" title={report ? `The ${report.edition} results` : 'The results'} meta={resultsIntro}>
         {report ? (
           <div className={s.report}>
             {report.figures.map((f) => {
@@ -79,18 +88,13 @@ function Fees() {
                     {copy.label}
                   </h3>
                   {f.everyone === null ? (
-                    <p className={s.none}>Fewer than {GROUP_MIN} people gave this fee, so it is not shown.</p>
+                    <Empty icon="lock">Fewer than {GROUP_MIN} people gave this fee, so it is not shown.</Empty>
                   ) : (
                     <>
-                      <p className={s.headline}>
-                        <span className={`${s.big} serif`}>{rm(f.everyone.median)}</span>
-                        <span>
-                          {copy.per}, the median of {f.everyone.n} answers.
-                        </span>
-                      </p>
-                      <div className={s.scroll}>
-                        <table className={`ledger ${s.spreads}`}>
-                          <caption className={s.sr}>
+                      <Stat value={rm(f.everyone.median)} label={copy.per} note={`The median of ${f.everyone.n} answers`} />
+                      <div className={s.spreads}>
+                        <Table label={`${copy.label} by group`}>
+                          <caption className="visually-hidden">
                             {copy.label} by group. {f.everyone.n} answered.
                           </caption>
                           <thead>
@@ -145,7 +149,7 @@ function Fees() {
                               )}
                             </tbody>
                           ))}
-                        </table>
+                        </Table>
                       </div>
                     </>
                   )}
@@ -159,19 +163,19 @@ function Fees() {
               </div>
               <div>
                 <dt>Median</dt>
-                <dd>The middle answer. Half charge more, half charge less.</dd>
+                <dd>The middle answer. Half charge more, half less.</dd>
               </div>
               <div>
                 <dt>Middle half</dt>
-                <dd>From the 25th to the 75th percentile, where half of all answers fall. Each line draws it on one scale from RM 0, with a tick at the median.</dd>
+                <dd>The 25th to 75th percentile. Each line draws it from RM 0, with a tick at the median.</dd>
               </div>
               <div>
                 <dt>Small groups</dt>
-                <dd>A group of fewer than {GROUP_MIN} is not shown, so no one answer can be picked out.</dd>
+                <dd>Groups under {GROUP_MIN} are not shown, so no one answer can be picked out.</dd>
               </div>
               <div>
                 <dt>Checked</dt>
-                <dd>{hostFirstName} reads every answer before the results go up and deletes any that are plainly made up.</dd>
+                <dd>{hostFirstName} reads every answer first and deletes any that are plainly made up.</dd>
               </div>
             </dl>
             {otherYears.length > 0 && (
@@ -186,42 +190,53 @@ function Fees() {
             )}
           </div>
         ) : (
-          <div className={s.waiting}>
-            <p className={s.count}>
-              <span className={`${s.big} serif`}>{current.responses}</span>
-              <span>{current.responses === 1 ? 'answer' : 'answers'} so far</span>
-            </p>
-            <span className={s.progress} style={{ '--done': `${Math.min(100, (current.responses / PUBLISH_MIN) * 100).toFixed(2)}%` }} aria-hidden="true" />
-            <p>
-              {soFar(current)} The results go up here {until(current)}.
-            </p>
-            <p>
-              Anyone can fill in a form like this, so a person checks the answers before the club puts its name to them. A group of fewer than {GROUP_MIN} is never shown, so no one answer can be picked out.
-            </p>
-          </div>
+          <>
+            <Stat value={current.responses} label={current.responses === 1 ? 'answer so far' : 'answers so far'} />
+            <Progress value={Math.min(current.responses, PUBLISH_MIN)} max={PUBLISH_MIN} label="Needed to publish" />
+            <Points
+              items={[
+                { icon: 'calendar', text: `The results go up here ${until(current)}.` },
+                { icon: 'check', text: 'A person checks every answer before the club puts its name to them.' },
+                { icon: 'lock', text: `Groups under ${GROUP_MIN} are never shown, so no one answer can be picked out.` },
+              ]}
+            />
+          </>
         )}
       </Section>
 
-      <Section
-        id="answer"
-        no={2}
-        title={thanked ? `The ${current.edition} survey` : open ? `Answer the ${current.edition} survey` : `The ${current.edition} survey has closed`}
-        intro="Two minutes. The form asks for no name or email, and the club keeps nothing that says who you are."
-      >
+      <Section id="answer" title={thanked ? `The ${current.edition} survey` : open ? `Answer the ${current.edition} survey` : `The ${current.edition} survey has closed`}>
         {thanked ? (
-          <div className={s.thanks} role="status">
-            <p className="head serif">Thank you. Your answers are in.</p>
-            <p>
-              The {current.edition} results will appear on this page, under <a href="#results">the results</a>, {until(current)}. {soFar(current)}
-            </p>
-            <p className="small">Know someone who sets fees? Send them this page. The more who answer, the more groups have enough answers to show.</p>
-          </div>
+          <>
+            <Notice inline>Thank you. Your answers are in.</Notice>
+            <Points
+              items={[
+                {
+                  icon: 'calendar',
+                  text: (
+                    <>
+                      The results appear under <a href="#results">the results</a> {until(current)}.
+                    </>
+                  ),
+                },
+                { icon: 'users', text: soFar(current) },
+                { icon: 'mail', text: 'Know someone who sets fees? Send them this page. More answers, more groups shown.' },
+              ]}
+            />
+          </>
         ) : !open ? (
-          <p className={s.closed}>
+          <Empty icon="calendar">
             The {current.edition} survey closed when its results went up. The {current.edition + 1} survey opens on 1 January.
-          </p>
+          </Empty>
         ) : (
-          <Survey current={current} showSoFar={report !== null && report.edition !== current.edition} />
+          <>
+            <Points
+              items={[
+                { icon: 'clock', text: 'Two minutes' },
+                { icon: 'lock', text: 'No name or email. Nothing kept says who you are.' },
+              ]}
+            />
+            <Survey current={current} showSoFar={report !== null && report.edition !== current.edition} />
+          </>
         )}
       </Section>
     </Page>
@@ -240,7 +255,8 @@ function Survey({ current, showSoFar }: { current: Edition; showSoFar: boolean }
 
   useEffect(() => {
     if (!refusal) return;
-    const first = form.current?.querySelector<HTMLElement>(`.${s.error}`);
+    /* Field errors carry .error; the shared fees error and a failure are alerts. Document order finds the first. */
+    const first = form.current?.querySelector<HTMLElement>('.error, [role="alert"]');
     /* The fees' shared error sits above the three fee fields, so it takes the first of them. */
     const control = first?.closest('fieldset, .field')?.querySelector<HTMLElement>('input, select') ?? (refusal.fields['fees'] ? form.current?.querySelector<HTMLElement>('#hourly') : null);
     (control ?? first)?.scrollIntoView({ block: 'center' });
@@ -262,9 +278,9 @@ function Survey({ current, showSoFar }: { current: Edition; showSoFar: boolean }
     <form ref={form} method="POST" className={s.survey} onSubmit={submit}>
       {showSoFar && <p className="small">{soFar(current)}</p>}
       {send.failure && (
-        <p className={`error ${s.error}`} role="alert">
+        <Notice tone="error" inline>
           {send.failure}
-        </p>
+        </Notice>
       )}
 
       <div className={s.part}>
@@ -276,18 +292,14 @@ function Survey({ current, showSoFar }: { current: Edition; showSoFar: boolean }
               <legend>{feeChoices[key].label}</legend>
               <div className={s.options}>
                 {feeChoices[key].options.map((o) => (
-                  <label key={o.slug} className={s.option}>
-                    <input type="radio" name={key} value={o.slug} required />
-                    <span>{o.label}</span>
-                  </label>
+                  <Check key={o.slug} type="radio" name={key} value={o.slug} required label={o.label} />
                 ))}
               </div>
               <FieldError field={answer} className={s.error} />
             </fieldset>
           );
         })}
-        <div className="field">
-          <label htmlFor="state">{feeState.label}</label>
+        <Field label={feeState.label} id="state" field={state}>
           <select className="input" id="state" name="state" required defaultValue="" {...state.input}>
             <option value="" disabled>
               Choose a state
@@ -296,8 +308,7 @@ function Survey({ current, showSoFar }: { current: Edition; showSoFar: boolean }
               <option key={state}>{state}</option>
             ))}
           </select>
-          <FieldError field={state} className={s.error} />
-        </div>
+        </Field>
       </div>
 
       <div className={s.part}>
@@ -305,19 +316,18 @@ function Survey({ current, showSoFar }: { current: Edition; showSoFar: boolean }
         <div className={s.client}>
           <p className="label">The client</p>
           <p>{standardClient}</p>
-          <p className="small">Answer each fee for this client, so every answer is about the same work. Leave out any you do not charge, but give at least one.</p>
+          <p className="small">Answer each fee for this client. Leave out any you do not charge, but give at least one.</p>
           {feesError.error && (
-            <p className={`error ${s.error}`} role="alert">
+            <Notice tone="error" inline>
               {feesError.error}
-            </p>
+            </Notice>
           )}
         </div>
         {FEE_FIGURES.map((figure) => {
           const copy = feeFigures[figure];
           const fee = send.field(figure, { hint: `${figure}-hint` });
           return (
-            <div key={figure} className="field">
-              <label htmlFor={figure}>{copy.question}</label>
+            <Field key={figure} label={copy.question} id={figure} hint={copy.hint} field={fee}>
               <div className="unit" data-unit="RM">
                 <input
                   className="input"
@@ -332,11 +342,7 @@ function Survey({ current, showSoFar }: { current: Edition; showSoFar: boolean }
                   aria-invalid={fee.input['aria-invalid']}
                 />
               </div>
-              <span className="hint" id={`${figure}-hint`}>
-                {copy.hint}
-              </span>
-              <FieldError field={fee} className={s.error} />
-            </div>
+            </Field>
           );
         })}
         <fieldset className={s.choice} aria-describedby={confidenceField.input['aria-describedby']}>
@@ -356,7 +362,7 @@ function Survey({ current, showSoFar }: { current: Edition; showSoFar: boolean }
         </fieldset>
       </div>
 
-      <div className={s.trap} aria-hidden="true">
+      <div className="visually-hidden" aria-hidden="true">
         <label htmlFor="fees-trap">Leave this empty</label>
         <input id="fees-trap" name="trap" type="text" tabIndex={-1} autoComplete="off" data-1p-ignore data-lpignore="true" />
       </div>

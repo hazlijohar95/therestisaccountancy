@@ -1,17 +1,24 @@
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import type { FormEvent } from 'react';
-import { firstName, formatTime, formatWeekday } from '../../../../../src/lib/format.ts';
+import { hostFirstName } from '../../../../../src/data/authors.ts';
 import { roomPath } from '../../../../../src/data/social.ts';
-import { Masthead } from '../../../components/club/Masthead.tsx';
-import { Notice } from '../../../components/club/Notice.tsx';
+import { firstName, formatTime, formatWeekday } from '../../../../../src/lib/format.ts';
 import { FieldError } from '../../../components/FieldError.tsx';
+import { flags } from '../../../components/members/flags.ts';
+import { Badge } from '../../../components/ui/Badge.tsx';
+import { Empty } from '../../../components/ui/Empty.tsx';
+import { Field, Form } from '../../../components/ui/Form.tsx';
+import { DateTile, List, Meta, Row } from '../../../components/ui/List.tsx';
+import { Notice } from '../../../components/ui/Notice.tsx';
+import { PageHead } from '../../../components/ui/PageHead.tsx';
+import { Points } from '../../../components/ui/Points.tsx';
+import { Actions, Section } from '../../../components/ui/Section.tsx';
+import { Confirm } from '../../../components/ui/Table.tsx';
 import { useAction } from '../../../components/useAction.ts';
 import { bookCall, cancelCall, membersCalls } from '../../../functions/members-calls.ts';
-import { flags } from '../../../components/members/flags.ts';
 import { socialHref } from '../../../lib/links.ts';
 import { clubTitle } from '../../../lib/title.ts';
 import s from './index.module.css';
-import { hostFirstName } from '../../../../../src/data/authors.ts';
 
 export const Route = createFileRoute('/members/calls/')({
   validateSearch: flags('booked', 'cancelled'),
@@ -52,116 +59,111 @@ function Calls() {
 
   return (
     <>
-      <Masthead label="One-to-one" title={`Stuck? Talk it through with ${hostFirstName}.`} narrow>
-        <p>Bring the quote you can't price, the client you can't read or the decision you keep putting off. Say what it is when you book, so {hostFirstName} comes ready.</p>
-      </Masthead>
+      <PageHead label="One-to-one" title={`Stuck? Talk it through with ${hostFirstName}.`} lead="Bring the quote you can't price, the client you can't read or the decision you keep putting off." />
 
       {search.booked && mine && <Notice>Booked. A confirmation with the calendar invite is on its way to {email}.</Notice>}
       {search.cancelled && !mine && <Notice>Cancelled. {hostFirstName} has been told.</Notice>}
       {failure && <Notice tone="error">{failure}</Notice>}
 
       {mine && (
-        <section className={`wrap ${s.block}`} aria-labelledby="mine-title">
-          <h2 className="head" id="mine-title">
-            Your call
-          </h2>
-          <div className={s.call}>
-            <p className="small">
-              <time dateTime={mine.startsAt}>
-                {formatWeekday(mine.startsAt)}, {formatTime(mine.startsAt)}
-              </time>{' '}
-              · {mine.minutes} min{started && <b> · On now</b>}
-            </p>
-            <h3 className={`title ${s.title}`}>With {mine.host}</h3>
-            <p className={s.topic}>
-              <span className="label">You said</span> {mine.topic}
-            </p>
-            <div className={s.row}>
-              <a className="btn" href={mine.link} rel="noopener">
-                Join the call
-              </a>
-              <a href={`/members/calls/${mine.id}.ics`}>Add to calendar</a>
-            </div>
-            <details className={s.confirm}>
-              <summary>Cancel the call</summary>
-              <form method="POST" onSubmit={submitCancel(mine.id)}>
-                <span className="small">
-                  {firstName(mine.host)} gets an email saying you can't make it. Cancel more than two hours ahead and the time goes back on the list for someone else.
-                </span>
-                <button className="btn" type="submit">
-                  Cancel the call
-                </button>
-              </form>
-            </details>
-          </div>
-        </section>
+        <Section title="Your call">
+          <List>
+            <Row
+              lead={<DateTile at={mine.startsAt} />}
+              title={`With ${mine.host}`}
+              meta={
+                <>
+                  {started && <Badge tone="live">On now</Badge>}
+                  <Meta icon="clock">
+                    <time dateTime={mine.startsAt}>{formatTime(mine.startsAt)}</time>, {mine.minutes} min
+                  </Meta>
+                </>
+              }
+              trail={
+                <Actions>
+                  <a className="btn" href={mine.link} rel="noopener">
+                    Join the call
+                  </a>
+                  <a href={`/members/calls/${mine.id}.ics`}>Add to calendar</a>
+                </Actions>
+              }
+            >
+              <p className="small">
+                <span className="label">You said</span> {mine.topic}
+              </p>
+              <Confirm summary="Cancel the call">
+                <form method="POST" onSubmit={submitCancel(mine.id)}>
+                  <span className="small">{firstName(mine.host)} is emailed. Cancel more than two hours ahead and the time goes back on the list.</span>
+                  <button className="btn" type="submit">
+                    Cancel the call
+                  </button>
+                </form>
+              </Confirm>
+            </Row>
+          </List>
+        </Section>
       )}
 
-      <section className={`wrap ${s.block}`} aria-labelledby="open-title">
-        <h2 className="head" id="open-title">
-          {mine ? 'Other open times' : 'Book a call'}
-        </h2>
+      <Section title={mine ? 'Other open times' : 'Book a call'}>
         {days.length === 0 ? (
-          <p className={s.empty}>
-            No open times right now. New ones appear here as {hostFirstName} adds them. Until then, the <a href={socialHref(roomPath('club'))}>members' room</a> is open all week.
-          </p>
+          <Empty icon="calendar">
+            No open times right now. New ones show here as {hostFirstName} adds them. The <a href={socialHref(roomPath('club'))}>members' room</a> is open all week.
+          </Empty>
         ) : (
           <>
-            {mine && <p className={s.hold}>You can hold one call at a time. To take one of these instead, cancel yours first.</p>}
-            <div className={s.days}>
-              {days.map((day) => (
-                <div key={day.date} className={s.day} role="group" aria-labelledby={`day-${day.date}`}>
-                  <h3 className="label" id={`day-${day.date}`}>
-                    {formatWeekday(day.slots[0]?.startsAt ?? day.date)}
-                  </h3>
-                  <ul className={s.slots}>
-                    {day.slots.map((slot) => {
-                      const inside = (
-                        <>
-                          {!mine && <input form="book" type="radio" name="slot" value={slot.id} required />}
-                          <time className={s.time} dateTime={slot.startsAt}>
-                            {formatTime(slot.startsAt)}
-                          </time>
-                          <span className="small">
-                            {slot.minutes} min · with {slot.host}
-                          </span>
-                        </>
-                      );
-                      /* A member holding a call still sees the other times, as a list with nothing to pick: one call at a time. */
-                      return <li key={slot.id}>{mine ? <div className={s.slot}>{inside}</div> : <label className={s.slot}>{inside}</label>}</li>;
-                    })}
-                  </ul>
-                </div>
-              ))}
-            </div>
+            <List>
+              {days.map((day) => {
+                const first = day.slots[0]?.startsAt ?? day.date;
+                return (
+                  <Row key={day.date} lead={<DateTile at={first} />} title={<span id={`day-${day.date}`}>{formatWeekday(first)}</span>}>
+                    <div role="group" aria-labelledby={`day-${day.date}`}>
+                      <ul className={s.slots}>
+                        {day.slots.map((slot) => {
+                          const inside = (
+                            <>
+                              {!mine && <input form="book" type="radio" name="slot" value={slot.id} required />}
+                              <time className={s.time} dateTime={slot.startsAt}>
+                                {formatTime(slot.startsAt)}
+                              </time>
+                              <span className="small">
+                                {slot.minutes} min, {slot.host}
+                              </span>
+                            </>
+                          );
+                          /* A member holding a call still sees the other times, as a list with nothing to pick: one call at a time. */
+                          return <li key={slot.id}>{mine ? <div className={s.slot}>{inside}</div> : <label className={s.slot}>{inside}</label>}</li>;
+                        })}
+                      </ul>
+                    </div>
+                  </Row>
+                );
+              })}
+            </List>
             {!mine && (
-              <form id="book" method="POST" className={s.book} onSubmit={submitBooking}>
-                {slotField.error && <span className={`error ${s.error}`}>{slotField.error}</span>}
-                <div className="field">
-                  <label htmlFor="topic">What are you stuck on?</label>
-                  <textarea
-                    className={`input ${s.textarea}`}
-                    id="topic"
-                    name="topic"
-                    rows={3}
-                    maxLength={topicMax}
-                    required
-                    {...topic.input}
-                  />
-                  <span className="hint" id="topic-hint">
-                    A sentence or two is plenty. Only {hostFirstName} sees it.
-                  </span>
-                  <FieldError field={topic} className={s.error} />
-                </div>
+              <Form id="book" onSubmit={submitBooking}>
+                {slotField.error && (
+                  <div className="field">
+                    <FieldError field={slotField} />
+                  </div>
+                )}
+                <Field label="What are you stuck on?" id="topic" hint={`A sentence or two. Only ${hostFirstName} sees it.`} field={topic}>
+                  <textarea className="input" id="topic" name="topic" rows={3} maxLength={topicMax} required {...topic.input} />
+                </Field>
                 <button className="btn" type="submit">
                   Book the call
                 </button>
-              </form>
+              </Form>
             )}
           </>
         )}
-        <p className="small">Times are Malaysia time. Booking closes two hours before a call starts.</p>
-      </section>
+        <Points
+          items={[
+            { icon: 'clock', text: 'Malaysia time' },
+            { icon: 'lock', text: 'Booking closes two hours before a call' },
+            { icon: 'users', text: mine ? 'One call at a time. To take another, cancel yours first.' : 'One call at a time' },
+          ]}
+        />
+      </Section>
     </>
   );
 }

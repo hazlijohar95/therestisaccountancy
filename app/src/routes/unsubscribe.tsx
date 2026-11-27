@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { Page } from '../components/club/Page.tsx';
+import { PageHead } from '../components/ui/PageHead.tsx';
 import { linkTextParam } from '../lib/search-params.ts';
 import { clubTitle, noindex } from '../lib/title.ts';
-import s from './unsubscribe.module.css';
 
 /* Whole sentences per list, so none is built from a fragment. */
 const copy = {
@@ -30,50 +30,56 @@ function Unsubscribe() {
   const list = search.list !== undefined && isList(search.list) ? search.list : null;
   const key = search.k ?? '';
 
+  if (!list) {
+    return (
+      <Page signup={false}>
+        <PageHead label="Email" title="That link is not complete." lead="Open the unsubscribe link in the latest email again, or reply to that email and ask us to stop." />
+      </Page>
+    );
+  }
+
+  if (search.done) {
+    return (
+      <Page signup={false}>
+        <PageHead
+          label="Email"
+          title={copy[list].done}
+          lead={list === 'newsletter' ? 'Changed your mind?' : list === 'onboarding' ? 'The sessions are still there whenever you want one.' : 'Change your mind any time in your account.'}
+          actions={
+            list === 'newsletter' ? (
+              <a className="btn ghost" href="/newsletter">
+                Subscribe again
+              </a>
+            ) : list === 'onboarding' ? (
+              <a className="btn ghost" href="/members/sessions">
+                See the sessions
+              </a>
+            ) : (
+              <a className="btn ghost" href="/members/account#email">
+                Email settings
+              </a>
+            )
+          }
+        />
+      </Page>
+    );
+  }
+
   return (
     <Page signup={false}>
-      <section className={`wrap ${s.block}`} aria-labelledby="page-title">
-        {!list ? (
-          <>
-            <h1 className="head" id="page-title">
-              That link is not complete.
-            </h1>
-            <p>Open the unsubscribe link at the bottom of the latest email again, or reply to that email and ask us to stop.</p>
-          </>
-        ) : search.done ? (
-          <>
-            <h1 className="head" id="page-title">
-              {copy[list].done}
-            </h1>
-            {list === 'newsletter' ? (
-              <p>
-                Changed your mind? <a href="/newsletter">Subscribe again</a>.
-              </p>
-            ) : list === 'onboarding' ? (
-              <p>
-                The sessions are still on <a href="/members/sessions">the sessions page</a> whenever you want one.
-              </p>
-            ) : (
-              <p>
-                Change your mind any time in <a href="/members/account#email">your account</a>.
-              </p>
-            )}
-          </>
-        ) : (
-          <>
-            <h1 className="head" id="page-title">
-              {copy[list].ask}
-            </h1>
-            <form method="POST" action={`/unsubscribe?k=${encodeURIComponent(key)}&list=${list}`}>
-              <input type="hidden" name="from" value="page" />
-              <button className="btn" type="submit">
-                Unsubscribe
-              </button>
-            </form>
-            {list !== 'newsletter' && <p className="small">Emails about your membership, sign-in and sessions you said you would come to still arrive.</p>}
-          </>
-        )}
-      </section>
+      <PageHead
+        label="Email"
+        title={copy[list].ask}
+        lead={list === 'newsletter' ? undefined : 'Emails about your membership, sign-in and sessions you said you would come to still arrive.'}
+        actions={
+          <form method="POST" action={`/unsubscribe?k=${encodeURIComponent(key)}&list=${list}`}>
+            <input type="hidden" name="from" value="page" />
+            <button className="btn" type="submit">
+              Unsubscribe
+            </button>
+          </form>
+        }
+      />
     </Page>
   );
 }

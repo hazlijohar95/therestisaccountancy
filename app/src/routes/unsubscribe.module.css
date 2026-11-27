@@ -1,2 +1,0 @@
-.block { display: grid; gap: var(--space-5); padding-block: clamp(64px, 9vw, 128px); }
-.block > * { margin: 0; max-width: 640px; }
