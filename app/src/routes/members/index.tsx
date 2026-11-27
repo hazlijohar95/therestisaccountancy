@@ -1,25 +1,38 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { firstName, formatDay, formatMoment } from '../../../../src/lib/format.ts';
 import { MemberCard } from '../../components/members/MemberCard.tsx';
-import { membersOverview } from '../../functions/members-overview.ts';
 import { flags } from '../../components/members/flags.ts';
+import { Badge } from '../../components/ui/Badge.tsx';
+import { Icon } from '../../components/ui/Icon.tsx';
+import { DateTile, List, Meta, Row } from '../../components/ui/List.tsx';
+import { Actions, Section } from '../../components/ui/Section.tsx';
+import { Progress, Steps, type StepState } from '../../components/ui/Steps.tsx';
+import { membersOverview } from '../../functions/members-overview.ts';
 import { clubTitle } from '../../lib/title.ts';
 import s from './index.module.css';
 
 export const Route = createFileRoute('/members/')({
-  /* ?welcome after setting a first password, ?reset after a new one. Either may come without a value. */
-  validateSearch: flags('welcome', 'reset'),
+  /* ?welcome after setting a first password, ?reset after a new one, ?paid back from a payment. Each may come without a value. */
+  validateSearch: flags('welcome', 'reset', 'paid'),
   loader: () => membersOverview(),
   head: () => ({ meta: clubTitle('Members') }),
   component: Overview,
 });
 
 function Overview() {
-  const { member, next, progress, around } = Route.useLoaderData();
+  const { member, next, steps, progress, around } = Route.useLoaderData();
   const search = Route.useSearch();
-  const greeting = search.welcome
-    ? { label: 'Your password is set', title: `Welcome to the club, ${firstName(member.name)}.` }
-    : { label: search.reset ? 'Your new password is set' : `Member since ${formatDay(member.joinedAt)}`, title: `Good to see you, ${firstName(member.name)}.` };
+  const name = firstName(member.name);
+  const greeting = search.paid
+    ? { label: 'Payment received', title: `You're in, ${name}.` }
+    : search.welcome
+      ? { label: 'Your password is set', title: `Welcome to the club, ${name}.` }
+      : { label: search.reset ? 'Your new password is set' : `Member since ${formatDay(member.joinedAt)}`, title: `Good to see you, ${name}.` };
+
+  const done = steps.filter((step) => step.done).length;
+  /* Admins host the club: the first steps are for members. */
+  const current = member.role === 'admin' ? undefined : steps.find((step) => !step.done);
+  const stateOf = (step: (typeof steps)[number]): StepState => (step.done ? 'done' : step === current ? 'current' : 'todo');
 
   return (
     <>
@@ -28,91 +41,65 @@ function Overview() {
           <div>
             <p className={`label ${s.top}`}>{greeting.label}</p>
             <h1 className={`headline serif ${s.headline}`}>{greeting.title}</h1>
-            <p className={`lead ${s.lead}`}>
-              {next
-                ? `Your next live session is ${formatMoment(next.startsAt)}. Then pick up the programme that matters most this month.`
-                : 'Pick up the programme that matters most this month. The live sessions and their recordings are under Sessions.'}
-            </p>
           </div>
           <MemberCard name={member.name} number={member.number} role={member.role === 'admin' ? 'Admin' : 'Member'} />
         </div>
       </section>
 
-      {next && (
-        <section className="wrap sec" aria-labelledby="next-title">
-          <div className={s.rail}>
-            <h2 className="head" id="next-title">
-              Next live session
-            </h2>
-            <p>The live sessions and their recordings are under Sessions.</p>
-          </div>
-          <div className="ep-list">
-            <a className="ep-row" href="/members/sessions">
-              <span className="no" aria-hidden="true">
-                ●
-              </span>
-              <span className={s.what}>
-                <h3>{next.title}</h3>
-                <span className="small">
-                  {next.kind}, {formatMoment(next.startsAt)}, {next.minutes} minutes
-                </span>
-              </span>
-              <span className={`small ${s.count}`}>{next.attending ? "You're coming." : "Say you're coming"}</span>
-              <span className="go" aria-hidden="true">
-                →
-              </span>
+      {current && (
+        <Section title="Your first steps">
+          <Progress value={done} max={steps.length} label="Done" />
+          <Steps label="Your first steps" items={steps.map((step) => ({ label: step.label, detail: step.detail, href: step.href, state: stateOf(step) }))} />
+          <Actions>
+            <a className="btn" href={current.href}>
+              {current.label}
+              <Icon name="arrow" size={18} />
             </a>
-          </div>
-        </section>
+          </Actions>
+        </Section>
       )}
 
-      <section className="wrap sec" aria-labelledby="programmes-title">
-        <div className={s.rail}>
-          <h2 className="head" id="programmes-title">
-            Your programmes
-          </h2>
-          <p>Lessons appear here as they are published. Mark each one done as you finish it.</p>
-        </div>
-        <div className="ep-list">
-          {progress.map((programme, i) => (
-            <a key={programme.slug} className="ep-row" href={`/members/programmes/${programme.slug}`}>
-              <span className="no">{String(i + 1).padStart(2, '0')}</span>
-              <span className={s.what}>
-                <h3>{programme.name}</h3>
-                <span className="small">{programme.promise}</span>
-              </span>
-              <span className={`small ${s.count}`}>{programme.published === 0 ? 'Being written' : `${programme.done} of ${programme.published} done`}</span>
-              <span className="go" aria-hidden="true">
-                →
-              </span>
-            </a>
-          ))}
-        </div>
-      </section>
+      {next && (
+        <Section title="Next live session" meta={<a href="/members/sessions">All sessions</a>}>
+          <List>
+            <Row
+              lead={<DateTile at={next.startsAt} />}
+              title={<a href="/members/sessions">{next.title}</a>}
+              meta={
+                <>
+                  <Badge>{next.kind}</Badge>
+                  <Meta icon="clock">
+                    {formatMoment(next.startsAt)} · {next.minutes} min
+                  </Meta>
+                </>
+              }
+              trail={next.attending ? <Badge tone="solid">Going</Badge> : <a href="/members/sessions">Say you're coming</a>}
+            />
+          </List>
+        </Section>
+      )}
 
-      <section className="wrap sec" aria-labelledby="around-title">
-        <div className={s.rail}>
-          <h2 className="head" id="around-title">
-            Around the club
-          </h2>
-          <p>The parts that are not lessons. Each one is yours to use as often as you need it.</p>
-        </div>
-        <div className="ep-list">
-          {around.map((item) => (
-            <a key={item.no} className="ep-row" href={item.href}>
-              <span className="no">{item.no}</span>
-              <span className={s.what}>
-                <h3>{item.title}</h3>
-                <span className="small">{item.detail}</span>
-              </span>
-              <span className={`small ${s.count}`}>{item.action}</span>
-              <span className="go" aria-hidden="true">
-                →
-              </span>
-            </a>
+      <Section title="Your programmes">
+        <List ordered>
+          {progress.map((programme, i) => (
+            <Row
+              key={programme.slug}
+              lead={<span className={`serif ${s.no}`}>{String(i + 1).padStart(2, '0')}</span>}
+              title={<a href={`/members/programmes/${programme.slug}`}>{programme.name}</a>}
+              meta={programme.promise}
+              trail={programme.published === 0 ? <Badge>Soon</Badge> : <span className={s.count}>{`${programme.done}/${programme.published}`}</span>}
+            />
           ))}
-        </div>
-      </section>
+        </List>
+      </Section>
+
+      <Section title="Around the club">
+        <List>
+          {around.map((item) => (
+            <Row key={item.no} title={<a href={item.href}>{item.title}</a>} meta={item.detail} trail={<Badge>{item.action}</Badge>} />
+          ))}
+        </List>
+      </Section>
     </>
   );
 }
