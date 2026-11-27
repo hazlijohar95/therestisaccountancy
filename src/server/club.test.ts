@@ -404,3 +404,25 @@ test('an appointed admin starts invited and sets a password through a link', asy
 
   assert.equal(club.appointAdmin({ email: 'founder@club.test', name: 'Someone Else' }).status, 'active', 'appointing again keeps the password');
 });
+
+test('the join requests waiting count as the admin page lists them, each since it was last sent', () => {
+  let clock = new Date('2026-11-24T10:00:00Z');
+  const club = createClub(openDatabase(':memory:'), () => clock);
+  const later = (hours: number) => (clock = new Date(clock.getTime() + hours * 3_600_000));
+  assert.deepEqual(club.waiting(), { count: 0, since: null });
+
+  club.recordJoinRequest({ name: 'Aina Rahman', email: 'aina@firm.com.my', stage: 'I run a practice' });
+  later(1);
+  club.recordJoinRequest({ name: 'Abu Musa', email: 'abu@firm.com.my', stage: 'I work in a firm' });
+  assert.deepEqual(club.waiting(), { count: 2, since: '2026-11-24T10:00:00Z' });
+
+  later(1);
+  club.recordJoinRequest({ name: 'Aina Rahman', email: 'aina@firm.com.my', stage: 'I work in a firm' });
+  assert.deepEqual(club.waiting(), { count: 2, since: '2026-11-24T11:00:00Z' }, 'asking again starts her wait over');
+
+  const abu = club.joinRequests({ decided: false }).find((r) => r.email === 'abu@firm.com.my');
+  assert.ok(abu);
+  assert.equal(club.declineRequest(abu.id), true);
+  assert.deepEqual(club.waiting(), { count: 1, since: '2026-11-24T12:00:00Z' }, 'a decided request leaves the count');
+  assert.equal(club.waiting().count, club.joinRequests({ decided: false }).length);
+});

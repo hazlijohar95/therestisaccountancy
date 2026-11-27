@@ -6,6 +6,8 @@
 .decide { display: flex; gap: var(--space-2); justify-content: end; }
 .decide form { margin: 0; }
 .decide :global(.btn) { min-height: 36px; padding: .4em .8em; font-size: var(--size-small); }
+.stale { color: var(--alert); }
+.calm { margin-block: var(--space-7) 0; }
 .empty { margin: 0; padding-block: var(--space-5); border-block: var(--stroke-hair) solid var(--ink); }
 .search { display: flex; flex-wrap: wrap; gap: var(--space-3); max-width: 560px; }
 .search :global(.input) { flex: 1 1 14rem; }

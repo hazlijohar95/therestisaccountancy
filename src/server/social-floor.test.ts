@@ -6,6 +6,7 @@ import { REPLY_NOTICE_GAP_MS } from './mailings.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
 import type { PostDraft } from './social-floor.ts';
+import { socialWorld } from './social-fixtures.ts';
 import { sealedSql } from './social-profiles.ts';
 import { createStore } from './store.ts';
 
@@ -579,4 +580,25 @@ test('the Monday digest lists the week in rooms every club member opens, and goe
   for (const member of [aina, abu, social, lapsing]) w.mailings.setPrefs(member.id, { replies: true, digest: true });
   w.later(4 * DAY);
   assert.deepEqual(w.mailings.digestRecipients().map((r) => r.email), ['aina@firm.my', 'abu@firm.my'], 'not Sam, who never joined the club, nor Lim, past grace');
+});
+
+test('reports waiting count one per reported thing, since its oldest open report', async () => {
+  const w = socialWorld();
+  const reviewer = (await w.host).id;
+  const aina = await w.joined('Aina Rahman', 'aina@firm.com.my', 'ainarahman');
+  const abu = await w.joined('Abu Musa', 'abu@firm.com.my', 'abumusa');
+  const siti = await w.joined('Siti Aminah', 'siti@firm.com.my', 'sitiaminah');
+  await w.seal(aina.id, 'aina-rahman');
+  const post = value(w.floor.post(aina.id, { room: 'open', jurisdiction: 'MY', title: 'A client called', body: 'It names Client Sdn Bhd.' }));
+  assert.deepEqual(w.floor.waiting(), { count: 0, since: null });
+
+  value(w.floor.report(abu.id, { target: 'post', id: post.id }, 'client', 'Names the client.'));
+  w.later(3_600_000);
+  value(w.floor.report(siti.id, { target: 'post', id: post.id }, 'client', ''));
+  value(w.floor.report(abu.id, { target: 'profile', handle: 'sitiaminah' }, 'impersonation', ''));
+  assert.deepEqual(w.floor.waiting(), { count: 2, since: '2026-11-26T02:00:00Z' }, 'two reports on one post are one thing to decide');
+  assert.equal(w.floor.waiting().count, w.floor.reports().length);
+
+  value(w.floor.decideReports(reviewer, 'post', post.id, 'dismiss'));
+  assert.deepEqual(w.floor.waiting(), { count: 1, since: '2026-11-26T03:00:00Z' }, 'a decided thing leaves the count');
 });

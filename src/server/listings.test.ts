@@ -337,3 +337,24 @@ test('a returned listing carries the note as plain text', async () => {
   assert.ok(html.includes('&lt;b&gt;Check it&lt;/b&gt;'));
   assert.ok(html.includes('href="https://therestisaccountancy.com/members/listing"'));
 });
+
+test('listings waiting for a check count as the hosts see them, each since it was last saved', async () => {
+  const w = await world();
+  const hour = 3_600_000;
+  const aina = await w.member('Aina Rahman', 'aina@firm.com.my');
+  const abu = await w.member('Abu Musa', 'abu@firm.com.my');
+  assert.deepEqual(w.listings.waiting(), { count: 0, since: null });
+
+  w.listings.save(aina.id, practice());
+  w.later(hour);
+  w.listings.save(abu.id, practice({ practice: 'Musa & Co' }));
+  assert.deepEqual(w.listings.waiting(), { count: 2, since: '2026-11-25T02:00:00Z' });
+
+  w.later(hour);
+  const edited = w.listings.save(aina.id, practice({ niche: 'Dental practices only' })).listing;
+  assert.deepEqual(w.listings.waiting(), { count: 2, since: '2026-11-25T03:00:00Z' }, 'an edit while it waits starts its wait over');
+
+  value(w.listings.approve(aina.id, w.host.id, edited.updatedAt));
+  assert.deepEqual(w.listings.waiting(), { count: 1, since: '2026-11-25T03:00:00Z' }, 'a listed one leaves the count');
+  assert.equal(w.listings.waiting().count, w.listings.forHosts().waiting.length);
+});

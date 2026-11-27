@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
+import { socialWorld } from './social-fixtures.ts';
 import type { NominationDraft } from './social-nominations.ts';
 import { createStore } from './store.ts';
 
@@ -164,4 +165,24 @@ test('claiming an invite needs a handle first, and asks for it before looking at
   assert.equal(reason(w.nominations.claim(host.id, token)), 'no-handle');
   assert.equal(reason(w.nominations.claim(host.id, 'no-such-link')), 'no-handle');
   assert.deepEqual(w.nominations.invitation(token)?.handle, 'taxwithtan', 'the link still works for the nominee');
+});
+
+test('nominations waiting for an invite count from the oldest, however the queue sorts them', async () => {
+  const w = socialWorld();
+  const reviewer = (await w.host).id;
+  const aina = await w.joined('Aina Rahman', 'aina@firm.com.my', 'ainarahman');
+  const abu = await w.joined('Abu Musa', 'abu@firm.com.my', 'abumusa');
+  assert.deepEqual(w.nominations.waiting(), { count: 0, since: null });
+
+  value(w.nominations.nominate(aina.id, { platform: 'LinkedIn', handle: 'first-one', topics: [], whyUrl: null }));
+  w.later(3_600_000);
+  value(w.nominations.nominate(aina.id, { platform: 'Threads', handle: 'popular_one', topics: [], whyUrl: null }));
+  value(w.nominations.nominate(abu.id, { platform: 'Threads', handle: 'popular_one', topics: [], whyUrl: null }));
+  assert.equal(w.nominations.queue().pending[0]?.handle, 'popular_one', 'the queue puts the most nominated first');
+  assert.deepEqual(w.nominations.waiting(), { count: 2, since: '2026-11-26T02:00:00Z' });
+
+  const first = w.nominations.queue().pending.find((n) => n.handle === 'first-one');
+  assert.ok(first);
+  value(w.nominations.invite(first.id, reviewer));
+  assert.deepEqual(w.nominations.waiting(), { count: 1, since: '2026-11-26T03:00:00Z' }, 'an invited nominee waits on themselves, not the team');
 });

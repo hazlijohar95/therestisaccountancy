@@ -129,6 +129,11 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
         const detail = `No live session is scheduled between a day and two weeks from now, so getting-started emails are on hold${waiting ? ` for ${tally(waiting, 'new member', 'new members')}` : ''}`;
         if (await store.incidents.recordOnce('schedule', detail)) console.warn(`[schedule] ${detail}`);
       });
+      /* Queues the hosts clear by hand, named once a day when the oldest in one has waited too long. */
+      await step('stale queues', async () => {
+        const detail = await store.queues.nudge();
+        if (detail) console.warn(`[queue] ${detail}`);
+      });
       const { incidents, lastId } = await store.incidents.unreported();
       const admins = await store.club.adminEmails();
       if (incidents.length && admins.length) summary = { letter: incidentsLetter(admins, incidents, url('/admin')), lastId };

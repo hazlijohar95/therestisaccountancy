@@ -10,6 +10,7 @@ import { createListings } from './listings.ts';
 import { createMailings } from './mailings.ts';
 import { createNewsletter } from './newsletter.ts';
 import { createPlans } from './plans.ts';
+import { createQueues } from './queues.ts';
 import { createSchedule } from './schedule.ts';
 import { createSignIns } from './sign-ins.ts';
 import { createSocialCasebook } from './social-casebook.ts';
@@ -23,7 +24,8 @@ import { createSocialProfiles } from './social-profiles.ts';
 import { createSocialRequests } from './social-requests.ts';
 import { createSocialShelf } from './social-shelf.ts';
 
-export function createStore(db: Db, now: () => Date = () => new Date()) {
+/** The domain modules, each owning its own rules over the one database. */
+function modules(db: Db, now: () => Date) {
   return {
     club: createClub(db, now),
     activity: createActivity(db, now),
@@ -49,4 +51,11 @@ export function createStore(db: Db, now: () => Date = () => new Date()) {
     socialRequests: createSocialRequests(db, now),
     signIns: createSignIns(db, now),
   };
+}
+
+export type Modules = ReturnType<typeof modules>;
+
+export function createStore(db: Db, now: () => Date = () => new Date()) {
+  const store = modules(db, now);
+  return { ...store, queues: createQueues(store, now) };
 }

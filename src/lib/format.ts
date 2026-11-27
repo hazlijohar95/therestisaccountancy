@@ -28,6 +28,17 @@ const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eig
 /** "seven" for 7: copy spells out small counts. Past twelve it uses digits. */
 export const numberWord = (n: number) => WORDS[n] ?? String(n);
 
+const HOUR_MS = 3_600_000;
+
+/** How long something has waited, in words: "under an hour", "five hours", "three days". */
+export function waited(since: string, at: Date): string {
+  const hours = Math.floor((at.getTime() - new Date(since).getTime()) / HOUR_MS);
+  if (hours < 1) return 'under an hour';
+  if (hours < 24) return hours === 1 ? 'an hour' : `${numberWord(hours)} hours`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? 'a day' : `${numberWord(days)} days`;
+}
+
 export const capitalised = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
 export const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;

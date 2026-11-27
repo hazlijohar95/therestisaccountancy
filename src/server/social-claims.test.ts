@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
 import { daysLeft, emailDomain, evidenceType, isPersonalDomain, lapsesAt, monthOf } from './social-claims.ts';
+import { socialWorld } from './social-fixtures.ts';
 import { createStore } from './store.ts';
 
 const PASSWORD = 'correct horse battery';
@@ -307,4 +308,33 @@ test('ticks show on a profile, so a member without a handle adds no account, cla
   assert.equal(reason(w.claims.addClaim(clubOnly.id, { kind: 'experience', text: 'Six years in audit' })), 'no-handle');
   assert.equal(reason(w.claims.startWorkEmail(clubOnly.id, 'siti@kpmg.com')), 'no-handle');
   assert.deepEqual(w.claims.mine(clubOnly.id), { accounts: [], claims: [] });
+});
+
+test('the team’s queue counts accounts, credentials and documents apart, each since it was sent', async () => {
+  const w = socialWorld();
+  const reviewer = (await w.host).id;
+  const priya = await w.joined('Priya Nair', 'priya@tax.my', 'priyataxes');
+  const empty = { count: 0, since: null };
+  assert.deepEqual(w.claims.waiting(), { accounts: empty, credentials: empty, documents: empty });
+
+  const account = value(w.claims.addAccount(priya.id, 'LinkedIn', 'priya-nair'));
+  w.later(3_600_000);
+  value(w.claims.addClaim(priya.id, { kind: 'body', bodyId: 'acca', status: 'Member', reference: '1234567', otherName: null, evidenceKey: null }));
+  w.later(3_600_000);
+  value(w.claims.addClaim(priya.id, { kind: 'licence', licence: 'Licensed tax agent', reference: 'TA/123', until: '2027-06', evidenceKey: 'claims/1/b' }));
+  value(w.claims.addClaim(priya.id, { kind: 'experience', text: 'Six years in audit' }));
+  assert.deepEqual(w.claims.waiting(), {
+    accounts: { count: 1, since: '2026-11-26T02:00:00Z' },
+    credentials: { count: 1, since: '2026-11-26T03:00:00Z' },
+    documents: { count: 1, since: '2026-11-26T04:00:00Z' },
+  }, 'peers tick experience, so it never waits on the team');
+
+  value(w.claims.decideAccount(account.id, reviewer, { verdict: 'approve' }));
+  const { accounts, credentials, documents } = w.claims.queue();
+  assert.deepEqual(
+    [w.claims.waiting().accounts.count, w.claims.waiting().credentials.count, w.claims.waiting().documents.count],
+    [accounts.length, credentials.length, documents.length],
+    'the counts are the queue’s own',
+  );
+  assert.equal(w.claims.waiting().accounts.count, 0, 'a decided account leaves the count');
 });

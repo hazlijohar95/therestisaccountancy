@@ -1,7 +1,8 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { useEffect, useState, type FormEvent, type ReactNode, type RefObject } from 'react';
 import { bodyById, CLAIM_LIMITS } from '../../../../../src/data/social.ts';
-import { formatDay, formatMonth } from '../../../../../src/lib/format.ts';
+import { formatDay, formatMonth, waited } from '../../../../../src/lib/format.ts';
+import { waitingOf } from '../../../../../src/lib/waiting.ts';
 import { CopyLink } from '../../../components/social/CopyLink.tsx';
 import { SocialLink } from '../../../components/social/SocialLink.tsx';
 import { Tick } from '../../../components/social/Tick.tsx';
@@ -115,6 +116,18 @@ function Review() {
     setTeamInvited(null);
   };
 
+  /* When each tab's items started waiting on the team. Invites wait on the person invited, so they have none. */
+  const since: Record<Tab, readonly string[]> = {
+    accounts: data.queue.accounts.map((e) => e.item.createdAt),
+    credentials: data.queue.credentials.map((e) => e.item.createdAt),
+    documents: data.queue.documents.map((e) => e.item.createdAt),
+    nominations: data.nominations.pending.map((n) => n.createdAt),
+    reports: data.reports.flatMap((r) => r.reports.map((x) => x.createdAt)),
+    requests: data.requests.map((r) => r.createdAt),
+    invites: [],
+  };
+  const oldest = waitingOf(since[tab]).since;
+
   const counts: Record<Tab, number> = {
     accounts: data.queue.accounts.length,
     credentials: data.queue.credentials.length,
@@ -147,6 +160,11 @@ function Review() {
           </SocialLink>
         ))}
       </nav>
+      {oldest && (
+        <p className="queue-waited">
+          The oldest here has waited <Waited since={oldest} />.
+        </p>
+      )}
       {done && (
         <p className="note" role="status">
           {DONE[done]}
@@ -221,6 +239,16 @@ function Empty() {
   );
 }
 
+/** How long something has waited on the team, against the time the queue was read, so the server and the browser agree. */
+function Waited({ since }: { since: string }) {
+  const { now } = Route.useLoaderData();
+  return (
+    <time dateTime={since} title={formatDay(since)}>
+      {waited(since, new Date(now))}
+    </time>
+  );
+}
+
 /** A form with one button that posts one id. */
 function OneButton({ run, busy, className, children }: { run: () => Promise<void>; busy: boolean; className: string; children: ReactNode }) {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -271,7 +299,9 @@ function RequestItem({ request: r, settle }: { request: Queue['requests'][number
           </p>
         )}
       </div>
-      <span className="ago">{formatDay(r.createdAt)}</span>
+      <span className="ago">
+        waiting <Waited since={r.createdAt} />
+      </span>
       <div className="actions">
         <OneButton className="btn sm" busy={approve.busy || decline.busy} run={async () => settle(await approve.run({ request: r.id }), 'request-approved')}>
           Approve<span className="sr-only">: {r.name}</span>
@@ -441,7 +471,7 @@ function NominationItem({ nomination: n, settle, onInvited }: { nomination: Queu
           </ul>
         )}
       </div>
-      <span className="ago">{formatDay(n.createdAt)}</span>
+      <span className="ago">{n.invitedAt ? formatDay(n.createdAt) : <>waiting <Waited since={n.createdAt} /></>}</span>
       <div className="actions">
         <OneButton className="btn sm" busy={busy} run={send}>
           {n.invitedAt ? 'Make a new link' : 'Invite'}
@@ -471,6 +501,7 @@ function ReportItem({ item, settle }: { item: Queue['reports'][number]; settle: 
   const hide = useAction(hideReported);
   const dismiss = useAction(dismissReported);
   const target = { target: item.target, id: item.targetId };
+  const first = waitingOf(item.reports.map((r) => r.createdAt)).since;
   const busy = hide.busy || dismiss.busy;
   return (
     <li className="queue-item card">
@@ -499,7 +530,15 @@ function ReportItem({ item, settle }: { item: Queue['reports'][number]; settle: 
           ))}
         </ul>
       </div>
-      <span className="ago">{item.reports.length === 1 ? '1 report' : `${item.reports.length} reports`}</span>
+      <span className="ago">
+        {item.reports.length === 1 ? '1 report' : `${item.reports.length} reports`}
+        {first && (
+          <>
+            {' · waiting '}
+            <Waited since={first} />
+          </>
+        )}
+      </span>
       <div className="actions">
         <OneButton className="btn sm danger" busy={busy} run={async () => settle(await hide.run(target), 'hidden')}>
           {HIDE[item.target]}
@@ -658,7 +697,9 @@ function AccountItem({ entry, settle }: { entry: Queue['queue']['accounts'][numb
           </a>
         </p>
       </div>
-      <span className="ago">{formatDay(item.createdAt)}</span>
+      <span className="ago">
+        waiting <Waited since={item.createdAt} />
+      </span>
       <Decide
         field="account"
         id={item.id}
@@ -712,7 +753,9 @@ function ClaimItem({ entry, settle }: { entry: Queue['queue']['credentials'][num
           </p>
         )}
       </div>
-      <span className="ago">{formatDay(item.createdAt)}</span>
+      <span className="ago">
+        waiting <Waited since={item.createdAt} />
+      </span>
       <Decide
         field="claim"
         id={item.id}

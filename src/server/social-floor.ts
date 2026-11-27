@@ -17,6 +17,7 @@ import {
   type RoomLock,
 } from '../data/social.ts';
 import { matcher } from '../lib/search.ts';
+import { waitingOf, type Waiting } from '../lib/waiting.ts';
 import { createBilling } from './billing.ts';
 import { STATUS_SQL } from './club.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Param, type Row } from './db.ts';
@@ -270,6 +271,52 @@ export function createSocialFloor(db: Db, now: () => Date = () => new Date()) {
   };
 
   const usefulCount = (target: 'post' | 'reply', id: number) => count(db.prepare('SELECT count(*) AS n FROM useful WHERE target = ? AND target_id = ?').get(target, id));
+
+  const reports = (): ReportedItem[] => {
+    const rows = db
+      .prepare(
+        `SELECT r.*, rp.handle AS reporter_handle FROM reports r LEFT JOIN profiles rp ON rp.member_id = r.reporter_id
+         WHERE r.state = 'open' ORDER BY r.created_at, r.id`,
+      )
+      .all();
+    const items = new Map<string, { target: ReportTarget; targetId: number; memberId: number; reports: ReportedItem['reports'][number][] }>();
+    for (const row of rows) {
+      const target = oneOf(row, 'target', REPORT_TARGETS);
+      const targetId = integer(row, 'target_id');
+      const key = `${target}:${targetId}`;
+      const item = items.get(key) ?? { target, targetId, memberId: integer(row, 'target_member_id'), reports: [] };
+      const reason = oneOf(row, 'reason', REPORT_REASON_IDS);
+      item.reports.push({
+        reason: REPORT_REASONS.find((r) => r.id === reason)?.label ?? reason,
+        note: text(row, 'note'),
+        reporter: optionalText(row, 'reporter_handle'),
+        createdAt: text(row, 'created_at'),
+      });
+      items.set(key, item);
+    }
+    return [...items.values()].map(({ target, targetId, memberId, reports }): ReportedItem => {
+      const person = db.prepare('SELECT m.id, m.name, p.handle, p.headline, p.listed FROM members m LEFT JOIN profiles p ON p.member_id = m.id WHERE m.id = ?').get(memberId);
+      const member = { id: memberId, name: person ? text(person, 'name') : 'Removed member', handle: person ? optionalText(person, 'handle') : null };
+      if (target === 'profile') {
+        const listed = person && person.listed !== null ? integer(person, 'listed') === 1 : false;
+        return { target, targetId, member, summary: person ? (optionalText(person, 'headline') ?? '') : '', path: member.handle ? `/@${member.handle}` : '/', gone: !listed, reports };
+      }
+      const content =
+        target === 'post'
+          ? db.prepare('SELECT id AS post_id, title AS summary, removed_at FROM floor_posts WHERE id = ?').get(targetId)
+          : db.prepare('SELECT post_id, body AS summary, removed_at FROM floor_replies WHERE id = ?').get(targetId);
+      const postId = content ? integer(content, 'post_id') : 0;
+      return {
+        target,
+        targetId,
+        member,
+        summary: content ? excerpt(text(content, 'summary')) : '',
+        path: target === 'post' ? `/post/${postId}` : `/post/${postId}#reply-${targetId}`,
+        gone: !content || optionalText(content, 'removed_at') !== null,
+        reports,
+      };
+    });
+  };
 
   return {
     viewer: viewerOf,
@@ -561,50 +608,12 @@ export function createSocialFloor(db: Db, now: () => Date = () => new Date()) {
     },
 
     /** Open reports for the team, one entry per reported thing, the oldest report first. */
-    reports(): ReportedItem[] {
-      const rows = db
-        .prepare(
-          `SELECT r.*, rp.handle AS reporter_handle FROM reports r LEFT JOIN profiles rp ON rp.member_id = r.reporter_id
-           WHERE r.state = 'open' ORDER BY r.created_at, r.id`,
-        )
-        .all();
-      const items = new Map<string, { target: ReportTarget; targetId: number; memberId: number; reports: ReportedItem['reports'][number][] }>();
-      for (const row of rows) {
-        const target = oneOf(row, 'target', REPORT_TARGETS);
-        const targetId = integer(row, 'target_id');
-        const key = `${target}:${targetId}`;
-        const item = items.get(key) ?? { target, targetId, memberId: integer(row, 'target_member_id'), reports: [] };
-        const reason = oneOf(row, 'reason', REPORT_REASON_IDS);
-        item.reports.push({
-          reason: REPORT_REASONS.find((r) => r.id === reason)?.label ?? reason,
-          note: text(row, 'note'),
-          reporter: optionalText(row, 'reporter_handle'),
-          createdAt: text(row, 'created_at'),
-        });
-        items.set(key, item);
-      }
-      return [...items.values()].map(({ target, targetId, memberId, reports }): ReportedItem => {
-        const person = db.prepare('SELECT m.id, m.name, p.handle, p.headline, p.listed FROM members m LEFT JOIN profiles p ON p.member_id = m.id WHERE m.id = ?').get(memberId);
-        const member = { id: memberId, name: person ? text(person, 'name') : 'Removed member', handle: person ? optionalText(person, 'handle') : null };
-        if (target === 'profile') {
-          const listed = person && person.listed !== null ? integer(person, 'listed') === 1 : false;
-          return { target, targetId, member, summary: person ? (optionalText(person, 'headline') ?? '') : '', path: member.handle ? `/@${member.handle}` : '/', gone: !listed, reports };
-        }
-        const content =
-          target === 'post'
-            ? db.prepare('SELECT id AS post_id, title AS summary, removed_at FROM floor_posts WHERE id = ?').get(targetId)
-            : db.prepare('SELECT post_id, body AS summary, removed_at FROM floor_replies WHERE id = ?').get(targetId);
-        const postId = content ? integer(content, 'post_id') : 0;
-        return {
-          target,
-          targetId,
-          member,
-          summary: content ? excerpt(text(content, 'summary')) : '',
-          path: target === 'post' ? `/post/${postId}` : `/post/${postId}#reply-${targetId}`,
-          gone: !content || optionalText(content, 'removed_at') !== null,
-          reports,
-        };
-      });
+    reports,
+
+    /** Reported things waiting for the team, counted as the queue shows them, one per thing, and since the oldest open report. */
+    waiting: (): Waiting => {
+      const items = reports();
+      return { count: items.length, since: waitingOf(items.flatMap((i) => i.reports.map((r) => r.createdAt))).since };
     },
 
     /**

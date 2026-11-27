@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { LINK_DAYS, type LinkPurpose } from '../data/links.ts';
+import { waitingOf, type Waiting } from '../lib/waiting.ts';
 import { callLetters, standDown, type Call } from './calls.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import type { Letter } from './letters.ts';
@@ -183,6 +184,14 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
       )
       .get(tokenHash(token), iso(now()));
 
+  const joinRequests = (filter: { decided?: boolean; limit?: number } = {}): JoinRequest[] => {
+    const where = filter.decided === undefined ? '' : filter.decided ? `WHERE status != 'pending'` : `WHERE status = 'pending'`;
+    return db
+      .prepare(`SELECT * FROM join_requests ${where} ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, created_at DESC, id DESC LIMIT ?`)
+      .all(filter.limit ?? -1)
+      .map(toRequest);
+  };
+
   /** Every password write goes through here: open links are retired and older sessions end. */
   const writePassword = (memberId: number, passwordHash: string): Access => {
     db.prepare('UPDATE members SET password_hash = ?, session_epoch = session_epoch + 1 WHERE id = ?').run(passwordHash, memberId);
@@ -235,13 +244,10 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
     },
 
     /** Pending requests, or the most recent decisions, newest first. Without a filter, all of them, pending first. */
-    joinRequests(filter: { decided?: boolean; limit?: number } = {}): JoinRequest[] {
-      const where = filter.decided === undefined ? '' : filter.decided ? `WHERE status != 'pending'` : `WHERE status = 'pending'`;
-      return db
-        .prepare(`SELECT * FROM join_requests ${where} ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, created_at DESC, id DESC LIMIT ?`)
-        .all(filter.limit ?? -1)
-        .map(toRequest);
-    },
+    joinRequests,
+
+    /** Join requests waiting for an admin, and since the oldest came in. A repeat request from the same email starts its wait over. */
+    waiting: (): Waiting => waitingOf(joinRequests({ decided: false }).map((r) => r.createdAt)),
 
     /**
      * Accepts a pending request: the person becomes a member and gets a link to set a password. If the email already

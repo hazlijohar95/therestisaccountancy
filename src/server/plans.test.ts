@@ -4,7 +4,7 @@ import { PLAN_ANSWER_MAX, planSections } from '../data/plan.ts';
 import { renderLetter } from '../emails/render.tsx';
 import { createClub } from './club.ts';
 import { openDatabase } from './node-db.ts';
-import { createPlans, missingSections, planAnsweredLetter, planSentLetter, waited, type SentPlan } from './plans.ts';
+import { createPlans, missingSections, planAnsweredLetter, planSentLetter, type SentPlan } from './plans.ts';
 import type { Result } from './result.ts';
 
 const SITE = 'https://therestisaccountancy.com/';
@@ -40,7 +40,7 @@ const setup = async () => {
   /** Sends the member's plan and returns it as the hosts read it. */
   const sendAll = (memberId: number, answers: Record<string, string> = complete): SentPlan => {
     value(plans.send(memberId, answers));
-    return plans.waiting().find((p) => p.member.id === memberId) ?? assert.fail(`member ${memberId}'s plan was not sent`);
+    return plans.sent().find((p) => p.member.id === memberId) ?? assert.fail(`member ${memberId}'s plan was not sent`);
   };
   return { db, club, plans, host, aina, abu, later, sendAll };
 };
@@ -72,13 +72,13 @@ test('a plan goes to the hosts only with every section written, and a short one 
   assert.equal(short.changed, false);
   assert.deepEqual(missingSections(short.plan.answers), ['question']);
   assert.equal(plans.ofMember(aina.id).open?.answers.destination, complete['destination'], 'what was written is saved');
-  assert.deepEqual(plans.waiting(), [], 'the hosts see nothing yet');
+  assert.deepEqual(plans.sent(), [], 'the hosts see nothing yet');
 
   const sent = value(plans.send(aina.id, complete));
   assert.equal(sent.plan.status, 'sent');
   assert.equal(sent.changed, true);
   assert.equal(sent.plan.id, short.plan.id, 'the same plan, not a second one');
-  assert.deepEqual(plans.waiting().map((p) => p.id), [sent.plan.id]);
+  assert.deepEqual(plans.sent().map((p) => p.id), [sent.plan.id]);
   assert.equal(value(plans.send(aina.id, complete)).changed, false, 'sending it twice tells the hosts once');
 });
 
@@ -93,7 +93,7 @@ test('a plan with the hosts changes only once it is taken back', async () => {
   const back = value(plans.takeBack(aina.id));
   assert.equal(back.status, 'draft');
   assert.equal(value(plans.takeBack(aina.id)).id, back.id, 'taking it back twice is harmless');
-  assert.deepEqual(plans.waiting(), [], 'it leaves the hosts’ list');
+  assert.deepEqual(plans.sent(), [], 'it leaves the hosts’ list');
   assert.equal(value(plans.save(aina.id, changed)).answers.destination, 'A different firm.');
 });
 
@@ -103,14 +103,14 @@ test('hosts see the longest-waiting plan first, and an answer closes it', async 
   const ainas = sendAll(aina.id);
   later(5);
   sendAll(abu.id);
-  assert.deepEqual(plans.waiting().map((p) => p.member.name), ['Aina Rahman', 'Abu Musa']);
+  assert.deepEqual(plans.sent().map((p) => p.member.name), ['Aina Rahman', 'Abu Musa']);
 
   later(1);
   const answered = value(plans.reply(host.id, ainas, 'Start with pricing.'));
   assert.equal(answered.status, 'answered');
   assert.deepEqual(answered.reply, { text: 'Start with pricing.', by: 'Hazli Johar', at: '2026-11-25T07:00:00Z' });
   assert.equal(answered.sentAt, '2026-11-25T01:00:00Z');
-  assert.deepEqual(plans.waiting().map((p) => p.member.name), ['Abu Musa']);
+  assert.deepEqual(plans.sent().map((p) => p.member.name), ['Abu Musa']);
   assert.deepEqual(plans.answered(10).map((p) => p.id), [answered.id]);
   assert.deepEqual(plans.ofMember(aina.id), { open: null, answered: [answered] });
 
@@ -137,7 +137,7 @@ test('an answer to a plan sent again since the host read it is refused', async (
   const resent = sendAll(aina.id, { ...complete, destination: 'A different firm.' });
   assert.equal(resent.id, read.id, 'the same plan, sent again');
   assert.equal(reason(plans.reply(host.id, read, 'An answer to the old text.')), 'changed');
-  assert.deepEqual(plans.waiting(), [resent], 'it still waits, with the new text');
+  assert.deepEqual(plans.sent(), [resent], 'it still waits, with the new text');
   assert.equal(value(plans.reply(host.id, resent, 'An answer to the new text.')).reply.text, 'An answer to the new text.');
 });
 
@@ -182,17 +182,7 @@ test('an answer outlives its host, and a removed member takes their plans with t
   value(club.removeMember(other.id, aina.id, SITE));
   value(club.removeMember(other.id, abu.id, SITE));
   assert.deepEqual(plans.answered(10), []);
-  assert.deepEqual(plans.waiting(), []);
-});
-
-test('the wait is told in words', () => {
-  const sentAt = '2026-11-25T01:00:00Z';
-  const after = (hours: number) => new Date(Date.parse(sentAt) + hours * HOUR);
-  assert.equal(waited(sentAt, after(0.5)), 'under an hour');
-  assert.equal(waited(sentAt, after(1)), 'an hour');
-  assert.equal(waited(sentAt, after(5)), 'five hours');
-  assert.equal(waited(sentAt, after(30)), 'a day');
-  assert.equal(waited(sentAt, after(74)), 'three days');
+  assert.deepEqual(plans.sent(), []);
 });
 
 test('the admins hear a plan has come in, with its question and a link to answer it', async () => {
@@ -217,4 +207,24 @@ test('the member hears from the host who answered, with a link to read it', asyn
   const { html, text } = await renderLetter(letter);
   assert.ok(html.includes('href="https://therestisaccountancy.com/members/plan/1"'));
   assert.ok(text.includes('Hi Aina,'));
+});
+
+test('plans waiting count as the hosts list them, each since it was last sent', async () => {
+  const { plans, host, aina, abu, later, sendAll } = await setup();
+  value(plans.save(abu.id, { destination: 'Still writing.' }));
+  assert.deepEqual(plans.waiting(), { count: 0, since: null }, 'a draft is not with the hosts');
+
+  sendAll(aina.id);
+  later(5);
+  const abus = sendAll(abu.id);
+  assert.deepEqual(plans.waiting(), { count: 2, since: '2026-11-25T01:00:00Z' });
+
+  later(1);
+  value(plans.takeBack(aina.id));
+  later(1);
+  sendAll(aina.id);
+  assert.deepEqual(plans.waiting(), { count: 2, since: '2026-11-25T06:00:00Z' }, 'sending it again starts her wait over');
+
+  value(plans.reply(host.id, abus, 'Start with pricing.'));
+  assert.deepEqual(plans.waiting(), { count: 1, since: '2026-11-25T08:00:00Z' }, 'an answered plan leaves the count');
 });

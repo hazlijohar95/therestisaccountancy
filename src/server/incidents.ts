@@ -1,7 +1,10 @@
 import { integer, text, type Db } from './db.ts';
 
-/** What went wrong without anyone watching: an email, a payment check, a renewal, the hourly job, a document left in R2, no session to invite new members to. */
-export const INCIDENT_KINDS = ['email', 'payment', 'renewal', 'job', 'evidence', 'schedule'] as const;
+/**
+ * What went wrong without anyone watching: an email, a payment check, a renewal, the hourly job, a document left in R2,
+ * no session to invite new members to, a queue the hosts have left waiting too long.
+ */
+export const INCIDENT_KINDS = ['email', 'payment', 'renewal', 'job', 'evidence', 'schedule', 'queue'] as const;
 export type IncidentKind = (typeof INCIDENT_KINDS)[number];
 
 export interface Incident {

@@ -68,7 +68,7 @@ export const Route = createFileRoute('/dev-seed-admin')({
             const slot = await store.calls.add(hostId, { startsAt, minutes: 30, link: 'https://meet.example.com/call' });
             if (slot.ok) await store.calls.book(bId, slot.value, 'Whether to take on a client who pays late.');
           }
-          return { plans: (await store.plans.waiting()).length, fees: (await store.fees.current()).responses };
+          return { plans: (await store.plans.waiting()).count, fees: (await store.fees.current()).responses };
         });
         if (!seeded) return new Response('Run /dev-seed first', { status: 409 });
         return Response.json(seeded);

@@ -3,7 +3,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { everyRate, stopReasonLabel } from '../../../src/data/membership.ts';
 import { roleLabel, statusLabel } from '../../../src/data/members.ts';
-import { formatDay } from '../../../src/lib/format.ts';
+import { formatDay, waited } from '../../../src/lib/format.ts';
 import { pageCount } from '../../../src/lib/paging.ts';
 import { MEMBER_STATUSES, ROLES, memberNumber, type EditRefusal, type InviteRefusal, type LinkRefusal } from '../../../src/server/club.ts';
 import { QUIET_DAYS, type ActivityKind, type LastActivity } from '../../../src/server/activity.ts';
@@ -59,8 +59,8 @@ export interface OverviewSearch {
 }
 
 /**
- * The admin's front page: join requests waiting and decided, paying members gone quiet, whether getting-started emails
- * are held for want of a session, and one page of members, searched and filtered.
+ * The admin's front page: every queue waiting on the hosts, join requests waiting and decided, paying members gone quiet,
+ * whether getting-started emails are held for want of a session, and one page of members, searched and filtered.
  */
 export const adminOverview = createServerFn({ method: 'GET' })
   .validator((input: OverviewSearch) => input)
@@ -70,6 +70,7 @@ export const adminOverview = createServerFn({ method: 'GET' })
     const status = MEMBER_STATUSES.find((s) => s === data.status);
     const paging = pagingFor(data.page, PAGE_SIZE);
     return withStore(async (store) => {
+      const host = await store.queues.host();
       const pending = await store.club.joinRequests({ decided: false });
       const decided = await store.club.joinRequests({ decided: true, limit: DECIDED_SHOWN });
       const { items, total } = await store.club.members({ query, status, limit: paging.size, offset: paging.offset });
@@ -80,9 +81,11 @@ export const adminOverview = createServerFn({ method: 'GET' })
         { status: undefined, label: `All ${counts.invited + counts.active + counts.suspended}` },
         ...MEMBER_STATUSES.map((s) => ({ status: s, label: `${statusLabel[s]} ${counts[s]}` })),
       ];
+      const now = new Date();
       return {
         query,
         status,
+        queues: host.flatMap((q) => (q.since === null ? [] : [{ id: q.id, label: q.label, where: q.where, count: q.count, waited: waited(q.since, now), stale: q.stale }])),
         page: paging.page,
         pages: pageCount(total, paging.size),
         filters,

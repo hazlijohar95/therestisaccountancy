@@ -1,3 +1,4 @@
+import { waitingOf, type Waiting } from '../lib/waiting.ts';
 import { issueLink, toMember } from './club.ts';
 import { attempt, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import type { Letter } from './letters.ts';
@@ -64,6 +65,8 @@ export function createSocialRequests(db: Db, now: () => Date = () => new Date())
     db.prepare('UPDATE social_requests SET state = ?, decided_at = ?, decided_by = ? WHERE id = ?').run(state, iso(now()), teamId, id);
   };
 
+  const queue = (): SocialRequest[] => db.prepare(`${REQUESTS} WHERE r.state = 'pending' ORDER BY r.created_at, r.id`).all().map(toRequest);
+
   return {
     /** Saves a request. Refused while one from the same email is waiting. */
     request(draft: RequestDraft): Result<null, RequestRefusal> {
@@ -75,9 +78,10 @@ export function createSocialRequests(db: Db, now: () => Date = () => new Date())
     },
 
     /** Requests waiting for the team, oldest first. */
-    queue(): SocialRequest[] {
-      return db.prepare(`${REQUESTS} WHERE r.state = 'pending' ORDER BY r.created_at, r.id`).all().map(toRequest);
-    },
+    queue,
+
+    /** Requests waiting for the team, and since the oldest came in. */
+    waiting: (): Waiting => waitingOf(queue().map((r) => r.createdAt)),
 
     /**
      * Lets the person in, and writes to them. A newcomer becomes a Social member without a password, like any sign-up,
