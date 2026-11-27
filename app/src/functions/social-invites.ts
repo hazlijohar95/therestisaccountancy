@@ -10,10 +10,9 @@ import type { JoinRefusal, MemberInviteRefusal, RedeemRefusal, RevokeRefusal } f
 import type { SignUpRefusal } from '../../../src/server/social-profiles.ts';
 import type { RequestRefusal } from '../../../src/server/social-requests.ts';
 import { email, memberName, numberId, oneLine, token } from '../lib/fields.ts';
-import { memberOrRefusal } from '../lib/guards.server.ts';
-import { allowed, tooManyTries } from '../lib/limits.server.ts';
-import { absolute, sendLater } from '../lib/mail.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { action } from '../lib/action.server.ts';
+import { absolute } from '../lib/mail.server.ts';
+import { done, refused } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
 import { claimRefusals as nominationRefusals } from './social-nominations.ts';
@@ -96,15 +95,14 @@ export const requestPage = createServerFn({ method: 'GET' }).handler(async () =>
  */
 export const requestToJoin = createServerFn({ method: 'POST' })
   .validator((input: { name: string; email: string; about: string; link: string; trap: string }) => input)
-  .handler(async ({ data }): Promise<Outcome<{ email: string; waiting: string | null }>> => {
-    const input = parsed(requestSchema, data);
-    if (!input.ok) return input;
-    if (!(await allowed('social-request'))) return refused(tooManyTries);
-    const { trap, ...draft } = input.value;
-    if (trap) return done({ email: draft.email, waiting: null });
-    const result = await withStore(async (store) => await store.socialRequests.request(draft));
-    return done({ email: draft.email, waiting: result.ok ? null : requestRefusals[result.reason] });
-  });
+  .handler(
+    action({ access: 'anyone', input: requestSchema, limit: 'social-request' }, async ({ input, store }) => {
+      const { trap, ...draft } = input;
+      if (trap) return done({ email: draft.email, waiting: null });
+      const result = await store.socialRequests.request(draft);
+      return done({ email: draft.email, waiting: result.ok ? null : requestRefusals[result.reason] });
+    }),
+  );
 
 /** A member's invite links and how many they may still make. */
 export const invitesPage = createServerFn({ method: 'GET' }).handler(async () => {
@@ -120,36 +118,32 @@ export const invitesPage = createServerFn({ method: 'GET' }).handler(async () =>
 });
 
 /** A member makes an invite link to hand on. Shown once. */
-export const createInvite = createServerFn({ method: 'POST' }).handler(async (): Promise<Outcome<{ link: string }>> => {
-  const member = await memberOrRefusal();
-  if (!member.ok) return member;
-  const result = await withStore(async (store) => await store.socialInvites.create(member.value.id));
-  return result.ok ? done({ link: inviteLink(result.value.token) }) : refused(memberInviteRefusals[result.reason]);
-});
+export const createInvite = createServerFn({ method: 'POST' }).handler(
+  action({ access: 'member', input: z.undefined(), refusals: memberInviteRefusals }, async ({ actor, store }) => {
+    const result = await store.socialInvites.create(actor.id);
+    return result.ok ? done({ link: inviteLink(result.value.token) }) : result;
+  }),
+);
 
 export const revokeInvite = createServerFn({ method: 'POST' })
   .validator((input: { invite: number }) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = parsed(z.object({ invite: numberId }), data);
-    if (!input.ok) return input;
-    const result = await withStore(async (store) => await store.socialInvites.revoke(member.value.id, input.value.invite));
-    return result.ok ? done(null) : refused(revokeRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: z.object({ invite: numberId }), refusals: revokeRefusals }, async ({ actor, input, store }) => {
+      const result = await store.socialInvites.revoke(actor.id, input.invite);
+      return result.ok ? done(null) : result;
+    }),
+  );
 
 /** A signed-in member without a handle uses a link to get in. They pick the handle next. */
 export const useInvite = createServerFn({ method: 'POST' })
   .validator((input: { token: string }) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = parsed(z.object({ token: token }), data);
-    if (!input.ok) return input;
-    if (!input.value.token) return refused(redeemRefusals.dead);
-    const result = await withStore(async (store) => await store.socialInvites.redeem(member.value.id, input.value.token));
-    return result.ok ? done(null) : refused(redeemRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: z.object({ token: token }), refusals: redeemRefusals }, async ({ actor, input, store }) => {
+      if (!input.token) return refused(redeemRefusals.dead);
+      const result = await store.socialInvites.redeem(actor.id, input.token);
+      return result.ok ? done(null) : result;
+    }),
+  );
 
 /**
  * Where an invite (?invite=) or a nomination the nominee claims (?nomination=) lands. What the link lets in is read
@@ -182,14 +176,11 @@ export const signUpPage = createServerFn({ method: 'GET' })
  */
 export const socialSignUp = createServerFn({ method: 'POST' })
   .validator((input: { name: string; email: string; handle: string; trap: string; invite: string; nomination: string }) => input)
-  .handler(async ({ data }): Promise<Outcome<{ email: string; claimed: boolean }>> => {
-    const input = parsed(signUpSchema, data);
-    if (!input.ok) return input;
-    if (!(await allowed('social-sign-up'))) return refused(tooManyTries);
-    const { trap, invite, nomination, ...person } = input.value;
-    if (!invite && !nomination) return refused('Social is invite-only. Use an invite link, or ask to join.');
-    if (trap) return done({ email: person.email, claimed: false });
-    return withStore(async (store): Promise<Outcome<{ email: string; claimed: boolean }>> => {
+  .handler(
+    action({ access: 'anyone', input: signUpSchema, limit: 'social-sign-up' }, async ({ input, store, send }) => {
+      const { trap, invite, nomination, ...person } = input;
+      if (!invite && !nomination) return refused('Social is invite-only. Use an invite link, or ask to join.');
+      if (trap) return done({ email: person.email, claimed: false });
       const joined = invite ? await store.socialInvites.join(invite, person) : await store.socialNominations.join(nomination ?? '', person);
       if (!joined.ok) {
         const reason = joined.reason;
@@ -198,7 +189,7 @@ export const socialSignUp = createServerFn({ method: 'POST' })
         if (reason === 'handle-taken') return refused(message, { handle: message });
         return refused(message);
       }
-      sendLater([welcomeLetter(joined.value.link)]);
+      send([welcomeLetter(joined.value.link)]);
       return done({ email: person.email, claimed: !invite });
-    });
-  });
+    }),
+  );

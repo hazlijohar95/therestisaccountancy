@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { joinSection } from '../../../src/data/club.ts';
 import { joinRequestLetter, newsletterConfirmLetter } from '../../../src/server/letters.ts';
 import { email, oneLine } from '../lib/fields.ts';
-import { allowed, tooManyTries, type LimitedForm } from '../lib/limits.server.ts';
+import { tooManyTries, type LimitedForm } from '../lib/action.ts';
+import { allowed } from '../lib/limits.server.ts';
 import { absolute, sendLater } from '../lib/mail.server.ts';
 import { parsed } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
@@ -54,7 +55,7 @@ async function answer(request: Request, form: PlainForm): Promise<Response> {
 
 /** Validates, then throttles, as the Astro actions did: a post with a typo does not count against the address. */
 async function checked<S extends z.ZodType>(schema: S, input: unknown, limit: LimitedForm, run: (value: z.output<S>) => Promise<string>): Promise<Answer> {
-  const parsedInput = parsed(schema, input);
+  const parsedInput = await parsed(schema, input);
   if (!parsedInput.ok) return { ok: false, status: 400, message: parsedInput.message, fields: parsedInput.fields };
   if (!(await allowed(limit))) return { ok: false, status: 429, message: tooManyTries, fields: {} };
   return { ok: true, email: await run(parsedInput.value) };

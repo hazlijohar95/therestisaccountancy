@@ -3,8 +3,11 @@ import { z } from 'zod';
 import { accountHandle, CLAIM_LIMITS, PLATFORM_PROFILES, PLATFORMS, TOPICS } from '../../../src/data/social.ts';
 import type { ClaimRefusal, NominateRefusal } from '../../../src/server/social-nominations.ts';
 import { token } from '../lib/fields.ts';
-import { memberOrRefusal } from '../lib/guards.server.ts';
-import { allowed, tooManyTries } from '../lib/limits.server.ts';
+import { refusal } from '../lib/access.ts';
+import { check } from '../lib/access.server.ts';
+import { action } from '../lib/action.server.ts';
+import { tooManyTries } from '../lib/action.ts';
+import { allowed } from '../lib/limits.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
@@ -52,13 +55,13 @@ const nominateSchema = z
 export const nominate = createServerFn({ method: 'POST' })
   .validator((input: { platform: string; handle: string; topics: readonly string[]; whyUrl: string }) => input)
   .handler(async ({ data }): Promise<Outcome<{ outcome: 'yes' | 'already' }> | (Outcome<never> & { readonly listed: string | null })> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = parsed(nominateSchema, data);
+    const decision = await check('member');
+    if (!decision.ok) return refusal(decision.denial);
+    const input = await parsed(nominateSchema, data);
     if (!input.ok) return input;
     if (!(await allowed('nominate'))) return refused(tooManyTries);
     return withStore(async (store) => {
-      const result = await store.socialNominations.nominate(member.value.id, input.value);
+      const result = await store.socialNominations.nominate(decision.actor.id, input.value);
       if (result.ok) return done({ outcome: result.value.outcome === 'already' ? ('already' as const) : ('yes' as const) });
       const message = nominateRefusals[result.reason];
       const listed = result.reason === 'on-list' ? await store.socialNominations.onList(input.value.platform, input.value.handle) : null;
@@ -88,22 +91,19 @@ export const claimPage = createServerFn({ method: 'GET' })
 /** A signed-in member claims an invite: the account goes to Get ticked for proof, then the invite is spent. */
 export const claimNomination = createServerFn({ method: 'POST' })
   .validator((input: { token: string }) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = parsed(z.object({ token: token }), data);
-    if (!input.ok) return input;
-    const result = await withStore(async (store) => await store.socialNominations.claim(member.value.id, input.value.token));
-    return result.ok ? done(null) : refused(claimInviteRefusals[result.reason]);
-  });
+  .handler(
+    action({ access: 'member', input: z.object({ token: token }), refusals: claimInviteRefusals }, async ({ actor, input, store }) => {
+      const result = await store.socialNominations.claim(actor.id, input.token);
+      return result.ok ? done(null) : result;
+    }),
+  );
 
 /** The nominee says no. Anyone with the link may, signed in or not, and the handle is never invited again. */
 export const declineNomination = createServerFn({ method: 'POST' })
   .validator((input: { token: string }) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const input = parsed(z.object({ token: token }), data);
-    if (!input.ok) return input;
-    if (!(await allowed('decline'))) return refused(tooManyTries);
-    const declined = await withStore(async (store) => await store.socialNominations.decline(input.value.token));
-    return declined ? done(null) : refused(claimRefusals['not-found']);
-  });
+  .handler(
+    action({ access: 'anyone', input: z.object({ token: token }), limit: 'decline' }, async ({ input, store }) => {
+      const declined = await store.socialNominations.decline(input.token);
+      return declined ? done(null) : refused(claimRefusals['not-found']);
+    }),
+  );

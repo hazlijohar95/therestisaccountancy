@@ -6,10 +6,9 @@ import { authorByHandle, authorPath, host, type Author, type AuthorHandle } from
 import { columnBySlug, columnPath } from '../../../src/data/columns.ts';
 import { programmeBySlug, programmePath } from '../../../src/data/programmes.ts';
 import { embedAddress, youtubeId } from '../../../src/lib/youtube.ts';
-import { paidAccess } from '../../../src/server/paths.ts';
+import { check } from '../lib/access.server.ts';
 import { coverOf, postAt } from '../lib/content.server.ts';
 import { currentMember } from '../lib/session.server.ts';
-import { withStore } from '../lib/store.server.ts';
 
 /** A post's people, the host first and the co-hosts after "with" when the host is one of several. */
 function byline(people: readonly Author[]) {
@@ -32,7 +31,7 @@ export const memberPost = createServerFn({ method: 'GET' })
     const column = post && columnBySlug(post.data.column);
     if (!post || !column) throw notFound();
     const member = await currentMember();
-    const open = post.data.access === 'free' || (member !== null && paidAccess(member.role, await withStore(async (store) => store.billing.access(member.id))));
+    const open = post.data.access === 'free' || (await check('paid')).ok;
     const listen = post.data.listen;
     /* A members' episode plays here only for members; the video itself stays wherever it is published. */
     const video = open && listen?.youtube ? youtubeId(listen.youtube) : undefined;

@@ -2,11 +2,10 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { byDay, callLetters, TOPIC_MAX, type BookRefusal } from '../../../src/server/calls.ts';
 import { numberId, oneLine } from '../lib/fields.ts';
-import { memberOrRefusal, paidOrRefusal } from '../lib/guards.server.ts';
-import { allowed, tooManyTries } from '../lib/limits.server.ts';
-import { absolute, sendLater } from '../lib/mail.server.ts';
-import { paidMemberOrRedirect } from '../lib/members.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { admit, toClub } from '../lib/access.server.ts';
+import { action } from '../lib/action.server.ts';
+import { absolute } from '../lib/mail.server.ts';
+import { done, refused } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
 
 const bookRefusals: Record<BookRefusal, string> = {
@@ -18,7 +17,7 @@ const bookRefusals: Record<BookRefusal, string> = {
 
 /** The member's own call, if they hold one, and the open times by day. Open times never carry the call link. */
 export const membersCalls = createServerFn({ method: 'GET' }).handler(async () => {
-  const member = await paidMemberOrRedirect();
+  const member = await admit('paid', toClub);
   return withStore(async (store) => {
     const call = await store.calls.booking(member.id);
     const open = (await store.calls.open(member.id)).map(({ id, startsAt, minutes, host }) => ({ id, startsAt, minutes, host }));
@@ -41,30 +40,24 @@ const bookInput = z.object({
 
 export const bookCall = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof bookInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<{ id: number }>> => {
-    const input = parsed(bookInput, data);
-    if (!input.ok) return input;
-    const member = await paidOrRefusal();
-    if (!member.ok) return member;
-    if (!(await allowed('call'))) return refused(tooManyTries);
-    const booked = await withStore(async (store) => store.calls.book(member.value.id, input.value.slot, input.value.topic));
-    if (!booked.ok) return refused(bookRefusals[booked.reason]);
-    if (booked.value.changed) sendLater(callLetters('booked', booked.value.call, absolute('/')));
-    return done({ id: booked.value.call.id });
-  });
+  .handler(
+    action({ access: 'paid', input: bookInput, limit: 'call', refusals: bookRefusals }, async ({ actor, input, store, send }) => {
+      const booked = await store.calls.book(actor.id, input.slot, input.topic);
+      if (!booked.ok) return booked;
+      if (booked.value.changed) send(callLetters('booked', booked.value.call, absolute('/')));
+      return done({ id: booked.value.call.id });
+    }),
+  );
 
 const cancelInput = z.object({ slot: numberId });
 
 export const cancelCall = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof cancelInput>) => input)
-  .handler(async ({ data }): Promise<Outcome<{ id: number }>> => {
-    const input = parsed(cancelInput, data);
-    if (!input.ok) return input;
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    if (!(await allowed('call'))) return refused(tooManyTries);
-    const cancelled = await withStore(async (store) => store.calls.cancelBooking(member.value.id, input.value.slot));
-    if (!cancelled.ok) return refused('You have no call booked at that time.');
-    sendLater(callLetters('cancelled-by-member', cancelled.value, absolute('/')));
-    return done({ id: cancelled.value.id });
-  });
+  .handler(
+    action({ access: 'member', input: cancelInput, limit: 'call' }, async ({ actor, input, store, send }) => {
+      const cancelled = await store.calls.cancelBooking(actor.id, input.slot);
+      if (!cancelled.ok) return refused('You have no call booked at that time.');
+      send(callLetters('cancelled-by-member', cancelled.value, absolute('/')));
+      return done({ id: cancelled.value.id });
+    }),
+  );

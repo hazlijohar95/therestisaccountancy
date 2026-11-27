@@ -4,9 +4,9 @@ import { z } from 'zod';
 import { OPTION_KEYS, POST_JURISDICTIONS, PROBLEM_LIMITS, RATING_IDS, TOPICS } from '../../../src/data/social.ts';
 import type { AnswerRefusal, CreateRefusal, RateRefusal, RemoveProblemRefusal } from '../../../src/server/social-problems.ts';
 import { blankable, id, line, malaysiaTime, oneLine } from '../lib/fields.ts';
-import { adminOrRefusal, memberOrRefusal } from '../lib/guards.server.ts';
-import { allowed, tooManyTries } from '../lib/limits.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { admit, hidden } from '../lib/access.server.ts';
+import { action } from '../lib/action.server.ts';
+import { done, refused } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
 
@@ -70,49 +70,51 @@ export const problemView = createServerFn({ method: 'GET' })
 
 export const answerProblem = createServerFn({ method: 'POST' })
   .validator((input: { number: number; pick: string; reasoning: string }) => input)
-  .handler(async ({ data }): Promise<Outcome<{ number: number }>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = parsed(
-      z.object({
-        number: id,
-        pick: z.enum(OPTION_KEYS, 'Pick an answer first.'),
-        reasoning: blankable(
-          z
-            .string()
-            .transform((value) => value.replace(/\r\n?/g, '\n').trim())
-            .pipe(z.string().max(PROBLEM_LIMITS.reasoning, `Keep your reasoning under ${PROBLEM_LIMITS.reasoning.toLocaleString('en-MY')} characters.`)),
-        ),
-      }),
-      data,
-    );
-    if (!input.ok) return input;
-    if (!(await allowed('answer'))) return refused(tooManyTries);
-    const { number, pick, reasoning } = input.value;
-    const answered = await withStore(async (store) => await store.socialProblems.answer(member.value.id, number, { pick, reasoning }));
-    return answered.ok ? done({ number: answered.value.number }) : refused(answerRefusals[answered.reason]);
-  });
+  .handler(
+    action(
+      {
+        access: 'member',
+        input: z.object({
+          number: id,
+          pick: z.enum(OPTION_KEYS, 'Pick an answer first.'),
+          reasoning: blankable(
+            z
+              .string()
+              .transform((value) => value.replace(/\r\n?/g, '\n').trim())
+              .pipe(z.string().max(PROBLEM_LIMITS.reasoning, `Keep your reasoning under ${PROBLEM_LIMITS.reasoning.toLocaleString('en-MY')} characters.`)),
+          ),
+        }),
+        limit: 'answer',
+        refusals: answerRefusals,
+      },
+      async ({ actor, input, store }) => {
+        const { number, pick, reasoning } = input;
+        const answered = await store.socialProblems.answer(actor.id, number, { pick, reasoning });
+        return answered.ok ? done({ number: answered.value.number }) : answered;
+      },
+    ),
+  );
 
 /** Sets a rating, or takes it back with 'none'. The chip pressed is said back, so focus and the announcement stay on it. */
 export const rateAnswer = createServerFn({ method: 'POST' })
   .validator((input: { answer: number; button: string; rating: string }) => input)
-  .handler(async ({ data }): Promise<Outcome<{ answer: number; rating: string | null; button: string }>> => {
-    const member = await memberOrRefusal();
-    if (!member.ok) return member;
-    const input = parsed(z.object({ answer: id, button: z.enum(RATING_IDS), rating: z.enum([...RATING_IDS, 'none']) }), data);
-    if (!input.ok) return input;
-    const { answer, button, rating } = input.value;
-    const rated = await withStore(async (store) => await store.socialProblems.rate(member.value.id, answer, rating === 'none' ? null : rating));
-    return rated.ok ? done({ answer: rated.value.answerId, rating: rated.value.rating, button }) : refused(rateRefusals[rated.reason]);
-  });
+  .handler(
+    action(
+      { access: 'member', input: z.object({ answer: id, button: z.enum(RATING_IDS), rating: z.enum([...RATING_IDS, 'none']) }), refusals: rateRefusals },
+      async ({ actor, input, store }) => {
+        const { answer, button, rating } = input;
+        const rated = await store.socialProblems.rate(actor.id, answer, rating === 'none' ? null : rating);
+        return rated.ok ? done({ answer: rated.value.answerId, rating: rated.value.rating, button }) : rated;
+      },
+    ),
+  );
 
 const HOUR = 3_600_000;
 const malaysian = (ms: number) => new Date(ms + 8 * HOUR).toISOString();
 
 /** The team's page: every problem, the next free number, and the next free week as the form's starting dates. */
 export const newProblemPage = createServerFn({ method: 'GET' }).handler(async () => {
-  const member = await currentMember();
-  if (member?.role !== 'admin') throw notFound();
+  await admit('admin', hidden);
   const { schedule, nextNumber } = await withStore(async (store) => ({ schedule: await store.socialProblems.schedule(), nextNumber: await store.socialProblems.nextNumber() }));
   /* From the next hour, or from when the latest problem closes if that is later. Shown in Malaysian time. */
   const latestClose = schedule[0] ? new Date(schedule[0].closesAt).getTime() : 0;
@@ -157,26 +159,22 @@ type ProblemForm = Record<'number' | 'tag' | 'jurisdiction' | 'title' | 'ask' | 
 
 export const writeProblem = createServerFn({ method: 'POST' })
   .validator((input: ProblemForm) => input)
-  .handler(async ({ data }): Promise<Outcome<{ number: number }>> => {
-    const team = await adminOrRefusal();
-    if (!team.ok) return team;
-    const input = parsed(problemInput, data);
-    if (!input.ok) return input;
-    const { opensDate, opensTime, closesDate, closesTime, ...draft } = input.value;
-    const opensAt = malaysiaTime(opensDate, opensTime);
-    const closesAt = malaysiaTime(closesDate, closesTime);
-    if (!opensAt || !closesAt) return refused('That date or time does not exist.');
-    const created = await withStore(async (store) => await store.socialProblems.create(team.value.id, { ...draft, opensAt, closesAt }));
-    return created.ok ? done({ number: created.value.number }) : refused(createRefusals[created.reason]);
-  });
+  .handler(
+    action({ access: 'admin', input: problemInput, refusals: createRefusals }, async ({ actor, input, store }) => {
+      const { opensDate, opensTime, closesDate, closesTime, ...draft } = input;
+      const opensAt = malaysiaTime(opensDate, opensTime);
+      const closesAt = malaysiaTime(closesDate, closesTime);
+      if (!opensAt || !closesAt) return refused('That date or time does not exist.');
+      const created = await store.socialProblems.create(actor.id, { ...draft, opensAt, closesAt });
+      return created.ok ? done({ number: created.value.number }) : created;
+    }),
+  );
 
 export const removeProblem = createServerFn({ method: 'POST' })
   .validator((input: { number: number }) => input)
-  .handler(async ({ data }): Promise<Outcome<{ number: number }>> => {
-    const team = await adminOrRefusal();
-    if (!team.ok) return team;
-    const input = parsed(z.object({ number: id }), data);
-    if (!input.ok) return input;
-    const removed = await withStore(async (store) => await store.socialProblems.remove(input.value.number));
-    return removed.ok ? done({ number: input.value.number }) : refused(removeRefusals[removed.reason]);
-  });
+  .handler(
+    action({ access: 'admin', input: z.object({ number: id }), refusals: removeRefusals }, async ({ input, store }) => {
+      const removed = await store.socialProblems.remove(input.number);
+      return removed.ok ? done({ number: input.number }) : removed;
+    }),
+  );

@@ -5,11 +5,11 @@ import { capitalised, formatDay, formatMoment, numberWord } from '../../../src/l
 import { tidy } from '../../../src/server/community.ts';
 import { planAnsweredLetter, waited, type ReplyRefusal } from '../../../src/server/plans.ts';
 import { id } from '../lib/fields.ts';
-import { adminOrRefusal } from '../lib/guards.server.ts';
-import { absolute, sendLater } from '../lib/mail.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { admit, toClub } from '../lib/access.server.ts';
+import { action } from '../lib/action.server.ts';
+import { absolute } from '../lib/mail.server.ts';
+import { done } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
-import { adminOrRedirect } from './admin.server.ts';
 
 const ANSWERED_SHOWN = 20;
 
@@ -24,7 +24,7 @@ const replyRefusals: Record<ReplyRefusal, string> = {
 
 /** Plans waiting for an answer, the one waiting longest first, and the most recent answered. */
 export const adminPlans = createServerFn({ method: 'GET' }).handler(async () => {
-  await adminOrRedirect();
+  await admit('admin', toClub);
   const { waiting, answered } = await withStore(async (store) => ({ waiting: await store.plans.waiting(), answered: await store.plans.answered(ANSWERED_SHOWN) }));
   const now = new Date();
   return {
@@ -63,14 +63,11 @@ const answer = z.object({
 /** Answers a plan. The member gets it by email, from the host, and the plan closes. */
 export const answerPlan = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof answer>) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const admin = await adminOrRefusal();
-    if (!admin.ok) return admin;
-    const input = parsed(answer, data);
-    if (!input.ok) return input;
-    const host = admin.value;
-    const result = await withStore(async (store) => await store.plans.reply(host.id, { id: input.value.plan, sentAt: input.value.sentAt }, input.value.reply));
-    if (!result.ok) return refused(replyRefusals[result.reason]);
-    sendLater([planAnsweredLetter(result.value, host, absolute(`/members/plan/${result.value.id}`))]);
-    return done(null);
-  });
+  .handler(
+    action({ access: 'admin', input: answer, refusals: replyRefusals }, async ({ actor, input, store, send }) => {
+      const result = await store.plans.reply(actor.id, { id: input.plan, sentAt: input.sentAt }, input.reply);
+      if (!result.ok) return result;
+      send([planAnsweredLetter(result.value, actor, absolute(`/members/plan/${result.value.id}`))]);
+      return done(null);
+    }),
+  );

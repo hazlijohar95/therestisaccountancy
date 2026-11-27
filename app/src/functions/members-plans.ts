@@ -4,10 +4,10 @@ import { z } from 'zod';
 import { PLAN_ANSWER_MAX, planSections, type PlanSectionSlug } from '../../../src/data/plan.ts';
 import { tidy } from '../../../src/server/community.ts';
 import { missingSections, planSentLetter, type AnsweredPlan, type OpenPlan, type PlanAnswers, type PlanReply } from '../../../src/server/plans.ts';
-import { paidOrRefusal } from '../lib/guards.server.ts';
-import { absolute, sendLater } from '../lib/mail.server.ts';
-import { paidMemberOrRedirect } from '../lib/members.server.ts';
-import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
+import { admit, toClub } from '../lib/access.server.ts';
+import { action } from '../lib/action.server.ts';
+import { absolute } from '../lib/mail.server.ts';
+import { done, refused } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
 
 /** A plan as the member's pages show it: the answers and where it stands. */
@@ -41,13 +41,13 @@ const plansOf = (memberId: number) =>
   });
 
 /** The member's open plan, if any, and every answered one, newest first. */
-export const membersPlan = createServerFn({ method: 'GET' }).handler(async () => plansOf((await paidMemberOrRedirect()).id));
+export const membersPlan = createServerFn({ method: 'GET' }).handler(async () => plansOf((await admit('paid', toClub)).id));
 
 /** One answered plan. The open plan has its own page, so its id leads there. */
 export const membersAnsweredPlan = createServerFn({ method: 'GET' })
   .validator((id: string) => id)
   .handler(async ({ data }) => {
-    const member = await paidMemberOrRedirect();
+    const member = await admit('paid', toClub);
     const id = Number(data);
     const { open, answered } = await plansOf(member.id);
     if (open?.id === id) throw redirect({ href: '/members/plan' });
@@ -79,52 +79,39 @@ const withTheHosts = 'Your plan is with the hosts, so that was not saved. Take i
 
 export const savePlan = createServerFn({ method: 'POST' })
   .validator((input: Record<string, string>) => input)
-  .handler(async ({ data }): Promise<Outcome<null>> => {
-    const input = parsed(planFields, data);
-    if (!input.ok) return input;
-    const member = await paidOrRefusal();
-    if (!member.ok) return member;
-    const saved = await withStore(async (store) => {
-      const result = await store.plans.save(member.value.id, input.value);
-      return result.ok;
-    });
-    return saved ? done(null) : refused(withTheHosts);
-  });
+  .handler(
+    action({ access: 'paid', input: planFields }, async ({ actor, input, store }) => {
+      const saved = await store.plans.save(actor.id, input);
+      return saved.ok ? done(null) : refused(withTheHosts);
+    }),
+  );
 
 /** Saves the plan, and sends it when every section is written. A short one stays a draft, so nothing typed is lost. */
 export const sendPlan = createServerFn({ method: 'POST' })
   .validator((input: Record<string, string>) => input)
-  .handler(async ({ data }): Promise<Outcome<{ sent: boolean }>> => {
-    const input = parsed(planFields, data);
-    if (!input.ok) return input;
-    const member = await paidOrRefusal();
-    if (!member.ok) return member;
-    const result = await withStore(async (store) => {
-      const sent = await store.plans.send(member.value.id, input.value);
-      if (!sent.ok) return null;
+  .handler(
+    action({ access: 'paid', input: planFields }, async ({ actor, input, store, send }) => {
+      const sent = await store.plans.send(actor.id, input);
+      if (!sent.ok) return refused(withTheHosts);
       const { plan, changed } = sent.value;
-      const letter = changed && plan.status === 'sent' ? { plan, admins: await store.club.adminEmails() } : null;
-      return { sent: plan.status === 'sent', letter };
-    });
-    if (!result) return refused(withTheHosts);
-    if (result.letter?.plan.status === 'sent' && result.letter.admins.length) {
-      sendLater([planSentLetter(result.letter.admins, result.letter.plan, absolute(`/admin/plans#plan-${result.letter.plan.id}`))]);
-    }
-    return done({ sent: result.sent });
-  });
+      if (changed && plan.status === 'sent') {
+        const admins = await store.club.adminEmails();
+        if (admins.length) send([planSentLetter(admins, plan, absolute(`/admin/plans#plan-${plan.id}`))]);
+      }
+      return done({ sent: plan.status === 'sent' });
+    }),
+  );
 
-export const takeBackPlan = createServerFn({ method: 'POST' }).handler(async (): Promise<Outcome<null>> => {
-  const member = await paidOrRefusal();
-  if (!member.ok) return member;
-  const taken = await withStore(async (store) => (await store.plans.takeBack(member.value.id)).ok);
-  return taken ? done(null) : refused('A host has answered your plan already, so it can no longer be taken back.');
-});
+export const takeBackPlan = createServerFn({ method: 'POST' }).handler(
+  action({ access: 'paid', input: z.undefined() }, async ({ actor, store }) => {
+    const taken = (await store.plans.takeBack(actor.id)).ok;
+    return taken ? done(null) : refused('A host has answered your plan already, so it can no longer be taken back.');
+  }),
+);
 
-export const startPlan = createServerFn({ method: 'POST' }).handler(async (): Promise<Outcome<null>> => {
-  const member = await paidOrRefusal();
-  if (!member.ok) return member;
-  await withStore(async (store) => {
-    await store.plans.startNext(member.value.id);
-  });
-  return done(null);
-});
+export const startPlan = createServerFn({ method: 'POST' }).handler(
+  action({ access: 'paid', input: z.undefined() }, async ({ actor, store }) => {
+    await store.plans.startNext(actor.id);
+    return done(null);
+  }),
+);

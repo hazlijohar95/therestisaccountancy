@@ -1,19 +1,10 @@
-import { redirect } from '@tanstack/react-router';
 import { everyRate } from '../../../src/data/membership.ts';
-import type { Member, PasswordLink } from '../../../src/server/club.ts';
+import type { PasswordLink } from '../../../src/server/club.ts';
 import { passwordLetter } from '../../../src/server/letters.ts';
 import { send } from '../../../src/server/mail.ts';
 import { formatDay } from '../../../src/lib/format.ts';
 import { pagingOf } from '../../../src/lib/paging.ts';
-import { memberOrSignIn } from '../lib/guards.server.ts';
 import { absolute } from '../lib/mail.server.ts';
-
-/** For an admin page's loader: the admin, a redirect to sign in and back when signed out, or to the members' area. */
-export async function adminOrRedirect(): Promise<Member> {
-  const member = await memberOrSignIn();
-  if (member.role !== 'admin') throw redirect({ href: '/members' });
-  return member;
-}
 
 /** Today's date in Malaysia, as a date input's min. */
 export const malaysiaToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).format(new Date());
