@@ -1,21 +1,15 @@
 import type { Access } from './billing.ts';
-import type { Member, Role } from './club.ts';
+import type { Member } from './club.ts';
+import type { ClubIdentity } from './cpe-contract.ts';
 import { paidAccess } from './paths.ts';
+
+export type { ClubIdentity } from './cpe-contract.ts';
 
 /**
  * Who is signed in, for the CPE Worker at cpe.<domain>. CPE has no accounts of its own: it asks the club over a
  * Worker-to-Worker binding, forwarding the browser's cookie, and the club answers from the same session its pages use.
+ * This is the signed-in member as CPE sees them, or null when nobody is signed in or their session has ended.
  */
-export interface ClubIdentity {
-  readonly id: number;
-  readonly name: string;
-  readonly email: string;
-  readonly role: Role;
-  /** May use what membership pays for: an admin always, a member while paid or in grace. */
-  readonly paid: boolean;
-}
-
-/** The signed-in member as CPE sees them, or null when nobody is signed in or their session has ended. */
 export async function identify(member: Member | null, access: (memberId: number) => Access | Promise<Access>): Promise<ClubIdentity | null> {
   if (!member) return null;
   const paid = paidAccess(member.role, await access(member.id));

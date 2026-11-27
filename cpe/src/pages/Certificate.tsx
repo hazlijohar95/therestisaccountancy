@@ -1,7 +1,6 @@
 import { Button } from "@base-ui/react/button";
 import { useEffect, useState } from "react";
 import { api } from "../api.ts";
-import type { Verified } from "../domain/api.ts";
 import { Arrow, Download } from "../components/Icons.tsx";
 import { Logo } from "../components/Logo.tsx";
 import { formatHours } from "../domain/courses.ts";
@@ -16,7 +15,7 @@ export function CertificatePage({ id }: { id: string }) {
   const [registered, setRegistered] = useState<boolean | null>(null);
   useEffect(() => {
     let live = true;
-    api<Verified>("GET", `/api/verify/${encodeURIComponent(id)}`).then(
+    api("GET /api/verify/:id", { params: { id } }).then(
       () => live && setRegistered(true),
       () => live && setRegistered(false),
     );

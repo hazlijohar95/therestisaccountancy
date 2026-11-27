@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createCatalogue, publishProblems } from "./catalogue.ts";
+import { createCatalogue, publishProblems, seedProblem, type SeedTiming } from "./catalogue.ts";
 import { memoryDb } from "./node-db.ts";
+import { scripts, shows } from "./seed/catalog.ts";
+import timings from "./seed/timings.json" with { type: "json" };
 import { seededPermutation } from "./shuffle.ts";
 
 const fresh = () => {
@@ -84,4 +86,59 @@ test("a listener's review option order is a fixed permutation", () => {
   const a = seededPermutation(4, "7:five-threats:1:0");
   assert.deepEqual(seededPermutation(4, "7:five-threats:1:0"), a);
   assert.deepEqual([...a].sort(), [0, 1, 2, 3]);
+});
+
+test("every sample course has a timing for each segment of its script", () => {
+  const measured: Readonly<Record<string, SeedTiming | undefined>> = timings;
+  assert.deepEqual(
+    scripts.flatMap((script) => seedProblem(script, measured[script.id]) ?? []),
+    [],
+  );
+});
+
+test("a stale sample is skipped and logged, and a sample already seeded is never checked again", () => {
+  const warnings: string[] = [];
+  const c = createCatalogue(memoryDb(), () => new Date("2026-11-26T10:00:00Z"), (m) => warnings.push(m));
+  c.seed();
+  const [first, second] = scripts;
+  const stale = { [first!.id]: { duration: 1, segments: [], peaks: [] } };
+  const extra = { ...second!, id: "not-rendered-yet" };
+  c.seed({ shows, scripts: [first!, extra], timings: stale });
+  assert.equal(c.published(first!.id, 1)?.script.title, first!.title, "the seeded course is untouched");
+  assert.equal(c.published("not-rendered-yet", 1), null);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0]!, /not-rendered-yet/);
+});
+
+test("one unreadable stored version is left out of the listings and logged, not fatal to them", () => {
+  const db = memoryDb();
+  const warnings: string[] = [];
+  const c = createCatalogue(db, () => new Date("2026-11-26T10:00:00Z"), (m) => warnings.push(m));
+  c.seed();
+  db.prepare("UPDATE versions SET script = ? WHERE course_id = ?").run(JSON.stringify({ title: "an older shape" }), "five-threats");
+  assert.deepEqual(
+    c.latest().map((p) => p.courseId),
+    ["five-steps-revenue", "hour-worth", "generated-evidence"],
+  );
+  assert.deepEqual(c.courses().find((x) => x.id === "five-threats")?.versions, []);
+  assert.equal(warnings.length, 2);
+  assert.match(warnings[0]!, /version 1 of course "five-threats"/);
+  db.prepare("UPDATE versions SET script = ? WHERE course_id = ?").run("not json", "hour-worth");
+  assert.equal(c.latest().length, 2);
+});
+
+test("when a course's newest version no longer reads, the one before it is listed instead", () => {
+  const db = memoryDb();
+  const c = createCatalogue(db, () => new Date("2026-11-26T10:00:00Z"), () => {});
+  c.seed();
+  const v1 = c.published("five-threats", 1)!;
+  c.openDraft("five-threats", "admin@club.test");
+  c.saveDraft("five-threats", { script: { ...v1.script, title: "Version two" } }, "admin@club.test");
+  c.publish("five-threats", "admin@club.test");
+  assert.equal(c.latest()[0]?.version, 2);
+  db.prepare("UPDATE versions SET script = ? WHERE course_id = ? AND version = 2").run("not json", "five-threats");
+  assert.deepEqual(
+    c.latest().map((p) => [p.courseId, p.version]),
+    [["five-threats", 1], ["five-steps-revenue", 1], ["hour-worth", 1], ["generated-evidence", 1]],
+  );
 });

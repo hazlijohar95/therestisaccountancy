@@ -3,6 +3,7 @@ import { env, WorkerEntrypoint } from 'cloudflare:workers';
 import { site } from '../../src/data/site.ts';
 import { socialHost } from '../../src/data/social.ts';
 import { paymentCallback, refundWebhook } from '../../src/server/chip-routes.ts';
+import type { ClubBinding } from '../../src/server/cpe-contract.ts';
 import { identify, sessionToken, type ClubIdentity } from '../../src/server/cpe-identity.ts';
 import { hourly } from '../../src/server/jobs.ts';
 import { isSocialHost } from '../../src/server/paths.ts';
@@ -16,7 +17,7 @@ export { ClubStore } from '../../src/server/instance.ts';
  * The club's answer to "who is this?" for the CPE Worker, reachable only through its service binding: a named
  * entrypoint has no public address. CPE forwards the browser's cookie; the session is read as the club's pages read it.
  */
-export class CpeIdentity extends WorkerEntrypoint<Env> {
+export class CpeIdentity extends WorkerEntrypoint<Env> implements ClubBinding {
   async member(cookie: string | null): Promise<ClubIdentity | null> {
     const token = sessionToken(cookie);
     if (!token) return null;

@@ -72,7 +72,7 @@ export function TimingEditor({ courseId, audio, segments, timing, aligner, onSav
     setBusy(true);
     setMessage(null);
     try {
-      const t = await api<Timing>("POST", `/api/studio/courses/${courseId}/align`);
+      const t = await api("POST /api/studio/courses/:id/align", { params: { id: courseId } });
       setStarts(t.segments.map((s) => s.start));
       setNext(segments.length);
       setMessage(`Aligned with ${aligner}. Check a few starts, then save.`);
