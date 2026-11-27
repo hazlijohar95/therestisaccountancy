@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { LINK_DAYS, type LinkPurpose } from '../data/links.ts';
-import { bookedWith, callLetters, type Call } from './calls.ts';
+import { callLetters, standDown, type Call } from './calls.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import type { Letter } from './letters.ts';
 import { hashPassword, spendVerifyTime, verifyPassword } from './password.ts';
@@ -335,10 +335,10 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
         const role = changes.role ?? member.role;
         if (role !== member.role && actorId === memberId) refuse('self');
         if (db.prepare('SELECT 1 FROM members WHERE email = ? AND id != ?').get(changes.email, memberId)) refuse('email-taken');
-        const booked = bookedWith(db, now(), memberId);
+        const booked = member.role === 'admin' && role !== 'admin' ? standDown(db, now(), memberId) : [];
         db.prepare('UPDATE members SET name = ?, email = ?, role = ? WHERE id = ?').run(changes.name, changes.email, role, memberId);
         keepAnAdmin(refuse);
-        return { member: reread(memberId), letters: role === 'admin' ? [] : calledOff(booked, siteUrl) };
+        return { member: reread(memberId), letters: calledOff(booked, siteUrl) };
       });
     },
 
@@ -346,7 +346,7 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
     suspendMember(actorId: number, memberId: number, siteUrl: string): Result<AdminChange, AdminRefusal> {
       return attempt<AdminChange, AdminRefusal>(db, (refuse) => {
         subject(actorId, memberId, refuse);
-        const booked = bookedWith(db, now(), memberId);
+        const booked = standDown(db, now(), memberId);
         db.prepare('UPDATE members SET suspended_at = ?, session_epoch = session_epoch + 1 WHERE id = ? AND suspended_at IS NULL').run(iso(now()), memberId);
         retireLinks(db, now(), memberId);
         keepAnAdmin(refuse);
@@ -365,7 +365,7 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
     removeMember(actorId: number, memberId: number, siteUrl: string): Result<AdminChange, AdminRefusal> {
       return attempt<AdminChange, AdminRefusal>(db, (refuse) => {
         const member = subject(actorId, memberId, refuse);
-        const booked = bookedWith(db, now(), memberId);
+        const booked = standDown(db, now(), memberId);
         db.prepare('DELETE FROM members WHERE id = ?').run(memberId);
         keepAnAdmin(refuse);
         return { member, letters: calledOff(booked, siteUrl) };
