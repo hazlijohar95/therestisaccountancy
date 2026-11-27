@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { HANDLE, HANDLE_TAKEN, JURISDICTIONS, PROFILE_LIMITS, SECTORS, TOPICS, TRACKS, type Topic, type Track } from '../../../src/data/social.ts';
 import { claimWhen, renewsIn } from '../../../src/lib/ticks.ts';
 import type { VouchRefusal } from '../../../src/server/social-claims.ts';
-import { handleProblem, normaliseHandle, type FollowRefusal, type HandleRefusal, type Profile, type SaveRefusal } from '../../../src/server/social-profiles.ts';
+import { handleProblem, normaliseHandle, type FollowRefusal, type HandleRefusal, type SaveRefusal } from '../../../src/server/social-profiles.ts';
 import { numberId, oneLine, token } from '../lib/fields.ts';
 import { memberOrRefusal } from '../lib/guards.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
@@ -45,23 +45,6 @@ export const handleField = z
     const problem = handleProblem(value);
     if (problem) ctx.addIssue({ code: 'custom', message: handleRefusals[problem] });
   });
-
-/** A profile as plain data, without the store's stub on it, so it can travel to the page. */
-const profileOf = (p: Profile): Profile => ({
-  memberId: p.memberId,
-  handle: p.handle,
-  name: p.name,
-  track: p.track,
-  sealed: p.sealed,
-  createdAt: p.createdAt,
-  headline: p.headline,
-  sector: p.sector,
-  city: p.city,
-  jurisdictions: p.jurisdictions,
-  topics: p.topics,
-  creator: p.creator,
-  listed: p.listed,
-});
 
 const line = (max: number, label: string) => z.string().transform(oneLine).pipe(z.string().max(max, `Keep the ${label} under ${max} characters.`));
 
@@ -111,7 +94,7 @@ export const profilePage = createServerFn({ method: 'GET' })
     const { ledger, record, heat, roles, checklist } = page;
     const latestYear = now.getFullYear() + 1;
     return {
-      profile: profileOf(page.profile),
+      profile: page.profile,
       own: page.own,
       signedIn: member !== null,
       canVouch: page.canVouch,
@@ -187,7 +170,7 @@ export const editPage = createServerFn({ method: 'GET' }).handler(async () => {
     const profile = await store.socialProfiles.ownProfile(member.id);
     /* Social is invite-only: a member without a profile needs a way in, or the club's approval, before a handle. */
     const mayClaim = profile !== null || (await store.socialProfiles.mayClaim(member.id));
-    return { name: member.name, email: member.email, profile: profile && profileOf(profile), mayClaim };
+    return { name: member.name, email: member.email, profile, mayClaim };
   });
 });
 

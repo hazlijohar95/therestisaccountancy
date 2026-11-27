@@ -2,7 +2,6 @@ import { redirect } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { TERMS } from '../../../src/data/membership.ts';
-import type { Standing } from '../../../src/server/billing.ts';
 import type { CheckoutRefusal } from '../../../src/server/charges.ts';
 import { checkout as openCheckout, settle } from '../../../src/server/payments.ts';
 import { report } from '../../../src/server/report.ts';
@@ -11,9 +10,6 @@ import { allowed, tooManyTries } from '../lib/limits.server.ts';
 import { absolute } from '../lib/mail.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
-
-/** A standing as plain data, off the store's reply, for the page. */
-export const plainStanding = ({ access, paidUntil, term, cardOnFile, renews }: Standing): Standing => ({ access, paidUntil, term, cardOnFile, renews });
 
 const checkoutRefusals: Record<CheckoutRefusal, string> = {
   'not-approved': 'Club membership needs an accepted request first. Ask to join and we reply by email.',
@@ -34,7 +30,7 @@ export const membersPay = createServerFn({ method: 'GET' })
           await settle(store.billing, open).catch((error: unknown) => report('payment', `Payment ${open} could not be checked with CHIP on return`, error));
         }
       }
-      return plainStanding(await store.billing.standing(member.id));
+      return store.billing.standing(member.id);
     });
     if (back === 'paid' && standing.access === 'paid') throw redirect({ href: '/members?paid' });
     return { member: { name: member.name, email: member.email, clubApproved: member.clubApproved }, standing };

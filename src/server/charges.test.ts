@@ -5,9 +5,9 @@ import { createBilling } from './billing.ts';
 import { checkout, renew, settle, type Gateway } from './charges.ts';
 import { ChipRefusal, type Purchase } from './chip.ts';
 import { createClub } from './club.ts';
-import { createSocialProfiles } from './social-profiles.ts';
 import { migrate } from './db.ts';
 import { openDatabase } from './node-db.ts';
+import { createStore } from './store.ts';
 
 const DAY = 86_400_000;
 const SITE = 'https://club.test';
@@ -188,15 +188,14 @@ test('without cards on the brand nothing is saved, and nothing is ever charged',
 const fromSocial = async (email = 'priya@tax.my') => {
   const clock = () => new Date('2026-01-31T10:00:00Z');
   const db = openDatabase(':memory:');
-  const club = createClub(db, clock);
-  const social = createSocialProfiles(db, clock);
-  const signed = social.signUp({ name: 'Priya Nair', email, handle: 'priyataxes' }, { via: 'team' });
+  const { club, socialProfiles, billing } = createStore(db, clock);
+  const signed = socialProfiles.signUp({ name: 'Priya Nair', email, handle: 'priyataxes' }, { via: 'team' });
   assert.ok(signed.ok);
   const link = club.newLink(signed.value.memberId);
   assert.ok(link.ok);
   const accepted = await club.setPasswordFromLink(link.value.token, 'correct horse battery');
   assert.ok(accepted);
-  return { db, club, chip: fakeChip(['visa']), billing: createBilling(db, clock), member: accepted.member };
+  return { db, club, chip: fakeChip(['visa']), billing, member: accepted.member };
 };
 
 test('someone from the social site cannot pay for the club, and CHIP is never asked', async () => {
@@ -226,8 +225,8 @@ test('accepting their join request approves the account they have, with no new m
 test('a social sign-up who never set a password is approved and gets the welcome link', async () => {
   const clock = () => new Date('2026-01-31T10:00:00Z');
   const db = openDatabase(':memory:');
-  const club = createClub(db, clock);
-  const signed = createSocialProfiles(db, clock).signUp({ name: 'Dan Tan', email: 'dan@firm.my', handle: 'dantan' }, { via: 'team' });
+  const { club, socialProfiles } = createStore(db, clock);
+  const signed = socialProfiles.signUp({ name: 'Dan Tan', email: 'dan@firm.my', handle: 'dantan' }, { via: 'team' });
   assert.ok(signed.ok);
   club.recordJoinRequest({ name: 'Dan Tan', email: 'dan@firm.my', stage: 'I run a practice' });
   const invited = club.inviteFromRequest(club.joinRequests()[0]?.id ?? 0);

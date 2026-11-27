@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createClub } from './club.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
-import { createSocialClaims } from './social-claims.ts';
-import { createSocialNominations, type NominationDraft } from './social-nominations.ts';
-import { createSocialProfiles } from './social-profiles.ts';
+import type { NominationDraft } from './social-nominations.ts';
+import { createStore } from './store.ts';
 
 const PASSWORD = 'correct horse battery';
 
@@ -20,10 +18,7 @@ const draft = (changes: Partial<NominationDraft> = {}): NominationDraft => ({ pl
 const world = () => {
   const now = () => new Date('2026-11-26T02:00:00Z');
   const db = openDatabase(':memory:');
-  const club = createClub(db, now);
-  const profiles = createSocialProfiles(db, now);
-  const claims = createSocialClaims(db, now);
-  const nominations = createSocialNominations(db, now);
+  const { club, socialProfiles: profiles, socialClaims: claims, socialNominations: nominations } = createStore(db, now);
   const joined = async (name: string, email: string, handle: string) => {
     const { memberId } = value(profiles.signUp({ name, email, handle }, { via: 'team' }));
     const accepted = await club.setPasswordFromLink(value(club.newLink(memberId)).token, PASSWORD);

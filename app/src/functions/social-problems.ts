@@ -65,8 +65,7 @@ export const problemView = createServerFn({ method: 'GET' })
       if (number !== null) throw notFound();
       return null;
     }
-    const { problem, viewer, mine, revealed, canRate, spread, most, answers } = view;
-    return { problem, viewer, mine, revealed, canRate, spread, most, answers };
+    return view;
   });
 
 export const answerProblem = createServerFn({ method: 'POST' })

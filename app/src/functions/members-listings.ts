@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { isServiceSlug, LISTING_LIMITS, states, type ServiceSlug } from '../../../src/data/directory.ts';
 import { tidy } from '../../../src/server/community.ts';
-import { listingQueuedLetter, type Listing, type SaveOutcome } from '../../../src/server/listings.ts';
+import { listingQueuedLetter, type SaveOutcome } from '../../../src/server/listings.ts';
 import { email, oneLine } from '../lib/fields.ts';
 import { paidOrRefusal } from '../lib/guards.server.ts';
 import { allowed, tooManyTries } from '../lib/limits.server.ts';
@@ -11,33 +11,9 @@ import { paidMemberOrRedirect } from '../lib/members.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
 
-/** A listing as the member's page shows it, without the store's handle. */
-const plainListing = (l: Listing): Listing => ({
-  memberId: l.memberId,
-  name: l.name,
-  email: l.email,
-  practice: l.practice,
-  state: l.state,
-  town: l.town,
-  remote: l.remote,
-  services: [...l.services],
-  niche: l.niche,
-  bio: l.bio,
-  qualifications: l.qualifications,
-  website: l.website,
-  contactEmail: l.contactEmail,
-  updatedAt: l.updatedAt,
-  review: l.review.state === 'returned' ? { state: 'returned', note: l.review.note } : l.review.state === 'listed' ? { state: 'listed', approvedAt: l.review.approvedAt } : { state: 'pending' },
-  paused: l.paused,
-  shown: l.shown,
-});
-
 export const membersListing = createServerFn({ method: 'GET' }).handler(async () => {
   const member = await paidMemberOrRedirect();
-  const listing = await withStore(async (store) => {
-    const found = await store.listings.listing(member.id);
-    return found && plainListing(found);
-  });
+  const listing = await withStore(async (store) => store.listings.listing(member.id));
   return { email: member.email, listing };
 });
 const line = (field: string, max: number) =>
@@ -101,7 +77,7 @@ export const saveListing = createServerFn({ method: 'POST' })
     const { declared: _declared, niche, website: site, ...content } = input.value;
     const saved = await withStore(async (store) => {
       const { listing, outcome } = await store.listings.save(member.value.id, { ...content, niche: niche ?? '', website: site ?? null });
-      const queued = outcome === 'submitted' || outcome === 'resubmitted' ? { listing: plainListing(listing), outcome, admins: await store.club.adminEmails() } : null;
+      const queued = outcome === 'submitted' || outcome === 'resubmitted' ? { listing, outcome, admins: await store.club.adminEmails() } : null;
       return { outcome, queued };
     });
     if (saved.queued?.admins.length) sendLater([listingQueuedLetter(saved.queued.admins, saved.queued.listing, saved.queued.outcome, absolute('/admin/listings'))]);

@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createClub } from './club.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
-import { createSocialClaims } from './social-claims.ts';
-import { createSocialProblems, judged, type ProblemDraft } from './social-problems.ts';
-import { createSocialProfiles } from './social-profiles.ts';
+import { judged, type ProblemDraft } from './social-problems.ts';
+import { createStore } from './store.ts';
 
 const PASSWORD = 'correct horse battery';
 const DAY = 86_400_000;
@@ -21,10 +19,7 @@ const world = () => {
   let clock = new Date('2026-11-26T02:00:00Z');
   const now = () => clock;
   const db = openDatabase(':memory:');
-  const club = createClub(db, now);
-  const profiles = createSocialProfiles(db, now);
-  const claims = createSocialClaims(db, now);
-  const problems = createSocialProblems(db, now);
+  const { club, socialProfiles: profiles, socialClaims: claims, socialProblems: problems } = createStore(db, now);
   const host = club.ensureAdmin({ email: 'host@club.test', name: 'Host', password: PASSWORD });
 
   const joined = async (name: string, email: string, handle: string) => {
