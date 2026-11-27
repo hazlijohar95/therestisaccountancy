@@ -53,7 +53,7 @@ const world = async () => {
     assert.ok(request);
     const accepted = await club.setPasswordFromLink(sentLink(club.inviteFromRequest(request.id)).token, PASSWORD);
     assert.ok(accepted);
-    billing.opened(`checkout-${accepted.member.id}`, accepted.member.id, 'checkout', 'month');
+    billing.opened(`checkout-${accepted.member.id}`, accepted.member.id, 'checkout', 'month', 9900);
     billing.paid(`checkout-${accepted.member.id}`, false);
     return accepted.member;
   };
@@ -197,7 +197,7 @@ test('the directory shows a listing only while its member is active and paid up,
   agrees('after the grace period');
   assert.equal(shown(), false);
 
-  w.billing.opened('again', aina.id, 'checkout', 'month');
+  w.billing.opened('again', aina.id, 'checkout', 'month', 9900);
   w.billing.paid('again', false);
   agrees('once paid again');
   assert.equal(shown(), true, 'paying again brings it back without a new check');

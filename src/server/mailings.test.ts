@@ -37,7 +37,7 @@ test('the digest goes only to active members with the club who asked for it, onc
   const aina = await w.join('aina@firm.com.my', 'Aina');
   const abu = await w.join('abu@firm.com.my', 'Abu');
   w.club.appointAdmin({ email: 'new@club.test', name: 'Not yet active' });
-  w.billing.opened('p-aina', aina.id, 'checkout', 'month');
+  w.billing.opened('p-aina', aina.id, 'checkout', 'month', 9900);
   assert.ok(w.billing.paid('p-aina', false));
   assert.deepEqual(w.mailings.digestRecipients(), [], 'nobody gets it without asking');
   w.mailings.setPrefs(abu.id, { replies: true, digest: true });
@@ -110,7 +110,7 @@ test('a paying member who has not booked a session gets each getting-started ema
   const w = world();
   const { billing } = w;
   const pay = (memberId: number, purchase: string) => {
-    billing.opened(purchase, memberId, 'checkout', 'month');
+    billing.opened(purchase, memberId, 'checkout', 'month', 9900);
     assert.ok(billing.paid(purchase, false));
   };
   const aina = await w.join('aina@firm.com.my', 'Aina');
@@ -145,7 +145,7 @@ test('a getting-started email that did not send is tried again on the next run, 
   const w = world();
   const { billing } = w;
   const aina = await w.join('aina@firm.com.my', 'Aina');
-  billing.opened('p-aina', aina.id, 'checkout', 'month');
+  billing.opened('p-aina', aina.id, 'checkout', 'month', 9900);
   assert.ok(billing.paid('p-aina', false));
   w.later(DAY_MS);
   const [claimed] = w.mailings.dueOnboarding();
@@ -161,7 +161,7 @@ test('the migration leaves out members who had already paid, but not members sti
   const { billing } = w;
   const paid = await w.join('paid@firm.com.my', 'Paid');
   const later = await w.join('later@firm.com.my', 'Later');
-  billing.opened('p-paid', paid.id, 'checkout', 'month');
+  billing.opened('p-paid', paid.id, 'checkout', 'month', 9900);
   assert.ok(billing.paid('p-paid', false));
   /* Back to the schema before the getting-started emails (migration 16), undoing the social ones after it, then upgrade again. */
   unmergeBoard(w.db);
@@ -183,7 +183,7 @@ test('the migration leaves out members who had already paid, but not members sti
 test('onboardingWaiting counts who is owed an email without marking anyone, and dueOnboarding then still sends them', async () => {
   const w = world();
   const pay = (memberId: number, purchase: string) => {
-    w.billing.opened(purchase, memberId, 'checkout', 'month');
+    w.billing.opened(purchase, memberId, 'checkout', 'month', 9900);
     assert.ok(w.billing.paid(purchase, false));
   };
   const aina = await w.join('aina@firm.com.my', 'Aina');

@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
-import { anyTerm, everyRate, STOP_NOTE_MAX, STOP_REASONS, stopReasonLabel, TERMS, terms } from '../../../../src/data/membership.ts';
+import { anyTerm, joiningRate, STOP_NOTE_MAX, STOP_REASONS, stopReasonLabel, TERMS, terms } from '../../../../src/data/membership.ts';
 import { formatDay } from '../../../../src/lib/format.ts';
 import { Masthead } from '../../components/club/Masthead.tsx';
 import { FieldError } from '../../components/FieldError.tsx';
@@ -33,7 +33,7 @@ function Account() {
   const plan = !standing
     ? null
     : !until
-      ? `Not started. Membership is ${everyRate}.`
+      ? `Not started. ${joiningRate}`
       : standing.access === 'unpaid'
         ? `Your last paid ${standing.term} ended on ${until}.`
         : !standing.renews

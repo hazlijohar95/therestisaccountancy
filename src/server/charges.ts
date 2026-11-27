@@ -12,7 +12,7 @@ import { fail, ok, type Result } from './result.ts';
 
 type Billing = ReturnType<typeof createBilling>;
 /** The billing store, called directly or across to the Durable Object, where every call returns a promise. */
-export type Ledger = { readonly [K in 'opened' | 'paid' | 'failed' | 'unpaid']: (...args: Parameters<Billing[K]>) => ReturnType<Billing[K]> | Promise<ReturnType<Billing[K]>> };
+export type Ledger = { readonly [K in 'price' | 'opened' | 'paid' | 'failed' | 'unpaid']: (...args: Parameters<Billing[K]>) => ReturnType<Billing[K]> | Promise<ReturnType<Billing[K]>> };
 export type Gateway = Pick<Chip, 'purchase' | 'savableMethods' | 'charge' | 'get'>;
 
 /** What CHIP shows on its payment page and its receipt. */
@@ -31,7 +31,7 @@ export async function checkout(
 ): Promise<Result<string, CheckoutRefusal>> {
   if (!member.clubApproved) return fail('not-approved');
   const url = (path: string) => new URL(path, siteUrl).href;
-  const amount = terms[term].sen;
+  const amount = await billing.price(member.id, term);
   /* Cards, once CHIP enables them on the brand, are saved for automatic renewal. Until then members pay each term. */
   const saveWith = await gateway.savableMethods(amount);
   const purchase = await gateway.purchase({
@@ -45,7 +45,7 @@ export async function checkout(
     back: { paid: url('/members/pay?back=paid'), failed: url('/members/pay?back=failed') },
   });
   if (!purchase.checkout_url) throw new Error(`CHIP gave no payment page for purchase ${purchase.id}`);
-  await billing.opened(purchase.id, member.id, 'checkout', term);
+  await billing.opened(purchase.id, member.id, 'checkout', term, amount);
   return ok(purchase.checkout_url);
 }
 
@@ -63,15 +63,16 @@ export async function renew(gateway: Gateway, billing: Ledger, renewal: Renewal,
   for (const earlier of await billing.unpaid(renewal.memberId, 'renewal')) {
     if (await settle(gateway, billing, earlier)) return 'paid';
   }
+  const amount = terms[renewal.term].sen;
   const purchase = await gateway.purchase({
     email: renewal.email,
     name: renewal.name,
     product: product(renewal.term),
-    amount: terms[renewal.term].sen,
+    amount,
     reference: `member-${renewal.memberId}-renewal`,
     callback: new URL('/chip/callback', siteUrl).href,
   });
-  await billing.opened(purchase.id, renewal.memberId, 'renewal', renewal.term);
+  await billing.opened(purchase.id, renewal.memberId, 'renewal', renewal.term, amount);
   try {
     const charged = await gateway.charge(purchase.id, renewal.token);
     if (isPaid(charged)) {

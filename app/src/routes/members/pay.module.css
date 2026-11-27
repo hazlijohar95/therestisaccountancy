@@ -4,4 +4,4 @@
 .offers li { display: flex; flex-direction: column; gap: var(--space-3); padding-top: var(--space-4); border-top: var(--stroke-rule) solid var(--ink); }
 .offers form { margin-top: auto; padding-top: var(--space-3); }
 .rate { margin: 0; font-size: var(--size-head); line-height: 1.08; }
-.saving { margin: 0; font-weight: 600; }
+.note { margin: 0; font-weight: 600; }

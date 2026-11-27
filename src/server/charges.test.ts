@@ -79,7 +79,7 @@ const world = async (cards: readonly string[] = ['visa']) => {
     await settle(chip.gateway, billing, id);
     return id;
   };
-  return { billing, chip, member, join, later: (ms: number) => (clock = new Date(clock.getTime() + ms)) };
+  return { db, billing, chip, member, join, later: (ms: number) => (clock = new Date(clock.getTime() + ms)) };
 };
 
 test('a checkout asks CHIP for the price of the term chosen, and a paid one adds that term', async () => {
@@ -96,6 +96,34 @@ test('a checkout asks CHIP for the price of the term chosen, and a paid one adds
 
   await checkout(w.chip.gateway, w.billing, w.member, 'month', SITE);
   assert.deepEqual(w.chip.asked[1], { id: 'c2', product: 'The Rest Is Accountancy membership, one month', amount: 9900, saving: true });
+});
+
+test('the first month costs RM 5 until a payment goes through, and the rate after that, refunded or not', async () => {
+  const w = await world();
+  const amounts = () => w.chip.asked.map((a) => a.amount);
+  const recorded = (id: string) => w.db.prepare('SELECT amount FROM payments WHERE purchase_id = ?').get(id)?.amount;
+
+  await checkout(w.chip.gateway, w.billing, w.member, 'month', SITE);
+  await checkout(w.chip.gateway, w.billing, w.member, 'month', SITE);
+  assert.deepEqual(amounts(), [500, 500], 'a payment page left unpaid does not use up the first month');
+  assert.equal(recorded('c1'), 500, 'the payment is recorded at what CHIP was asked for');
+
+  w.chip.pays('c2');
+  const paid = await settle(w.chip.gateway, w.billing, 'c2');
+  assert.equal(paid?.standing.paidUntil, '2026-02-28T10:00:00Z', 'RM 5 buys a whole month');
+  assert.equal(w.billing.joining(w.member.id), false);
+  await checkout(w.chip.gateway, w.billing, w.member, 'month', SITE);
+  assert.equal(amounts().at(-1), 9900);
+
+  w.billing.reversed('c2');
+  assert.equal(w.billing.price(w.member.id, 'month'), 9900, 'a refunded first month is not had again');
+});
+
+test('a year costs the full rate even before the first payment', async () => {
+  const w = await world();
+  assert.equal(w.billing.price(w.member.id, 'year'), 99000);
+  await w.join('year');
+  assert.equal(w.billing.price(w.member.id, 'month'), 9900, 'and paying for a year uses up the first month');
 });
 
 test('a repeated callback for a yearly payment changes nothing', async () => {
@@ -125,6 +153,7 @@ test('a yearly member is renewed with one charge of a year’s price', async () 
 test('a monthly member is renewed at a month’s price', async () => {
   const w = await world();
   await w.join('month');
+  assert.equal(w.chip.asked[0]?.amount, 500, 'the first month was RM 5');
   w.later(28 * DAY - 3_600_000);
   const [due] = w.billing.dueRenewals();
   assert.ok(due);

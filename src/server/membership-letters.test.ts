@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { TERMS, everyRate } from '../data/membership.ts';
+import { TERMS, joiningRate } from '../data/membership.ts';
 import { renderLetter } from '../emails/render.tsx';
 import type { Member, PasswordLink } from './club.ts';
 import { passwordLetter, passwordLetterFor, paymentDueLetter, renewalLetter, renewalNoticeLetter } from './letters.ts';
@@ -10,11 +10,10 @@ const payUrl = 'https://club.test/members/pay';
 const NO_COUNTS = { session: 0, post: 0, lesson: 0, call: 0, plan: 0 };
 const notice = { term: 'year', chargesAt: '2027-01-30T22:00:00Z', accountUrl: 'https://club.test/members/account', upcoming: [] } as const;
 
-test('the invitation names both rates', async () => {
-  const letter = passwordLetter({ ...aina, purpose: 'welcome', link: 'https://club.test/welcome?token=t', expiresAt: '2026-12-01T00:00:00Z', rate: everyRate, welcomeTo: 'club' });
+test('the invitation names the first month and both rates', async () => {
+  const letter = passwordLetter({ ...aina, purpose: 'welcome', link: 'https://club.test/welcome?token=t', expiresAt: '2026-12-01T00:00:00Z', rate: joiningRate, welcomeTo: 'club' });
   const { text } = await renderLetter(letter);
-  assert.ok(text.includes('Membership is RM 99 a month or RM 990 a year.'));
-  assert.ok(!text.includes('first month'));
+  assert.ok(text.includes('Your first month is RM 5. After that, membership is RM 99 a month or RM 990 a year.'));
 });
 
 test('someone joining Social is asked to finish joining, and told it is free', async () => {
@@ -39,14 +38,14 @@ test('a link the club issues tells only a club member who may pay the rate, and 
 
   const club = passwordLetterFor(issued('member', true), 'https://club.test');
   const clubText = (await renderLetter(club)).text;
-  assert.ok(clubText.includes('Membership is RM 99 a month or RM 990 a year.'));
+  assert.ok(clubText.includes('Your first month is RM 5. After that, membership is RM 99 a month or RM 990 a year.'));
   assert.ok(clubText.includes('https://club.test/welcome?token=a%20b'));
 
   const social = passwordLetterFor(issued('member', false), 'https://club.test');
   assert.equal(social.subject, 'Set a password to finish joining');
 
   const admin = (await renderLetter(passwordLetterFor(issued('admin', true), 'https://club.test'))).text;
-  assert.ok(!admin.includes('Membership is'), 'admins are never told a rate');
+  assert.ok(!admin.includes('RM '), 'admins are never told a rate');
 });
 
 test('the payment-due letter names the term the member paid for, and its rate', async () => {

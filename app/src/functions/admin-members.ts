@@ -1,7 +1,7 @@
 import { notFound } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
-import { everyRate, stopReasonLabel } from '../../../src/data/membership.ts';
+import { joiningRate, stopReasonLabel } from '../../../src/data/membership.ts';
 import { roleLabel, statusLabel } from '../../../src/data/members.ts';
 import { formatDay, waited } from '../../../src/lib/format.ts';
 import { pageCount } from '../../../src/lib/paging.ts';
@@ -161,7 +161,7 @@ export const inviteRequest = createServerFn({ method: 'POST' })
       if (!invitation.ok) return invitation;
       if (invitation.value.kind === 'link') return done<Invited>({ kind: 'link', issued: await deliver(invitation.value.link) });
       const { name, email: address } = invitation.value.member;
-      const emailed = await send(clubApprovedLetter({ name, email: address, rate: everyRate, payUrl: absolute('/members/pay') }));
+      const emailed = await send(clubApprovedLetter({ name, email: address, rate: joiningRate, payUrl: absolute('/members/pay') }));
       return done<Invited>({ kind: 'approved', name, email: address, emailed });
     }),
   );

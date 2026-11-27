@@ -1,4 +1,4 @@
-import { DEFAULT_TERM, STOP_NOTE_MAX, STOP_REASONS, TERMS, terms, type StopReason, type Term } from '../data/membership.ts';
+import { DEFAULT_TERM, FIRST_MONTH_SEN, STOP_NOTE_MAX, STOP_REASONS, TERMS, terms, type StopReason, type Term } from '../data/membership.ts';
 import { adminEmails, ROLES, STATUS_SQL } from './club.ts';
 import { integer, oneOf, optionalText, text, type Db } from './db.ts';
 import { renewalOffLetter, type Letter } from './letters.ts';
@@ -79,9 +79,19 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
     return { access: until > at ? 'paid' : until + grace > at ? 'grace' : 'unpaid', paidUntil, term: oneOf(row, 'term', TERMS), cardOnFile, renews };
   };
 
+  /** Whether the member has never paid. A payment refunded since still counts, so the first month is had once. */
+  const joining = (memberId: number): boolean =>
+    db.prepare(`SELECT 1 FROM payments WHERE member_id = ? AND (status = 'paid' OR reversed_at IS NOT NULL) LIMIT 1`).get(memberId) === undefined;
+
   return {
     standing,
+    joining,
     access: (memberId: number): Access => standing(memberId).access,
+
+    /** What a checkout for the term costs the member now, in sen: the first month at the joining price, anything else at the rate. */
+    price(memberId: number, term: Term): number {
+      return term === 'month' && joining(memberId) ? FIRST_MONTH_SEN : terms[term].sen;
+    },
 
     /** Whether the member may open what membership pays for, the Floor's members' room included: an admin always, a member while paid or in grace. */
     club(memberId: number): boolean {
@@ -90,16 +100,16 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
     },
 
     /**
-     * Notes a purchase made in CHIP for a member, before they pay it. The term is fixed here, with its price, and is
-     * the only thing that later decides how much time the payment adds or a refund takes off.
+     * Notes a purchase made in CHIP for a member, before they pay it, with the amount CHIP was asked for in sen. The
+     * term is fixed here, and is the only thing that later decides how much time the payment adds or a refund takes off.
      */
-    opened(purchaseId: string, memberId: number, kind: PaymentKind, term: Term): void {
+    opened(purchaseId: string, memberId: number, kind: PaymentKind, term: Term, amount: number): void {
       db.prepare('INSERT INTO payments (purchase_id, member_id, kind, term, amount, created_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (purchase_id) DO NOTHING').run(
         purchaseId,
         memberId,
         kind,
         term,
-        terms[term].sen,
+        amount,
         iso(now()),
       );
     },

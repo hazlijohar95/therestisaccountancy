@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { terms } from '../data/membership.ts';
 import { ACTIVITY_KINDS, QUIET_DAYS, type ActivityKind } from './activity.ts';
 import { migrate } from './db.ts';
 import { openDatabase } from './node-db.ts';
@@ -27,7 +28,7 @@ const world = () => {
   };
   const payer = async (email: string, name: string, term: 'month' | 'year' = 'year') => {
     const member = await join(email, name);
-    billing.opened(`p-${member.id}`, member.id, 'checkout', term);
+    billing.opened(`p-${member.id}`, member.id, 'checkout', term, terms[term].sen);
     assert.ok(billing.paid(`p-${member.id}`, false));
     return member;
   };
@@ -105,7 +106,7 @@ test('someone who paid inside the last 30 days is not quiet yet, however long ag
   const w = world();
   const aina = await w.join('aina@firm.com.my', 'Aina');
   w.later(100);
-  w.store.billing.opened('p-late', aina.id, 'checkout', 'year');
+  w.store.billing.opened('p-late', aina.id, 'checkout', 'year', 99000);
   assert.ok(w.store.billing.paid('p-late', false));
   w.later(QUIET_DAYS - 1);
   assert.deepEqual(w.store.activity.quiet(), [], 'the getting-started emails are still theirs');

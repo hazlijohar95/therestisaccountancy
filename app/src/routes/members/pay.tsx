@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
-import { anyTerm, everyRate, monthsFree, TERMS, terms, type Term } from '../../../../src/data/membership.ts';
+import { anyTerm, firstMonthPrice, joiningRate, monthsFree, TERMS, terms, type Term } from '../../../../src/data/membership.ts';
 import { capitalised, formatDay, numberWord } from '../../../../src/lib/format.ts';
 import { Masthead } from '../../components/club/Masthead.tsx';
 import { Notice } from '../../components/club/Notice.tsx';
@@ -19,13 +19,16 @@ export const Route = createFileRoute('/members/pay')({
   component: Pay,
 });
 
-const offers = TERMS.map((term) => {
-  const free = monthsFree(term);
-  return { term, label: terms[term].label, price: terms[term].price, saving: free > 0 ? `${capitalised(numberWord(free))} months free.` : null };
-});
+/** The terms on offer. Someone who has never paid has their first month at the joining price, and is told what follows it. */
+const offersFor = (joining: boolean) =>
+  TERMS.map((term) => {
+    if (term === 'month' && joining) return { term, label: `${firstMonthPrice} for your first month`, price: firstMonthPrice, note: `Then ${terms.month.label}.` };
+    const free = monthsFree(term);
+    return { term, label: terms[term].label, price: terms[term].price, note: free > 0 ? `${capitalised(numberWord(free))} months free.` : null };
+  });
 
 function Pay() {
-  const { member, standing } = Route.useLoaderData();
+  const { member, standing, joining } = Route.useLoaderData();
   const { back } = Route.useSearch();
   const open = useAction(checkout, { refresh: 'never' });
   const [leaving, setLeaving] = useState(false);
@@ -68,7 +71,7 @@ function Pay() {
             ? `Your last paid ${standing.term} ended on ${formatDay(standing.paidUntil ?? '')}. Pay for ${anyTerm} to carry on.`
             : current
               ? `You are paid until ${formatDay(standing.paidUntil ?? '')}. What you pay for now is added after that.`
-              : `Membership is ${everyRate}. Choose one, pay, and you are in.`}
+              : `${joiningRate} Choose one, pay, and you are in.`}
         </p>
       </Masthead>
 
@@ -81,10 +84,10 @@ function Pay() {
           Pay by the {TERMS.join(' or the ')}
         </h2>
         <ul className={s.offers}>
-          {offers.map((offer) => (
+          {offersFor(joining).map((offer) => (
             <li key={offer.term}>
               <h3 className={`serif ${s.rate}`}>{offer.label}</h3>
-              {offer.saving && <p className={s.saving}>{offer.saving}</p>}
+              {offer.note && <p className={s.note}>{offer.note}</p>}
               <form method="POST" onSubmit={pay(offer.term)}>
                 <button className="btn" type="submit" disabled={open.busy || leaving}>
                   Pay {offer.price} with CHIP

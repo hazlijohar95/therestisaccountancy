@@ -16,7 +16,7 @@ const checkoutRefusals: Record<CheckoutRefusal, string> = {
 };
 
 /**
- * The pay page. Admins never pay. Back from CHIP, its callback may not have landed yet, so CHIP is asked directly
+ * The pay page, with whether the member has yet to pay for the first time and so has the first month's price. Admins never pay. Back from CHIP, its callback may not have landed yet, so CHIP is asked directly
  * about every payment page the member opened, since they may have paid any of them.
  */
 export const membersPay = createServerFn({ method: 'GET' })
@@ -24,16 +24,16 @@ export const membersPay = createServerFn({ method: 'GET' })
   .handler(async ({ data: back }) => {
     const member = await admit('member', toClub);
     if (member.role === 'admin') throw redirect({ href: '/members' });
-    const standing = await withStore(async (store) => {
+    const { standing, joining } = await withStore(async (store) => {
       if (back === 'paid') {
         for (const open of await store.billing.unpaid(member.id, 'checkout')) {
           await settle(store.billing, open).catch((error: unknown) => report('payment', `Payment ${open} could not be checked with CHIP on return`, error));
         }
       }
-      return store.billing.standing(member.id);
+      return { standing: await store.billing.standing(member.id), joining: await store.billing.joining(member.id) };
     });
     if (back === 'paid' && standing.access === 'paid') throw redirect({ href: '/members?paid' });
-    return { member: { name: member.name, email: member.email, clubApproved: member.clubApproved }, standing };
+    return { member: { name: member.name, email: member.email, clubApproved: member.clubApproved }, standing, joining };
   });
 
 const checkoutInput = z.object({ term: z.enum(TERMS) });

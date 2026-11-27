@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { terms } from '../data/membership.ts';
 import { migrate, SCHEMA_VERSION } from './db.ts';
 import type { Letter } from './letters.ts';
 import { REPLY_NOTICE_GAP_MS } from './mailings.ts';
@@ -58,7 +59,7 @@ const world = (version = SCHEMA_VERSION) => {
   };
   /** Club membership paid for a month or a year from now. */
   const pay = (memberId: number, term: 'month' | 'year') => {
-    billing.opened(`p-${memberId}-${clock.getTime()}`, memberId, 'checkout', term);
+    billing.opened(`p-${memberId}-${clock.getTime()}`, memberId, 'checkout', term, terms[term].sen);
     assert.ok(billing.paid(`p-${memberId}-${clock.getTime()}`, false));
   };
   /** A member the club accepted from a join request, with a password set and no Social entry or handle. */

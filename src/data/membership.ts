@@ -59,6 +59,13 @@ export const anyTerm = TERMS.map((term) => `a ${term}`).join(' or ');
 /** "RM 99 a month or RM 990 a year" */
 export const everyRate = TERMS.map((term) => terms[term].label).join(' or ');
 
+/** A member's first month, paid at checkout before they have ever paid. Every later month, and every year, is at the rate. */
+export const FIRST_MONTH_SEN = 500;
+/** "RM 5" */
+export const firstMonthPrice = formatRinggit(FIRST_MONTH_SEN);
+/** For someone who has not paid yet: "Your first month is RM 5. After that, membership is RM 99 a month or RM 990 a year." */
+export const joiningRate = `Your first month is ${firstMonthPrice}. After that, membership is ${everyRate}.`;
+
 /** Why a member turned renewal off, as they may say. The key is stored; the label is what they read and the host sees. */
 export const STOP_REASONS = ['time', 'value', 'price', 'done', 'other'] as const;
 export type StopReason = (typeof STOP_REASONS)[number];

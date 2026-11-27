@@ -32,7 +32,7 @@ test('CPE sees the signed-in member, with paid access only once they pay', async
   const who = () => identify(w.club.sessionMember(w.member.key), (id) => w.billing.access(id));
   assert.deepEqual(await who(), { id: w.member.member.id, name: 'Aina', email: 'aina@firm.com.my', role: 'member', paid: false });
 
-  w.billing.opened('p1', w.member.member.id, 'checkout', 'month');
+  w.billing.opened('p1', w.member.member.id, 'checkout', 'month', 9900);
   w.billing.paid('p1', false);
   assert.equal((await who())?.paid, true);
 

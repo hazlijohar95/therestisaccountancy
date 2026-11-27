@@ -1,5 +1,5 @@
 import { week } from '../data/club.ts';
-import { everyRate, stopReasonLabel, TERMS, terms, type StopReason, type Term } from '../data/membership.ts';
+import { joiningRate, stopReasonLabel, TERMS, terms, type StopReason, type Term } from '../data/membership.ts';
 import { site } from '../data/site.ts';
 import { firstName, formatDay, formatMoment, listOf, numberWord, tally } from '../lib/format.ts';
 import type { JoinedVia, JoinRequest, LinkPurpose, PasswordLink } from './club.ts';
@@ -41,7 +41,7 @@ const flat = (value: string) => value.replace(/\s+/g, ' ').trim();
 
 /**
  * The letter for a password link the club issued. Admins do not pay, and Social is free until the club accepts
- * someone, so only a club member who may pay is told the rate.
+ * someone, so only a club member who may pay is told the rate, with the first month's price.
  */
 export function passwordLetterFor({ member, purpose, token, expiresAt }: PasswordLink, siteUrl: string): Letter {
   return passwordLetter({
@@ -50,7 +50,7 @@ export function passwordLetterFor({ member, purpose, token, expiresAt }: Passwor
     purpose,
     link: welcomeUrl(siteUrl, token),
     expiresAt,
-    rate: member.role === 'admin' || !member.clubApproved ? null : everyRate,
+    rate: member.role === 'admin' || !member.clubApproved ? null : joiningRate,
     welcomeTo: member.clubApproved ? 'club' : 'social',
   });
 }
@@ -87,7 +87,7 @@ export function passwordLetter(link: { email: string; name: string; purpose: Lin
         { href: link.link, label: 'Set your password' },
         `The link works once and runs out on ${until}. If it does, ask for a new one on the sign-in page.`,
         link.rate
-          ? `Membership is ${link.rate}. You choose which and pay straight after setting your password, and you can stop any time.`
+          ? `${link.rate} You pay straight after setting your password, and you can stop any time.`
           : "You're an admin, so there's nothing to pay.",
         "What we'll email you: replies to what you post in the community, reminders for sessions you sign up for, and anything about your membership. Nothing else unless you ask for it.",
         'Questions? Reply to this email. It comes straight to me.',
@@ -120,7 +120,7 @@ export function clubApprovedLetter(to: { email: string; name: string; rate: stri
     lines: [
       hi(to.name),
       'We read your request, and you are in. You sign in to the club with the account you use on Social, so there is nothing new to set up.',
-      `Membership is ${to.rate}. Pay, and the members' area opens straight after.`,
+      `${to.rate} Pay, and the members' area opens straight after.`,
       { href: to.payUrl, label: 'Pay for membership' },
       'Social stays free whatever you decide.',
       'Questions? Reply to this email. It comes straight to me.',
