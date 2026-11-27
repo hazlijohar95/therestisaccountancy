@@ -44,7 +44,7 @@ export function Meta({ icon, children }: { icon: IconName; children: ReactNode }
   return (
     <span className={s.fact}>
       <Icon name={icon} size={16} />
-      {children}
+      <span>{children}</span>
     </span>
   );
 }
