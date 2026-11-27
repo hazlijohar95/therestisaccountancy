@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { PLATFORM_PROFILES, PLATFORMS, TOPICS, type Platform, type Topic } from '../data/social.ts';
+import { waitingOf, type Waiting } from '../lib/waiting.ts';
 import { STATUS_SQL, welcomeLink, type PasswordLink } from './club.ts';
 import { attempt, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import type { Result } from './result.ts';
@@ -143,6 +144,11 @@ export function createSocialNominations(db: Db, now: () => Date = () => new Date
       return change(row);
     });
 
+  const queue = (): { readonly pending: QueuedNomination[]; readonly invited: QueuedNomination[] } => {
+    const rows = (state: 'pending' | 'invited') => db.prepare(`SELECT * FROM nominations WHERE state = ? ORDER BY created_at, id`).all(state).map(toQueued);
+    return { pending: rows('pending').sort((a, b) => b.nominators - a.nominators), invited: rows('invited') };
+  };
+
   return {
     onList,
 
@@ -184,11 +190,10 @@ export function createSocialNominations(db: Db, now: () => Date = () => new Date
     },
 
     /** Nominations for the team: waiting for an invite, most nominated first, and invited ones waiting for the nominee. */
-    queue(): { readonly pending: QueuedNomination[]; readonly invited: QueuedNomination[] } {
-      const rows = (state: 'pending' | 'invited') =>
-        db.prepare(`SELECT * FROM nominations WHERE state = ? ORDER BY created_at, id`).all(state).map(toQueued);
-      return { pending: rows('pending').sort((a, b) => b.nominators - a.nominators), invited: rows('invited') };
-    },
+    queue,
+
+    /** Nominations waiting for an invite, and since the oldest was first nominated. */
+    waiting: (): Waiting => waitingOf(queue().pending.map((n) => n.createdAt)),
 
     /** Invites a pending nomination. The link is shown once: only its hash is kept. */
     invite(id: number, reviewerId: number): Result<{ readonly nomination: QueuedNomination; readonly token: string }, InviteRefusal> {

@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { firstName, formatDay } from '../../../../src/lib/format.ts';
+import { firstName, formatDay, formatMoment } from '../../../../src/lib/format.ts';
 import { MemberCard } from '../../components/members/MemberCard.tsx';
 import { membersOverview } from '../../functions/members-overview.ts';
 import { flags } from '../../components/members/flags.ts';
@@ -15,7 +15,7 @@ export const Route = createFileRoute('/members/')({
 });
 
 function Overview() {
-  const { member, progress, around } = Route.useLoaderData();
+  const { member, next, progress, around } = Route.useLoaderData();
   const search = Route.useSearch();
   const greeting = search.welcome
     ? { label: 'Your password is set', title: `Welcome to the club, ${firstName(member.name)}.` }
@@ -28,11 +28,43 @@ function Overview() {
           <div>
             <p className={`label ${s.top}`}>{greeting.label}</p>
             <h1 className={`headline serif ${s.headline}`}>{greeting.title}</h1>
-            <p className={`lead ${s.lead}`}>Pick up the programme that matters most this month. The live sessions and their recordings are under Sessions.</p>
+            <p className={`lead ${s.lead}`}>
+              {next
+                ? `Your next live session is ${formatMoment(next.startsAt)}. Then pick up the programme that matters most this month.`
+                : 'Pick up the programme that matters most this month. The live sessions and their recordings are under Sessions.'}
+            </p>
           </div>
           <MemberCard name={member.name} number={member.number} role={member.role === 'admin' ? 'Admin' : 'Member'} />
         </div>
       </section>
+
+      {next && (
+        <section className="wrap sec" aria-labelledby="next-title">
+          <div className={s.rail}>
+            <h2 className="head" id="next-title">
+              Next live session
+            </h2>
+            <p>The live sessions and their recordings are under Sessions.</p>
+          </div>
+          <div className="ep-list">
+            <a className="ep-row" href="/members/sessions">
+              <span className="no" aria-hidden="true">
+                ●
+              </span>
+              <span className={s.what}>
+                <h3>{next.title}</h3>
+                <span className="small">
+                  {next.kind}, {formatMoment(next.startsAt)}, {next.minutes} minutes
+                </span>
+              </span>
+              <span className={`small ${s.count}`}>{next.attending ? "You're coming." : "Say you're coming"}</span>
+              <span className="go" aria-hidden="true">
+                →
+              </span>
+            </a>
+          </div>
+        </section>
+      )}
 
       <section className="wrap sec" aria-labelledby="programmes-title">
         <div className={s.rail}>

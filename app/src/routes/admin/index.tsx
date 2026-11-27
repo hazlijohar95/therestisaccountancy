@@ -1,6 +1,7 @@
 import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { LINK_DAYS } from '../../../../src/data/links.ts';
+import { capitalised, tally } from '../../../../src/lib/format.ts';
 import { pageHref } from '../../../../src/lib/paging.ts';
 import { useAction } from '../../components/useAction.ts';
 import { LinkNotice } from '../../components/admin/LinkNotice.tsx';
@@ -8,6 +9,7 @@ import { Masthead } from '../../components/club/Masthead.tsx';
 import { Notice } from '../../components/club/Notice.tsx';
 import { Pager } from '../../components/club/Pager.tsx';
 import { adminOverview, declineRequest, inviteRequest } from '../../functions/admin-members.ts';
+import { socialHref } from '../../lib/links.ts';
 import { countParam, textParam } from '../../lib/search-params.ts';
 import { clubTitle } from '../../lib/title.ts';
 import s from './index.module.css';
@@ -37,7 +39,7 @@ function Admin() {
   const decline = useAction(declineRequest, { refresh: 'always' });
   const busy = invite.busy || decline.busy;
   const [shown, setShown] = useState<ReactNode>(search.removed ? <Notice>Member removed.</Notice> : null);
-  const { pending, decided, members, query, status } = data;
+  const { pending, decided, members, quiet, quietDays, sessionsHeld, query, status } = data;
   const waiting = pending.length === 1 ? 'One request waiting.' : pending.length === 0 ? 'No requests waiting.' : `${pending.length} requests waiting.`;
 
   const onInvite = async (request: number) => {
@@ -84,6 +86,48 @@ function Admin() {
           </a>
         </p>
       </Masthead>
+
+      {sessionsHeld && (
+        <Notice tone="error">
+          No live session is scheduled between a day and two weeks from now, so getting-started emails are on hold
+          {sessionsHeld.waiting > 0 && ` for ${tally(sessionsHeld.waiting, 'new member', 'new members')}`}. <Link to="/admin/sessions">Schedule one</Link>
+        </Notice>
+      )}
+
+      {data.queues.length === 0 ? (
+        <p className={`wrap ${s.calm}`}>Nothing is waiting on you.</p>
+      ) : (
+        <section className={`wrap ${s.block}`} aria-labelledby="queues-title">
+          <h2 className="head" id="queues-title">
+            Waiting on you
+          </h2>
+          <div className={s.scroll}>
+            <table className={`ledger ${s.ledger}`}>
+              <thead>
+                <tr>
+                  <th>Queue</th>
+                  <th>Waiting</th>
+                  <th>Oldest has waited</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.queues.map((q) => (
+                  <tr key={q.id}>
+                    <td>
+                      <a href={q.where.site === 'social' ? socialHref(q.where.path) : q.where.path}>{q.label}</a>
+                    </td>
+                    <td>{q.count}</td>
+                    <td>
+                      {capitalised(q.waited)}
+                      {q.stale && <strong className={s.stale}> · too long</strong>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {shown}
 
@@ -145,6 +189,43 @@ function Admin() {
           </div>
         )}
       </section>
+
+      {quiet.length > 0 && (
+        <section className={`wrap ${s.block}`} aria-labelledby="quiet-title">
+          <h2 className="head" id="quiet-title">
+            Gone quiet
+          </h2>
+          <p>Paying members who have not said yes to a session, posted, finished a lesson, booked a call or worked on their plan in {quietDays} days. Quietest first.</p>
+          <div className={s.scroll}>
+            <table className={`ledger ${s.ledger}`}>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Last did</th>
+                  <th>Paid until</th>
+                  <th>Renews</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quiet.map((m) => (
+                  <tr key={m.id}>
+                    <td>
+                      <Link to="/admin/members/$id" params={{ id: String(m.id) }}>
+                        {m.name}
+                      </Link>
+                    </td>
+                    <td>{m.email}</td>
+                    <td>{m.last}</td>
+                    <td>{m.paidUntil}</td>
+                    <td>{m.renews}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <section className={`wrap ${s.block}`} aria-labelledby="members-title">
         <h2 className="head" id="members-title">

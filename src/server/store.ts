@@ -1,7 +1,7 @@
+import { createActivity } from './activity.ts';
 import { createBilling } from './billing.ts';
 import { createCalls } from './calls.ts';
 import { createClub } from './club.ts';
-import { createCommunity } from './community.ts';
 import type { Db } from './db.ts';
 import { createFees } from './fees.ts';
 import { createIncidents } from './incidents.ts';
@@ -10,6 +10,7 @@ import { createListings } from './listings.ts';
 import { createMailings } from './mailings.ts';
 import { createNewsletter } from './newsletter.ts';
 import { createPlans } from './plans.ts';
+import { createQueues } from './queues.ts';
 import { createSchedule } from './schedule.ts';
 import { createSignIns } from './sign-ins.ts';
 import { createSocialCasebook } from './social-casebook.ts';
@@ -23,10 +24,11 @@ import { createSocialProfiles } from './social-profiles.ts';
 import { createSocialRequests } from './social-requests.ts';
 import { createSocialShelf } from './social-shelf.ts';
 
-export function createStore(db: Db, now: () => Date = () => new Date()) {
+/** The domain modules, each owning its own rules over the one database. */
+function modules(db: Db, now: () => Date) {
   return {
     club: createClub(db, now),
-    community: createCommunity(db, now),
+    activity: createActivity(db, now),
     limits: createLimits(db, now),
     mailings: createMailings(db, now),
     schedule: createSchedule(db, now),
@@ -49,4 +51,11 @@ export function createStore(db: Db, now: () => Date = () => new Date()) {
     socialRequests: createSocialRequests(db, now),
     signIns: createSignIns(db, now),
   };
+}
+
+export type Modules = ReturnType<typeof modules>;
+
+export function createStore(db: Db, now: () => Date = () => new Date()) {
+  const store = modules(db, now);
+  return { ...store, queues: createQueues(store, now) };
 }

@@ -53,3 +53,33 @@ test('a session goes on the calendar only if it starts ahead of now', () => {
   assert.equal(value(schedule.add(session('In a minute', '2026-11-26T07:01:00Z'))), 1);
   assert.deepEqual(schedule.upcoming(null).map((s) => s.title), ['In a minute']);
 });
+
+test('the getting-started emails name up to three sessions starting between a day and two weeks away', () => {
+  const db = openDatabase(':memory:');
+  const clock = new Date('2026-11-26T07:00:00Z');
+  const schedule = createSchedule(db, () => clock);
+  const hours = (n: number) => new Date(clock.getTime() + n * 3_600_000).toISOString();
+  assert.deepEqual(schedule.forOnboarding(), [], 'an empty calendar names nothing');
+
+  value(schedule.add(session('Inside the reminder window', hours(23))));
+  const first = value(schedule.add(session('First', hours(25))));
+  const second = value(schedule.add(session('Second', hours(100))));
+  const called = value(schedule.add(session('Called off', hours(120))));
+  const third = value(schedule.add(session('Third', hours(300))));
+  value(schedule.add(session('A fourth', hours(330))));
+  value(schedule.add(session('Beyond two weeks', hours(337))));
+  schedule.cancel(called);
+
+  assert.deepEqual(schedule.forOnboarding().map((s) => s.id), [first, second, third], 'the reminder window, a called-off session and the fourth are left out');
+  assert.deepEqual(schedule.forOnboarding().map((s) => s.title), ['First', 'Second', 'Third']);
+});
+
+test('sessions beyond two weeks, or inside the reminder window, leave nothing to name', () => {
+  const db = openDatabase(':memory:');
+  const clock = new Date('2026-11-26T07:00:00Z');
+  const schedule = createSchedule(db, () => clock);
+  value(schedule.add(session('Tomorrow, nearly', new Date(clock.getTime() + 23 * 3_600_000).toISOString())));
+  value(schedule.add(session('In three weeks', new Date(clock.getTime() + 21 * 86_400_000).toISOString())));
+  assert.equal(schedule.upcoming(null).length, 2);
+  assert.deepEqual(schedule.forOnboarding(), []);
+});

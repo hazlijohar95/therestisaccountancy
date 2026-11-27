@@ -12,6 +12,7 @@ import {
   type Licence,
   type Platform,
 } from '../data/social.ts';
+import { waitingOf, type Waiting } from '../lib/waiting.ts';
 import { STATUS_SQL } from './club.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import type { Result } from './result.ts';
@@ -367,6 +368,25 @@ export function createSocialClaims(db: Db, now: () => Date = () => new Date()) {
     for (const other of older) db.prepare('DELETE FROM claims WHERE id = ?').run(other.id);
   };
 
+  const queue = (): ReviewQueue => {
+    const people = new Map<number, Person>();
+    const who = (memberId: number) => {
+      const known = people.get(memberId) ?? person(memberId);
+      people.set(memberId, known);
+      return known;
+    };
+    const accounts = db.prepare(`SELECT * FROM social_accounts WHERE state = 'pending' ORDER BY id`).all().map(toAccount);
+    const claims = db
+      .prepare(`${CLAIMS} WHERE c.state = 'pending' AND c.kind IN (${TEAM_KINDS.map(() => '?').join(', ')}) ORDER BY c.id`)
+      .all(...TEAM_KINDS)
+      .map(toClaim);
+    return {
+      accounts: accounts.map((item) => ({ item, member: who(item.memberId) })),
+      credentials: claims.filter((c) => !c.hasEvidence).map((item) => ({ item, member: who(item.memberId) })),
+      documents: claims.filter((c) => c.hasEvidence).map((item) => ({ item, member: who(item.memberId) })),
+    };
+  };
+
   return {
     /** Everything a member has sent, in every state, newest first. Only they and the team see this. */
     mine(memberId: number): { readonly accounts: Account[]; readonly claims: Claim[] } {
@@ -530,23 +550,13 @@ export function createSocialClaims(db: Db, now: () => Date = () => new Date()) {
     },
 
     /** Everything waiting for the team, oldest first. */
-    queue(): ReviewQueue {
-      const people = new Map<number, Person>();
-      const who = (memberId: number) => {
-        const known = people.get(memberId) ?? person(memberId);
-        people.set(memberId, known);
-        return known;
-      };
-      const accounts = db.prepare(`SELECT * FROM social_accounts WHERE state = 'pending' ORDER BY id`).all().map(toAccount);
-      const claims = db
-        .prepare(`${CLAIMS} WHERE c.state = 'pending' AND c.kind IN (${TEAM_KINDS.map(() => '?').join(', ')}) ORDER BY c.id`)
-        .all(...TEAM_KINDS)
-        .map(toClaim);
-      return {
-        accounts: accounts.map((item) => ({ item, member: who(item.memberId) })),
-        credentials: claims.filter((c) => !c.hasEvidence).map((item) => ({ item, member: who(item.memberId) })),
-        documents: claims.filter((c) => c.hasEvidence).map((item) => ({ item, member: who(item.memberId) })),
-      };
+    queue,
+
+    /** Each part of the queue, and since its oldest was sent: accounts to prove, credentials to check, documents to read. */
+    waiting: (): { readonly accounts: Waiting; readonly credentials: Waiting; readonly documents: Waiting } => {
+      const { accounts, credentials, documents } = queue();
+      const of = (entries: readonly { readonly item: { readonly createdAt: string } }[]) => waitingOf(entries.map((e) => e.item.createdAt));
+      return { accounts: of(accounts), credentials: of(credentials), documents: of(documents) };
     },
 
     /** The team's decision on the account they looked at. A second decision is refused, so the member hears once. */

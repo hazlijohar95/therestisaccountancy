@@ -1,7 +1,7 @@
 import { redirect } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
-import { TERMS } from '../../../src/data/membership.ts';
+import { STOP_NOTE_MAX, STOP_REASONS, TERMS } from '../../../src/data/membership.ts';
 import type { CheckoutRefusal } from '../../../src/server/charges.ts';
 import { checkout as openCheckout, settle } from '../../../src/server/payments.ts';
 import { report } from '../../../src/server/report.ts';
@@ -53,13 +53,24 @@ export const checkout = createServerFn({ method: 'POST' })
     }),
   );
 
-const renewsInput = z.object({ renews: z.boolean() });
+const renewsInput = z.object({
+  renews: z.boolean(),
+  reason: z.enum(STOP_REASONS).optional(),
+  note: z
+    .string()
+    .trim()
+    .max(STOP_NOTE_MAX, `Keep it to ${STOP_NOTE_MAX} characters.`)
+    .transform((note) => note || null)
+    .optional(),
+});
 
+/** Turns renewal on or off. Turning it off may say why, and the hosts are told. */
 export const setRenews = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof renewsInput>) => input)
   .handler(
-    action({ access: 'member', input: renewsInput }, async ({ actor, input, store }) => {
-      const standing = await store.billing.setRenews(actor.id, input.renews);
+    action({ access: 'member', input: renewsInput }, async ({ actor, input, store, send }) => {
+      const { standing, letters } = await store.billing.setRenews(actor.id, input.renews, absolute('/'), { reason: input.reason ?? null, note: input.note ?? null });
+      send(letters);
       return done({ renews: standing.renews });
     }),
   );

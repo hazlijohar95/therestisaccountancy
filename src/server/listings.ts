@@ -1,6 +1,7 @@
 import { listingPath, services, states, type ServiceSlug, type State } from '../data/directory.ts';
 import { site } from '../data/site.ts';
 import { capitalised, firstName, numberWord } from '../lib/format.ts';
+import { waitingOf, type Waiting } from '../lib/waiting.ts';
 import { GRACE_MS } from './billing.ts';
 import { STATUS_SQL } from './club.ts';
 import { attempt, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
@@ -149,6 +150,14 @@ export function createListings(db: Db, now: () => Date = () => new Date()) {
     return row ? toListing(row) : null;
   };
 
+  const forHosts = (): { readonly waiting: Listing[]; readonly rest: Listing[] } => {
+    const all = db.prepare(`${LISTINGS} ORDER BY l.updated_at, l.member_id`).all(iso(now())).map(toListing);
+    return {
+      waiting: all.filter((l) => l.review.state === 'pending'),
+      rest: all.filter((l) => l.review.state !== 'pending').sort((a, b) => a.practice.localeCompare(b.practice, 'en-MY', { sensitivity: 'base' })),
+    };
+  };
+
   /** A host's decision on the version they read. Making the same decision twice is refused, so a member hears once. */
   const decide = (memberId: number, seen: string, next: Review['state'], write: () => void): Result<Listing, DecisionRefusal> =>
     attempt<Listing, DecisionRefusal>(db, (refuse) => {
@@ -235,13 +244,10 @@ export function createListings(db: Db, now: () => Date = () => new Date()) {
     },
 
     /** Every listing, for the hosts: those waiting for a check, oldest first, then the rest by practice. */
-    forHosts(): { readonly waiting: Listing[]; readonly rest: Listing[] } {
-      const all = db.prepare(`${LISTINGS} ORDER BY l.updated_at, l.member_id`).all(iso(now())).map(toListing);
-      return {
-        waiting: all.filter((l) => l.review.state === 'pending'),
-        rest: all.filter((l) => l.review.state !== 'pending').sort((a, b) => a.practice.localeCompare(b.practice, 'en-MY', { sensitivity: 'base' })),
-      };
-    },
+    forHosts,
+
+    /** Listings waiting for a check, and since the oldest was last saved: an edit while it waits starts its wait over. */
+    waiting: (): Waiting => waitingOf(forHosts().waiting.map((l) => l.updatedAt)),
 
     /** Lists the version the host read. Refused if the member has changed it since, or it is already listed. */
     approve(memberId: number, hostId: number, seen: string): Result<Listing, DecisionRefusal> {

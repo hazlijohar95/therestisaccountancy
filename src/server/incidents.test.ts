@@ -23,3 +23,19 @@ test('the summary is due in the 9 am hour in Malaysia', () => {
   assert.equal(summaryDue(new Date('2026-11-25T01:00:00Z')), true);
   assert.equal(summaryDue(new Date('2026-11-25T02:00:00Z')), false);
 });
+
+test('recordOnce skips a kind already recorded in the last 20 hours, whether or not it was reported', () => {
+  const db = openDatabase(':memory:');
+  migrate(db);
+  let clock = new Date('2026-11-25T01:00:00Z');
+  const incidents = createIncidents(db, () => clock);
+  assert.equal(incidents.recordOnce('schedule', 'No live session'), true);
+  clock = new Date(clock.getTime() + 3_600_000);
+  assert.equal(incidents.recordOnce('schedule', 'No live session'), false, 'a rerun in the same summary hour');
+  assert.equal(incidents.recordOnce('job', 'Another kind'), true, 'only its own kind counts');
+  incidents.reported(incidents.unreported().lastId);
+  assert.equal(incidents.recordOnce('schedule', 'No live session'), false, 'a summary that has gone does not reopen it');
+  clock = new Date(clock.getTime() + 20 * 3_600_000);
+  assert.equal(incidents.recordOnce('schedule', 'No live session'), true, 'the next morning it is recorded again');
+  assert.deepEqual(incidents.unreported().incidents.map((i) => i.kind), ['schedule']);
+});

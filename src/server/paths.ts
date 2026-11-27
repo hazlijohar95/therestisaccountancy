@@ -93,7 +93,8 @@ export function socialHere(url: URL): string {
 export function socialPath(url: URL, path: string): string {
   if (isSocialHost(url.hostname)) return path;
   if (url.hostname === site.domain || url.hostname === `www.${site.domain}`) return `https://${socialHost}${path}`;
-  return path === '/' ? '/social' : `/social${path}`;
+  /* The Floor's own root, with or without a query: /?room=club is /social?room=club, never /social/?room=club. */
+  return path === '/' || path.startsWith('/?') ? `/social${path.slice(1)}` : `/social${path}`;
 }
 
 /** A link to a club page (sign-in, password links) from the page at url. Those pages live on the club's host only. */

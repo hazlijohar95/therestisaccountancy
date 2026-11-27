@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { LINK_DAYS, type LinkPurpose } from '../data/links.ts';
+import { waitingOf, type Waiting } from '../lib/waiting.ts';
 import { callLetters, standDown, type Call } from './calls.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import type { Letter } from './letters.ts';
@@ -110,6 +111,10 @@ export const STATUS_SQL = {
   suspended: 'suspended_at IS NOT NULL',
 } as const satisfies Record<MemberStatus, string>;
 
+/** Where news for the admins goes: every active admin's email. Shared with the domain modules whose use cases end in mail to them. */
+export const adminEmails = (db: Db): string[] =>
+  db.prepare(`SELECT email FROM members WHERE role = 'admin' AND ${STATUS_SQL.active} ORDER BY id`).all().map((row) => text(row, 'email'));
+
 export const toMember = (row: Row): Member => ({
   id: integer(row, 'id'),
   email: text(row, 'email'),
@@ -179,6 +184,14 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
       )
       .get(tokenHash(token), iso(now()));
 
+  const joinRequests = (filter: { decided?: boolean; limit?: number } = {}): JoinRequest[] => {
+    const where = filter.decided === undefined ? '' : filter.decided ? `WHERE status != 'pending'` : `WHERE status = 'pending'`;
+    return db
+      .prepare(`SELECT * FROM join_requests ${where} ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, created_at DESC, id DESC LIMIT ?`)
+      .all(filter.limit ?? -1)
+      .map(toRequest);
+  };
+
   /** Every password write goes through here: open links are retired and older sessions end. */
   const writePassword = (memberId: number, passwordHash: string): Access => {
     db.prepare('UPDATE members SET password_hash = ?, session_epoch = session_epoch + 1 WHERE id = ?').run(passwordHash, memberId);
@@ -231,13 +244,10 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
     },
 
     /** Pending requests, or the most recent decisions, newest first. Without a filter, all of them, pending first. */
-    joinRequests(filter: { decided?: boolean; limit?: number } = {}): JoinRequest[] {
-      const where = filter.decided === undefined ? '' : filter.decided ? `WHERE status != 'pending'` : `WHERE status = 'pending'`;
-      return db
-        .prepare(`SELECT * FROM join_requests ${where} ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, created_at DESC, id DESC LIMIT ?`)
-        .all(filter.limit ?? -1)
-        .map(toRequest);
-    },
+    joinRequests,
+
+    /** Join requests waiting for an admin, and since the oldest came in. A repeat request from the same email starts its wait over. */
+    waiting: (): Waiting => waitingOf(joinRequests({ decided: false }).map((r) => r.createdAt)),
 
     /**
      * Accepts a pending request: the person becomes a member and gets a link to set a password. If the email already
@@ -295,9 +305,7 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
     },
 
     /** Where news for the admins goes: every active admin's email. */
-    adminEmails(): string[] {
-      return db.prepare(`SELECT email FROM members WHERE role = 'admin' AND ${STATUS_SQL.active} ORDER BY id`).all().map((row) => text(row, 'email'));
-    },
+    adminEmails: () => adminEmails(db),
 
     member(id: number): Member | null {
       const row = memberRow(id);
@@ -361,7 +369,7 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
       return row ? ok(toMember(row)) : fail('not-found');
     },
 
-    /** Deletes the member, their progress, links and join request. Their posts stay, without a name. */
+    /** Deletes the member, their progress, links and join request. Their posts and replies on the Floor go with them. */
     removeMember(actorId: number, memberId: number, siteUrl: string): Result<AdminChange, AdminRefusal> {
       return attempt<AdminChange, AdminRefusal>(db, (refuse) => {
         const member = subject(actorId, memberId, refuse);

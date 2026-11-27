@@ -72,6 +72,8 @@ test('links to social pages and back to the club work from every host', () => {
   assert.equal(socialPath(club, '/me'), 'https://social.therestisaccountancy.com/me');
   assert.equal(socialPath(local, '/edit'), '/social/edit');
   assert.equal(socialPath(local, '/'), '/social');
+  assert.equal(socialPath(local, '/?room=club'), '/social?room=club', 'the Floor with a room, with no slash to redirect away');
+  assert.equal(socialPath(club, '/?room=club'), 'https://social.therestisaccountancy.com/?room=club');
   assert.equal(socialPathOf(social), '/list');
   assert.equal(socialPathOf(new URL('https://social.therestisaccountancy.com/social')), '/');
   assert.equal(socialPathOf(new URL('http://localhost:4174/socialite')), '/socialite', 'only the /social segment is dropped');

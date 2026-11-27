@@ -1,9 +1,9 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { PLAN_REPLY_MAX } from '../../../src/data/plan.ts';
-import { capitalised, formatDay, formatMoment, numberWord } from '../../../src/lib/format.ts';
-import { tidy } from '../../../src/server/community.ts';
-import { planAnsweredLetter, waited, type ReplyRefusal } from '../../../src/server/plans.ts';
+import { capitalised, formatDay, formatMoment, numberWord, waited } from '../../../src/lib/format.ts';
+import { tidy } from '../../../src/lib/text.ts';
+import { planAnsweredLetter, type ReplyRefusal } from '../../../src/server/plans.ts';
 import { id } from '../lib/fields.ts';
 import { admit, toClub } from '../lib/access.server.ts';
 import { action } from '../lib/action.server.ts';
@@ -25,7 +25,7 @@ const replyRefusals: Record<ReplyRefusal, string> = {
 /** Plans waiting for an answer, the one waiting longest first, and the most recent answered. */
 export const adminPlans = createServerFn({ method: 'GET' }).handler(async () => {
   await admit('admin', toClub);
-  const { waiting, answered } = await withStore(async (store) => ({ waiting: await store.plans.waiting(), answered: await store.plans.answered(ANSWERED_SHOWN) }));
+  const { waiting, answered } = await withStore(async (store) => ({ waiting: await store.plans.sent(), answered: await store.plans.answered(ANSWERED_SHOWN) }));
   const now = new Date();
   return {
     title: waiting.length === 0 ? 'No plans waiting.' : waiting.length === 1 ? 'One plan waiting.' : `${capitalised(numberWord(waiting.length))} plans waiting.`,

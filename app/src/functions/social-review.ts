@@ -64,6 +64,8 @@ export const reviewQueue = createServerFn({ method: 'GET' }).handler(async () =>
       reports: await store.socialFloor.reports(),
       requests: await store.socialRequests.queue(),
       teamInvites: await store.socialInvites.teamInvites(),
+      /* What each item's wait is told against, so the server's page and the browser's agree. */
+      now: new Date().toISOString(),
     };
   });
 });

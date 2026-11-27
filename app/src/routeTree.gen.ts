@@ -58,8 +58,6 @@ import { Route as SocialTicksRouteImport } from './routes/social/ticks'
 import { Route as AdminMembersIdRouteImport } from './routes/admin/members/$id'
 import { Route as MembersCallsIndexRouteImport } from './routes/members/calls/index'
 import { Route as MembersCallsChar123idChar125DoticsRouteImport } from './routes/members/calls/{$id}[.]ics'
-import { Route as MembersCommunityIndexRouteImport } from './routes/members/community/index'
-import { Route as MembersCommunityChannelRouteImport } from './routes/members/community/$channel'
 import { Route as MembersLessonsSplatRouteImport } from './routes/members/lessons/$'
 import { Route as MembersPlanIndexRouteImport } from './routes/members/plan/index'
 import { Route as MembersPlanIdRouteImport } from './routes/members/plan/$id'
@@ -78,7 +76,6 @@ import { Route as SocialProblemsNewRouteImport } from './routes/social/problems/
 import { Route as SocialReviewIndexRouteImport } from './routes/social/review/index'
 import { Route as SocialVerifyIndexRouteImport } from './routes/social/verify/index'
 import { Route as SocialVerifyEmailRouteImport } from './routes/social/verify/email'
-import { Route as MembersCommunityThreadsIdRouteImport } from './routes/members/community/threads/$id'
 import { Route as SocialReviewEvidenceClaimRouteImport } from './routes/social/review/evidence.$claim'
 
 const AdminRouteRoute = AdminRouteRouteImport.update({
@@ -328,16 +325,6 @@ const MembersCallsChar123idChar125DoticsRoute =
     path: '/calls/{$id}.ics',
     getParentRoute: () => MembersRouteRoute,
   } as any)
-const MembersCommunityIndexRoute = MembersCommunityIndexRouteImport.update({
-  id: '/community/',
-  path: '/community/',
-  getParentRoute: () => MembersRouteRoute,
-} as any)
-const MembersCommunityChannelRoute = MembersCommunityChannelRouteImport.update({
-  id: '/community/$channel',
-  path: '/community/$channel',
-  getParentRoute: () => MembersRouteRoute,
-} as any)
 const MembersLessonsSplatRoute = MembersLessonsSplatRouteImport.update({
   id: '/lessons/$',
   path: '/lessons/$',
@@ -430,12 +417,6 @@ const SocialVerifyEmailRoute = SocialVerifyEmailRouteImport.update({
   path: '/verify/email',
   getParentRoute: () => SocialRouteRoute,
 } as any)
-const MembersCommunityThreadsIdRoute =
-  MembersCommunityThreadsIdRouteImport.update({
-    id: '/community/threads/$id',
-    path: '/community/threads/$id',
-    getParentRoute: () => MembersRouteRoute,
-  } as any)
 const SocialReviewEvidenceClaimRoute =
   SocialReviewEvidenceClaimRouteImport.update({
     id: '/review/evidence/$claim',
@@ -492,7 +473,6 @@ export interface FileRoutesByFullPath {
   '/social/': typeof SocialIndexRoute
   '/admin/members/$id': typeof AdminMembersIdRoute
   '/members/calls/{$id}.ics': typeof MembersCallsChar123idChar125DoticsRoute
-  '/members/community/$channel': typeof MembersCommunityChannelRoute
   '/members/lessons/$': typeof MembersLessonsSplatRoute
   '/members/plan/$id': typeof MembersPlanIdRoute
   '/members/programmes/$slug': typeof MembersProgrammesSlugRoute
@@ -506,14 +486,12 @@ export interface FileRoutesByFullPath {
   '/social/problems/new': typeof SocialProblemsNewRoute
   '/social/verify/email': typeof SocialVerifyEmailRoute
   '/members/calls/': typeof MembersCallsIndexRoute
-  '/members/community/': typeof MembersCommunityIndexRoute
   '/members/plan/': typeof MembersPlanIndexRoute
   '/members/resources/': typeof MembersResourcesIndexRoute
   '/members/sessions/': typeof MembersSessionsIndexRoute
   '/social/problems/': typeof SocialProblemsIndexRoute
   '/social/review/': typeof SocialReviewIndexRoute
   '/social/verify/': typeof SocialVerifyIndexRoute
-  '/members/community/threads/$id': typeof MembersCommunityThreadsIdRoute
   '/social/review/evidence/$claim': typeof SocialReviewEvidenceClaimRoute
 }
 export interface FileRoutesByTo {
@@ -562,7 +540,6 @@ export interface FileRoutesByTo {
   '/social': typeof SocialIndexRoute
   '/admin/members/$id': typeof AdminMembersIdRoute
   '/members/calls/{$id}.ics': typeof MembersCallsChar123idChar125DoticsRoute
-  '/members/community/$channel': typeof MembersCommunityChannelRoute
   '/members/lessons/$': typeof MembersLessonsSplatRoute
   '/members/plan/$id': typeof MembersPlanIdRoute
   '/members/programmes/$slug': typeof MembersProgrammesSlugRoute
@@ -576,14 +553,12 @@ export interface FileRoutesByTo {
   '/social/problems/new': typeof SocialProblemsNewRoute
   '/social/verify/email': typeof SocialVerifyEmailRoute
   '/members/calls': typeof MembersCallsIndexRoute
-  '/members/community': typeof MembersCommunityIndexRoute
   '/members/plan': typeof MembersPlanIndexRoute
   '/members/resources': typeof MembersResourcesIndexRoute
   '/members/sessions': typeof MembersSessionsIndexRoute
   '/social/problems': typeof SocialProblemsIndexRoute
   '/social/review': typeof SocialReviewIndexRoute
   '/social/verify': typeof SocialVerifyIndexRoute
-  '/members/community/threads/$id': typeof MembersCommunityThreadsIdRoute
   '/social/review/evidence/$claim': typeof SocialReviewEvidenceClaimRoute
 }
 export interface FileRoutesById {
@@ -636,7 +611,6 @@ export interface FileRoutesById {
   '/social/': typeof SocialIndexRoute
   '/admin/members/$id': typeof AdminMembersIdRoute
   '/members/calls/{$id}.ics': typeof MembersCallsChar123idChar125DoticsRoute
-  '/members/community/$channel': typeof MembersCommunityChannelRoute
   '/members/lessons/$': typeof MembersLessonsSplatRoute
   '/members/plan/$id': typeof MembersPlanIdRoute
   '/members/programmes/$slug': typeof MembersProgrammesSlugRoute
@@ -650,14 +624,12 @@ export interface FileRoutesById {
   '/social/problems/new': typeof SocialProblemsNewRoute
   '/social/verify/email': typeof SocialVerifyEmailRoute
   '/members/calls/': typeof MembersCallsIndexRoute
-  '/members/community/': typeof MembersCommunityIndexRoute
   '/members/plan/': typeof MembersPlanIndexRoute
   '/members/resources/': typeof MembersResourcesIndexRoute
   '/members/sessions/': typeof MembersSessionsIndexRoute
   '/social/problems/': typeof SocialProblemsIndexRoute
   '/social/review/': typeof SocialReviewIndexRoute
   '/social/verify/': typeof SocialVerifyIndexRoute
-  '/members/community/threads/$id': typeof MembersCommunityThreadsIdRoute
   '/social/review/evidence/$claim': typeof SocialReviewEvidenceClaimRoute
 }
 export interface FileRouteTypes {
@@ -711,7 +683,6 @@ export interface FileRouteTypes {
     | '/social/'
     | '/admin/members/$id'
     | '/members/calls/{$id}.ics'
-    | '/members/community/$channel'
     | '/members/lessons/$'
     | '/members/plan/$id'
     | '/members/programmes/$slug'
@@ -725,14 +696,12 @@ export interface FileRouteTypes {
     | '/social/problems/new'
     | '/social/verify/email'
     | '/members/calls/'
-    | '/members/community/'
     | '/members/plan/'
     | '/members/resources/'
     | '/members/sessions/'
     | '/social/problems/'
     | '/social/review/'
     | '/social/verify/'
-    | '/members/community/threads/$id'
     | '/social/review/evidence/$claim'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -781,7 +750,6 @@ export interface FileRouteTypes {
     | '/social'
     | '/admin/members/$id'
     | '/members/calls/{$id}.ics'
-    | '/members/community/$channel'
     | '/members/lessons/$'
     | '/members/plan/$id'
     | '/members/programmes/$slug'
@@ -795,14 +763,12 @@ export interface FileRouteTypes {
     | '/social/problems/new'
     | '/social/verify/email'
     | '/members/calls'
-    | '/members/community'
     | '/members/plan'
     | '/members/resources'
     | '/members/sessions'
     | '/social/problems'
     | '/social/review'
     | '/social/verify'
-    | '/members/community/threads/$id'
     | '/social/review/evidence/$claim'
   id:
     | '__root__'
@@ -854,7 +820,6 @@ export interface FileRouteTypes {
     | '/social/'
     | '/admin/members/$id'
     | '/members/calls/{$id}.ics'
-    | '/members/community/$channel'
     | '/members/lessons/$'
     | '/members/plan/$id'
     | '/members/programmes/$slug'
@@ -868,14 +833,12 @@ export interface FileRouteTypes {
     | '/social/problems/new'
     | '/social/verify/email'
     | '/members/calls/'
-    | '/members/community/'
     | '/members/plan/'
     | '/members/resources/'
     | '/members/sessions/'
     | '/social/problems/'
     | '/social/review/'
     | '/social/verify/'
-    | '/members/community/threads/$id'
     | '/social/review/evidence/$claim'
   fileRoutesById: FileRoutesById
 }
@@ -1244,20 +1207,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MembersCallsChar123idChar125DoticsRouteImport
       parentRoute: typeof MembersRouteRoute
     }
-    '/members/community/': {
-      id: '/members/community/'
-      path: '/community'
-      fullPath: '/members/community/'
-      preLoaderRoute: typeof MembersCommunityIndexRouteImport
-      parentRoute: typeof MembersRouteRoute
-    }
-    '/members/community/$channel': {
-      id: '/members/community/$channel'
-      path: '/community/$channel'
-      fullPath: '/members/community/$channel'
-      preLoaderRoute: typeof MembersCommunityChannelRouteImport
-      parentRoute: typeof MembersRouteRoute
-    }
     '/members/lessons/$': {
       id: '/members/lessons/$'
       path: '/lessons/$'
@@ -1384,13 +1333,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SocialVerifyEmailRouteImport
       parentRoute: typeof SocialRouteRoute
     }
-    '/members/community/threads/$id': {
-      id: '/members/community/threads/$id'
-      path: '/community/threads/$id'
-      fullPath: '/members/community/threads/$id'
-      preLoaderRoute: typeof MembersCommunityThreadsIdRouteImport
-      parentRoute: typeof MembersRouteRoute
-    }
     '/social/review/evidence/$claim': {
       id: '/social/review/evidence/$claim'
       path: '/review/evidence/$claim'
@@ -1438,7 +1380,6 @@ interface MembersRouteRouteChildren {
   MembersPayRoute: typeof MembersPayRoute
   MembersIndexRoute: typeof MembersIndexRoute
   MembersCallsChar123idChar125DoticsRoute: typeof MembersCallsChar123idChar125DoticsRoute
-  MembersCommunityChannelRoute: typeof MembersCommunityChannelRoute
   MembersLessonsSplatRoute: typeof MembersLessonsSplatRoute
   MembersPlanIdRoute: typeof MembersPlanIdRoute
   MembersProgrammesSlugRoute: typeof MembersProgrammesSlugRoute
@@ -1446,11 +1387,9 @@ interface MembersRouteRouteChildren {
   MembersResourcesChar123idChar125DotmdRoute: typeof MembersResourcesChar123idChar125DotmdRoute
   MembersSessionsChar123idChar125DoticsRoute: typeof MembersSessionsChar123idChar125DoticsRoute
   MembersCallsIndexRoute: typeof MembersCallsIndexRoute
-  MembersCommunityIndexRoute: typeof MembersCommunityIndexRoute
   MembersPlanIndexRoute: typeof MembersPlanIndexRoute
   MembersResourcesIndexRoute: typeof MembersResourcesIndexRoute
   MembersSessionsIndexRoute: typeof MembersSessionsIndexRoute
-  MembersCommunityThreadsIdRoute: typeof MembersCommunityThreadsIdRoute
 }
 
 const MembersRouteRouteChildren: MembersRouteRouteChildren = {
@@ -1461,7 +1400,6 @@ const MembersRouteRouteChildren: MembersRouteRouteChildren = {
   MembersIndexRoute: MembersIndexRoute,
   MembersCallsChar123idChar125DoticsRoute:
     MembersCallsChar123idChar125DoticsRoute,
-  MembersCommunityChannelRoute: MembersCommunityChannelRoute,
   MembersLessonsSplatRoute: MembersLessonsSplatRoute,
   MembersPlanIdRoute: MembersPlanIdRoute,
   MembersProgrammesSlugRoute: MembersProgrammesSlugRoute,
@@ -1471,11 +1409,9 @@ const MembersRouteRouteChildren: MembersRouteRouteChildren = {
   MembersSessionsChar123idChar125DoticsRoute:
     MembersSessionsChar123idChar125DoticsRoute,
   MembersCallsIndexRoute: MembersCallsIndexRoute,
-  MembersCommunityIndexRoute: MembersCommunityIndexRoute,
   MembersPlanIndexRoute: MembersPlanIndexRoute,
   MembersResourcesIndexRoute: MembersResourcesIndexRoute,
   MembersSessionsIndexRoute: MembersSessionsIndexRoute,
-  MembersCommunityThreadsIdRoute: MembersCommunityThreadsIdRoute,
 }
 
 const MembersRouteRouteWithChildren = MembersRouteRoute._addFileChildren(

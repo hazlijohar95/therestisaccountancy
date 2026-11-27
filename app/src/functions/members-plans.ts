@@ -2,7 +2,7 @@ import { notFound, redirect } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { PLAN_ANSWER_MAX, planSections, type PlanSectionSlug } from '../../../src/data/plan.ts';
-import { tidy } from '../../../src/server/community.ts';
+import { tidy } from '../../../src/lib/text.ts';
 import { missingSections, planSentLetter, type AnsweredPlan, type OpenPlan, type PlanAnswers, type PlanReply } from '../../../src/server/plans.ts';
 import { admit, toClub } from '../lib/access.server.ts';
 import { action } from '../lib/action.server.ts';

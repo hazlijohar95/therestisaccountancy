@@ -1,8 +1,9 @@
 import { week } from '../data/club.ts';
-import { everyRate, TERMS, terms, type Term } from '../data/membership.ts';
+import { everyRate, stopReasonLabel, TERMS, terms, type StopReason, type Term } from '../data/membership.ts';
 import { site } from '../data/site.ts';
-import { firstName, formatDay, formatMoment, numberWord } from '../lib/format.ts';
+import { firstName, formatDay, formatMoment, listOf, numberWord, tally } from '../lib/format.ts';
 import type { JoinedVia, JoinRequest, LinkPurpose, PasswordLink } from './club.ts';
+import type { ActivityKind } from './activity.ts';
 import { calendarFile, sessionEvent } from './calendar.ts';
 import type { List, OnboardingStep, Recipient, Subscriber } from './mailings.ts';
 import { welcomeUrl } from './paths.ts';
@@ -88,7 +89,7 @@ export function passwordLetter(link: { email: string; name: string; purpose: Lin
         link.rate
           ? `Membership is ${link.rate}. You choose which and pay straight after setting your password, and you can stop any time.`
           : "You're an admin, so there's nothing to pay.",
-        "What we'll email you: replies in threads you post in, reminders for sessions you sign up for, and anything about your membership. Nothing else unless you ask for it.",
+        "What we'll email you: replies to what you post in the community, reminders for sessions you sign up for, and anything about your membership. Nothing else unless you ask for it.",
         'Questions? Reply to this email. It comes straight to me.',
         site.host,
       ],
@@ -159,7 +160,7 @@ const unsubscribeUrl = (settingsUrl: string, to: Subscriber, list: List) => {
   return { url: url.href, list };
 };
 
-/** Tells a member someone replied in a thread they posted in. */
+/** Tells a member someone replied to a post on the Floor that they wrote or replied to. */
 export function replyLetter(to: Subscriber, reply: { title: string; by: string; url: string; settingsUrl: string }): Letter {
   return {
     to: to.email,
@@ -167,15 +168,16 @@ export function replyLetter(to: Subscriber, reply: { title: string; by: string; 
     subject: flat(`${firstName(reply.by)} replied to “${reply.title}”`),
     lines: [
       hi(to.name),
-      `${reply.by} replied in “${reply.title}”.`,
+      `${reply.by} replied to “${reply.title}”.`,
       { href: reply.url, label: 'Read the reply' },
-      "You're getting this because you posted in that thread. You'll hear about it at most once every six hours, however busy it gets.",
+      "You're getting this because you wrote that post or replied to it. You'll hear about it at most once every six hours, however busy it gets.",
     ],
   };
 }
 
 export interface DigestNews {
-  readonly threads: readonly { readonly title: string; readonly channel: string; readonly replies: number; readonly url: string }[];
+  /** Posts on the Floor this week, each with its room's name and a link on the social host. */
+  readonly posts: readonly { readonly title: string; readonly room: string; readonly replies: number; readonly url: string }[];
   readonly replies: number;
   readonly sessions: readonly { readonly title: string; readonly startsAt: string }[];
   readonly communityUrl: string;
@@ -185,11 +187,11 @@ export interface DigestNews {
 
 /** The week in the club, from a host. Only written when something happened or is coming up. */
 export function digestLetter(to: Subscriber, news: DigestNews): Letter {
-  const headline = [news.threads.length ? plural(news.threads.length, 'new thread', 'new threads') : null, news.sessions.length ? plural(news.sessions.length, 'session', 'sessions') + ' coming up' : null]
+  const headline = [news.posts.length ? plural(news.posts.length, 'new post', 'new posts') : null, news.sessions.length ? plural(news.sessions.length, 'session', 'sessions') + ' coming up' : null]
     .filter(Boolean)
     .join(' and ');
-  const threads: Line[] = news.threads.length
-    ? ['New in the community:', ...news.threads.map((t): Line => ({ href: t.url, text: `${t.title} · ${t.channel}, ${plural(t.replies, 'reply', 'replies')}` }))]
+  const posts: Line[] = news.posts.length
+    ? ['New in the community:', ...news.posts.map((p): Line => ({ href: p.url, text: `${p.title} · ${p.room}, ${plural(p.replies, 'reply', 'replies')}` }))]
     : [];
   const replies: Line[] = news.replies ? [{ href: news.communityUrl, text: `${plural(news.replies, 'reply', 'replies')} across the community this week` }] : [];
   const sessions: Line[] = news.sessions.length
@@ -200,7 +202,7 @@ export function digestLetter(to: Subscriber, news: DigestNews): Letter {
     from: fromHost,
     unsubscribe: unsubscribeUrl(news.settingsUrl, to, 'digest'),
     subject: `This week: ${headline || 'news from the club'}`,
-    lines: [hi(to.name), "Here's the week in the club, in case you missed it.", ...threads, ...replies, ...sessions, "You're getting this because you turned on the Monday email.", site.host],
+    lines: [hi(to.name), "Here's the week in the club, in case you missed it.", ...posts, ...replies, ...sessions, "You're getting this because you turned on the Monday email.", site.host],
   };
 }
 
@@ -287,18 +289,62 @@ export function sessionLetters(news: SessionNews, session: LiveSession, members:
   });
 }
 
-/** A saved card is about to be charged for a long term: when, how much, and how to stop it first. */
-export function renewalNoticeLetter(to: Recipient, notice: { term: Term; chargesAt: string; accountUrl: string }): Letter {
+/** What a member did in the term being renewed, in the words of a sentence. Null when they did none of it. */
+const recapOf = (term: Term, counts: Readonly<Record<ActivityKind, number>>): string | null => {
+  const parts: string[] = [];
+  if (counts.session) parts.push(`said yes to ${tally(counts.session, 'session')}`);
+  if (counts.post) parts.push(`posted ${tally(counts.post, 'time')}`);
+  if (counts.lesson) parts.push(`finished ${tally(counts.lesson, 'lesson')}`);
+  if (counts.call) parts.push(`booked ${tally(counts.call, 'call')}`);
+  if (counts.plan) parts.push('worked on your plan');
+  return parts.length ? `In your last ${term} you ${listOf(parts)}.` : null;
+};
+
+/**
+ * A saved card is about to be charged for a long term: when, how much, what the member got from the last one, what is
+ * coming up, and how to stop it first.
+ */
+export function renewalNoticeLetter(
+  to: Recipient,
+  notice: {
+    term: Term;
+    chargesAt: string;
+    accountUrl: string;
+    counts: Readonly<Record<ActivityKind, number>>;
+    upcoming: readonly { readonly title: string; readonly startsAt: string }[];
+  },
+): Letter {
   const date = formatDay(notice.chargesAt);
+  const recap = recapOf(notice.term, notice.counts);
   return {
     to: to.email,
     subject: `Your membership renews on ${date}`,
     lines: [
       hi(to.name),
       `On ${date} we renew your membership for another ${notice.term} and charge ${terms[notice.term].price} to the card you saved.`,
+      ...(recap ? [recap] : []),
+      ...(notice.upcoming.length ? ['Coming up:', ...notice.upcoming.map((s) => `${s.title}, ${formatMoment(s.startsAt)}`)] : []),
       `Nothing to do if that suits you. To stop it, turn renewal off on your account page before ${date}. You keep access to the end of what you paid for, and can pay by the month after that.`,
       { href: notice.accountUrl, label: 'Open your account' },
       `You're getting this because a ${notice.term}'s charge is worth a warning.`,
+    ],
+  };
+}
+
+/** Tells the admins a member turned renewal off, with what they said about why. Only ever sent to them. */
+export function renewalOffLetter(
+  admins: readonly string[],
+  stop: { readonly name: string; readonly paidUntil: string; readonly reason: StopReason | null; readonly note: string | null },
+  memberUrl: string,
+): Letter {
+  return {
+    to: admins,
+    subject: `${flat(stop.name)} turned renewal off`,
+    lines: [
+      `${stop.name} turned renewal off. They keep access until ${formatDay(stop.paidUntil)}.`,
+      stop.reason ? `Reason: ${stopReasonLabel[stop.reason]}.` : 'No reason given.',
+      ...(stop.note ? [`They wrote: ${stop.note}`] : []),
+      { href: memberUrl, label: 'Open their page' },
     ],
   };
 }

@@ -2,9 +2,10 @@ import { z } from 'zod';
 import { PLAN_ANSWER_MAX, planSections, type PlanSectionSlug } from '../data/plan.ts';
 import { hostFirstName } from '../data/authors.ts';
 import { site } from '../data/site.ts';
-import { firstName, numberWord } from '../lib/format.ts';
+import { firstName } from '../lib/format.ts';
+import { waitingOf, type Waiting } from '../lib/waiting.ts';
 import { paragraphs } from '../lib/text.ts';
-import { tidy } from './community.ts';
+import { tidy } from '../lib/text.ts';
 import { attempt, integer, optionalText, text, type Db, type Param, type Row } from './db.ts';
 import type { Letter } from './letters.ts';
 import type { Recipient } from './mailings.ts';
@@ -121,11 +122,11 @@ const isSent = (plan: Plan): plan is SentPlan => plan.status === 'sent';
 const isAnswered = (plan: Plan): plan is AnsweredPlan => plan.status === 'answered';
 const sameAnswers = (a: PlanAnswers, b: PlanAnswers) => JSON.stringify(a) === JSON.stringify(b);
 const iso = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
-const HOUR_MS = 3_600_000;
 
 /** Members' written plans and the hosts' answers. Each member has one open plan at most, and the database holds them to it. */
 export function createPlans(db: Db, now: () => Date = () => new Date()) {
   const plans = (clause: string, ...params: Param[]) => db.prepare(`${PLANS} WHERE ${clause}`).all(...params).map(toPlan);
+  const sent = (): SentPlan[] => plans(`${STATUS_SQL.sent} ORDER BY p.submitted_at, p.id`).filter(isSent);
   const openOf = (memberId: number): OpenPlan | null => plans(`p.member_id = ? AND ${OPEN}`, memberId).find(isOpen) ?? null;
 
   /** Writes the answers into the member's draft, opening one if they have none. A plan with the hosts is left as it is. */
@@ -204,9 +205,10 @@ export function createPlans(db: Db, now: () => Date = () => new Date()) {
     },
 
     /** Plans with the hosts, the one waiting longest first. */
-    waiting(): SentPlan[] {
-      return plans(`${STATUS_SQL.sent} ORDER BY p.submitted_at, p.id`).filter(isSent);
-    },
+    sent,
+
+    /** How many plans are with the hosts, and since the longest-waiting was sent. Taking a plan back and sending it again starts its wait over. */
+    waiting: (): Waiting => waitingOf(sent().map((p) => p.sentAt)),
 
     /** The most recently answered plans, newest first. */
     answered(limit: number): AnsweredPlan[] {
@@ -231,15 +233,6 @@ export function createPlans(db: Db, now: () => Date = () => new Date()) {
       });
     },
   };
-}
-
-/** How long a plan has been with the hosts, in words: "under an hour", "five hours", "three days". */
-export function waited(since: string, at: Date): string {
-  const hours = Math.floor((at.getTime() - new Date(since).getTime()) / HOUR_MS);
-  if (hours < 1) return 'under an hour';
-  if (hours < 24) return hours === 1 ? 'an hour' : `${numberWord(hours)} hours`;
-  const days = Math.floor(hours / 24);
-  return days === 1 ? 'a day' : `${numberWord(days)} days`;
 }
 
 /** Tells the admins a plan has come in, with the member's question. Only ever sent to them. */

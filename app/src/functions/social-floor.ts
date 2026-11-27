@@ -7,6 +7,7 @@ import type { AcceptRefusal, EditRefusal, PostRefusal, RemoveRefusal, ReplyRefus
 import { numberId, oneLine } from '../lib/fields.ts';
 import { action } from '../lib/action.server.ts';
 import { socialHref } from '../lib/links.ts';
+import { absolute } from '../lib/mail.server.ts';
 import { done } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
@@ -18,9 +19,12 @@ import { withStore } from '../lib/store.server.ts';
 
 const notFound = 'That is no longer on the Floor.';
 const noHandle = 'Claim your handle first. Posts show it.';
-const roomLocked = 'That room needs a practising tick. Pick another room.';
 
-const postRefusals: Record<PostRefusal, string> = { 'no-handle': noHandle, 'room-locked': roomLocked };
+const postRefusals: Record<PostRefusal, string> = {
+  'no-handle': noHandle,
+  'needs-licence': 'That room needs a practising tick. Pick another room.',
+  'needs-club': 'That room is for club members. Pick another room.',
+};
 const replyRefusals: Record<ReplyRefusal, string> = {
   'not-found': notFound,
   'no-handle': noHandle,
@@ -30,7 +34,7 @@ const editRefusals: Record<EditRefusal, string> = {
   'not-found': notFound,
   'not-yours': 'Only the author can edit that.',
   'too-late': `Edits close ${FLOOR_LIMITS.editMinutes} minutes after posting. Reply to add to it.`,
-  'room-locked': roomLocked,
+  'room-access': 'A post can only move to a room open to the same people. Delete it and post it in the other room instead.',
 };
 const removeRefusals: Record<RemoveRefusal, string> = { 'not-found': notFound, 'not-yours': 'Only the author or the team can delete that.' };
 const acceptRefusals: Record<AcceptRefusal, string> = {
@@ -123,7 +127,9 @@ export const threadPage = createServerFn({ method: 'GET' })
     return withStore(async (store) => {
       const view = await store.socialFloor.thread(member?.id ?? null, data.id, data.sort);
       if (!view) return null;
-      return view.state === 'locked' ? { state: 'locked' as const, signedIn: member !== null } : { state: 'open' as const, signedIn: member !== null, viewer: view.viewer, post: view.post, replies: view.replies };
+      return view.state === 'locked'
+        ? { state: 'locked' as const, signedIn: member !== null, room: view.room, locked: view.locked }
+        : { state: 'open' as const, signedIn: member !== null, viewer: view.viewer, post: view.post, replies: view.replies };
     });
   });
 
@@ -158,9 +164,11 @@ export const removeFloorPost = createServerFn({ method: 'POST' })
 export const floorReply = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof replySchema>) => input)
   .handler(
-    action({ access: 'member', input: replySchema, limit: 'floor', refusals: replyRefusals }, async ({ actor, input, store }) => {
-      const result = await store.socialFloor.reply(actor.id, input.post, input);
-      return result.ok ? done({ id: result.value.id }) : result;
+    action({ access: 'member', input: replySchema, limit: 'floor', refusals: replyRefusals }, async ({ actor, input, store, send }) => {
+      const result = await store.socialFloor.reply(actor.id, input.post, input, absolute('/'));
+      if (!result.ok) return result;
+      send(result.value.letters);
+      return done({ id: result.value.id });
     }),
   );
 
@@ -212,9 +220,9 @@ export const markUseful = createServerFn({ method: 'POST' })
 export const unmarkUseful = createServerFn({ method: 'POST' })
   .validator((input: z.input<typeof usefulSchema>) => input)
   .handler(
-    action({ access: 'member', input: usefulSchema }, async ({ actor, input, store }) => {
-      const { useful } = await store.socialFloor.unmarkUseful(actor.id, input.target, input.id);
-      return done({ useful });
+    action({ access: 'member', input: usefulSchema, refusals: { 'not-found': notFound } }, async ({ actor, input, store }) => {
+      const result = await store.socialFloor.unmarkUseful(actor.id, input.target, input.id);
+      return result.ok ? done({ useful: result.value.useful }) : result;
     }),
   );
 

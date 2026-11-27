@@ -147,3 +147,18 @@ test('approval tells someone who signs in already to sign in, and sends no link'
   ]);
   assert.equal(w.db.prepare(`SELECT count(*) AS n FROM invites WHERE used_at IS NULL`).get()?.['n'], 0, 'no password link is left open');
 });
+
+test('requests waiting count as the team’s queue lists them, since the oldest came in', async () => {
+  const w = socialWorld();
+  const team = (await w.host).id;
+  assert.deepEqual(w.requests.waiting(), { count: 0, since: null });
+  value(w.requests.request(draft()));
+  w.later(DAY);
+  value(w.requests.request(draft('abu@firm.my')));
+  assert.deepEqual(w.requests.waiting(), { count: 2, since: '2026-11-26T02:00:00Z' });
+
+  const siti = w.requests.queue()[0];
+  assert.ok(siti);
+  value(w.requests.decline(siti.id, team));
+  assert.deepEqual(w.requests.waiting(), { count: 1, since: '2026-11-27T02:00:00Z' }, 'a declined request leaves the count');
+});

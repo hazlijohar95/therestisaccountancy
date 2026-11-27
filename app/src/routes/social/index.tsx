@@ -2,7 +2,7 @@ import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { SocialLink } from '../../components/social/SocialLink.tsx';
 import { useEffect, useRef, useState, type FormEvent, type RefObject } from 'react';
 import { z } from 'zod';
-import { FEED_FILTERS, FLOOR_LIMITS, POST_JURISDICTIONS, ROOM_IDS, ROOMS, type FeedFilter, type PostJurisdiction, type RoomId } from '../../../../src/data/social.ts';
+import { FEED_FILTERS, FLOOR_LIMITS, POST_JURISDICTIONS, ROOM_IDS, roomPath, ROOMS, type FeedFilter, type PostJurisdiction, type RoomId, type RoomLock } from '../../../../src/data/social.ts';
 import { tally } from '../../../../src/lib/format.ts';
 import { DRAFT_KEY } from '../../../../src/lib/drafts.ts';
 import { Avatar } from '../../components/social/Avatar.tsx';
@@ -13,10 +13,13 @@ import { ReportDialog } from '../../components/social/ReportDialog.tsx';
 import { FieldError } from '../../components/FieldError.tsx';
 import { useAction } from '../../components/useAction.ts';
 import { floorPage, floorPost } from '../../functions/social-floor.ts';
-import { socialHref } from '../../lib/links.ts';
+import { clubHref, socialHref, socialSignInHref } from '../../lib/links.ts';
 import { socialTitle } from '../../lib/title.ts';
 
 const FILTER_IDS = FEED_FILTERS.map((f) => f.id);
+
+/** What a shut room says it needs, beside its name. */
+const LOCK_LABEL = { licensed: 'Needs a practising tick', club: 'For club members' } as const satisfies Record<RoomLock, string>;
 
 export const Route = createFileRoute('/social/')({
   validateSearch: z.object({
@@ -77,7 +80,7 @@ function Floor() {
               <SocialLink className="room" to="/social" search={link({ room: r.id })} current={r.id === room}>
                 <span>{r.name}</span>
                 {r.locked ? (
-                  <svg role="img" aria-label="Needs a practising tick">
+                  <svg role="img" aria-label={LOCK_LABEL[r.locked]}>
                     <use href="#i-lock" />
                   </svg>
                 ) : (
@@ -142,13 +145,26 @@ function Floor() {
           </p>
         )}
         <div className="feed">
-          {feed.locked ? (
+          {feed.locked === 'licensed' ? (
             <div className="empty">
               <p className="head">This room needs a practising tick.</p>
               <p>Practitioners talk shop here. Fees, inspections, clients. Everyone else reads the open floor.</p>
               <a className="btn sm" href={socialHref('/verify?step=licence')}>
                 Get ticked
               </a>
+            </div>
+          ) : feed.locked === 'club' ? (
+            <div className="empty">
+              <p className="head">This room is for club members.</p>
+              <p>Members of the club talk practice here. Pricing, clients, the tools that save hours. Everyone else reads the open floor.</p>
+              <a className="btn sm" href={clubHref('/join')}>
+                Join the club
+              </a>
+              {!signedIn && (
+                <p className="small">
+                  Already a member? <a href={socialSignInHref(roomPath('club'))}>Sign in</a>.
+                </p>
+              )}
             </div>
           ) : filter === 'following' && !signedIn ? (
             <div className="empty">

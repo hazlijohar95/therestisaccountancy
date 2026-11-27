@@ -8,7 +8,7 @@ import s from './unsubscribe.module.css';
 const copy = {
   newsletter: { ask: 'Stop the newsletter?', done: 'Done. The newsletter will stop.' },
   digest: { ask: 'Stop the weekly email?', done: 'Done. No more weekly emails.' },
-  replies: { ask: 'Stop emails about replies in your threads?', done: 'Done. No more emails about replies in your threads.' },
+  replies: { ask: 'Stop emails about replies to your posts?', done: 'Done. No more emails about replies to your posts.' },
   onboarding: { ask: 'Stop the getting-started emails?', done: 'Done. No more getting-started emails.' },
 } as const;
 type List = keyof typeof copy;

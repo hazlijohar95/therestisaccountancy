@@ -58,3 +58,17 @@ export const anyTerm = TERMS.map((term) => `a ${term}`).join(' or ');
 
 /** "RM 99 a month or RM 990 a year" */
 export const everyRate = TERMS.map((term) => terms[term].label).join(' or ');
+
+/** Why a member turned renewal off, as they may say. The key is stored; the label is what they read and the host sees. */
+export const STOP_REASONS = ['time', 'value', 'price', 'done', 'other'] as const;
+export type StopReason = (typeof STOP_REASONS)[number];
+
+export const stopReasonLabel: Record<StopReason, string> = {
+  time: "I don't have the time to use it",
+  value: "It isn't what I needed",
+  price: 'It costs too much right now',
+  done: 'I got what I came for',
+  other: 'Something else',
+};
+
+export const STOP_NOTE_MAX = 500;

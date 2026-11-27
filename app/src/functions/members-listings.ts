@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { isServiceSlug, LISTING_LIMITS, states, type ServiceSlug } from '../../../src/data/directory.ts';
-import { tidy } from '../../../src/server/community.ts';
+import { tidy } from '../../../src/lib/text.ts';
 import { listingQueuedLetter } from '../../../src/server/listings.ts';
 import { email, oneLine } from '../lib/fields.ts';
 import { admit, toClub } from '../lib/access.server.ts';

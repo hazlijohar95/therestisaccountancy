@@ -186,8 +186,8 @@ function AdminMember() {
             Remove
           </h2>
           <p className={s.note}>
-            Removing deletes their account, lesson progress, open links and join request. It cannot be undone. Anything they posted in the community stays, shown as from a former
-            member. To keep their record, suspend them instead.
+            Removing deletes their account, lesson progress, open links and join request. It cannot be undone. Their posts and replies in the community go with them, and so do other
+            members' replies under their posts. To keep their record, suspend them instead.
           </p>
           <form method="POST" className={s.form} onSubmit={onRemove}>
             <label className={s.check}>

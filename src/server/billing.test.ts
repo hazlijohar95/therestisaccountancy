@@ -8,6 +8,8 @@ import { renewalNoticeLetter } from './letters.ts';
 import { openDatabase } from './node-db.ts';
 
 const DAY = 86_400_000;
+const SITE = 'https://club.test';
+const NO_COUNTS = { session: 0, post: 0, lesson: 0, call: 0, plan: 0 };
 
 const world = async () => {
   let clock = new Date('2026-01-31T10:00:00Z');
@@ -20,7 +22,7 @@ const world = async () => {
   assert.ok(invited.ok && invited.value.kind === 'link');
   const accepted = await club.setPasswordFromLink(invited.value.link.token, 'correct horse battery');
   assert.ok(accepted);
-  return { billing: createBilling(db, now), member: accepted.member, later: (ms: number) => (clock = new Date(clock.getTime() + ms)), now };
+  return { db, club, billing: createBilling(db, now), member: accepted.member, later: (ms: number) => (clock = new Date(clock.getTime() + ms)), now };
 };
 
 const at = (value: string) => new Date(value);
@@ -111,7 +113,7 @@ test('turning renewal off means no charge, and access lasts to the end of the mo
   const w = await world();
   w.billing.opened('p1', w.member.id, 'checkout', 'month');
   w.billing.paid('p1', true);
-  assert.equal(w.billing.setRenews(w.member.id, false).renews, false);
+  assert.equal(w.billing.setRenews(w.member.id, false, SITE).standing.renews, false);
   w.later(27 * DAY);
   assert.deepEqual(w.billing.dueRenewals(), []);
   assert.equal(w.billing.access(w.member.id), 'paid');
@@ -281,7 +283,7 @@ test('a yearly card member hears once, a week before the charge; a monthly card 
   assert.deepEqual(w.billing.renewalNotices(), [], 'more than a week out');
 
   w.later(2 * DAY);
-  assert.deepEqual(w.billing.renewalNotices(), [{ email: 'aina@firm.com.my', name: 'Aina', term: 'year', paidUntil: '2027-01-31T10:00:00Z', chargesAt: '2027-01-30T22:00:00Z' }]);
+  assert.deepEqual(w.billing.renewalNotices(), [{ memberId: w.member.id, email: 'aina@firm.com.my', name: 'Aina', term: 'year', paidUntil: '2027-01-31T10:00:00Z', chargesAt: '2027-01-30T22:00:00Z' }]);
   assert.deepEqual(w.billing.renewalNotices(), [], 'once per renewal');
 
   const m = await world();
@@ -295,7 +297,7 @@ test('turning renewal off means no notice', async () => {
   const w = await world();
   w.billing.opened('y1', w.member.id, 'checkout', 'year');
   w.billing.paid('y1', true);
-  w.billing.setRenews(w.member.id, false);
+  w.billing.setRenews(w.member.id, false, SITE);
   w.later(362 * DAY);
   assert.deepEqual(w.billing.renewalNotices(), []);
 });
@@ -310,6 +312,78 @@ test('the notice names the day the card is charged, which can be the day before 
   assert.ok(notice);
   assert.equal(notice.paidUntil, '2027-01-31T01:00:00Z', 'the year ends at 9 am on 31 January, Malaysia time');
   assert.equal(notice.chargesAt, '2027-01-30T13:00:00Z', 'charged at 9 pm on 30 January, Malaysia time');
-  const letter = renewalNoticeLetter(notice, { term: notice.term, chargesAt: notice.chargesAt, accountUrl: 'https://club.test/members/account' });
+  const letter = renewalNoticeLetter(notice, { term: notice.term, chargesAt: notice.chargesAt, accountUrl: 'https://club.test/members/account', counts: NO_COUNTS, upcoming: [] });
   assert.equal(letter.subject, 'Your membership renews on 30 Jan 2027');
+});
+
+/** A paid member with a card, and an admin to hear about it. */
+const leaver = async () => {
+  const w = await world();
+  w.club.recordJoinRequest({ name: 'Host', email: 'host@club.test', stage: 'I run a practice' });
+  const invited = w.club.inviteFromRequest(w.club.joinRequests({ decided: false })[0]?.id ?? 0);
+  assert.ok(invited.ok && invited.value.kind === 'link');
+  assert.ok(await w.club.setPasswordFromLink(invited.value.link.token, 'correct horse battery'));
+  w.db.prepare(`UPDATE members SET role = 'admin' WHERE email = 'host@club.test'`).run();
+  w.billing.opened('p1', w.member.id, 'checkout', 'year');
+  w.billing.paid('p1', true);
+  return w;
+};
+
+const stops = (w: Awaited<ReturnType<typeof leaver>>) => w.db.prepare('SELECT count(*) AS n FROM renewal_stops WHERE member_id = ?').get(w.member.id)?.n;
+
+test('turning renewal off records one stop with the reason and note, and tells the admins', async () => {
+  const w = await leaver();
+  const { standing, letters } = w.billing.setRenews(w.member.id, false, SITE, { reason: 'price', note: '  Cash is tight  ' });
+  assert.equal(standing.renews, false);
+  assert.deepEqual(w.billing.lastStop(w.member.id), { at: '2026-01-31T10:00:00Z', reason: 'price', note: 'Cash is tight' });
+  assert.equal(letters.length, 1);
+  const [letter] = letters;
+  assert.deepEqual(letter?.to, ['host@club.test']);
+  assert.equal(letter?.subject, 'Aina turned renewal off');
+  assert.deepEqual(letter?.lines, [
+    'Aina turned renewal off. They keep access until 31 Jan 2027.',
+    'Reason: It costs too much right now.',
+    'They wrote: Cash is tight',
+    { href: 'https://club.test/admin/members/' + w.member.id, label: 'Open their page' },
+  ]);
+});
+
+test('the reason and the note are both optional', async () => {
+  const w = await leaver();
+  const { letters } = w.billing.setRenews(w.member.id, false, SITE);
+  assert.deepEqual(w.billing.lastStop(w.member.id), { at: '2026-01-31T10:00:00Z', reason: null, note: null });
+  assert.equal(letters[0]?.lines[1], 'No reason given.');
+  assert.equal(letters[0]?.lines.length, 3, 'no note line, so name, reason and link');
+});
+
+test('turning renewal off when it is already off, or on, records nothing and sends nothing', async () => {
+  const w = await leaver();
+  assert.equal(w.billing.setRenews(w.member.id, false, SITE, { reason: 'time', note: null }).letters.length, 1);
+  assert.deepEqual(w.billing.setRenews(w.member.id, false, SITE, { reason: 'price', note: null }).letters, []);
+  assert.equal(stops(w), 1);
+  assert.equal(w.billing.lastStop(w.member.id)?.reason, 'time', 'the second answer did not replace the first');
+  assert.deepEqual(w.billing.setRenews(w.member.id, true, SITE).letters, []);
+  assert.equal(stops(w), 1);
+  assert.equal(w.billing.standing(w.member.id).renews, true);
+});
+
+test('lastStop is the latest of several stops, and null for a member who never stopped', async () => {
+  const w = await leaver();
+  assert.equal(w.billing.lastStop(w.member.id), null);
+  w.billing.setRenews(w.member.id, false, SITE, { reason: 'time', note: null });
+  w.billing.setRenews(w.member.id, true, SITE);
+  w.later(DAY);
+  w.billing.setRenews(w.member.id, false, SITE, { reason: 'done', note: 'Thanks' });
+  assert.equal(stops(w), 2);
+  assert.deepEqual(w.billing.lastStop(w.member.id), { at: '2026-02-01T10:00:00Z', reason: 'done', note: 'Thanks' });
+});
+
+test('a stop is recorded even when there is no admin to tell, and a member with no subscription has none', async () => {
+  const w = await world();
+  assert.deepEqual(w.billing.setRenews(w.member.id, false, SITE, { reason: 'time', note: null }).letters, []);
+  assert.equal(w.billing.lastStop(w.member.id), null, 'nothing to turn off before the first payment');
+  w.billing.opened('p1', w.member.id, 'checkout', 'month');
+  w.billing.paid('p1', true);
+  assert.deepEqual(w.billing.setRenews(w.member.id, false, SITE, { reason: 'time', note: null }).letters, []);
+  assert.equal(w.billing.lastStop(w.member.id)?.reason, 'time');
 });

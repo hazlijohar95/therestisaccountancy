@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { LISTING_LIMITS, listingPath } from '../../../src/data/directory.ts';
 import { capitalised, formatDay, numberWord } from '../../../src/lib/format.ts';
-import { tidy } from '../../../src/server/community.ts';
+import { tidy } from '../../../src/lib/text.ts';
 import { decisionOf, listingApprovedLetter, listingReturnedLetter, type DecisionRefusal, type Listing } from '../../../src/server/listings.ts';
 import { id } from '../lib/fields.ts';
 import { admit, toClub } from '../lib/access.server.ts';
