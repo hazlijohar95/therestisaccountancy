@@ -1,14 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { z } from 'zod';
-import { anyTerm, firstMonthPrice, joiningRate, monthsFree, TERMS, terms, type Term } from '../../../../src/data/membership.ts';
-import { capitalised, formatDay, numberWord } from '../../../../src/lib/format.ts';
-import { Masthead } from '../../components/club/Masthead.tsx';
-import { Notice } from '../../components/club/Notice.tsx';
+import { firstMonthPrice, monthsFree, TERMS, terms, type Term } from '../../../../src/data/membership.ts';
+import { capitalised, firstName, formatDay, numberWord } from '../../../../src/lib/format.ts';
+import { Card, Cards } from '../../components/ui/Card.tsx';
+import { Notice } from '../../components/ui/Notice.tsx';
+import { PageHead } from '../../components/ui/PageHead.tsx';
+import { Points } from '../../components/ui/Points.tsx';
+import { Section } from '../../components/ui/Section.tsx';
+import { Stat } from '../../components/ui/Stat.tsx';
 import { useAction } from '../../components/useAction.ts';
 import { checkout, membersPay } from '../../functions/members-billing.ts';
 import { clubTitle } from '../../lib/title.ts';
-import s from './pay.module.css';
 
 export const Route = createFileRoute('/members/pay')({
   /* CHIP sends the member back with ?back=paid or ?back=failed. */
@@ -19,12 +22,12 @@ export const Route = createFileRoute('/members/pay')({
   component: Pay,
 });
 
-/** The terms on offer. Someone who has never paid has their first month at the joining price, and is told what follows it. */
+/** The terms on offer. Someone who has never paid has their first month at the joining price, then the monthly rate. */
 const offersFor = (joining: boolean) =>
   TERMS.map((term) => {
-    if (term === 'month' && joining) return { term, label: `${firstMonthPrice} for your first month`, price: firstMonthPrice, note: `Then ${terms.month.label}.` };
+    if (term === 'month' && joining) return { term, tag: 'First month', price: firstMonthPrice, per: 'first month', note: `Then ${terms.month.label}.` };
     const free = monthsFree(term);
-    return { term, label: terms[term].label, price: terms[term].price, note: free > 0 ? `${capitalised(numberWord(free))} months free.` : null };
+    return { term, tag: free > 0 ? `${capitalised(numberWord(free))} months free` : null, price: terms[term].price, per: `a ${term}`, note: null };
   });
 
 function Pay() {
@@ -46,14 +49,16 @@ function Pay() {
   if (!member.clubApproved) {
     return (
       <>
-        <Masthead label="Membership" title="Ask to join first.">
-          <p>The club takes members by request. Your Social account stays free. To join the club, send a request: we read each one and reply by email, and once we accept it you pay here with the same account.</p>
-          <p>
+        <PageHead
+          label="Membership"
+          title="Ask to join first."
+          lead="The club takes members by request. We reply by email, then you pay here."
+          actions={
             <a className="btn" href={`/join#email=${encodeURIComponent(member.email)}`}>
               Ask to join
             </a>
-          </p>
-        </Masthead>
+          }
+        />
         {error && <Notice tone="error">{error}</Notice>}
       </>
     );
@@ -61,46 +66,49 @@ function Pay() {
 
   const lapsed = standing.access === 'unpaid' && standing.paidUntil !== null;
   const current = standing.access !== 'unpaid' && standing.paidUntil !== null;
+  const until = standing.paidUntil ? formatDay(standing.paidUntil) : '';
   const renewsByCard = standing.cardOnFile && standing.renews;
 
   return (
     <>
-      <Masthead label="Membership" title={lapsed ? 'Your membership needs a payment.' : current ? 'Pay ahead.' : `Welcome, ${member.name}. One step left.`}>
-        <p>
-          {lapsed
-            ? `Your last paid ${standing.term} ended on ${formatDay(standing.paidUntil ?? '')}. Pay for ${anyTerm} to carry on.`
-            : current
-              ? `You are paid until ${formatDay(standing.paidUntil ?? '')}. What you pay for now is added after that.`
-              : `${joiningRate} Choose one, pay, and you are in.`}
-        </p>
-      </Masthead>
+      <PageHead
+        label="Membership"
+        title={lapsed ? 'Pay to carry on.' : current ? 'Pay ahead.' : `Welcome, ${firstName(member.name)}.`}
+        lead={lapsed ? `Your last ${standing.term} ended ${until}.` : current ? `Paid until ${until}. New time starts after that.` : 'One step left. Pick how you pay.'}
+      />
 
-      {back === 'failed' && <Notice tone="error">The payment did not go through, and nothing was charged. Try again, or use another card.</Notice>}
-      {back === 'paid' && standing.access !== 'paid' && <Notice>CHIP is still confirming your payment. Refresh this page in a minute.</Notice>}
+      {back === 'failed' && <Notice tone="error">Payment failed. Nothing was charged.</Notice>}
+      {back === 'paid' && standing.access !== 'paid' && <Notice tone="info">CHIP is still confirming. Refresh in a minute.</Notice>}
       {error && <Notice tone="error">{error}</Notice>}
 
-      <section className={`wrap ${s.block}`} aria-labelledby="pay-title">
-        <h2 className="head" id="pay-title">
-          Pay by the {TERMS.join(' or the ')}
-        </h2>
-        <ul className={s.offers}>
+      <Section title="Choose a plan">
+        <Cards>
           {offersFor(joining).map((offer) => (
-            <li key={offer.term}>
-              <h3 className={`serif ${s.rate}`}>{offer.label}</h3>
-              {offer.note && <p className={s.note}>{offer.note}</p>}
-              <form method="POST" onSubmit={pay(offer.term)}>
-                <button className="btn" type="submit" disabled={open.busy || leaving}>
-                  Pay {offer.price} with CHIP
-                </button>
-              </form>
-            </li>
+            <Card
+              key={offer.term}
+              tag={offer.tag}
+              featured={offer.term === 'month' && joining}
+              foot={
+                <form method="POST" onSubmit={pay(offer.term)}>
+                  <button className="btn" type="submit" disabled={open.busy || leaving}>
+                    Pay {offer.price}
+                  </button>
+                </form>
+              }
+            >
+              <Stat value={offer.price} label={offer.per} note={offer.note} />
+            </Card>
           ))}
-        </ul>
-        <p className="small">
-          You pay on CHIP's secure page by online banking (FPX), then come straight back here. CHIP emails you a receipt.{' '}
-          {renewsByCard ? `Your card renews at whichever you paid for last, ${anyTerm}.` : 'Before your paid time ends we email you a link to pay for more.'} Stop any time: you keep access to the end of the time you paid for.
-        </p>
-      </section>
+        </Cards>
+        <Points
+          items={[
+            { icon: 'card', text: 'Online banking (FPX) on CHIP' },
+            { icon: 'mail', text: 'Receipt by email' },
+            { icon: 'repeat', text: renewsByCard ? 'Your card renews at the plan you paid last' : 'We email you before your time ends' },
+            { icon: 'check', text: 'Stop any time. Keep access to the end.' },
+          ]}
+        />
+      </Section>
     </>
   );
 }

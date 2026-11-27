@@ -1,0 +1,6 @@
+.badge { display: inline-flex; align-items: center; gap: .45em; min-height: 28px; padding: .25em .7em; border: var(--edge) solid var(--ink); border-radius: var(--r-ctl, 0); font: 600 var(--size-label)/1 var(--font-sans); white-space: nowrap; }
+.plain { background: transparent; color: var(--ink); }
+.solid { background: var(--ink); color: var(--bg); }
+.live { color: var(--alert); border-color: currentColor; }
+.live::before { content: ""; width: .55em; height: .55em; border-radius: var(--radius-round); background: currentColor; animation: blink 1.2s steps(2, jump-none) infinite; }
+@keyframes blink { 50% { opacity: .25; } }

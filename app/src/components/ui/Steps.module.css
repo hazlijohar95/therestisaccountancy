@@ -1,0 +1,26 @@
+.steps { --dot: 2.5rem; display: grid; gap: var(--space-5); margin: 0; padding: 0; list-style: none; }
+.step { position: relative; display: grid; grid-template-columns: var(--dot) minmax(0, 1fr); gap: var(--space-4); }
+/* The track: from each marker down to the next. */
+.step:not(:last-child)::after { content: ""; position: absolute; left: calc(var(--dot) / 2 - 1px); top: var(--dot); bottom: calc(var(--space-5) * -1); width: var(--stroke-rule); background: var(--line); }
+.step[data-state="done"]::after { background: var(--ink); }
+.marker { display: grid; place-items: center; width: var(--dot); height: var(--dot); border: var(--stroke-rule) solid var(--ink); border-radius: var(--radius-round); background: var(--bg); font: 400 1.125rem/1 var(--display-font); font-variant-numeric: tabular-nums; }
+.step[data-state="done"] .marker,
+.step[data-state="current"] .marker { background: var(--ink); color: var(--bg); }
+.step[data-state="current"] .marker { box-shadow: 0 0 0 4px var(--bg), 0 0 0 6px var(--ink); }
+.step[data-state="todo"] .marker { border-style: dashed; }
+.text { display: grid; gap: var(--space-1); padding-top: calc((var(--dot) - 1.5rem) / 2); }
+.label { margin: 0; font: 600 1.0625rem/1.4 var(--font-sans); }
+.step[data-state="done"] .label { text-decoration: line-through; text-decoration-thickness: var(--stroke-hair); }
+.detail { margin: 0; max-width: 40ch; }
+.detail p { margin: 0; }
+@media (min-width: 720px) {
+  .steps { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--space-5); }
+  .step { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+  .step:not(:last-child)::after { left: var(--dot); top: calc(var(--dot) / 2 - 1px); bottom: auto; right: calc(var(--space-5) * -1); width: auto; height: var(--stroke-rule); }
+  .text { padding-top: 0; }
+}
+
+.progress { display: grid; gap: var(--space-2); }
+.top { display: flex; justify-content: space-between; gap: var(--space-3); }
+.top b { font-variant-numeric: tabular-nums; }
+.bar { height: 10px; border: var(--stroke-hair) solid var(--ink); border-radius: var(--r-ctl, 0); background: linear-gradient(var(--ink), var(--ink)) left / calc(var(--share) * 100%) 100% no-repeat; }
