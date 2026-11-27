@@ -72,7 +72,7 @@ export function LetterEmail({ subject, lines, unsubscribe }: { subject: string; 
                 <Section key={i} style={styles.steps}>
                   {line.steps.map((step, n) => (
                     <Row key={step.href} style={styles.step}>
-                      <Column style={styles.stepNo}>{String(n + 1).padStart(2, '0')}</Column>
+                      <Column style={styles.stepNo}>{`${String(n + 1).padStart(2, '0')}. `}</Column>
                       <Column style={styles.stepBody}>
                         <Link href={step.href} style={styles.stepTitle}>{step.title}</Link>
                         <Text style={styles.stepDetail}>{step.detail}</Text>

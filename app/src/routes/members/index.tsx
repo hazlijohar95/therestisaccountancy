@@ -48,7 +48,7 @@ function Overview() {
 
       {current && (
         <Section title="Your first steps">
-          <Progress value={done} max={steps.length} label="Done" />
+          <Progress value={done} max={steps.length} label="First steps done" />
           <Steps label="Your first steps" items={steps.map((step) => ({ label: step.label, detail: step.detail, href: step.href, state: stateOf(step) }))} />
           <Actions>
             <a className="btn" href={current.href}>
@@ -73,7 +73,7 @@ function Overview() {
                   </Meta>
                 </>
               }
-              trail={next.attending ? <Badge tone="solid">Going</Badge> : <a href="/members/sessions">Say you're coming</a>}
+              trail={next.attending && <Badge tone="solid">Going</Badge>}
             />
           </List>
         </Section>
@@ -87,7 +87,7 @@ function Overview() {
               lead={<span className={`serif ${s.no}`}>{String(i + 1).padStart(2, '0')}</span>}
               title={<a href={`/members/programmes/${programme.slug}`}>{programme.name}</a>}
               meta={programme.promise}
-              trail={programme.published === 0 ? <Badge>Soon</Badge> : <span className={s.count}>{`${programme.done}/${programme.published}`}</span>}
+              trail={programme.published === 0 ? <Badge>Soon</Badge> : <span className={s.count}>{`${programme.done} of ${programme.published}`}</span>}
             />
           ))}
         </List>
@@ -96,7 +96,7 @@ function Overview() {
       <Section title="Around the club">
         <List>
           {around.map((item) => (
-            <Row key={item.no} title={<a href={item.href}>{item.title}</a>} meta={item.detail} trail={<Badge>{item.action}</Badge>} />
+            <Row key={item.no} title={<a href={item.href}>{item.title}</a>} meta={item.detail} trail={item.action && <Badge>{item.action}</Badge>} />
           ))}
         </List>
       </Section>

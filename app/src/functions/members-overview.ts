@@ -36,12 +36,13 @@ export const membersOverview = createServerFn({ method: 'GET' }).handler(async (
   const steps = FIRST_STEPS.map((step) => ({ label: firstSteps[step].label, detail: firstSteps[step].detail, href: firstSteps[step].path, done: stepDone[step] }));
   const templates = allResources().length;
   /* Each row says where the member stands with it, so the overview answers "what's waiting on me?" at a glance. */
-  const planState = plan.open ? { draft: 'Draft saved', sent: `With ${hostFirstName}` }[plan.open.status] : plan.answered ? 'Answered' : 'Write it';
-  const listingState = !listing ? 'Get listed' : listing.paused ? 'Paused' : { pending: 'Being checked', returned: 'Needs a change', listed: 'Listed' }[listing.review.state];
+  /* A status only where there is one: the linked title is the way in, so nothing here reads as a button. */
+  const planState = plan.open ? { draft: 'Draft saved', sent: `With ${hostFirstName}` }[plan.open.status] : plan.answered ? 'Answered' : null;
+  const listingState = !listing ? null : listing.paused ? 'Paused' : { pending: 'Being checked', returned: 'Needs a change', listed: 'Listed' }[listing.review.state];
   const around = [
     { no: 'A', href: '/members/plan', title: 'Your plan', detail: `The firm you want, in writing. ${hostFirstName} answers.`, action: planState },
-    { no: 'B', href: '/members/calls', title: 'One-to-one', detail: `A short call with ${hostFirstName} when you're stuck.`, action: call ? `Booked for ${formatMoment(call.startsAt)}` : 'Book a call' },
-    { no: 'C', href: '/members/resources', title: 'Templates', detail: 'Checklists, letters and scripts for your clients.', action: templates ? `${templates} to use` : 'Open them' },
+    { no: 'B', href: '/members/calls', title: 'One-to-one', detail: `A short call with ${hostFirstName} when you're stuck.`, action: call ? `Booked for ${formatMoment(call.startsAt)}` : null },
+    { no: 'C', href: '/members/resources', title: 'Templates', detail: 'Checklists, letters and scripts for your clients.', action: templates ? `${templates} to use` : null },
     { no: 'D', href: '/members/listing', title: 'Find an accountant', detail: 'Where business owners find an accountant.', action: listingState },
   ];
   return { member: { name: member.name, joinedAt: member.joinedAt, number: memberNumber(member), role: member.role }, next, steps, progress, around };
