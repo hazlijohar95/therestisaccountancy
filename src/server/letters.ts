@@ -1,10 +1,11 @@
 import { week } from '../data/club.ts';
-import { TERMS, terms, type Term } from '../data/membership.ts';
+import { everyRate, TERMS, terms, type Term } from '../data/membership.ts';
 import { site } from '../data/site.ts';
 import { firstName, formatDay, formatMoment, numberWord } from '../lib/format.ts';
-import type { JoinedVia, JoinRequest, LinkPurpose } from './club.ts';
+import type { JoinedVia, JoinRequest, LinkPurpose, PasswordLink } from './club.ts';
 import { calendarFile, sessionEvent } from './calendar.ts';
 import type { List, OnboardingStep, Recipient, Subscriber } from './mailings.ts';
+import { welcomeUrl } from './paths.ts';
 import type { LiveSession } from './schedule.ts';
 
 /*
@@ -36,6 +37,22 @@ const hi = (name: string) => `Hi ${firstName(name)},`;
 const plural = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${n} ${many}`);
 /** Typed titles go into subjects on one line. */
 const flat = (value: string) => value.replace(/\s+/g, ' ').trim();
+
+/**
+ * The letter for a password link the club issued. Admins do not pay, and Social is free until the club accepts
+ * someone, so only a club member who may pay is told the rate.
+ */
+export function passwordLetterFor({ member, purpose, token, expiresAt }: PasswordLink, siteUrl: string): Letter {
+  return passwordLetter({
+    name: member.name,
+    email: member.email,
+    purpose,
+    link: welcomeUrl(siteUrl, token),
+    expiresAt,
+    rate: member.role === 'admin' || !member.clubApproved ? null : everyRate,
+    welcomeTo: member.clubApproved ? 'club' : 'social',
+  });
+}
 
 /**
  * An invitation for someone without a password, or a reset for a member who has one. Someone who joined the social

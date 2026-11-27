@@ -1,7 +1,7 @@
 import { issueLink, toMember } from './club.ts';
 import { attempt, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import type { Letter } from './letters.ts';
-import { socialUrl } from './paths.ts';
+import { socialUrl, welcomeUrl } from './paths.ts';
 import type { Result } from './result.ts';
 import { requestApprovedLetter } from './social-letters.ts';
 import { admit } from './social-profiles.ts';
@@ -102,7 +102,7 @@ export function createSocialRequests(db: Db, now: () => Date = () => new Date())
           return [requestApprovedLetter(member, { signIn, hasProfile: request.onSocial !== null })];
         }
         const link = issueLink(db, at, member) ?? refuse('suspended');
-        return [requestApprovedLetter(member, { link: new URL(`/welcome?token=${encodeURIComponent(link.token)}`, siteUrl).href, expiresAt: link.expiresAt })];
+        return [requestApprovedLetter(member, { link: welcomeUrl(siteUrl, link.token), expiresAt: link.expiresAt })];
       });
     },
 

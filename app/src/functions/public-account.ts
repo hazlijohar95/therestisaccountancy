@@ -1,9 +1,8 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
-import { everyRate } from '../../../src/data/membership.ts';
 import { firstName } from '../../../src/lib/format.ts';
-import { LINK_FOR, type LinkPurpose, type PasswordLink } from '../../../src/server/club.ts';
-import { passwordLetter } from '../../../src/server/letters.ts';
+import { LINK_FOR, type LinkPurpose } from '../../../src/server/club.ts';
+import { passwordLetterFor } from '../../../src/server/letters.ts';
 import { MIN_PASSWORD_LENGTH } from '../../../src/server/password.ts';
 import { email } from '../lib/fields.ts';
 import { action } from '../lib/action.server.ts';
@@ -21,18 +20,6 @@ const newPassword = z
     confirm: z.string(),
   })
   .refine((v) => v.password === v.confirm, { message: 'Enter the same password in both fields.', path: ['confirm'] });
-
-/** What a password link's email says, built on the configured site so the link never depends on the request's Host. */
-const shareable = ({ member, purpose, token, expiresAt }: PasswordLink) => ({
-  name: member.name,
-  email: member.email,
-  purpose,
-  link: absolute(`/welcome?token=${encodeURIComponent(token)}`),
-  expiresAt,
-  /** What they can pay, told with the invitation. Admins do not pay, and the social site is free until the club accepts them. */
-  rate: member.role === 'admin' || !member.clubApproved ? null : everyRate,
-  welcomeTo: member.clubApproved ? ('club' as const) : ('social' as const),
-});
 
 export interface LinkHolder {
   readonly firstName: string;
@@ -70,7 +57,7 @@ export const requestLink = createServerFn({ method: 'POST' })
   .handler(
     action({ access: 'anyone', input: linkRequest, limit: 'link' }, async ({ input, store, send }) => {
       const link = await store.club.requestLink(input.email);
-      if (link) send([passwordLetter(shareable(link))]);
+      if (link) send([passwordLetterFor(link, absolute('/'))]);
       return done({ email: input.email });
     }),
   );

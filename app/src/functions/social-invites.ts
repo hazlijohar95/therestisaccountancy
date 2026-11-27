@@ -1,17 +1,14 @@
 import { createServerFn } from '@tanstack/react-start';
 import { env } from 'cloudflare:workers';
 import { z } from 'zod';
-import { everyRate } from '../../../src/data/membership.ts';
 import { REQUEST_LIMITS } from '../../../src/data/social.ts';
-import type { PasswordLink } from '../../../src/server/club.ts';
-import { passwordLetter } from '../../../src/server/letters.ts';
-import { socialUrl } from '../../../src/server/paths.ts';
+import { passwordLetterFor } from '../../../src/server/letters.ts';
+import { inviteUrl } from '../../../src/server/paths.ts';
 import type { JoinRefusal, MemberInviteRefusal, RedeemRefusal, RevokeRefusal } from '../../../src/server/social-invites.ts';
 import type { SignUpRefusal } from '../../../src/server/social-profiles.ts';
 import type { RequestRefusal } from '../../../src/server/social-requests.ts';
 import { email, memberName, numberId, oneLine, token } from '../lib/fields.ts';
 import { action } from '../lib/action.server.ts';
-import { absolute } from '../lib/mail.server.ts';
 import { done, refused } from '../lib/outcome.ts';
 import { currentMember } from '../lib/session.server.ts';
 import { withStore } from '../lib/store.server.ts';
@@ -40,21 +37,6 @@ const redeemRefusals: Record<RedeemRefusal, string> = {
 };
 const signUpRefusals: Record<SignUpRefusal, string> = { ...handleRefusals, 'email-taken': 'That email already has an account.' };
 const joinRefusals: Record<JoinRefusal, string> = { ...signUpRefusals, dead: 'This invite has been used, has run out, or was withdrawn.' };
-/** Where an invite link lands: the short sign-up, which also tells a dead link apart. */
-const inviteLink = (token: string) => socialUrl(env.SITE_URL, `/sign-up?invite=${encodeURIComponent(token)}`);
-
-/** The welcome letter for a new Social account, with the link to set a password. Social is free until the club accepts them. */
-const welcomeLetter = ({ member, purpose, token, expiresAt }: PasswordLink) =>
-  passwordLetter({
-    name: member.name,
-    email: member.email,
-    purpose,
-    link: absolute(`/welcome?token=${encodeURIComponent(token)}`),
-    expiresAt,
-    rate: member.role === 'admin' || !member.clubApproved ? null : everyRate,
-    welcomeTo: member.clubApproved ? 'club' : 'social',
-  });
-
 const requestSchema = z.object({
   name: memberName,
   email,
@@ -121,7 +103,7 @@ export const invitesPage = createServerFn({ method: 'GET' }).handler(async () =>
 export const createInvite = createServerFn({ method: 'POST' }).handler(
   action({ access: 'member', input: z.undefined(), refusals: memberInviteRefusals }, async ({ actor, store }) => {
     const result = await store.socialInvites.create(actor.id);
-    return result.ok ? done({ link: inviteLink(result.value.token) }) : result;
+    return result.ok ? done({ link: inviteUrl(env.SITE_URL, result.value.token) }) : result;
   }),
 );
 
@@ -189,7 +171,7 @@ export const socialSignUp = createServerFn({ method: 'POST' })
         if (reason === 'handle-taken') return refused(message, { handle: message });
         return refused(message);
       }
-      send([welcomeLetter(joined.value.link)]);
+      send([passwordLetterFor(joined.value.link, env.SITE_URL)]);
       return done({ email: person.email, claimed: !invite });
     }),
   );

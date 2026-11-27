@@ -4,6 +4,7 @@ import { CLAIM_LIMITS, REPORT_TARGETS } from '../../../src/data/social.ts';
 import { deleteEvidence } from '../../../src/server/evidence.ts';
 import { send } from '../../../src/server/mail.ts';
 import type { Store } from '../../../src/server/instance.ts';
+import { inviteUrl } from '../../../src/server/paths.ts';
 import { report } from '../../../src/server/report.ts';
 import type { DecisionRefusal } from '../../../src/server/social-claims.ts';
 import type { RevokeRefusal, TeamInviteRefusal } from '../../../src/server/social-invites.ts';
@@ -233,7 +234,7 @@ export const teamInvite = createServerFn({ method: 'POST' })
         const to = { email: input.email, name: input.name || null };
         const invited = await store.socialInvites.inviteByEmail(actor.id, to);
         if (!invited.ok) return invited;
-        const link = socialAbsolute(`/sign-up?invite=${encodeURIComponent(invited.value.token)}`);
+        const link = inviteUrl(absolute('/'), invited.value.token);
         const emailed = await send(teamInviteLetter(to, actor, { link, expiresAt: invited.value.invite.expiresAt }));
         return done({ email: to.email, link, emailed });
       },
