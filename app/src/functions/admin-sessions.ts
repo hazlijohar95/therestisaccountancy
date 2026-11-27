@@ -19,7 +19,7 @@ export const adminSessions = createServerFn({ method: 'GET' }).handler(async () 
     id: s.id,
     title: s.title,
     when: `${formatMoment(s.startsAt)} · ${s.minutes} min · ${s.kind}`,
-    coming: s.going === 0 ? 'Nobody coming yet.' : `Coming: ${listOf(attendees.map((m) => m.name))}.`,
+    coming: attendees.length === 0 ? 'Nobody coming yet.' : `Coming: ${listOf(attendees.map((m) => m.name))}.`,
   }));
   return { sessions, today: malaysiaToday(), kinds: SESSION_KINDS };
 });

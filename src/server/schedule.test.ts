@@ -14,7 +14,7 @@ const value = <T, R extends string>(result: Result<T, R>): T => {
 };
 const session = (title: string, startsAt: string) => ({ title, kind: 'Clinics' as const, startsAt, minutes: 60, link: 'https://meet.example/room', detail: '' });
 
-test('the admin sees each session still to come with the active members coming to it, in the order they said so; a suspended member still counts as going', async () => {
+test('the admin sees each session still to come with the active members coming to it, in the order they said so; a suspended member is not counted', async () => {
   const db = openDatabase(':memory:');
   let clock = new Date('2026-11-19T02:00:00Z');
   const now = () => clock;
@@ -38,9 +38,9 @@ test('the admin sees each session still to come with the active members coming t
 
   const listed = schedule.rolls().map(({ session: s, attendees }) => ({ id: s.id, title: s.title, going: s.going, names: attendees.map((m) => m.name) }));
   assert.deepEqual(listed, [
-    { id: sooner, title: 'Pricing clinic', going: 2, names: ['Aina'] },
-    { id: later, title: 'Year-end close', going: 2, names: ['Aina'] },
-    { id: onlyAbu, title: 'Audit clinic', going: 1, names: [] },
+    { id: sooner, title: 'Pricing clinic', going: 1, names: ['Aina'] },
+    { id: later, title: 'Year-end close', going: 1, names: ['Aina'] },
+    { id: onlyAbu, title: 'Audit clinic', going: 0, names: [] },
     { id: empty, title: 'Empty room', going: 0, names: [] },
   ]);
 });

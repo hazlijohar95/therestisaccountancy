@@ -14,6 +14,7 @@ export interface LiveSession {
   /** Where it happens: the video call. Shown only to members. */
   readonly link: string;
   readonly detail: string;
+  /** Active members coming. A suspended member's yes is kept for their return but not counted. */
   readonly going: number;
   readonly attending: boolean;
 }
@@ -42,7 +43,7 @@ const NOT_OVER = `cancelled_at IS NULL AND julianday(starts_at) + minutes / 1440
 /** Upcoming live sessions, who is coming, and the reminders owed. */
 export function createSchedule(db: Db, now: () => Date = () => new Date()) {
   const columns = (memberId: number | null) =>
-    `s.*, (SELECT count(*) FROM rsvps r WHERE r.session_id = s.id) AS going,
+    `s.*, (SELECT count(*) FROM rsvps r JOIN members m ON m.id = r.member_id WHERE r.session_id = s.id AND ${STATUS_SQL.active}) AS going,
      EXISTS (SELECT 1 FROM rsvps r WHERE r.session_id = s.id AND r.member_id = ${memberId === null ? 'NULL' : Number(memberId)}) AS attending`;
 
   const toSession = (row: Row): LiveSession => ({

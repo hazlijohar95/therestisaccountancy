@@ -324,6 +324,26 @@ test('a host who is suspended or loses the admin role takes their slots off the 
   assert.deepEqual(w.openIds(w.abu.id), [], 'nor with a host who is no longer an admin');
 });
 
+test('slots a host lost stay off when the host is reinstated or made an admin again', async () => {
+  const suspended = await world();
+  const booked = suspended.slot(THURSDAY);
+  suspended.slot(shift(THURSDAY, 2 * HOUR));
+  value(suspended.calls.book(suspended.aina.id, booked, 'Pricing a messy client.'));
+  value(suspended.club.suspendMember(suspended.shukri.id, suspended.hazli.id, SITE));
+  value(suspended.club.reinstateMember(suspended.hazli.id));
+  assert.equal(suspended.calls.booking(suspended.aina.id), null, 'the member was told the call is off');
+  assert.deepEqual(suspended.openIds(suspended.abu.id), []);
+  assert.deepEqual(suspended.calls.upcoming(), []);
+
+  const demoted = await world();
+  const host = { name: 'Hazli Johar', email: 'hazli@club.test' };
+  value(demoted.calls.book(demoted.aina.id, demoted.slot(THURSDAY), 'Pricing a messy client.'));
+  value(demoted.club.updateMember(demoted.shukri.id, demoted.hazli.id, { ...host, role: 'member' }, SITE));
+  value(demoted.club.updateMember(demoted.shukri.id, demoted.hazli.id, { ...host, role: 'admin' }, SITE));
+  assert.equal(demoted.calls.booking(demoted.aina.id), null);
+  assert.deepEqual(demoted.calls.upcoming(), []);
+});
+
 const letters = (change: { letters: readonly Letter[] }) => change.letters.map((l) => [l.to, l.subject]);
 
 const twoBooked = async () => {
