@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
-import { anyTerm, everyRate, TERMS, terms } from '../../../../src/data/membership.ts';
+import { anyTerm, everyRate, STOP_NOTE_MAX, STOP_REASONS, stopReasonLabel, TERMS, terms } from '../../../../src/data/membership.ts';
 import { formatDay } from '../../../../src/lib/format.ts';
 import { Masthead } from '../../components/club/Masthead.tsx';
 import { FieldError } from '../../components/FieldError.tsx';
@@ -25,6 +25,7 @@ function Account() {
   const [renewal, setRenewal] = useState<{ renews: boolean } | null>(null);
   const [saved, setSaved] = useState(false);
   const [changed, setChanged] = useState(false);
+  const stopNote = renews.field('note');
   const newPassword = passwordForm.field('password', { hint: 'password-hint' });
   const confirm = passwordForm.field('confirm');
 
@@ -56,7 +57,10 @@ function Account() {
   const toggleRenewal = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!standing) return;
-    const outcome = await renews.run({ renews: !standing.renews });
+    const form = new FormData(event.currentTarget);
+    const reason = STOP_REASONS.find((r) => r === form.get('reason'));
+    const note = formText(form, 'note');
+    const outcome = await renews.run(standing.renews ? { renews: false, ...(reason && { reason }), ...(note && { note }) } : { renews: true });
     if (!outcome) return;
     setRenewal(outcome.ok ? outcome.value : null);
   };
@@ -112,7 +116,25 @@ function Account() {
               </a>
             )}
             {standing.access !== 'unpaid' && (
-              <form method="POST" onSubmit={toggleRenewal}>
+              <form method="POST" className={s.stop} onSubmit={toggleRenewal}>
+                {standing.renews && (
+                  <>
+                    <fieldset className={s.reasons}>
+                      <legend className="label">Before you go, what's the main reason? (optional)</legend>
+                      {STOP_REASONS.map((reason) => (
+                        <label key={reason} className={s.check}>
+                          <input type="radio" name="reason" value={reason} />
+                          <span>{stopReasonLabel[reason]}</span>
+                        </label>
+                      ))}
+                    </fieldset>
+                    <div className="field">
+                      <label htmlFor="stop-note">Anything we should know? (optional)</label>
+                      <textarea className="input" id="stop-note" name="note" rows={3} maxLength={STOP_NOTE_MAX} {...stopNote.input} />
+                      <FieldError field={stopNote} className={s.error} />
+                    </div>
+                  </>
+                )}
                 <button className={standing.renews ? 'btn ghost' : 'btn'} type="submit">
                   {standing.renews ? 'Turn off renewal' : 'Turn renewal back on'}
                 </button>

@@ -7,6 +7,8 @@ import { passwordLetter, passwordLetterFor, paymentDueLetter, renewalLetter, ren
 
 const aina = { email: 'aina@firm.com.my', name: 'Aina Rahman' };
 const payUrl = 'https://club.test/members/pay';
+const NO_COUNTS = { session: 0, post: 0, lesson: 0, call: 0, plan: 0 };
+const notice = { term: 'year', chargesAt: '2027-01-30T22:00:00Z', accountUrl: 'https://club.test/members/account', upcoming: [] } as const;
 
 test('the invitation names both rates', async () => {
   const letter = passwordLetter({ ...aina, purpose: 'welcome', link: 'https://club.test/welcome?token=t', expiresAt: '2026-12-01T00:00:00Z', rate: everyRate, welcomeTo: 'club' });
@@ -82,9 +84,44 @@ test('every term has a letter of each kind that renders', async () => {
 });
 
 test('the renewal notice names the date, the amount and how to stop it', async () => {
-  const letter = renewalNoticeLetter(aina, { term: 'year', chargesAt: '2027-01-30T22:00:00Z', accountUrl: 'https://club.test/members/account' });
+  const letter = renewalNoticeLetter(aina, { term: 'year', chargesAt: '2027-01-30T22:00:00Z', accountUrl: 'https://club.test/members/account', counts: NO_COUNTS, upcoming: [] });
   assert.equal(letter.subject, 'Your membership renews on 31 Jan 2027');
   const { text } = await renderLetter(letter);
   assert.ok(text.includes('charge RM 990 to the card you saved'));
   assert.ok(text.includes('https://club.test/members/account'));
+});
+
+test('the renewal notice recaps the year with only what the member did', async () => {
+  const letter = renewalNoticeLetter(aina, { ...notice, counts: { session: 4, post: 12, lesson: 3, call: 1, plan: 0 } });
+  const { lines } = letter;
+  assert.equal(lines[1], 'On 31 Jan 2027 we renew your membership for another year and charge RM 990 to the card you saved.');
+  assert.equal(lines[2], 'In your last year you said yes to 4 sessions, posted 12 times, finished 3 lessons and booked 1 call.');
+  assert.ok(lines[3]?.toString().startsWith('Nothing to do if that suits you.'), 'the existing lines follow, unchanged');
+
+  const some = await renderLetter(renewalNoticeLetter(aina, { ...notice, counts: { session: 1, post: 0, lesson: 0, call: 0, plan: 2 } }));
+  assert.ok(some.text.includes('In your last year you said yes to 1 session and worked on your plan.'));
+  const one = await renderLetter(renewalNoticeLetter(aina, { ...notice, counts: { session: 0, post: 1, lesson: 0, call: 0, plan: 0 } }));
+  assert.ok(one.text.includes('In your last year you posted 1 time.'));
+});
+
+test('the renewal notice has no recap when the member did nothing', async () => {
+  const letter = renewalNoticeLetter(aina, { ...notice, counts: NO_COUNTS });
+  assert.ok(!letter.lines.some((line) => typeof line === 'string' && line.startsWith('In your last')));
+  assert.equal(letter.lines.length, 5);
+});
+
+test('the renewal notice lists the sessions coming up', async () => {
+  const letter = renewalNoticeLetter(aina, {
+    ...notice,
+    counts: NO_COUNTS,
+    upcoming: [
+      { title: 'Pricing clinic', startsAt: '2027-01-12T11:00:00Z' },
+      { title: 'Year-end close', startsAt: '2027-01-19T11:00:00Z' },
+    ],
+  });
+  const at = letter.lines.indexOf('Coming up:');
+  assert.ok(at > 0);
+  assert.deepEqual(letter.lines.slice(at + 1, at + 3), ['Pricing clinic, 12 Jan 2027, 7:00 pm', 'Year-end close, 19 Jan 2027, 7:00 pm']);
+  const { text } = await renderLetter(letter);
+  assert.ok(text.includes('Coming up:') && text.includes('Pricing clinic, 12 Jan 2027, 7:00 pm'));
 });

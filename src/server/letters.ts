@@ -1,8 +1,9 @@
 import { week } from '../data/club.ts';
-import { everyRate, TERMS, terms, type Term } from '../data/membership.ts';
+import { everyRate, stopReasonLabel, TERMS, terms, type StopReason, type Term } from '../data/membership.ts';
 import { site } from '../data/site.ts';
-import { firstName, formatDay, formatMoment, numberWord } from '../lib/format.ts';
+import { firstName, formatDay, formatMoment, listOf, numberWord, tally } from '../lib/format.ts';
 import type { JoinedVia, JoinRequest, LinkPurpose, PasswordLink } from './club.ts';
+import type { ActivityKind } from './activity.ts';
 import { calendarFile, sessionEvent } from './calendar.ts';
 import type { List, OnboardingStep, Recipient, Subscriber } from './mailings.ts';
 import { welcomeUrl } from './paths.ts';
@@ -287,18 +288,62 @@ export function sessionLetters(news: SessionNews, session: LiveSession, members:
   });
 }
 
-/** A saved card is about to be charged for a long term: when, how much, and how to stop it first. */
-export function renewalNoticeLetter(to: Recipient, notice: { term: Term; chargesAt: string; accountUrl: string }): Letter {
+/** What a member did in the term being renewed, in the words of a sentence. Null when they did none of it. */
+const recapOf = (term: Term, counts: Readonly<Record<ActivityKind, number>>): string | null => {
+  const parts: string[] = [];
+  if (counts.session) parts.push(`said yes to ${tally(counts.session, 'session')}`);
+  if (counts.post) parts.push(`posted ${tally(counts.post, 'time')}`);
+  if (counts.lesson) parts.push(`finished ${tally(counts.lesson, 'lesson')}`);
+  if (counts.call) parts.push(`booked ${tally(counts.call, 'call')}`);
+  if (counts.plan) parts.push('worked on your plan');
+  return parts.length ? `In your last ${term} you ${listOf(parts)}.` : null;
+};
+
+/**
+ * A saved card is about to be charged for a long term: when, how much, what the member got from the last one, what is
+ * coming up, and how to stop it first.
+ */
+export function renewalNoticeLetter(
+  to: Recipient,
+  notice: {
+    term: Term;
+    chargesAt: string;
+    accountUrl: string;
+    counts: Readonly<Record<ActivityKind, number>>;
+    upcoming: readonly { readonly title: string; readonly startsAt: string }[];
+  },
+): Letter {
   const date = formatDay(notice.chargesAt);
+  const recap = recapOf(notice.term, notice.counts);
   return {
     to: to.email,
     subject: `Your membership renews on ${date}`,
     lines: [
       hi(to.name),
       `On ${date} we renew your membership for another ${notice.term} and charge ${terms[notice.term].price} to the card you saved.`,
+      ...(recap ? [recap] : []),
+      ...(notice.upcoming.length ? ['Coming up:', ...notice.upcoming.map((s) => `${s.title}, ${formatMoment(s.startsAt)}`)] : []),
       `Nothing to do if that suits you. To stop it, turn renewal off on your account page before ${date}. You keep access to the end of what you paid for, and can pay by the month after that.`,
       { href: notice.accountUrl, label: 'Open your account' },
       `You're getting this because a ${notice.term}'s charge is worth a warning.`,
+    ],
+  };
+}
+
+/** Tells the admins a member turned renewal off, with what they said about why. Only ever sent to them. */
+export function renewalOffLetter(
+  admins: readonly string[],
+  stop: { readonly name: string; readonly paidUntil: string; readonly reason: StopReason | null; readonly note: string | null },
+  memberUrl: string,
+): Letter {
+  return {
+    to: admins,
+    subject: `${flat(stop.name)} turned renewal off`,
+    lines: [
+      `${stop.name} turned renewal off. They keep access until ${formatDay(stop.paidUntil)}.`,
+      stop.reason ? `Reason: ${stopReasonLabel[stop.reason]}.` : 'No reason given.',
+      ...(stop.note ? [`They wrote: ${stop.note}`] : []),
+      { href: memberUrl, label: 'Open their page' },
     ],
   };
 }

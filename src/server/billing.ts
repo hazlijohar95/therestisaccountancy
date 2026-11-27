@@ -1,6 +1,7 @@
-import { DEFAULT_TERM, TERMS, terms, type Term } from '../data/membership.ts';
-import { STATUS_SQL } from './club.ts';
+import { DEFAULT_TERM, STOP_NOTE_MAX, STOP_REASONS, TERMS, terms, type StopReason, type Term } from '../data/membership.ts';
+import { adminEmails, STATUS_SQL } from './club.ts';
 import { integer, oneOf, optionalText, text, type Db } from './db.ts';
+import { renewalOffLetter, type Letter } from './letters.ts';
 import type { Recipient } from './mailings.ts';
 
 /** Whether a member may use the members' area. Grace keeps a renewing member in for a few days past the paid term. */
@@ -20,6 +21,17 @@ export interface Standing {
 }
 
 export type PaymentKind = 'checkout' | 'renewal';
+
+/** What a member said when they turned renewal off. Both are theirs to leave out. */
+export interface StopWhy {
+  readonly reason: StopReason | null;
+  readonly note: string | null;
+}
+
+/** A time a member turned renewal off, and what they said about it. */
+export interface RenewalStop extends StopWhy {
+  readonly at: string;
+}
 
 /** A renewal to charge: the member, the term to charge for, and the card token CHIP saved at checkout. */
 export interface Renewal extends Recipient {
@@ -163,10 +175,38 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
       });
     },
 
-    /** Turns automatic renewal on or off. Returns the card token when turning off, so it can be revoked in CHIP. */
-    setRenews(memberId: number, renews: boolean): Standing {
-      db.prepare('UPDATE subscriptions SET renews = ? WHERE member_id = ?').run(renews ? 1 : 0, memberId);
-      return standing(memberId);
+    /**
+     * Turns automatic renewal on or off. Turning it off from on is kept as a stop, with whatever the member said about
+     * why, and answers the letter that tells the admins. Turning it off again, or on, records nothing and sends nothing.
+     * A member with no subscription has nothing to turn off.
+     */
+    setRenews(memberId: number, renews: boolean, siteUrl: string, why?: StopWhy): { readonly standing: Standing; readonly letters: Letter[] } {
+      return db.transaction(() => {
+        const row = db.prepare('SELECT renews, paid_until FROM subscriptions WHERE member_id = ?').get(memberId);
+        const stopping = row !== undefined && integer(row, 'renews') === 1 && !renews;
+        db.prepare('UPDATE subscriptions SET renews = ? WHERE member_id = ?').run(renews ? 1 : 0, memberId);
+        const letters: Letter[] = [];
+        if (row && stopping) {
+          const at = iso(now());
+          const note = why?.note?.trim().slice(0, STOP_NOTE_MAX) || null;
+          const reason = why?.reason ?? null;
+          db.prepare('INSERT INTO renewal_stops (member_id, at, reason, note) VALUES (?, ?, ?, ?)').run(memberId, at, reason, note);
+          const admins = adminEmails(db);
+          const member = db.prepare('SELECT name FROM members WHERE id = ?').get(memberId);
+          if (admins.length && member) {
+            letters.push(renewalOffLetter(admins, { name: text(member, 'name'), paidUntil: text(row, 'paid_until'), reason, note }, new URL(`/admin/members/${memberId}`, siteUrl).href));
+          }
+        }
+        return { standing: standing(memberId), letters };
+      });
+    },
+
+    /** The last time the member turned renewal off, or null if they never have. */
+    lastStop(memberId: number): RenewalStop | null {
+      const row = db.prepare('SELECT at, reason, note FROM renewal_stops WHERE member_id = ? ORDER BY at DESC, id DESC LIMIT 1').get(memberId);
+      if (!row) return null;
+      const reason = optionalText(row, 'reason');
+      return { at: text(row, 'at'), reason: reason === null ? null : oneOf(row, 'reason', STOP_REASONS), note: optionalText(row, 'note') };
     },
 
     /**
@@ -196,7 +236,7 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
      * The charge comes half a day before the paid term ends, so that is the moment the notice counts back from and
      * names. Each is marked as told for that end date, so they hear once before each renewal.
      */
-    renewalNotices(): (PaymentReminder & { readonly chargesAt: string })[] {
+    renewalNotices(): (PaymentReminder & { readonly memberId: number; readonly chargesAt: string })[] {
       return db.transaction(() => {
         const at = now().getTime();
         const longest = Math.max(...TERMS.map((t) => terms[t].noticeDays)) * DAY_MS;
@@ -214,7 +254,7 @@ export function createBilling(db: Db, now: () => Date = () => new Date()) {
           const chargesAt = new Date(paidUntil).getTime() - RENEW_AHEAD_MS;
           if (chargesAt > at + terms[term].noticeDays * DAY_MS) return [];
           mark.run(integer(row, 'member_id'));
-          return [{ email: text(row, 'email'), name: text(row, 'name'), term, paidUntil, chargesAt: iso(new Date(chargesAt)) }];
+          return [{ memberId: integer(row, 'member_id'), email: text(row, 'email'), name: text(row, 'name'), term, paidUntil, chargesAt: iso(new Date(chargesAt)) }];
         });
       });
     },

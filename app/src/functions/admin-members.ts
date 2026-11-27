@@ -1,7 +1,7 @@
 import { notFound } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
-import { everyRate } from '../../../src/data/membership.ts';
+import { everyRate, stopReasonLabel } from '../../../src/data/membership.ts';
 import { roleLabel, statusLabel } from '../../../src/data/members.ts';
 import { formatDay } from '../../../src/lib/format.ts';
 import { pageCount } from '../../../src/lib/paging.ts';
@@ -88,7 +88,7 @@ export const adminOverview = createServerFn({ method: 'GET' })
         filters,
         sessionsHeld,
         quietDays: QUIET_DAYS,
-        quiet: quiet.map((m) => ({ id: m.id, name: m.name, email: m.email, last: lastDid(m.last), paidUntil: formatDay(m.paidUntil), renews: m.renews ? 'On' : 'Off' })),
+        quiet: quiet.map((m) => ({ id: m.id, name: m.name, email: m.email, last: lastDid(m.last), paidUntil: formatDay(m.paidUntil), renews: m.renews ? 'On' : m.stop?.reason ? `Off (${stopReasonLabel[m.stop.reason]})` : 'Off' })),
         pending: pending.map((r) => ({ id: r.id, name: r.name, email: r.email, stage: r.stage, received: formatDay(r.createdAt) })),
         decided: decided.map((r) => ({ id: r.id, name: r.name, email: r.email, stage: r.stage, decision: r.status === 'invited' ? 'Invited' : 'Declined' })),
         members: items.map((m) => ({ id: m.id, number: memberNumber(m), name: m.name, email: m.email, role: roleLabel[m.role], status: statusLabel[m.status], since: formatDay(m.joinedAt) })),
@@ -110,8 +110,10 @@ export const adminMember = createServerFn({ method: 'GET' })
       const postCount = await store.community.postCount(member.id);
       const last = await store.activity.last(member.id);
       const standing = await store.billing.standing(member.id);
+      const stop = standing.renews ? null : await store.billing.lastStop(member.id);
       return {
         member,
+        stop,
         lessonsDone: completed.size,
         postCount,
         last,
@@ -134,6 +136,7 @@ export const adminMember = createServerFn({ method: 'GET' })
         { term: 'Member number', detail: memberNumber(member) },
         { term: 'Status', detail: statusLabel[member.status] },
         { term: 'Paid', detail: paid },
+        ...(found.stop ? [{ term: 'Renewal off', detail: `${formatDay(found.stop.at)}, ${found.stop.reason ? stopReasonLabel[found.stop.reason] : 'no reason given'}${found.stop.note ? `. They wrote: ${found.stop.note}` : ''}` }] : []),
         { term: 'Role', detail: roleLabel[member.role] },
         { term: 'Since', detail: formatDay(member.joinedAt) },
         { term: 'Lessons done', detail: String(found.lessonsDone) },

@@ -606,6 +606,16 @@ const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX sign_ins_by_expiry ON sign_ins (expires_at);
   `,
+  `
+  CREATE TABLE renewal_stops (
+    id INTEGER PRIMARY KEY,
+    member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    at TEXT NOT NULL,
+    reason TEXT,
+    note TEXT
+  );
+  CREATE INDEX renewal_stops_by_member ON renewal_stops (member_id, at);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

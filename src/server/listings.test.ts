@@ -202,7 +202,7 @@ test('the directory shows a listing only while its member is active and paid up,
   agrees('once paid again');
   assert.equal(shown(), true, 'paying again brings it back without a new check');
 
-  w.billing.setRenews(aina.id, false);
+  w.billing.setRenews(aina.id, false, 'https://club.test');
   w.later(new Date(w.billing.standing(aina.id).paidUntil ?? 0).getTime() - w.now().getTime() + 60_000);
   agrees('with renewal off, just past the month');
   assert.equal(shown(), false, 'no grace once renewal is off');

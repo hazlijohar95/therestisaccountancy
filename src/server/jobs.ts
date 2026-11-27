@@ -1,4 +1,5 @@
 import { channelBySlug, threadPath } from '../data/community.ts';
+import { terms } from '../data/membership.ts';
 import { tally } from '../lib/format.ts';
 import { openStore } from './instance.ts';
 import { GRACE_MS } from './billing.ts';
@@ -48,7 +49,14 @@ export async function hourly(at: Date, siteUrl: string): Promise<void> {
       }
     });
     await step('renewal notices', async () => {
-      for (const notice of await store.billing.renewalNotices()) letters.push(renewalNoticeLetter(notice, { term: notice.term, chargesAt: notice.chargesAt, accountUrl: url('/members/account') }));
+      const notices = await store.billing.renewalNotices();
+      if (!notices.length) return;
+      const upcoming = (await store.schedule.upcoming(null)).slice(0, 3).map((s) => ({ title: s.title, startsAt: s.startsAt }));
+      for (const notice of notices) {
+        const since = terms[notice.term].before(new Date(notice.paidUntil)).toISOString().replace(/\.\d{3}Z$/, 'Z');
+        const counts = await store.activity.counts(notice.memberId, since);
+        letters.push(renewalNoticeLetter(notice, { term: notice.term, chargesAt: notice.chargesAt, accountUrl: url('/members/account'), counts, upcoming }));
+      }
     });
     await step('payment reminders', async () => {
       for (const due of await store.billing.paymentReminders()) letters.push(paymentDueLetter(due, { term: due.term, paidUntil: due.paidUntil, payUrl: url('/members/pay') }));

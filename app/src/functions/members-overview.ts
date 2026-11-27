@@ -10,12 +10,19 @@ import { hostFirstName } from '../../../src/data/authors.ts';
 /** The overview: the member, their progress through each programme, and where they stand with the rest of the club. */
 export const membersOverview = createServerFn({ method: 'GET' }).handler(async () => {
   const member = await admit('paid', toClub);
-  const { done, plan, call, listing } = await withStore(async (store) => {
+  const { done, plan, call, listing, next } = await withStore(async (store) => {
     const done = await store.club.completedLessons(member.id);
     const plan = await store.plans.ofMember(member.id);
     const call = await store.calls.booking(member.id);
     const listing = await store.listings.listing(member.id);
-    return { done, plan: { open: plan.open && { status: plan.open.status }, answered: plan.answered.length }, call: call && { startsAt: call.startsAt }, listing };
+    const soonest = (await store.schedule.upcoming(member.id))[0];
+    return {
+      done,
+      plan: { open: plan.open && { status: plan.open.status }, answered: plan.answered.length },
+      call: call && { startsAt: call.startsAt },
+      listing,
+      next: soonest ? { title: soonest.title, kind: soonest.kind, startsAt: soonest.startsAt, minutes: soonest.minutes, attending: soonest.attending } : null,
+    };
   });
   const progress = programmes.map((programme) => {
     const lessons = lessonsOf(programme.slug);
@@ -31,5 +38,5 @@ export const membersOverview = createServerFn({ method: 'GET' }).handler(async (
     { no: 'C', href: '/members/resources', title: 'Templates', detail: 'Checklists, letters and scripts to use with your own clients.', action: templates ? `${templates} to use` : 'Open them' },
     { no: 'D', href: '/members/listing', title: 'Find an accountant', detail: 'List your practice in the club directory, where business owners look for an accountant.', action: listingState },
   ];
-  return { member: { name: member.name, joinedAt: member.joinedAt, number: memberNumber(member), role: member.role }, progress, around };
+  return { member: { name: member.name, joinedAt: member.joinedAt, number: memberNumber(member), role: member.role }, next, progress, around };
 });

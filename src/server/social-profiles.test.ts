@@ -105,8 +105,8 @@ test('accounts that joined before invites keep working and are recorded as open'
   const aina = await w.joined('Aina', 'aina@firm.my', 'aina');
   value(w.profiles.claimHandle(owner.id, 'owner'));
   /* Back to the schema before invites, with profiles made the old way, then upgrade again. */
-  w.db.exec('DROP TABLE sign_ins; DROP TABLE social_requests; DROP TABLE social_invites; DROP TRIGGER profiles_need_an_entry; DROP TABLE social_entries;');
-  w.db.prepare('DELETE FROM schema_version WHERE version >= ?').run(SCHEMA_VERSION - 1);
+  w.db.exec('DROP TABLE renewal_stops; DROP TABLE sign_ins; DROP TABLE social_requests; DROP TABLE social_invites; DROP TRIGGER profiles_need_an_entry; DROP TABLE social_entries;');
+  w.db.prepare('DELETE FROM schema_version WHERE version >= ?').run(SCHEMA_VERSION - 2);
   w.db.prepare(`INSERT INTO members (email, name, joined_via, password_hash) VALUES ('old@firm.my', 'Old Timer', 'social', 'x')`).run();
   w.db.prepare(`INSERT INTO profiles (member_id, handle, created_at, updated_at) SELECT id, 'oldtimer', '2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z' FROM members WHERE email = 'old@firm.my'`).run();
   migrate(w.db);

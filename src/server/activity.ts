@@ -1,5 +1,5 @@
 import { STATUS_SQL } from './club.ts';
-import { createBilling } from './billing.ts';
+import { createBilling, type RenewalStop } from './billing.ts';
 import { integer, oneOf, optionalText, text, type Db } from './db.ts';
 
 /** The things a member does that use what they pay for. */
@@ -18,6 +18,8 @@ export interface QuietMember {
   readonly email: string;
   readonly paidUntil: string;
   readonly renews: boolean;
+  /** When renewal is off, the last time they turned it off. */
+  readonly stop: RenewalStop | null;
   /** Null: nothing yet. */
   readonly last: LastActivity | null;
 }
@@ -47,6 +49,14 @@ export function createActivity(db: Db, now: () => Date = () => new Date()) {
       return row ? { kind: oneOf(row, 'kind', ACTIVITY_KINDS), at: text(row, 'at') } : null;
     },
 
+    /** How many of each thing the member did from `since` on. */
+    counts(memberId: number, since: string): Record<ActivityKind, number> {
+      const counts: Record<ActivityKind, number> = { session: 0, post: 0, lesson: 0, call: 0, plan: 0 };
+      const rows = db.prepare(`WITH events AS (${EVENTS}) SELECT kind, count(*) AS n FROM events WHERE member_id = ? AND at >= ? GROUP BY kind`).all(memberId, since);
+      for (const row of rows) counts[oneOf(row, 'kind', ACTIVITY_KINDS)] = integer(row, 'n');
+      return counts;
+    },
+
     /**
      * Paying members, in grace included, who have done nothing for QUIET_DAYS, quietest first: those who never have, then
      * the longest since. A member who first paid inside that time is not counted: the getting-started emails are theirs.
@@ -72,7 +82,7 @@ export function createActivity(db: Db, now: () => Date = () => new Date()) {
         const id = integer(row, 'id');
         const standing = billing.standing(id);
         if (standing.access === 'unpaid' || standing.paidUntil === null) return [];
-        return [{ id, name: text(row, 'name'), email: text(row, 'email'), paidUntil: standing.paidUntil, renews: standing.renews, last }];
+        return [{ id, name: text(row, 'name'), email: text(row, 'email'), paidUntil: standing.paidUntil, renews: standing.renews, stop: standing.renews ? null : billing.lastStop(id), last }];
       });
       return quiet.sort((a, b) => (a.last?.at ?? '').localeCompare(b.last?.at ?? '') || a.id - b.id);
     },

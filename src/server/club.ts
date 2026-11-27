@@ -110,6 +110,10 @@ export const STATUS_SQL = {
   suspended: 'suspended_at IS NOT NULL',
 } as const satisfies Record<MemberStatus, string>;
 
+/** Where news for the admins goes: every active admin's email. Shared with the domain modules whose use cases end in mail to them. */
+export const adminEmails = (db: Db): string[] =>
+  db.prepare(`SELECT email FROM members WHERE role = 'admin' AND ${STATUS_SQL.active} ORDER BY id`).all().map((row) => text(row, 'email'));
+
 export const toMember = (row: Row): Member => ({
   id: integer(row, 'id'),
   email: text(row, 'email'),
@@ -295,9 +299,7 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
     },
 
     /** Where news for the admins goes: every active admin's email. */
-    adminEmails(): string[] {
-      return db.prepare(`SELECT email FROM members WHERE role = 'admin' AND ${STATUS_SQL.active} ORDER BY id`).all().map((row) => text(row, 'email'));
-    },
+    adminEmails: () => adminEmails(db),
 
     member(id: number): Member | null {
       const row = memberRow(id);

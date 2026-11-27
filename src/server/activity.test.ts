@@ -49,7 +49,7 @@ const world = () => {
       insert('INSERT INTO plans (member_id, created_at, updated_at) VALUES (?, ?, ?)', memberId, at, at);
     }
   };
-  return { db, store, join, payer, did, later: (days: number) => (clock = new Date(clock.getTime() + days * DAY_MS)) };
+  return { db, store, now, join, payer, did, later: (days: number) => (clock = new Date(clock.getTime() + days * DAY_MS)) };
 };
 
 test('each thing a member does counts, and the latest one is what they last did', async () => {
@@ -125,5 +125,36 @@ test('never-active members come first, then the longest quiet, ties by id', asyn
   const quiet = w.store.activity.quiet();
   assert.deepEqual(quiet.map((m) => m.name), ['B', 'D', 'C', 'A', 'E']);
   assert.deepEqual(quiet.map((m) => m.last?.kind ?? null), [null, null, 'lesson', 'post', 'call']);
-  assert.deepEqual(quiet[0], { id: b.id, name: 'B', email: 'b@firm.com.my', paidUntil: '2027-12-01T10:00:00Z', renews: true, last: null });
+  assert.deepEqual(quiet[0], { id: b.id, name: 'B', email: 'b@firm.com.my', paidUntil: '2027-12-01T10:00:00Z', renews: true, stop: null, last: null });
+});
+
+test('counts tallies each kind from a date on, for that member only', async () => {
+  const w = world();
+  const aina = await w.payer('aina@firm.com.my', 'Aina');
+  const budi = await w.payer('budi@firm.com.my', 'Budi');
+  w.later(400);
+  for (const daysAgo of [300, 200, 100]) w.did('session', aina.id, daysAgo);
+  w.did('post', aina.id, 50);
+  w.did('lesson', aina.id, 380);
+  w.did('call', aina.id, 10);
+  w.did('plan', aina.id, 5);
+  w.did('session', budi.id, 10);
+  const since = new Date(w.now().getTime() - 365 * DAY_MS).toISOString();
+  assert.deepEqual(w.store.activity.counts(aina.id, since), { session: 3, post: 1, lesson: 0, call: 1, plan: 1 });
+  assert.deepEqual(w.store.activity.counts(budi.id, since), { session: 1, post: 0, lesson: 0, call: 0, plan: 0 });
+  assert.deepEqual(w.store.activity.counts(aina.id, w.now().toISOString()), { session: 0, post: 0, lesson: 0, call: 0, plan: 0 });
+});
+
+test('a quiet member who turned renewal off carries why, and one who turned it back on does not', async () => {
+  const w = world();
+  const aina = await w.payer('aina@firm.com.my', 'Aina');
+  const budi = await w.payer('budi@firm.com.my', 'Budi');
+  w.store.billing.setRenews(aina.id, false, 'https://club.test', { reason: 'value', note: null });
+  w.store.billing.setRenews(budi.id, false, 'https://club.test', { reason: 'time', note: null });
+  w.store.billing.setRenews(budi.id, true, 'https://club.test');
+  w.later(QUIET_DAYS + 1);
+  const [first, second] = w.store.activity.quiet();
+  assert.equal(first?.name, 'Aina');
+  assert.deepEqual(first?.stop, { at: '2026-12-01T10:00:00Z', reason: 'value', note: null });
+  assert.equal(second?.stop, null);
 });
