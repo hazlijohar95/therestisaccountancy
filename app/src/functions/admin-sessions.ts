@@ -13,15 +13,13 @@ import { adminOrRedirect, malaysiaToday } from './admin.server.ts';
 /** The sessions on the calendar, with who is coming to each. */
 export const adminSessions = createServerFn({ method: 'GET' }).handler(async () => {
   await adminOrRedirect();
-  const sessions = await withStore(async (store) => {
-    const upcoming = await store.schedule.upcoming(null);
-    const listed = [];
-    for (const s of upcoming) {
-      const names = (await store.schedule.attendees(s.id)).map((m) => m.name);
-      listed.push({ id: s.id, title: s.title, when: `${formatMoment(s.startsAt)} · ${s.minutes} min · ${s.kind}`, coming: s.going === 0 ? 'Nobody coming yet.' : `Coming: ${listOf(names)}.` });
-    }
-    return listed;
-  });
+  const rolls = await withStore(async (store) => await store.schedule.rolls());
+  const sessions = rolls.map(({ session: s, attendees }) => ({
+    id: s.id,
+    title: s.title,
+    when: `${formatMoment(s.startsAt)} · ${s.minutes} min · ${s.kind}`,
+    coming: s.going === 0 ? 'Nobody coming yet.' : `Coming: ${listOf(attendees.map((m) => m.name))}.`,
+  }));
   return { sessions, today: malaysiaToday(), kinds: SESSION_KINDS };
 });
 
@@ -47,9 +45,8 @@ export const addSession = createServerFn({ method: 'POST' })
     const { date, time, ...session } = input.value;
     const startsAt = malaysiaTime(date, time);
     if (!startsAt) return refused('That date or time does not exist.');
-    if (new Date(startsAt).getTime() <= Date.now()) return refused('That time has passed. Pick one ahead.');
-    await withStore(async (store) => await store.schedule.add({ ...session, startsAt }));
-    return done(null);
+    const added = await withStore(async (store) => await store.schedule.add({ ...session, startsAt }));
+    return added.ok ? done(null) : refused('That time has passed. Pick one ahead.');
   });
 
 const sessionInput = z.object({ session: id });

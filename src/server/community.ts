@@ -1,6 +1,7 @@
 import { channelSlugs, channels, type ChannelSlug } from '../data/community.ts';
 import { ROLES, type Member, type Role } from './club.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
+import { noticeReply, type ReplyNotices } from './mailings.ts';
 import type { Result } from './result.ts';
 
 /** Who wrote something. Null once the member has been removed: their words stay, their name goes. */
@@ -217,9 +218,12 @@ export function createCommunity(db: Db, now: () => Date = () => new Date()) {
       };
     },
 
-    /** Adds a post. A locked thread takes replies only from admins. The same text twice within a minute posts once. */
-    reply(actor: Actor, threadId: number, input: { body: string }): Result<PostPlace, PostRefusal> {
-      return attempt<PostPlace, PostRefusal>(db, (refuse) => {
+    /**
+     * Adds a post, and records who is told of it. A locked thread takes replies only from admins. The same text twice
+     * within a minute posts once.
+     */
+    reply(actor: Actor, threadId: number, input: { body: string }): Result<PostPlace & { readonly notices: ReplyNotices }, PostRefusal> {
+      return attempt<PostPlace & { readonly notices: ReplyNotices }, PostRefusal>(db, (refuse) => {
         const row = threadRow(threadId);
         if (!row) return refuse('not-found');
         const thread = toThread(row);
@@ -228,11 +232,10 @@ export function createCommunity(db: Db, now: () => Date = () => new Date()) {
         const repeat = db
           .prepare('SELECT id FROM posts WHERE thread_id = ? AND author_id = ? AND body = ? AND created_at >= ? AND deleted_at IS NULL')
           .get(threadId, actor.id, body, since());
-        if (repeat) return place(threadId, thread.channel, integer(repeat, 'id'));
-        const at = iso(now());
-        const post = db.prepare('INSERT INTO posts (thread_id, author_id, body, created_at) VALUES (?, ?, ?, ?)').run(threadId, actor.id, body, at);
-        db.prepare('UPDATE threads SET last_post_at = ? WHERE id = ?').run(at, threadId);
-        return place(threadId, thread.channel, post.lastInsertRowid);
+        const at = now();
+        const postId = repeat ? integer(repeat, 'id') : db.prepare('INSERT INTO posts (thread_id, author_id, body, created_at) VALUES (?, ?, ?, ?)').run(threadId, actor.id, body, iso(at)).lastInsertRowid;
+        if (!repeat) db.prepare('UPDATE threads SET last_post_at = ? WHERE id = ?').run(iso(at), threadId);
+        return { ...place(threadId, thread.channel, postId), notices: noticeReply(db, at, threadId, actor.id) };
       });
     },
 

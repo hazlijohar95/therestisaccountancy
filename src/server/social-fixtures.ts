@@ -16,6 +16,7 @@ import { createSocialShelf } from './social-shelf.ts';
 /* A whole social site on node:sqlite with a clock the test moves, for the tests of slice 6 and on. Tests only. */
 
 export const PASSWORD = 'correct horse battery';
+export const SITE = 'https://therestisaccountancy.com/';
 export const DAY = 86_400_000;
 
 export const value = <T, R extends string>(result: Result<T, R>): T => {

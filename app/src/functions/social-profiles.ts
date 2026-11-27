@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { HANDLE, HANDLE_TAKEN, JURISDICTIONS, PROFILE_LIMITS, SECTORS, TOPICS, TRACKS, type Topic, type Track } from '../../../src/data/social.ts';
 import { claimWhen, renewsIn } from '../../../src/lib/ticks.ts';
 import type { VouchRefusal } from '../../../src/server/social-claims.ts';
-import { handleProblem, normaliseHandle, type ClaimRefusal, type FollowRefusal, type HandleRefusal, type Profile } from '../../../src/server/social-profiles.ts';
+import { handleProblem, normaliseHandle, type FollowRefusal, type HandleRefusal, type Profile, type SaveRefusal } from '../../../src/server/social-profiles.ts';
 import { numberId, oneLine, token } from '../lib/fields.ts';
 import { memberOrRefusal } from '../lib/guards.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
@@ -18,10 +18,11 @@ export const handleRefusals: Record<HandleRefusal, string> = {
   'handle-taken': HANDLE_TAKEN,
 };
 
-const claimRefusals: Record<ClaimRefusal, string> = {
+const saveRefusals: Record<SaveRefusal, string> = {
   ...handleRefusals,
   'already-claimed': 'You already have a handle.',
   'not-invited': 'Social is invite-only. Use an invite link, or ask to join.',
+  'no-handle': 'Pick a handle first.',
 };
 
 const followRefusals: Record<FollowRefusal, string> = {
@@ -104,56 +105,44 @@ export const profilePage = createServerFn({ method: 'GET' })
   .validator((handle: string) => handle)
   .handler(async ({ data: handle }) => {
     const member = await currentMember();
-    const viewerId = member?.id ?? null;
+    const page = await withStore(async (store) => await store.socialProfiles.page(handle, member?.id ?? null));
+    if (!page) return null;
     const now = new Date();
-    return withStore(async (store) => {
-      const profile = await store.socialProfiles.profile(handle);
-      if (!profile) return null;
-      const own = member !== null && profile.memberId === member.id;
-      const viewer = member ? await store.socialProfiles.ownProfile(member.id) : null;
-      const ledger = await store.socialClaims.ledger(profile.memberId, viewerId);
-      const roles = await store.socialCasebook.roles(profile.memberId);
-      const latestYear = now.getFullYear() + 1;
-      const counts = await store.socialProfiles.followCounts(profile.memberId);
-      const invitedBy = await store.socialProfiles.invitedBy(profile.memberId);
-      const record = await store.socialProblems.record(profile.memberId);
-      const heat = await store.socialCasebook.heatmap(profile.memberId);
-      const checklist = own && member ? await store.socialProfiles.checklist(member.id) : null;
-      return {
-        profile: profileOf(profile),
-        own,
-        signedIn: member !== null,
-        /* Only members with the seal vouch, and never for themselves. Others see the count. */
-        canVouch: !own && (viewer?.sealed ?? false),
-        following: member && !own ? await store.socialProfiles.isFollowing(member.id, profile.memberId) : false,
-        counts: { followers: counts.followers, following: counts.following },
-        /* Shown only for a member's invite, and only while the inviter's own profile is public. */
-        invitedBy: invitedBy && { handle: invitedBy.handle, name: invitedBy.name },
-        accounts: ledger.accounts.map((a) => ({ id: a.id, platform: a.platform, handle: a.handle, url: a.url })),
-        claims: ledger.claims.map((c) => ({
-          id: c.id,
-          kind: c.kind,
-          label: c.label,
-          source: c.source,
-          state: c.review.state,
-          /* Self-declared experience draws its own dashed tick until peers vouch for it, as tickState() says. */
-          tick: c.source === 'self' && c.review.state === 'pending' ? ('self' as const) : c.review.state,
-          vouches: c.vouches,
-          vouchedByViewer: c.vouchedByViewer,
-          when: claimWhen(c),
-          due: renewsIn(c, now),
-        })),
-        posts: await store.socialFloor.recentPosts(viewerId, profile.memberId),
-        record: { answers: record.answers, rated: record.rated, sound: record.sound, partly: record.partly, unsound: record.unsound },
-        heat: { industries: heat.industries, cells: heat.cells, entries: heat.entries, cosigned: heat.cosigned },
-        roles,
-        latestYear,
-        firstYear: roles.length ? Math.min(...roles.map((r) => r.from)) : latestYear,
-        shelf: await store.socialShelf.shelf(profile.memberId, viewerId),
-        saved: own && member ? await store.socialShelf.saved(member.id) : [],
-        checklist: checklist && { ticked: checklist.ticked, headline: checklist.headline, casebook: checklist.casebook, answered: checklist.answered, badge: checklist.badge },
-      };
-    });
+    const { ledger, record, heat, roles, checklist } = page;
+    const latestYear = now.getFullYear() + 1;
+    return {
+      profile: profileOf(page.profile),
+      own: page.own,
+      signedIn: member !== null,
+      canVouch: page.canVouch,
+      following: page.following,
+      counts: { followers: page.counts.followers, following: page.counts.following },
+      /* Shown only for a member's invite, and only while the inviter's own profile is public. */
+      invitedBy: page.invitedBy && { handle: page.invitedBy.handle, name: page.invitedBy.name },
+      accounts: ledger.accounts.map((a) => ({ id: a.id, platform: a.platform, handle: a.handle, url: a.url })),
+      claims: ledger.claims.map((c) => ({
+        id: c.id,
+        kind: c.kind,
+        label: c.label,
+        source: c.source,
+        state: c.review.state,
+        /* Self-declared experience draws its own dashed tick until peers vouch for it, as tickState() says. */
+        tick: c.source === 'self' && c.review.state === 'pending' ? ('self' as const) : c.review.state,
+        vouches: c.vouches,
+        vouchedByViewer: c.vouchedByViewer,
+        when: claimWhen(c),
+        due: renewsIn(c, now),
+      })),
+      posts: page.posts,
+      record: { answers: record.answers, rated: record.rated, sound: record.sound, partly: record.partly, unsound: record.unsound },
+      heat: { industries: heat.industries, cells: heat.cells, entries: heat.entries, cosigned: heat.cosigned },
+      roles,
+      latestYear,
+      firstYear: roles.length ? Math.min(...roles.map((r) => r.from)) : latestYear,
+      shelf: page.shelf,
+      saved: page.saved,
+      checklist: checklist && { ticked: checklist.ticked, headline: checklist.headline, casebook: checklist.casebook, answered: checklist.answered, badge: checklist.badge },
+    };
   });
 
 export const follow = createServerFn({ method: 'POST' })
@@ -211,14 +200,8 @@ export const saveProfile = createServerFn({ method: 'POST' })
     const input = parsed(profileSchema, data);
     if (!input.ok) return input;
     const { handle, ...fields } = input.value;
-    return withStore(async (store): Promise<Outcome<{ handle: string }>> => {
-      if (!(await store.socialProfiles.ownProfile(member.value.id))) {
-        /* Before a handle is claimed, every refusal is about the handle, so it shows beside it. */
-        if (!handle) return refused('Pick a handle first.', { handle: 'Pick a handle first.' });
-        const claim = await store.socialProfiles.claimHandle(member.value.id, handle);
-        if (!claim.ok) return refused(claimRefusals[claim.reason], { handle: claimRefusals[claim.reason] });
-      }
-      const profile = await store.socialProfiles.update(member.value.id, fields);
-      return profile ? done({ handle: profile.handle }) : refused('Your profile was not saved. Try again.');
-    });
+    const saved = await withStore(async (store) => await store.socialProfiles.save(member.value.id, handle ?? null, fields));
+    if (saved.ok) return done({ handle: saved.value.handle });
+    /* Every refusal comes before a handle is claimed, and is about the handle, so it shows beside it. */
+    return refused(saveRefusals[saved.reason], { handle: saveRefusals[saved.reason] });
   });

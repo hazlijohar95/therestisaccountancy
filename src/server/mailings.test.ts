@@ -6,10 +6,15 @@ import { migrate } from './db.ts';
 import { createBilling } from './billing.ts';
 import { createMailings, digestWeek, onboardingStep, REPLY_NOTICE_GAP_MS } from './mailings.ts';
 import { openDatabase } from './node-db.ts';
+import type { Result } from './result.ts';
 import { createSchedule } from './schedule.ts';
 
 const PASSWORD = 'correct horse battery';
 const DAY_MS = 86_400_000;
+const value = <T, R extends string>(result: Result<T, R>): T => {
+  if (!result.ok) assert.fail(`expected success, got ${result.reason}`);
+  return result.value;
+};
 
 const world = () => {
   let clock = new Date('2026-11-24T10:00:00Z');
@@ -35,18 +40,20 @@ test('a reply tells everyone else who posted in the thread, at most once every s
   const abu = await w.join('abu@firm.com.my', 'Abu');
   const siti = await w.join('siti@firm.com.my', 'Siti');
   const place = w.community.startThread(aina, { channel: 'pricing', title: 'Fixed fees for audits', body: 'How do you price them?' });
-  w.community.reply(abu, place.threadId, { body: 'Per entity.' });
+  const told = (member: { id: number; role: 'member' | 'admin' }, body: string) => {
+    const { notices } = value(w.community.reply(member, place.threadId, { body }));
+    assert.equal(notices.title, 'Fixed fees for audits');
+    return notices.recipients.map((r) => r.name).sort();
+  };
 
-  w.community.reply(siti, place.threadId, { body: 'Per hour, sadly.' });
-  const first = w.mailings.replyNotices(place.threadId, siti.id);
-  assert.equal(first.title, 'Fixed fees for audits');
-  assert.deepEqual(first.recipients.map((r) => r.name).sort(), ['Abu', 'Aina'], 'the replier is not told');
-  w.community.reply(abu, place.threadId, { body: 'Try fixed.' });
-  assert.deepEqual(w.mailings.replyNotices(place.threadId, abu.id).recipients.map((r) => r.name), ['Siti'], 'Aina, told minutes ago, is skipped');
+  assert.deepEqual(told(abu, 'Per entity.'), ['Aina'], 'the replier is not told');
+  assert.deepEqual(told(siti, 'Per hour, sadly.'), ['Abu'], 'Aina, told minutes ago, is skipped');
+  assert.deepEqual(told(abu, 'Try fixed.'), ['Siti']);
+  assert.deepEqual(told(abu, 'Try fixed.'), [], 'the same reply again posts once and tells nobody twice');
 
   w.later(REPLY_NOTICE_GAP_MS + 1);
   w.mailings.setPrefs(abu.id, { replies: false, digest: true });
-  assert.deepEqual(w.mailings.replyNotices(place.threadId, siti.id).recipients.map((r) => r.name), ['Aina'], 'a member who turned replies off is skipped');
+  assert.deepEqual(told(siti, 'Per hour, still.'), ['Aina'], 'a member who turned replies off is skipped');
   assert.deepEqual(w.mailings.prefs(abu.id), { replies: false, digest: true });
 });
 
@@ -77,7 +84,7 @@ test('the digest is due from 8 am Malaysia time on Mondays', () => {
 test('members say they are coming, are reminded once, and hear when a session is called off', async () => {
   const w = await world();
   const aina = await w.join('aina@firm.com.my', 'Aina');
-  const id = w.schedule.add({ title: 'Pricing clinic', kind: 'Clinics', startsAt: '2026-11-26T12:00:00Z', minutes: 60, link: 'https://meet.example/x', detail: '' });
+  const id = value(w.schedule.add({ title: 'Pricing clinic', kind: 'Clinics', startsAt: '2026-11-26T12:00:00Z', minutes: 60, link: 'https://meet.example/x', detail: '' }));
 
   const yes = w.schedule.rsvp(aina.id, id, true);
   assert.equal(yes?.changed, true);
@@ -98,7 +105,7 @@ test('members say they are coming, are reminded once, and hear when a session is
   assert.equal(w.schedule.upcoming(aina.id).length, 0, 'gone once it ends');
   assert.equal(w.schedule.rsvp(aina.id, id, false), null, 'too late to answer');
 
-  const next = w.schedule.add({ title: 'Guest session', kind: 'Guest sessions', startsAt: '2026-12-10T12:00:00Z', minutes: 90, link: 'https://meet.example/y', detail: '' });
+  const next = value(w.schedule.add({ title: 'Guest session', kind: 'Guest sessions', startsAt: '2026-12-10T12:00:00Z', minutes: 90, link: 'https://meet.example/y', detail: '' }));
   w.schedule.rsvp(aina.id, next, true);
   assert.deepEqual(w.schedule.cancel(next)?.attendees.map((a) => a.name), ['Aina']);
   assert.equal(w.schedule.cancel(next), null, 'calling it off twice does nothing');
@@ -140,7 +147,7 @@ test('a paying member who has not booked a session gets each getting-started ema
   assert.deepEqual(due(), ['Abu 0', 'Aina 0', 'Siti 0'], 'the member who has not paid is not told about sessions they cannot book');
   assert.deepEqual(due(), [], 'a rerun of the hourly job sends nothing twice');
 
-  const session = w.schedule.add({ title: 'Pricing clinic', kind: 'Clinics', startsAt: '2026-12-10T12:00:00Z', minutes: 60, link: 'https://meet.example/x', detail: '' });
+  const session = value(w.schedule.add({ title: 'Pricing clinic', kind: 'Clinics', startsAt: '2026-12-10T12:00:00Z', minutes: 60, link: 'https://meet.example/x', detail: '' }));
   w.schedule.rsvp(abu.id, session, true);
   assert.deepEqual(due(), [], 'nothing more until day 4');
   const key = w.db.prepare('SELECT unsubscribe_key FROM members WHERE id = ?').get(siti.id)?.unsubscribe_key;

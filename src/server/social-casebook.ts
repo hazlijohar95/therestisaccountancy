@@ -20,7 +20,7 @@ import { identifying, ROLE_TITLE_SKIP } from '../lib/guard.ts';
 import { attempt, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import { fail, ok, type Result } from './result.ts';
 import { notify } from './social-notify.ts';
-import { activeSql, authorOf, claimFacts, normaliseHandle, sealedSql, sealOf, type Author } from './social-profiles.ts';
+import { activeSql, authorOf, claimFacts, hasHandle, normaliseHandle, sealedSql, sealOf, type Author } from './social-profiles.ts';
 
 /*
  * The casebook: work logged by kind, industry, size band and year, never by client, and a colleague with the seal who
@@ -135,7 +135,7 @@ export function createSocialCasebook(db: Db, now: () => Date = () => new Date())
      */
     add(memberId: number, draft: EntryDraft): Result<{ readonly id: number }, EntryRefusal> {
       return attempt<{ readonly id: number }, EntryRefusal>(db, (refuse) => {
-        if (!db.prepare('SELECT 1 FROM profiles WHERE member_id = ?').get(memberId)) refuse('no-handle');
+        if (!hasHandle(db, memberId)) refuse('no-handle');
         if (identifying(draft.note).length) refuse('identifying');
         if (!casebookYears(now()).includes(draft.year)) refuse('year');
         let cosignerId: number | null = null;

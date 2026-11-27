@@ -1,14 +1,12 @@
 import { redirect } from '@tanstack/react-router';
 import { everyRate } from '../../../src/data/membership.ts';
-import { callLetters } from '../../../src/server/calls.ts';
 import type { Member, PasswordLink } from '../../../src/server/club.ts';
 import { passwordLetter } from '../../../src/server/letters.ts';
 import { send } from '../../../src/server/mail.ts';
-import type { Store } from '../../../src/server/instance.ts';
 import { formatDay } from '../../../src/lib/format.ts';
 import { pagingOf } from '../../../src/lib/paging.ts';
 import { memberOrSignIn } from '../lib/guards.server.ts';
-import { absolute, sendLater } from '../lib/mail.server.ts';
+import { absolute } from '../lib/mail.server.ts';
 
 /** For an admin page's loader: the admin, a redirect to sign in and back when signed out, or to the members' area. */
 export async function adminOrRedirect(): Promise<Member> {
@@ -49,16 +47,3 @@ export async function deliver({ member, purpose, token, expiresAt }: PasswordLin
   const emailed = await send(passwordLetter(shared));
   return { name: shared.name, email: shared.email, purpose, link: shared.link, expires: formatDay(expiresAt), emailed };
 }
-
-/**
- * Calls booked with a host, gathered before a change that stops them hosting: removal, suspension or losing the admin
- * role. Their slots then read as cancelled, and these members are told as if the host had cancelled.
- */
-export async function bookedWith(store: Store, memberId: number) {
-  const host = await store.club.member(memberId);
-  if (!host || host.role !== 'admin') return [];
-  return (await store.calls.upcoming()).flatMap((slot) => (slot.state === 'booked' && slot.host.email === host.email ? [slot] : []));
-}
-
-export const tellCalledOff = (calls: Awaited<ReturnType<typeof bookedWith>>) =>
-  sendLater(calls.flatMap((call) => callLetters('cancelled-by-host', call, absolute('/'))));

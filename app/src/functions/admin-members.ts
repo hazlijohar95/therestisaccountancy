@@ -12,10 +12,10 @@ import { send } from '../../../src/server/mail.ts';
 import { report } from '../../../src/server/report.ts';
 import { email, id, memberName } from '../lib/fields.ts';
 import { adminOrRefusal } from '../lib/guards.server.ts';
-import { absolute } from '../lib/mail.server.ts';
+import { absolute, sendLater } from '../lib/mail.server.ts';
 import { done, parsed, refused, type Outcome } from '../lib/outcome.ts';
 import { withStore } from '../lib/store.server.ts';
-import { adminOrRedirect, bookedWith, deliver, pagingFor, tellCalledOff, type Issued } from './admin.server.ts';
+import { adminOrRedirect, deliver, pagingFor, type Issued } from './admin.server.ts';
 
 const PAGE_SIZE = 50;
 const DECIDED_SHOWN = 20;
@@ -172,13 +172,9 @@ export const updateMember = createServerFn({ method: 'POST' })
     if (!admin.ok) return admin;
     const input = parsed(memberUpdate, data);
     if (!input.ok) return input;
-    const result = await withStore(async (store) => {
-      const booked = await bookedWith(store, input.value.member);
-      const updated = await store.club.updateMember(admin.value.id, input.value.member, input.value);
-      return { booked, updated };
-    });
-    if (!result.updated.ok) return refused(memberRefusals[result.updated.reason]);
-    if (result.updated.value.role !== 'admin') tellCalledOff(result.booked);
+    const updated = await withStore(async (store) => await store.club.updateMember(admin.value.id, input.value.member, input.value, absolute('/')));
+    if (!updated.ok) return refused(memberRefusals[updated.reason]);
+    sendLater(updated.value.letters);
     return done(null);
   });
 
@@ -189,13 +185,9 @@ export const suspendMember = createServerFn({ method: 'POST' })
     if (!admin.ok) return admin;
     const input = parsed(memberInput, data);
     if (!input.ok) return input;
-    const result = await withStore(async (store) => {
-      const booked = await bookedWith(store, input.value.member);
-      const suspended = await store.club.suspendMember(admin.value.id, input.value.member);
-      return { booked, suspended };
-    });
-    if (!result.suspended.ok) return refused(memberRefusals[result.suspended.reason]);
-    tellCalledOff(result.booked);
+    const suspended = await withStore(async (store) => await store.club.suspendMember(admin.value.id, input.value.member, absolute('/')));
+    if (!suspended.ok) return refused(memberRefusals[suspended.reason]);
+    sendLater(suspended.value.letters);
     return done(null);
   });
 
@@ -220,14 +212,10 @@ export const removeMember = createServerFn({ method: 'POST' })
     const input = parsed(memberRemoval, data);
     if (!input.ok) return input;
     const member = input.value.member;
-    const result = await withStore(async (store) => {
-      const booked = await bookedWith(store, member);
-      const removed = await store.club.removeMember(admin.value.id, member);
-      return { booked, removed };
-    });
-    if (!result.removed.ok) return refused(memberRefusals[result.removed.reason]);
+    const removed = await withStore(async (store) => await store.club.removeMember(admin.value.id, member, absolute('/')));
+    if (!removed.ok) return refused(memberRefusals[removed.reason]);
     /* Their claims go with them, so documents still waiting for the team would be left in R2 with nothing pointing at them. */
     await deleteMemberEvidence(member).catch((error: unknown) => report('evidence', `Documents of removed member ${member} were not deleted`, error));
-    tellCalledOff(result.booked);
+    sendLater(removed.value.letters);
     return done(null);
   });

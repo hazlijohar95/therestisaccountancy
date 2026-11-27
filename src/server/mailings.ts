@@ -65,10 +65,41 @@ export const toRecipient = (row: Row): Recipient => ({ email: text(row, 'email')
 const toSubscriber = (row: Row): Subscriber => ({ ...toRecipient(row), key: text(row, 'unsubscribe_key') });
 const COLUMN: Record<List, string> = { replies: 'email_replies', digest: 'digest_opt_in', onboarding: 'email_onboarding' };
 
+/** Members created since the keys were added get one before they are emailed. */
+const keyed = (db: Db) => db.exec('UPDATE members SET unsubscribe_key = lower(hex(randomblob(16))) WHERE unsubscribe_key IS NULL');
+
+/** Who to tell about a reply, and the thread's title for the letter. */
+export interface ReplyNotices {
+  readonly title: string;
+  readonly recipients: readonly Subscriber[];
+}
+
+/**
+ * Inside a transaction: the members to tell about a new reply: everyone who has posted in the thread, its starter
+ * included, except the one replying. Only active members who want these emails, and none told about this thread in the
+ * last six hours. The ones returned are recorded as told.
+ */
+export function noticeReply(db: Db, at: Date, threadId: number, replierId: number): ReplyNotices {
+  keyed(db);
+  const thread = db.prepare('SELECT title FROM threads WHERE id = ? AND removed_at IS NULL').get(threadId);
+  if (!thread) return { title: '', recipients: [] };
+  const recipients = db
+    .prepare(
+      `SELECT DISTINCT m.id, m.email, m.name, m.unsubscribe_key FROM posts p JOIN members m ON m.id = p.author_id
+       WHERE p.thread_id = ? AND m.id != ? AND m.email_replies = 1 AND ${STATUS_SQL.active}
+         AND NOT EXISTS (SELECT 1 FROM reply_notices n WHERE n.member_id = m.id AND n.thread_id = ? AND n.sent_at > ?)`,
+    )
+    .all(threadId, replierId, threadId, iso(new Date(at.getTime() - REPLY_NOTICE_GAP_MS)));
+  const record = db.prepare(
+    `INSERT INTO reply_notices (member_id, thread_id, sent_at) VALUES (?, ?, ?)
+     ON CONFLICT (member_id, thread_id) DO UPDATE SET sent_at = excluded.sent_at`,
+  );
+  for (const row of recipients) record.run(integer(row, 'id'), threadId, iso(at));
+  return { title: text(thread, 'title'), recipients: recipients.map(toSubscriber) };
+}
+
 /** Who gets which optional email, and the records that keep each from going twice. */
 export function createMailings(db: Db, now: () => Date = () => new Date()) {
-  /** Members created since the keys were added get one before they are emailed. */
-  const keyed = () => db.exec('UPDATE members SET unsubscribe_key = lower(hex(randomblob(16))) WHERE unsubscribe_key IS NULL');
 
   return {
     prefs(memberId: number): EmailPrefs {
@@ -80,37 +111,10 @@ export function createMailings(db: Db, now: () => Date = () => new Date()) {
       db.prepare('UPDATE members SET email_replies = ?, digest_opt_in = ? WHERE id = ?').run(prefs.replies ? 1 : 0, prefs.digest ? 1 : 0, memberId);
     },
 
-    /**
-     * The members to tell about a new reply: everyone who has posted in the thread, its starter included, except the
-     * one replying. Only active members who want these emails, and none told about this thread in the last six hours.
-     * The ones returned are recorded as told.
-     */
-    replyNotices(threadId: number, replierId: number): { readonly title: string; readonly recipients: readonly Subscriber[] } {
-      return db.transaction(() => {
-        keyed();
-        const thread = db.prepare('SELECT title FROM threads WHERE id = ? AND removed_at IS NULL').get(threadId);
-        if (!thread) return { title: '', recipients: [] };
-        const at = now();
-        const recipients = db
-          .prepare(
-            `SELECT DISTINCT m.id, m.email, m.name, m.unsubscribe_key FROM posts p JOIN members m ON m.id = p.author_id
-             WHERE p.thread_id = ? AND m.id != ? AND m.email_replies = 1 AND ${STATUS_SQL.active}
-               AND NOT EXISTS (SELECT 1 FROM reply_notices n WHERE n.member_id = m.id AND n.thread_id = ? AND n.sent_at > ?)`,
-          )
-          .all(threadId, replierId, threadId, iso(new Date(at.getTime() - REPLY_NOTICE_GAP_MS)));
-        const record = db.prepare(
-          `INSERT INTO reply_notices (member_id, thread_id, sent_at) VALUES (?, ?, ?)
-           ON CONFLICT (member_id, thread_id) DO UPDATE SET sent_at = excluded.sent_at`,
-        );
-        for (const row of recipients) record.run(integer(row, 'id'), threadId, iso(at));
-        return { title: text(thread, 'title'), recipients: recipients.map(toSubscriber) };
-      });
-    },
-
     /** Active members who asked for the weekly email. It is opt-in: a roundup is not something they did. */
     digestRecipients(): Subscriber[] {
       return db.transaction(() => {
-        keyed();
+        keyed(db);
         return db.prepare(`SELECT email, name, unsubscribe_key FROM members WHERE digest_opt_in = 1 AND ${STATUS_SQL.active} ORDER BY id`).all().map(toSubscriber);
       });
     },
@@ -127,7 +131,7 @@ export function createMailings(db: Db, now: () => Date = () => new Date()) {
      */
     dueOnboarding(): (Subscriber & { readonly memberId: number; readonly step: OnboardingStep })[] {
       return db.transaction(() => {
-        keyed();
+        keyed(db);
         const at = now();
         const rows = db
           .prepare(

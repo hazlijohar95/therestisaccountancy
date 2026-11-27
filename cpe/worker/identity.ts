@@ -1,6 +1,6 @@
 /**
  * Who is signed in comes from the club, always. CPE forwards the browser's cookie over a service binding to the club
- * Worker's CpeIdentity entrypoint (site/src/worker.ts) and never reads the session itself.
+ * Worker's CpeIdentity entrypoint (app/src/server.ts) and never reads the session itself.
  */
 
 export interface ClubIdentity {

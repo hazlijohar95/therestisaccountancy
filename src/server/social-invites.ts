@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { INVITE_DAYS, MEMBER_INVITES } from '../data/social.ts';
+import { welcomeLink, type PasswordLink } from './club.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import type { Result } from './result.ts';
 import { activeSql, admit, admitted, openAccount, type Entry, type SignUpRefusal } from './social-profiles.ts';
@@ -196,14 +197,14 @@ export function createSocialInvites(db: Db, now: () => Date = () => new Date()) 
 
     /**
      * Someone new joins Social from a link: a new account with a handle, let in by the invite, which is spent. One
-     * transaction, so a link lets in one person. The caller sends the link to set a password.
+     * transaction, so a link lets in one person. The caller sends the link it returns, to set a password.
      */
-    join(token: string, input: { name: string; email: string; handle: string }): Result<{ readonly memberId: number }, JoinRefusal> {
-      return attempt<{ readonly memberId: number }, JoinRefusal>(db, (refuse) => {
+    join(token: string, input: { name: string; email: string; handle: string }): Result<{ readonly memberId: number; readonly link: PasswordLink }, JoinRefusal> {
+      return attempt<{ readonly memberId: number; readonly link: PasswordLink }, JoinRefusal>(db, (refuse) => {
         const row = live(token, refuse);
         const memberId = openAccount(db, now(), input, entryOf(row), refuse);
         spend(row, memberId);
-        return { memberId };
+        return { memberId, link: welcomeLink(db, now(), memberId) };
       });
     },
 

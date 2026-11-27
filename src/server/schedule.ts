@@ -2,6 +2,7 @@ import { SESSION_KINDS, type SessionKind } from '../data/sessions.ts';
 import { STATUS_SQL } from './club.ts';
 import { integer, oneOf, text, type Db, type Row } from './db.ts';
 import { toRecipient, type Recipient } from './mailings.ts';
+import { fail, ok, type Result } from './result.ts';
 
 /** A live session on the calendar, as one member sees it. */
 export interface LiveSession {
@@ -67,19 +68,29 @@ export function createSchedule(db: Db, now: () => Date = () => new Date()) {
       .all(sessionId)
       .map(toRecipient);
 
+  const upcoming = (memberId: number | null): LiveSession[] =>
+    db.prepare(`SELECT ${columns(memberId)} FROM live_sessions s WHERE ${NOT_OVER} ORDER BY s.starts_at, s.id`).all(iso(now())).map(toSession);
+
   return {
     /** Sessions not yet over, soonest first. A session counts until it ends, so one in progress still shows. */
-    upcoming(memberId: number | null): LiveSession[] {
-      return db.prepare(`SELECT ${columns(memberId)} FROM live_sessions s WHERE ${NOT_OVER} ORDER BY s.starts_at, s.id`).all(iso(now())).map(toSession);
+    upcoming,
+
+    /** The sessions still to come, each with the active members coming, for the admin. */
+    rolls(): Roll[] {
+      return upcoming(null).map((session) => ({ session, attendees: attendees(session.id) }));
     },
 
     session: (id: number, memberId: number | null) => open(id, memberId),
-    attendees,
 
-    add(input: NewSession): number {
-      return db
-        .prepare('INSERT INTO live_sessions (title, kind, starts_at, minutes, link, detail, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .run(input.title, input.kind, input.startsAt, input.minutes, input.link, input.detail, iso(now())).lastInsertRowid;
+    /** Puts a session on the calendar. Refused unless it starts ahead of now. */
+    add(input: NewSession): Result<number, 'past'> {
+      const at = now();
+      if (new Date(input.startsAt).getTime() <= at.getTime()) return fail('past');
+      return ok(
+        db
+          .prepare('INSERT INTO live_sessions (title, kind, starts_at, minutes, link, detail, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+          .run(input.title, input.kind, input.startsAt, input.minutes, input.link, input.detail, iso(at)).lastInsertRowid,
+      );
     },
 
     /** Calls a session off. The members who were coming are returned to be told. Null if it was already over or off. */

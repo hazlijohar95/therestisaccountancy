@@ -1,11 +1,11 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { PLATFORM_PROFILES, PLATFORMS, TOPICS, type Platform, type Topic } from '../data/social.ts';
-import { STATUS_SQL } from './club.ts';
+import { STATUS_SQL, welcomeLink, type PasswordLink } from './club.ts';
 import { attempt, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import type { Result } from './result.ts';
 import { insertAccount, type AccountRefusal } from './social-claims.ts';
 import { notify } from './social-notify.ts';
-import { openAccount, type SignUpRefusal } from './social-profiles.ts';
+import { hasHandle, openAccount, type SignUpRefusal } from './social-profiles.ts';
 
 /*
  * Nominations: a member names someone on a platform who should be on The List. Only a handle is known, never an email,
@@ -222,20 +222,28 @@ export function createSocialNominations(db: Db, now: () => Date = () => new Date
       return { platform: oneOf(row, 'platform', PLATFORMS), handle: text(row, 'handle'), nominators: nominators.length, topics: topicsOf(nominators) };
     },
 
-    /** A signed-in member claims the invite: the account goes to Get ticked for proof, and the link is spent. */
-    claim(memberId: number, token: string): Result<{ readonly platform: Platform }, ClaimRefusal> {
-      return attempt<{ readonly platform: Platform }, ClaimRefusal>(db, (refuse) => ({ platform: claimFor(memberId, invited(token) ?? refuse('not-found'), refuse) }));
+    /** A signed-in member with a handle claims the invite: the account goes to Get ticked for proof, and the link is spent. */
+    claim(memberId: number, token: string): Result<{ readonly platform: Platform }, ClaimRefusal | 'no-handle'> {
+      return attempt<{ readonly platform: Platform }, ClaimRefusal | 'no-handle'>(db, (refuse) => {
+        if (!hasHandle(db, memberId)) refuse('no-handle');
+        return { platform: claimFor(memberId, invited(token) ?? refuse('not-found'), refuse) };
+      });
     },
 
     /**
      * The nominee joins Social from the link: a new account, let in by the nomination, with the nominated account
-     * waiting for proof. One transaction, so a link lets in one person.
+     * waiting for proof. One transaction, so a link lets in one person. The caller sends the link it returns, to set a
+     * password.
      */
-    join(token: string, input: { name: string; email: string; handle: string }): Result<{ readonly memberId: number; readonly platform: Platform }, JoinRefusal> {
-      return attempt<{ readonly memberId: number; readonly platform: Platform }, JoinRefusal>(db, (refuse) => {
+    join(
+      token: string,
+      input: { name: string; email: string; handle: string },
+    ): Result<{ readonly memberId: number; readonly platform: Platform; readonly link: PasswordLink }, JoinRefusal> {
+      return attempt<{ readonly memberId: number; readonly platform: Platform; readonly link: PasswordLink }, JoinRefusal>(db, (refuse) => {
         const row = invited(token) ?? refuse('not-found');
         const memberId = openAccount(db, now(), input, { via: 'nomination' }, refuse);
-        return { memberId, platform: claimFor(memberId, row, refuse) };
+        const platform = claimFor(memberId, row, refuse);
+        return { memberId, platform, link: welcomeLink(db, now(), memberId) };
       });
     },
 

@@ -1,6 +1,8 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { LINK_DAYS, type LinkPurpose } from '../data/links.ts';
+import { bookedWith, callLetters, type Call } from './calls.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
+import type { Letter } from './letters.ts';
 import { hashPassword, spendVerifyTime, verifyPassword } from './password.ts';
 import { fail, ok, type Result } from './result.ts';
 
@@ -83,6 +85,12 @@ export type SignInRefusal = 'no-match' | 'suspended';
 export type AdminRefusal = 'not-found' | 'self' | 'last-admin';
 export type EditRefusal = AdminRefusal | 'email-taken';
 
+/** A change an admin made to a member, and the letters it calls for: calls off for the members who booked with a host who no longer hosts. */
+export interface AdminChange {
+  readonly member: Member;
+  readonly letters: Letter[];
+}
+
 const toRequest = (row: Row): JoinRequest => ({
   id: integer(row, 'id'),
   name: text(row, 'name'),
@@ -102,7 +110,7 @@ export const STATUS_SQL = {
   suspended: 'suspended_at IS NOT NULL',
 } as const satisfies Record<MemberStatus, string>;
 
-const toMember = (row: Row): Member => ({
+export const toMember = (row: Row): Member => ({
   id: integer(row, 'id'),
   email: text(row, 'email'),
   name: text(row, 'name'),
@@ -128,15 +136,41 @@ const LINK_REQUEST_GAP_MS = 10 * 60_000;
 export const JOIN_ALERTS_PER_HOUR = 5;
 const HOUR_MS = 3_600_000;
 
+/** The members who booked with a host who no longer hosts are told as if the host had cancelled. */
+const calledOff = (calls: readonly Call[], siteUrl: string): Letter[] => calls.flatMap((call) => callLetters('cancelled-by-host', call, siteUrl));
+
+const retireLinks = (db: Db, at: Date, memberId: number) => {
+  db.prepare('UPDATE invites SET used_at = ? WHERE member_id = ? AND used_at IS NULL').run(iso(at), memberId);
+};
+
+/**
+ * Inside a transaction: a fresh password link, retiring the member's older ones. Null for a suspended member. The one
+ * place links are made, so the suspension rule holds for invitations and resets alike.
+ */
+export function issueLink(db: Db, at: Date, member: Member): PasswordLink | null {
+  const purpose = LINK_FOR[member.status];
+  if (purpose === null) return null;
+  const token = randomBytes(32).toString('base64url');
+  const expiresAt = iso(new Date(at.getTime() + LINK_DAYS[purpose] * DAY_MS));
+  retireLinks(db, at, member.id);
+  db.prepare('INSERT INTO invites (token_hash, member_id, expires_at, created_at) VALUES (?, ?, ?, ?)').run(tokenHash(token), member.id, expiresAt, iso(at));
+  return { member, purpose, token, expiresAt };
+}
+
+/** Inside a transaction: the welcome link for an account just opened, which cannot be suspended yet. */
+export function welcomeLink(db: Db, at: Date, memberId: number): PasswordLink {
+  const row = db.prepare('SELECT * FROM members WHERE id = ?').get(memberId);
+  const link = row ? issueLink(db, at, toMember(row)) : null;
+  if (!link) throw new Error(`Member ${memberId} cannot get a link`);
+  return link;
+}
+
 /** Every operation the club performs on its members. The database is passed in so tests can use a throwaway one. */
 export function createClub(db: Db, now: () => Date = () => new Date()) {
   const memberRow = (id: number) => db.prepare('SELECT * FROM members WHERE id = ?').get(id);
   const memberByEmail = (email: string) => db.prepare('SELECT * FROM members WHERE email = ?').get(email);
   const activeAdmins = () => count(db.prepare(`SELECT count(*) AS n FROM members WHERE role = 'admin' AND ${STATUS_SQL.active}`).get());
 
-  const retireLinks = (memberId: number) => {
-    db.prepare('UPDATE invites SET used_at = ? WHERE member_id = ? AND used_at IS NULL').run(iso(now()), memberId);
-  };
 
   const liveLinkMember = (token: string) =>
     db
@@ -145,21 +179,10 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
       )
       .get(tokenHash(token), iso(now()));
 
-  /** The one place links are made, so the suspension rule holds for invitations and resets alike. */
-  const issueLink = (member: Member): PasswordLink | null => {
-    const purpose = LINK_FOR[member.status];
-    if (purpose === null) return null;
-    const token = randomBytes(32).toString('base64url');
-    const expiresAt = iso(new Date(now().getTime() + LINK_DAYS[purpose] * DAY_MS));
-    retireLinks(member.id);
-    db.prepare('INSERT INTO invites (token_hash, member_id, expires_at, created_at) VALUES (?, ?, ?, ?)').run(tokenHash(token), member.id, expiresAt, iso(now()));
-    return { member, purpose, token, expiresAt };
-  };
-
   /** Every password write goes through here: open links are retired and older sessions end. */
   const writePassword = (memberId: number, passwordHash: string): Access => {
     db.prepare('UPDATE members SET password_hash = ?, session_epoch = session_epoch + 1 WHERE id = ?').run(passwordHash, memberId);
-    retireLinks(memberId);
+    retireLinks(db, now(), memberId);
     const row = memberRow(memberId);
     if (!row) throw new Error(`Member ${memberId} does not exist`);
     return toAccess(row);
@@ -238,7 +261,7 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
         if (member.status === 'suspended') return refuse('suspended');
         db.prepare(`UPDATE join_requests SET status = 'invited', decided_at = ?, member_id = ? WHERE id = ?`).run(iso(now()), member.id, request.id);
         if (member.joinedVia === 'social' && member.status === 'active') return { kind: 'approved', member };
-        const link = issueLink(member) ?? refuse('suspended');
+        const link = issueLink(db, now(), member) ?? refuse('suspended');
         return { kind: 'link', link };
       });
     },
@@ -253,7 +276,7 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
       return attempt<PasswordLink, LinkRefusal>(db, (refuse) => {
         const row = memberRow(memberId);
         if (!row) return refuse('not-found');
-        return issueLink(toMember(row)) ?? refuse('suspended');
+        return issueLink(db, now(), toMember(row)) ?? refuse('suspended');
       });
     },
 
@@ -267,7 +290,7 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
         if (!row) return null;
         const since = iso(new Date(now().getTime() - LINK_REQUEST_GAP_MS));
         if (db.prepare('SELECT 1 FROM invites WHERE member_id = ? AND created_at > ?').get(integer(row, 'id'), since)) return null;
-        return issueLink(toMember(row));
+        return issueLink(db, now(), toMember(row));
       });
     },
 
@@ -302,27 +325,32 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
       return { invited: of('invited'), active: of('active'), suspended: of('suspended') };
     },
 
-    /** Name, email and role. An admin cannot change their own role; leave role out to keep it. */
-    updateMember(actorId: number, memberId: number, changes: { name: string; email: string; role?: Role | undefined }): Result<Member, EditRefusal> {
-      return attempt<Member, EditRefusal>(db, (refuse) => {
+    /**
+     * Name, email and role. An admin cannot change their own role; leave role out to keep it. A host who stops being an
+     * admin calls off their booked calls.
+     */
+    updateMember(actorId: number, memberId: number, changes: { name: string; email: string; role?: Role | undefined }, siteUrl: string): Result<AdminChange, EditRefusal> {
+      return attempt<AdminChange, EditRefusal>(db, (refuse) => {
         const member = subject(actorId, memberId, refuse, true);
         const role = changes.role ?? member.role;
         if (role !== member.role && actorId === memberId) refuse('self');
         if (db.prepare('SELECT 1 FROM members WHERE email = ? AND id != ?').get(changes.email, memberId)) refuse('email-taken');
+        const booked = bookedWith(db, now(), memberId);
         db.prepare('UPDATE members SET name = ?, email = ?, role = ? WHERE id = ?').run(changes.name, changes.email, role, memberId);
         keepAnAdmin(refuse);
-        return reread(memberId);
+        return { member: reread(memberId), letters: role === 'admin' ? [] : calledOff(booked, siteUrl) };
       });
     },
 
     /** Signs the member out everywhere and stops them signing in or using a link, until reinstated. Safe to repeat. */
-    suspendMember(actorId: number, memberId: number): Result<Member, AdminRefusal> {
-      return attempt<Member, AdminRefusal>(db, (refuse) => {
+    suspendMember(actorId: number, memberId: number, siteUrl: string): Result<AdminChange, AdminRefusal> {
+      return attempt<AdminChange, AdminRefusal>(db, (refuse) => {
         subject(actorId, memberId, refuse);
+        const booked = bookedWith(db, now(), memberId);
         db.prepare('UPDATE members SET suspended_at = ?, session_epoch = session_epoch + 1 WHERE id = ? AND suspended_at IS NULL').run(iso(now()), memberId);
-        retireLinks(memberId);
+        retireLinks(db, now(), memberId);
         keepAnAdmin(refuse);
-        return reread(memberId);
+        return { member: reread(memberId), letters: calledOff(booked, siteUrl) };
       });
     },
 
@@ -334,12 +362,13 @@ export function createClub(db: Db, now: () => Date = () => new Date()) {
     },
 
     /** Deletes the member, their progress, links and join request. Their posts stay, without a name. */
-    removeMember(actorId: number, memberId: number): Result<Member, AdminRefusal> {
-      return attempt<Member, AdminRefusal>(db, (refuse) => {
+    removeMember(actorId: number, memberId: number, siteUrl: string): Result<AdminChange, AdminRefusal> {
+      return attempt<AdminChange, AdminRefusal>(db, (refuse) => {
         const member = subject(actorId, memberId, refuse);
+        const booked = bookedWith(db, now(), memberId);
         db.prepare('DELETE FROM members WHERE id = ?').run(memberId);
         keepAnAdmin(refuse);
-        return member;
+        return { member, letters: calledOff(booked, siteUrl) };
       });
     },
 

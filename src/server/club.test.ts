@@ -9,6 +9,8 @@ import { SCHEMA_VERSION } from './db.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
 
+const SITE = 'https://therestisaccountancy.com/';
+
 const fresh = (now = () => new Date('2026-11-24T10:00:00Z')) => createClub(openDatabase(':memory:'), now);
 const PASSWORD = 'correct horse battery';
 const NEW_PASSWORD = 'a brand new password';
@@ -199,8 +201,8 @@ test('suspension ends sessions, blocks sign-in and links, and reinstatement does
   const session = value(await club.authenticate(aina.email, PASSWORD));
   const openReset = value(club.newLink(aina.id));
 
-  assert.equal(value(club.suspendMember(me.id, aina.id)).status, 'suspended');
-  assert.equal(value(club.suspendMember(me.id, aina.id)).status, 'suspended', 'suspending twice is harmless');
+  assert.equal(value(club.suspendMember(me.id, aina.id, SITE)).member.status, 'suspended');
+  assert.equal(value(club.suspendMember(me.id, aina.id, SITE)).member.status, 'suspended', 'suspending twice is harmless');
   assert.equal(club.sessionMember(session.key), null, 'signed out at once');
   assert.equal(reason(await club.authenticate(aina.email, PASSWORD)), 'suspended', 'told why, once the password is right');
   assert.equal(reason(await club.authenticate(aina.email, 'wrong password!!')), 'no-match', 'a guesser learns nothing');
@@ -223,11 +225,11 @@ test('suspension ends sessions, blocks sign-in and links, and reinstatement does
 test('an admin cannot suspend, remove or demote themselves', async () => {
   const club = fresh();
   const me = await admin(club);
-  assert.equal(reason(club.suspendMember(me.id, me.id)), 'self');
-  assert.equal(reason(club.removeMember(me.id, me.id)), 'self');
-  assert.equal(reason(club.updateMember(me.id, me.id, { name: 'Admin', email: me.email, role: 'member' })), 'self');
+  assert.equal(reason(club.suspendMember(me.id, me.id, SITE)), 'self');
+  assert.equal(reason(club.removeMember(me.id, me.id, SITE)), 'self');
+  assert.equal(reason(club.updateMember(me.id, me.id, { name: 'Admin', email: me.email, role: 'member' }, SITE)), 'self');
   assert.equal(
-    value(club.updateMember(me.id, me.id, { name: 'Renamed Admin', email: me.email })).name,
+    value(club.updateMember(me.id, me.id, { name: 'Renamed Admin', email: me.email }, SITE)).member.name,
     'Renamed Admin',
     'without a role, an admin can edit their own details',
   );
@@ -237,14 +239,14 @@ test('the club always keeps one active admin, even when two admins act on each o
   const club = fresh();
   const first = await admin(club, 'first@club.test', 'First');
   const second = await admin(club, 'second@club.test', 'Second');
-  assert.equal(value(club.updateMember(first.id, second.id, { name: 'Second', email: second.email, role: 'member' })).role, 'member');
+  assert.equal(value(club.updateMember(first.id, second.id, { name: 'Second', email: second.email, role: 'member' }, SITE)).member.role, 'member');
   assert.equal(
-    reason(club.updateMember(second.id, first.id, { name: 'First', email: first.email, role: 'member' })),
+    reason(club.updateMember(second.id, first.id, { name: 'First', email: first.email, role: 'member' }, SITE)),
     'last-admin',
     'a stale request from the demoted admin',
   );
-  assert.equal(reason(club.suspendMember(second.id, first.id)), 'last-admin');
-  assert.equal(reason(club.removeMember(second.id, first.id)), 'last-admin');
+  assert.equal(reason(club.suspendMember(second.id, first.id, SITE)), 'last-admin');
+  assert.equal(reason(club.removeMember(second.id, first.id, SITE)), 'last-admin');
   assert.equal(club.member(first.id)?.role, 'admin', 'every refusal rolled back');
   assert.equal(club.member(first.id)?.status, 'active');
 });
@@ -253,11 +255,11 @@ test('editing a member refuses an email another member uses, in any case', async
   const club = fresh();
   const me = await admin(club);
   const aina = await activeMember(club);
-  assert.equal(reason(club.updateMember(me.id, aina.id, { name: 'Aina', email: 'ADMIN@club.test' })), 'email-taken');
-  const edited = value(club.updateMember(me.id, aina.id, { name: 'Aina R.', email: 'aina@new.com.my', role: 'admin' }));
+  assert.equal(reason(club.updateMember(me.id, aina.id, { name: 'Aina', email: 'ADMIN@club.test' }, SITE)), 'email-taken');
+  const edited = value(club.updateMember(me.id, aina.id, { name: 'Aina R.', email: 'aina@new.com.my', role: 'admin' }, SITE)).member;
   assert.deepEqual([edited.name, edited.email, edited.role], ['Aina R.', 'aina@new.com.my', 'admin']);
   assert.ok((await club.authenticate('aina@new.com.my', PASSWORD)).ok, 'she signs in with the new email');
-  assert.equal(reason(club.updateMember(me.id, 999, { name: 'Nobody', email: 'nobody@x.my' })), 'not-found');
+  assert.equal(reason(club.updateMember(me.id, 999, { name: 'Nobody', email: 'nobody@x.my' }, SITE)), 'not-found');
 });
 
 test('removing a member deletes their account, progress, links and join request, even after an email change', async () => {
@@ -266,21 +268,21 @@ test('removing a member deletes their account, progress, links and join request,
   const aina = await activeMember(club);
   club.setLessonDone(aina.id, 'pricing/your-floor-rate', true);
   const reset = value(club.newLink(aina.id));
-  value(club.updateMember(me.id, aina.id, { name: 'Aina', email: 'aina@elsewhere.my' }));
+  value(club.updateMember(me.id, aina.id, { name: 'Aina', email: 'aina@elsewhere.my' }, SITE));
 
-  value(club.removeMember(me.id, aina.id));
+  value(club.removeMember(me.id, aina.id, SITE));
   assert.equal(club.member(aina.id), null);
   assert.equal(club.completedLessons(aina.id).size, 0);
   assert.equal(club.linkMember(reset.token), null);
   assert.equal(club.joinRequests().length, 0, 'the request is linked to the member, not matched by email');
-  assert.equal(reason(club.removeMember(me.id, aina.id)), 'not-found');
+  assert.equal(reason(club.removeMember(me.id, aina.id, SITE)), 'not-found');
 });
 
 test('the admin script lifts a suspension: it is the way back in', async () => {
   const club = fresh();
   const first = await admin(club, 'first@club.test', 'First');
   const second = await admin(club, 'second@club.test', 'Second');
-  value(club.suspendMember(second.id, first.id));
+  value(club.suspendMember(second.id, first.id, SITE));
   assert.equal((await admin(club, 'first@club.test', 'First')).status, 'active');
 });
 
@@ -384,7 +386,7 @@ test('a suspended member cannot ask for a link', async () => {
   const club = fresh();
   const boss = await admin(club);
   const member = await activeMember(club);
-  value(club.suspendMember(boss.id, member.id));
+  value(club.suspendMember(boss.id, member.id, SITE));
   assert.equal(club.requestLink(member.email), null);
 });
 

@@ -7,6 +7,8 @@ import { openDatabase } from './node-db.ts';
 import { createPlans, missingSections, planAnsweredLetter, planSentLetter, waited, type SentPlan } from './plans.ts';
 import type { Result } from './result.ts';
 
+const SITE = 'https://therestisaccountancy.com/';
+
 const PASSWORD = 'correct horse battery';
 const HOUR = 3_600_000;
 
@@ -28,7 +30,7 @@ const setup = async () => {
   const host = await club.ensureAdmin({ email: 'hazli@club.test', name: 'Hazli Johar', password: PASSWORD });
   const member = async (email: string, name: string) => {
     const made = await club.ensureAdmin({ email, name, password: PASSWORD });
-    return value(club.updateMember(host.id, made.id, { name, email, role: 'member' }));
+    return value(club.updateMember(host.id, made.id, { name, email, role: 'member' }, SITE)).member;
   };
   const aina = await member('aina@firm.com.my', 'Aina Rahman');
   const abu = await member('abu@firm.com.my', 'Abu Musa');
@@ -174,11 +176,11 @@ test('an answer outlives its host, and a removed member takes their plans with t
   value(plans.reply(host.id, sendAll(aina.id), 'Hire later.'));
   sendAll(abu.id);
 
-  value(club.removeMember(other.id, host.id));
+  value(club.removeMember(other.id, host.id, SITE));
   assert.equal(plans.ofMember(aina.id).answered[0]?.reply.by, null);
 
-  value(club.removeMember(other.id, aina.id));
-  value(club.removeMember(other.id, abu.id));
+  value(club.removeMember(other.id, aina.id, SITE));
+  value(club.removeMember(other.id, abu.id, SITE));
   assert.deepEqual(plans.answered(10), []);
   assert.deepEqual(plans.waiting(), []);
 });

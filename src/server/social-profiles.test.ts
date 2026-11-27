@@ -4,7 +4,7 @@ import { createClub } from './club.ts';
 import { migrate, SCHEMA_VERSION } from './db.ts';
 import { openDatabase } from './node-db.ts';
 import type { Result } from './result.ts';
-import { at, DAY, socialWorld } from './social-fixtures.ts';
+import { at, DAY, SITE, socialWorld } from './social-fixtures.ts';
 import { createSocialProfiles, sealOf, trackOf, type ProfileFields } from './social-profiles.ts';
 
 const PASSWORD = 'correct horse battery';
@@ -151,27 +151,27 @@ test('the member edits their profile, and The List shows only listed profiles th
   const priya = await w.joined('Priya Nair', 'priya@tax.my', 'priyataxes');
   const aina = await w.joined('Aina Rahman', 'aina@firm.my', 'aina');
 
-  const saved = w.social.update(priya.id, fields({ topics: ['Tax', 'Audit'], jurisdictions: ['SG', 'MY'] }));
-  assert.deepEqual(saved?.topics, ['Audit', 'Tax'], 'kept in the registry order');
-  assert.deepEqual(saved?.jurisdictions, ['MY', 'SG']);
-  assert.equal(saved?.sector, 'Practice');
-  w.social.update(aina.id, fields({ topics: ['Audit'], creator: true }));
+  const saved = value(w.social.save(priya.id, null, fields({ topics: ['Tax', 'Audit'], jurisdictions: ['SG', 'MY'] })));
+  assert.deepEqual(saved.topics, ['Audit', 'Tax'], 'kept in the registry order');
+  assert.deepEqual(saved.jurisdictions, ['MY', 'SG']);
+  assert.equal(saved.sector, 'Practice');
+  value(w.social.save(aina.id, null, fields({ topics: ['Audit'], creator: true })));
 
   assert.deepEqual(w.social.list().map((e) => e.profile.handle), ['priyataxes', 'aina'], 'equal points: the longest here first');
   assert.deepEqual(w.social.list({ topic: 'Tax' }).map((e) => e.profile.handle), ['priyataxes']);
   assert.deepEqual(w.social.list({ track: 'creator' }).map((e) => e.profile.handle), ['aina'], 'the creator flair is their choice');
 
-  w.social.update(priya.id, fields({ listed: false }));
+  value(w.social.save(priya.id, null, fields({ listed: false })));
   assert.deepEqual(w.social.list().map((e) => e.profile.handle), ['aina']);
   assert.equal(w.social.profile('priyataxes')?.listed, false, 'off The List, still reachable by handle');
-  assert.equal(w.social.update(999, fields()), null, 'no profile, nothing saved');
+  assert.equal(reason(w.social.save(999, null, fields())), 'no-handle', 'no profile, nothing saved');
 });
 
 test('a suspended member leaves The List and their profile goes dark', async () => {
   const w = world();
   const admin = await w.club.ensureAdmin({ email: 'host@club.test', name: 'Host', password: PASSWORD });
   const aina = await w.joined('Aina Rahman', 'aina@firm.my', 'aina');
-  value(w.club.suspendMember(admin.id, aina.id));
+  value(w.club.suspendMember(admin.id, aina.id, SITE));
   assert.equal(w.social.profile('aina'), null);
   assert.deepEqual(w.social.list(), []);
 });
@@ -184,19 +184,19 @@ test('follows: once each, never yourself, and counted only between people the pu
 
   assert.equal(value(w.social.follow(aina.id, 'priyataxes')).memberId, priya.id);
   value(w.social.follow(aina.id, '@PriyaTaxes'));
-  assert.equal(w.social.isFollowing(aina.id, priya.id), true);
-  assert.deepEqual(w.social.followCounts(priya.id), { followers: 1, following: 0 });
-  assert.deepEqual(w.social.followCounts(aina.id), { followers: 0, following: 1 });
+  assert.equal(w.social.page('priyataxes', aina.id)?.following, true);
+  assert.deepEqual(w.social.page('priyataxes', null)?.counts, { followers: 1, following: 0 });
+  assert.deepEqual(w.social.page('aina', null)?.counts, { followers: 0, following: 1 });
 
   assert.equal(reason(w.social.follow(aina.id, 'aina')), 'self');
   assert.equal(reason(w.social.follow(aina.id, 'notyet')), 'not-found', 'an unproven profile cannot be followed');
   assert.equal(reason(w.social.follow(aina.id, 'nobody')), 'not-found');
   w.db.prepare('INSERT INTO follows (follower_id, followee_id, created_at) VALUES (?, ?, ?)').run(pending.memberId, priya.id, '2026-11-26T02:00:00Z');
-  assert.deepEqual(w.social.followCounts(priya.id), { followers: 1, following: 0 }, 'an unproven follower is not counted');
+  assert.deepEqual(w.social.page('priyataxes', null)?.counts, { followers: 1, following: 0 }, 'an unproven follower is not counted');
 
   assert.equal(w.social.unfollow(aina.id, 'priyataxes'), true);
   assert.equal(w.social.unfollow(aina.id, 'priyataxes'), false);
-  assert.equal(w.social.isFollowing(aina.id, priya.id), false);
+  assert.equal(w.social.page('priyataxes', aina.id)?.following, false);
 });
 
 test('track and seal come from ticked claims: credentials outrank the creator flair', () => {
@@ -223,7 +223,7 @@ test('sign-ups that never set a password go after 14 days, handle and all; nobod
   const { memberId: gone } = value(w.profiles.signUp({ name: 'Gone', email: 'gone@firm.my', handle: 'gone' }, { via: 'team' }));
   const { memberId: accepted } = value(w.profiles.signUp({ name: 'Accepted', email: 'accepted@firm.my', handle: 'accepted' }, { via: 'team' }));
   const { memberId: paused } = value(w.profiles.signUp({ name: 'Paused', email: 'paused@firm.my', handle: 'paused' }, { via: 'team' }));
-  value(w.club.suspendMember(host.id, paused));
+  value(w.club.suspendMember(host.id, paused, SITE));
   w.club.recordJoinRequest({ name: 'Accepted', email: 'accepted@firm.my', stage: 'I run a practice' });
   value(w.club.inviteFromRequest(w.club.joinRequests()[0]?.id ?? 0));
   w.club.recordJoinRequest({ name: 'Club invite', email: 'club@firm.my', stage: 'Student' });
@@ -251,7 +251,7 @@ test('the setup checklist follows what the member has done', async () => {
   const aina = await w.joined('Aina', 'aina@firm.my', 'aina');
   assert.deepEqual(w.profiles.checklist(aina.id), { ticked: false, headline: false, casebook: false, answered: false, badge: false });
   await w.seal(aina.id, 'aina-rahman');
-  w.profiles.update(aina.id, { headline: 'Audit partner.', sector: null, city: '', jurisdictions: [], topics: [], creator: false, listed: true });
+  value(w.profiles.save(aina.id, null, { headline: 'Audit partner.', sector: null, city: '', jurisdictions: [], topics: [], creator: false, listed: true }));
   value(w.casebook.add(aina.id, { service: 'Audit', industry: 'Retail', band: 'Under RM5m', framework: 'MPERS', year: '2024', role: 'Partner', areas: [], note: '', cosigner: null }));
   value(
     w.problems.create(host.id, { number: 1, tag: 'Audit', jurisdiction: 'MY', title: 'T', scenario: ['a', 'b'], ask: 'Q', options: ['x', 'y'], opensAt: at(w.now()), closesAt: at(new Date(w.now().getTime() + DAY)) }),
@@ -260,4 +260,102 @@ test('the setup checklist follows what the member has done', async () => {
   w.profiles.badgeCopied(aina.id);
   assert.deepEqual(w.profiles.checklist(aina.id), { ticked: true, headline: true, casebook: true, answered: true, badge: true });
   assert.equal(w.profiles.credential(aina.id), 'ACCA · Member');
+});
+
+test("a member's page shows the same profile to everyone, and what only the owner or a sealed reader may do", async () => {
+  const w = socialWorld();
+  const aina = await w.joined('Aina Rahman', 'aina@firm.my', 'aina');
+  const abu = await w.joined('Abu Musa', 'abu@firm.my', 'abu');
+  const siti = await w.club.ensureAdmin({ email: 'siti@club.test', name: 'Siti', password: 'correct horse battery' });
+  await w.seal(aina.id, 'aina-r');
+  await w.seal(abu.id, 'abu-m');
+  const experience = value(w.claims.addClaim(aina.id, { kind: 'experience', text: 'Six years in audit' }));
+  value(w.claims.vouch(abu.id, experience.id));
+  value(w.profiles.follow(abu.id, 'aina'));
+  value(w.floor.post(aina.id, { room: 'tax-my', jurisdiction: 'MY', title: 'Does a dormant Sdn Bhd still need an audit?', body: 'Asking for a client.' }));
+  const ainasItem = value(w.shelf.add(aina.id, { kind: 'Template', title: 'Audit checklist', url: 'https://example.com/checklist' }));
+  const abusItem = value(w.shelf.add(abu.id, { kind: 'Template', title: 'Engagement letter', url: 'https://example.com/letter' }));
+  value(w.shelf.save(abu.id, ainasItem.id));
+  value(w.shelf.save(aina.id, abusItem.id));
+
+  assert.equal(w.profiles.page('nobody', abu.id), null);
+
+  const seen = (viewerId: number | null) => {
+    const page = w.profiles.page('AINA', viewerId);
+    assert.ok(page);
+    return {
+      handle: page.profile.handle,
+      own: page.own,
+      canVouch: page.canVouch,
+      following: page.following,
+      counts: page.counts,
+      invitedBy: page.invitedBy,
+      accounts: page.ledger.accounts.map((a) => a.handle),
+      claims: page.ledger.claims.map((c) => [c.label, c.review.state, c.vouches, c.vouchedByViewer]),
+      roles: page.roles,
+      answers: page.record.answers,
+      entries: page.heat.entries,
+      posts: page.posts.map((p) => p.title),
+      shelf: page.shelf.map((i) => [i.title, i.saves, i.savedByViewer]),
+      saved: page.saved.map((i) => i.title),
+      checklist: page.checklist,
+    };
+  };
+  const everyone = {
+    handle: 'aina',
+    own: false,
+    canVouch: false,
+    following: false,
+    counts: { followers: 1, following: 0 },
+    invitedBy: null,
+    accounts: ['aina-r'],
+    claims: [
+      ['ACCA · Member', 'ticked', 0, false],
+      ['Six years in audit', 'pending', 1, false],
+    ],
+    roles: [],
+    answers: 0,
+    entries: 0,
+    posts: ['Does a dormant Sdn Bhd still need an audit?'],
+    shelf: [['Audit checklist', 1, false]],
+    saved: [],
+    checklist: null,
+  };
+  assert.deepEqual(seen(null), everyone, 'signed out');
+  assert.deepEqual(seen(siti.id), everyone, 'signed in without a handle');
+  assert.deepEqual(
+    seen(abu.id),
+    {
+      ...everyone,
+      canVouch: true,
+      following: true,
+      claims: [
+        ['ACCA · Member', 'ticked', 0, false],
+        ['Six years in audit', 'pending', 1, true],
+      ],
+      shelf: [['Audit checklist', 1, true]],
+    },
+    'a sealed reader who follows and vouched',
+  );
+  assert.deepEqual(
+    seen(aina.id),
+    { ...everyone, own: true, saved: ['Engagement letter'], checklist: { ticked: true, headline: false, casebook: false, answered: false, badge: false } },
+    'the owner',
+  );
+});
+
+test('saving a profile claims the handle first when there is none, and keeps the one there is', async () => {
+  const w = socialWorld();
+  await w.joined('Aina', 'aina@firm.my', 'aina');
+  const aina = w.profiles.profile('aina');
+  const siti = await w.club.ensureAdmin({ email: 'siti@club.test', name: 'Siti', password: 'correct horse battery' });
+  assert.ok(aina);
+
+  assert.equal(reason(w.profiles.save(siti.id, null, fields())), 'no-handle');
+  assert.equal(reason(w.profiles.save(siti.id, 'aina', fields())), 'handle-taken');
+  assert.equal(w.profiles.ownProfile(siti.id), null, 'nothing is saved when the handle is refused');
+  assert.equal(value(w.profiles.save(siti.id, '@Siti', fields({ headline: 'Club host.' }))).handle, 'siti');
+  assert.equal(w.profiles.ownProfile(siti.id)?.headline, 'Club host.');
+  assert.equal(value(w.profiles.save(aina.memberId, 'somethingelse', fields({ city: 'Ipoh' }))).handle, 'aina', 'a handle, once claimed, stays');
+  assert.equal(w.profiles.ownProfile(aina.memberId)?.city, 'Ipoh');
 });

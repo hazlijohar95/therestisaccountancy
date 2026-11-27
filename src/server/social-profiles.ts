@@ -3,7 +3,12 @@ import { matcher } from '../lib/search.ts';
 import { STATUS_SQL } from './club.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import { fail, ok, type Result } from './result.ts';
+import { createSocialCasebook, type Heatmap, type Role } from './social-casebook.ts';
+import { createSocialClaims, type Account, type LedgerClaim } from './social-claims.ts';
+import { createSocialFloor, type PostCard } from './social-floor.ts';
 import { notify } from './social-notify.ts';
+import { createSocialProblems, type JudgmentRecord } from './social-problems.ts';
+import { createSocialShelf, type SavedItem, type ShelfItem } from './social-shelf.ts';
 
 /** What a member writes about themselves. All of it is public. */
 export interface ProfileFields {
@@ -53,6 +58,8 @@ export type HandleRefusal = 'handle-invalid' | 'handle-reserved' | 'handle-taken
 export type SignUpRefusal = HandleRefusal | 'email-taken';
 /** 'not-invited': Social is invite-only, and nothing has let this member in yet. */
 export type ClaimRefusal = HandleRefusal | 'already-claimed' | 'not-invited';
+/** 'no-handle': the member has no profile yet and picked no handle to start one. */
+export type SaveRefusal = ClaimRefusal | 'no-handle';
 export type FollowRefusal = 'not-found' | 'self';
 
 /**
@@ -75,6 +82,9 @@ export function admit(db: Db, at: Date, memberId: number, entry: Entry): boolean
 
 /** True when something has let the member into Social already. */
 export const admitted = (db: Db, memberId: number) => db.prepare('SELECT 1 FROM social_entries WHERE member_id = ?').get(memberId) !== undefined;
+
+/** True when the member has claimed a handle. What they do on Social shows on their profile, so most of it needs one. */
+export const hasHandle = (db: Db, memberId: number) => db.prepare('SELECT 1 FROM profiles WHERE member_id = ?').get(memberId) !== undefined;
 
 /** Inside a transaction: checks the handle and writes the profile, or refuses. The member must have been let in. */
 export function insertProfile(db: Db, at: Date, memberId: number, handle: string, refuse: (reason: HandleRefusal) => never): void {
@@ -203,6 +213,26 @@ export interface Checklist {
   readonly badge: boolean;
 }
 
+/** A member's page in one read: what anyone may see of them, and what the reader may do there. */
+export interface ProfilePage {
+  readonly profile: Profile;
+  readonly own: boolean;
+  /** Only members with the seal vouch, and never for themselves. */
+  readonly canVouch: boolean;
+  readonly following: boolean;
+  readonly counts: { readonly followers: number; readonly following: number };
+  readonly invitedBy: { readonly handle: string; readonly name: string } | null;
+  readonly ledger: { readonly claims: LedgerClaim[]; readonly accounts: Account[] };
+  readonly roles: Role[];
+  readonly record: JudgmentRecord;
+  readonly heat: Heatmap;
+  readonly posts: PostCard[];
+  readonly shelf: ShelfItem[];
+  /** The owner's own: what they saved, and their setup checklist. Empty and null for anyone else. */
+  readonly saved: SavedItem[];
+  readonly checklist: Checklist | null;
+}
+
 /** Sign-ups that never set a password are deleted after this long, and their handle is free again. */
 export const ABANDONED_AFTER_DAYS = 14;
 
@@ -283,8 +313,62 @@ export function createSocialProfiles(db: Db, now: () => Date = () => new Date())
     return row ? toProfile(row) : null;
   };
 
+  const claims = createSocialClaims(db, now);
+  const casebook = createSocialCasebook(db, now);
+  const problems = createSocialProblems(db, now);
+  const floor = createSocialFloor(db, now);
+  const shelf = createSocialShelf(db, now);
+
+  const isFollowing = (followerId: number, followeeId: number): boolean =>
+    db.prepare('SELECT 1 FROM follows WHERE follower_id = ? AND followee_id = ?').get(followerId, followeeId) !== undefined;
+
+  const checklist = (memberId: number): Checklist => {
+    const has = (sql: string) => db.prepare(sql).get(memberId) !== undefined;
+    return {
+      ticked: sealOf(claimFacts(db, memberId)),
+      headline: has(`SELECT 1 FROM profiles WHERE member_id = ? AND headline != ''`),
+      casebook: has('SELECT 1 FROM casebook WHERE member_id = ?'),
+      answered: has('SELECT 1 FROM answers WHERE member_id = ?'),
+      badge: has('SELECT 1 FROM profiles WHERE member_id = ? AND badge_copied_at IS NOT NULL'),
+    };
+  };
+
+  /** Who invited the member, when a member did and the inviter's profile is public. */
+  const invitedBy = (memberId: number): { readonly handle: string; readonly name: string } | null => {
+    const row = db
+      .prepare(
+        `SELECT p.handle, m.name FROM social_entries e JOIN profiles p ON p.member_id = e.inviter_id JOIN members m ON m.id = e.inviter_id
+         WHERE e.member_id = ? AND e.joined_via = 'member' AND ${activeSql('e.inviter_id')}`,
+      )
+      .get(memberId);
+    return row ? { handle: text(row, 'handle'), name: text(row, 'name') } : null;
+  };
+
+  /** Followers and followed, counting only people the public can see. */
+  const followCounts = (memberId: number): { readonly followers: number; readonly following: number } => {
+    const visible = (column: string) => `EXISTS (SELECT 1 FROM members WHERE id = f.${column} AND ${PUBLIC})`;
+    return {
+      followers: count(db.prepare(`SELECT count(*) AS n FROM follows f WHERE f.followee_id = ? AND ${visible('follower_id')}`).get(memberId)),
+      following: count(db.prepare(`SELECT count(*) AS n FROM follows f WHERE f.follower_id = ? AND ${visible('followee_id')}`).get(memberId)),
+    };
+  };
+
   /** Let in already, or accepted by the club, which lets them in without an invite. */
   const mayClaim = (memberId: number) => admitted(db, memberId) || db.prepare(`SELECT 1 FROM members WHERE id = ? AND ${CLUB_APPROVED_SQL}`).get(memberId) !== undefined;
+
+  /** Inside a transaction: a handle for a member who has none, letting a club member in as they claim it. */
+  const claim = (memberId: number, handle: string, refuse: (reason: ClaimRefusal) => never): void => {
+    if (ownProfile(memberId)) refuse('already-claimed');
+    if (!mayClaim(memberId)) refuse('not-invited');
+    admit(db, now(), memberId, { via: 'club' });
+    insertProfile(db, now(), memberId, normaliseHandle(handle), refuse);
+  };
+
+  const saved = (memberId: number): Profile => {
+    const profile = ownProfile(memberId);
+    if (!profile) throw new Error(`Profile for member ${memberId} was not saved`);
+    return profile;
+  };
 
   return {
     /**
@@ -305,13 +389,8 @@ export function createSocialProfiles(db: Db, now: () => Date = () => new Date())
      */
     claimHandle(memberId: number, handle: string): Result<Profile, ClaimRefusal> {
       return attempt<Profile, ClaimRefusal>(db, (refuse) => {
-        if (ownProfile(memberId)) refuse('already-claimed');
-        if (!mayClaim(memberId)) refuse('not-invited');
-        admit(db, now(), memberId, { via: 'club' });
-        insertProfile(db, now(), memberId, normaliseHandle(handle), refuse);
-        const claimed = ownProfile(memberId);
-        if (!claimed) throw new Error(`Profile for member ${memberId} was not saved`);
-        return claimed;
+        claim(memberId, handle, refuse);
+        return saved(memberId);
       });
     },
 
@@ -326,37 +405,31 @@ export function createSocialProfiles(db: Db, now: () => Date = () => new Date())
       return { via: oneOf(row, 'joined_via', ENTRY_VIA), inviterId: inviter === null || inviter === undefined ? null : integer(row, 'inviter_id') };
     },
 
-    /** Who invited the member, when a member did and the inviter's profile is public. */
-    invitedBy(memberId: number): { readonly handle: string; readonly name: string } | null {
-      const row = db
-        .prepare(
-          `SELECT p.handle, m.name FROM social_entries e JOIN profiles p ON p.member_id = e.inviter_id JOIN members m ON m.id = e.inviter_id
-           WHERE e.member_id = ? AND e.joined_via = 'member' AND ${activeSql('e.inviter_id')}`,
-        )
-        .get(memberId);
-      return row ? { handle: text(row, 'handle'), name: text(row, 'name') } : null;
-    },
+    invitedBy,
 
     /** A profile as the public sees it, by handle. Null when nobody public holds it. */
     profile: publicProfile,
 
-    /** Saves what the member wrote. Null when they have no profile yet. */
-    update(memberId: number, fields: ProfileFields): Profile | null {
-      db.prepare(
-        `UPDATE profiles SET headline = ?, sector = ?, city = ?, jurisdictions = ?, topics = ?, creator = ?, listed = ?, updated_at = ?
-         WHERE member_id = ?`,
-      ).run(
-        fields.headline,
-        fields.sector,
-        fields.city,
-        JSON.stringify(JURISDICTIONS.filter((j) => fields.jurisdictions.includes(j))),
-        JSON.stringify(TOPICS.filter((t) => fields.topics.includes(t))),
-        fields.creator ? 1 : 0,
-        fields.listed ? 1 : 0,
-        iso(now()),
-        memberId,
-      );
-      return ownProfile(memberId);
+    /** Saves what the member wrote, claiming the handle first when they have no profile yet. Nothing is saved when anything is refused. */
+    save(memberId: number, handle: string | null, fields: ProfileFields): Result<Profile, SaveRefusal> {
+      return attempt<Profile, SaveRefusal>(db, (refuse) => {
+        if (!ownProfile(memberId)) claim(memberId, handle || refuse('no-handle'), refuse);
+        db.prepare(
+          `UPDATE profiles SET headline = ?, sector = ?, city = ?, jurisdictions = ?, topics = ?, creator = ?, listed = ?, updated_at = ?
+           WHERE member_id = ?`,
+        ).run(
+          fields.headline,
+          fields.sector,
+          fields.city,
+          JSON.stringify(JURISDICTIONS.filter((j) => fields.jurisdictions.includes(j))),
+          JSON.stringify(TOPICS.filter((t) => fields.topics.includes(t))),
+          fields.creator ? 1 : 0,
+          fields.listed ? 1 : 0,
+          iso(now()),
+          memberId,
+        );
+        return saved(memberId);
+      });
     },
 
     /** The List: listed public profiles, highest peer points first, then the longest here. */
@@ -408,21 +481,8 @@ export function createSocialProfiles(db: Db, now: () => Date = () => new Date())
       return db.prepare('DELETE FROM follows WHERE follower_id = ? AND followee_id = ?').run(followerId, followee.memberId).changes > 0;
     },
 
-    isFollowing(followerId: number, followeeId: number): boolean {
-      return db.prepare('SELECT 1 FROM follows WHERE follower_id = ? AND followee_id = ?').get(followerId, followeeId) !== undefined;
-    },
-
     /** The member's setup checklist. */
-    checklist(memberId: number): Checklist {
-      const has = (sql: string) => db.prepare(sql).get(memberId) !== undefined;
-      return {
-        ticked: sealOf(claimFacts(db, memberId)),
-        headline: has(`SELECT 1 FROM profiles WHERE member_id = ? AND headline != ''`),
-        casebook: has('SELECT 1 FROM casebook WHERE member_id = ?'),
-        answered: has('SELECT 1 FROM answers WHERE member_id = ?'),
-        badge: has('SELECT 1 FROM profiles WHERE member_id = ? AND badge_copied_at IS NOT NULL'),
-      };
-    },
+    checklist,
 
     /** The member copied their badge for a bio. The first copy is the one kept. */
     badgeCopied(memberId: number): void {
@@ -462,12 +522,28 @@ export function createSocialProfiles(db: Db, now: () => Date = () => new Date())
       });
     },
 
-    /** Followers and followed, counting only people the public can see. */
-    followCounts(memberId: number): { readonly followers: number; readonly following: number } {
-      const visible = (column: string) => `EXISTS (SELECT 1 FROM members WHERE id = f.${column} AND ${PUBLIC})`;
+    /** A member's page by handle, as the viewer (null when signed out) sees it. Null when nobody public holds the handle. */
+    page(handle: string, viewerId: number | null): ProfilePage | null {
+      const profile = publicProfile(handle);
+      if (!profile) return null;
+      const memberId = profile.memberId;
+      const own = viewerId === memberId;
+      const viewer = viewerId === null ? null : ownProfile(viewerId);
       return {
-        followers: count(db.prepare(`SELECT count(*) AS n FROM follows f WHERE f.followee_id = ? AND ${visible('follower_id')}`).get(memberId)),
-        following: count(db.prepare(`SELECT count(*) AS n FROM follows f WHERE f.follower_id = ? AND ${visible('followee_id')}`).get(memberId)),
+        profile,
+        own,
+        canVouch: !own && (viewer?.sealed ?? false),
+        following: viewerId !== null && !own ? isFollowing(viewerId, memberId) : false,
+        counts: followCounts(memberId),
+        invitedBy: invitedBy(memberId),
+        ledger: claims.ledger(memberId, viewerId),
+        roles: casebook.roles(memberId),
+        record: problems.record(memberId),
+        heat: casebook.heatmap(memberId),
+        posts: floor.recentPosts(viewerId, memberId),
+        shelf: shelf.shelf(memberId, viewerId),
+        saved: own ? shelf.saved(memberId) : [],
+        checklist: own ? checklist(memberId) : null,
       };
     },
   };

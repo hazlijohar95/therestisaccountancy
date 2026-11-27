@@ -158,3 +158,15 @@ test('a nominee joins from the link: one account, let in by the nomination, with
   assert.equal(reason(w.nominations.join(token, { name: 'Other', email: 'other@firm.my', handle: 'other' })), 'not-found', 'a link lets in one person');
   assert.equal(w.db.prepare(`SELECT count(*) AS n FROM members WHERE email = 'other@firm.my'`).get()?.['n'], 0);
 });
+
+test('claiming an invite needs a handle first, and asks for it before looking at the link', async () => {
+  const w = world();
+  const host = await w.host;
+  const aina = await w.joined('Aina', 'aina@firm.my', 'aina');
+  value(w.nominations.nominate(aina.id, draft()));
+  const { token } = value(w.nominations.invite(w.nominations.queue().pending[0]?.id ?? 0, host.id));
+
+  assert.equal(reason(w.nominations.claim(host.id, token)), 'no-handle');
+  assert.equal(reason(w.nominations.claim(host.id, 'no-such-link')), 'no-handle');
+  assert.deepEqual(w.nominations.invitation(token)?.handle, 'taxwithtan', 'the link still works for the nominee');
+});

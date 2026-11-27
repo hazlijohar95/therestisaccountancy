@@ -1,0 +1,12 @@
+# Glossary
+
+Terms the code and the docs use. Keep them exact.
+
+- **Domain module.** A `createX(db, now)` factory in `src/server/*` that owns one area's tables and rules (club, billing, socialClaims, socialRequests). It returns `Result`s, never throws for a refusal, and is tested on node:sqlite. See ADR-0001.
+- **Store.** Every domain module, opened together over one database. In production it lives in the `ClubStore` Durable Object, and the app reaches it with `withStore`.
+- **Use case.** One thing a person does that may touch several tables (approve a join request, remove a member). It is one operation on a domain module, run as one transaction.
+- **Server function.** A `createServerFn` in `app/src/functions/*`. It adapts a request to one use case: who is acting, the parsed input, the call, and the letters to send.
+- **Refusal.** A domain module's named reason for saying no (`'no-handle'`, `'full'`). The app maps each refusal to the message a person reads.
+- **Outcome.** What a form's server function answers: a value, or a message plus per-field errors.
+- **Letter.** An email ready to send, built in `src/server/letters.ts` or `social-letters.ts`.
+- **Access level.** Who may do something: signed in, paid, has a handle, or admin.

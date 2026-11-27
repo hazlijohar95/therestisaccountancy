@@ -62,7 +62,7 @@ export const Route = createFileRoute('/dev-seed-admin')({
           const startsAt = new Date(Math.ceil((Date.now() + 3 * DAY_MS) / 3_600_000) * 3_600_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
           if ((await store.schedule.upcoming(null)).length === 0) {
             const session = await store.schedule.add({ title: 'Pricing a first engagement', kind: 'Clinics', startsAt, minutes: 60, link: 'https://meet.example.com/clinic', detail: 'Bring a quote.' });
-            await store.schedule.rsvp(bId, session, true);
+            if (session.ok) await store.schedule.rsvp(bId, session.value, true);
           }
           if ((await store.calls.upcoming()).length === 0) {
             const slot = await store.calls.add(hostId, { startsAt, minutes: 30, link: 'https://meet.example.com/call' });

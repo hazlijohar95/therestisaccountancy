@@ -7,7 +7,7 @@ import { send } from '../../../src/server/mail.ts';
 import { report } from '../../../src/server/report.ts';
 import type { DecisionRefusal } from '../../../src/server/social-claims.ts';
 import type { RevokeRefusal, TeamInviteRefusal } from '../../../src/server/social-invites.ts';
-import { accountDecidedLetter, claimDecidedLetter, requestApprovedLetter, requestDeclinedLetter, teamInviteLetter } from '../../../src/server/social-letters.ts';
+import { accountDecidedLetter, claimDecidedLetter, requestDeclinedLetter, teamInviteLetter } from '../../../src/server/social-letters.ts';
 import type { InviteRefusal } from '../../../src/server/social-nominations.ts';
 import type { DecideRefusal } from '../../../src/server/social-requests.ts';
 import { blankable, email, id, line, oneLine } from '../lib/fields.ts';
@@ -48,7 +48,6 @@ const revokeRefusals: Record<RevokeRefusal, string> = {
   used: 'Someone has used that invite, so it cannot be taken back.',
 };
 
-const linkRefused = { 'not-found': 'That account was not saved. Try again.', suspended: 'That account is paused.' } as const;
 const reportDecided = 'Someone on the team already decided that.';
 const reason = line(CLAIM_LIMITS.reason, 'Say why, in a line. The member gets it by email.');
 
@@ -230,21 +229,9 @@ export const approveRequest = createServerFn({ method: 'POST' })
     if (!team.ok) return team;
     const input = parsed(requestInput, data);
     if (!input.ok) return input;
-    const result = await withStore(async (store) => {
-      const approval = await store.socialRequests.approve(input.value.request, team.value.id);
-      if (!approval.ok || approval.value.kind !== 'welcome') return { approval, link: null };
-      return { approval, link: await store.club.newLink(approval.value.memberId) };
-    });
-    const { approval, link } = result;
-    if (!approval.ok) return refused(decideRefusals[approval.reason]);
-    if (approval.value.kind === 'sign-in') {
-      const signIn = absolute(`/sign-in?next=${encodeURIComponent(socialAbsolute('/me'))}`);
-      sendLater([requestApprovedLetter(approval.value, { signIn, hasProfile: approval.value.hasProfile })]);
-      return done(null);
-    }
-    if (!link?.ok) return refused(linkRefused[link?.reason ?? 'not-found']);
-    const { member, token, expiresAt } = link.value;
-    sendLater([requestApprovedLetter(member, { link: absolute(`/welcome?token=${encodeURIComponent(token)}`), expiresAt })]);
+    const approved = await withStore(async (store) => await store.socialRequests.approve(input.value.request, team.value.id, absolute('/')));
+    if (!approved.ok) return refused(decideRefusals[approved.reason]);
+    sendLater(approved.value);
     return done(null);
   });
 

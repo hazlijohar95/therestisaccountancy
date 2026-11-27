@@ -302,3 +302,12 @@ test('evidence is a PDF, JPEG, PNG or WebP by its first bytes, whatever its name
   assert.equal(evidenceType(bytes('<!doctype html>')), null);
   assert.equal(evidenceType(new Uint8Array()), null);
 });
+
+test('ticks show on a profile, so a member without a handle adds no account, claim or work email', async () => {
+  const w = world();
+  const clubOnly = await w.club.ensureAdmin({ email: 'siti@club.test', name: 'Siti', password: PASSWORD });
+  assert.equal(reason(w.claims.addAccount(clubOnly.id, 'LinkedIn', 'siti')), 'no-handle');
+  assert.equal(reason(w.claims.addClaim(clubOnly.id, { kind: 'experience', text: 'Six years in audit' })), 'no-handle');
+  assert.equal(reason(w.claims.startWorkEmail(clubOnly.id, 'siti@kpmg.com')), 'no-handle');
+  assert.deepEqual(w.claims.mine(clubOnly.id), { accounts: [], claims: [] });
+});

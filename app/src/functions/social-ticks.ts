@@ -33,13 +33,17 @@ import { withStore } from '../lib/store.server.ts';
  * are in social-review.ts.
  */
 
-const accountRefusals: Record<AccountRefusal, string> = {
+const noHandle = 'Claim your handle first.';
+
+const accountRefusals: Record<AccountRefusal | 'no-handle', string> = {
+  'no-handle': noHandle,
   'handle-invalid': 'That does not look like a handle on that platform. Type the handle, or paste the profile’s address.',
   'platform-taken': 'You already have an account on that platform here. Remove it first to add another.',
   'proven-elsewhere': 'Someone has already proven that account. If it is yours, write to the team.',
 };
 
 const claimRefusals: Record<ClaimRefusal, string> = {
+  'no-handle': noHandle,
   duplicate: 'That claim is already waiting for the team.',
   'too-many': 'You have 20 claims waiting. Wait for the team to check some first.',
 };
@@ -50,6 +54,7 @@ const evidenceRefusals: Record<EvidenceRefusal, string> = {
 };
 
 const workEmailRefusals: Record<WorkEmailRefusal, string> = {
+  'no-handle': noHandle,
   'address-invalid': 'Enter your work email, like you@yourfirm.com.',
   'personal-domain': 'That is a personal address. Use the one your employer gave you.',
   'already-ticked': 'That workplace is already ticked on your profile.',
@@ -71,12 +76,12 @@ const vouchRefusals: Record<VouchRefusal, string> = {
 
 const here = () => new URL(getRequest().url);
 
-/** The signed-in member's profile. Ticks belong to a profile, so a member without a handle claims one first. */
+/** The signed-in member's profile, checked before the form is read or a document stored. Ticks belong to a profile, so a member without a handle claims one first. */
 async function profileOrRefusal(): Promise<Outcome<Profile>> {
   const member = await memberOrRefusal();
   if (!member.ok) return member;
   const profile = await withStore(async (store) => await store.socialProfiles.ownProfile(member.value.id));
-  return profile ? done(profile) : refused('Claim your handle first.');
+  return profile ? done(profile) : refused(noHandle);
 }
 
 /** Why an uploaded file cannot be evidence, read from its first bytes. Null when it can. */
