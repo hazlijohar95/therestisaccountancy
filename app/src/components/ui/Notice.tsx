@@ -9,10 +9,11 @@ const icons = { ok: 'check', error: 'alert', info: 'info' } as const;
  * section, beside what it is about. Errors are announced at once, the rest politely.
  */
 export function Notice({ tone = 'ok', inline = false, id, children }: { tone?: 'ok' | 'error' | 'info'; inline?: boolean; id?: string; children: ReactNode }) {
-  return (
-    <div className={`${s.notice} ${s[tone]}${inline ? ` ${s.inline}` : ' wrap'}`} id={id} role={tone === 'error' ? 'alert' : 'status'}>
+  const notice = (
+    <div className={`${s.notice} ${s[tone]}${inline ? ` ${s.inline}` : ''}`} id={id} role={tone === 'error' ? 'alert' : 'status'}>
       <Icon name={icons[tone]} />
       <p>{children}</p>
     </div>
   );
+  return inline ? notice : <div className="wrap">{notice}</div>;
 }
