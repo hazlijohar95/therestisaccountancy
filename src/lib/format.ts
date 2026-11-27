@@ -23,6 +23,14 @@ const weekday = new Intl.DateTimeFormat('en-MY', { weekday: 'long', day: 'numeri
 /** Tuesday, 24 November, in Malaysian time. */
 export const formatWeekday = (value: string) => weekday.format(new Date(value));
 
+const parts = new Intl.DateTimeFormat('en-MY', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kuala_Lumpur' });
+
+/** { weekday: 'Tue', day: '24', month: 'Nov' }, in Malaysian time: a date drawn as a tile. */
+export function dayParts(value: string) {
+  const of = (type: Intl.DateTimeFormatPartTypes) => parts.formatToParts(new Date(value)).find((part) => part.type === type)?.value ?? '';
+  return { weekday: of('weekday'), day: of('day'), month: of('month') };
+}
+
 const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 
 /** "seven" for 7: copy spells out small counts. Past twelve it uses digits. */

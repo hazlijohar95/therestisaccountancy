@@ -1,12 +1,13 @@
 import { week } from '../data/club.ts';
+import { FIRST_STEPS, firstSteps } from '../data/onboarding.ts';
 import { joiningRate, stopReasonLabel, TERMS, terms, type StopReason, type Term } from '../data/membership.ts';
 import { site } from '../data/site.ts';
-import { firstName, formatDay, formatMoment, listOf, numberWord, tally } from '../lib/format.ts';
+import { capitalised, firstName, formatDay, formatMoment, listOf, numberWord, tally } from '../lib/format.ts';
 import type { JoinedVia, JoinRequest, LinkPurpose, PasswordLink } from './club.ts';
 import type { ActivityKind } from './activity.ts';
 import { calendarFile, sessionEvent } from './calendar.ts';
 import type { List, OnboardingStep, Recipient, Subscriber } from './mailings.ts';
-import { welcomeUrl } from './paths.ts';
+import { cpeHost, welcomeUrl } from './paths.ts';
 import type { LiveSession } from './schedule.ts';
 
 /*
@@ -19,7 +20,14 @@ import type { LiveSession } from './schedule.ts';
  * A paragraph of typed text, or a link the club built. Only built links become clickable: typed input never does. A
  * link with a label is a button; with text it is those words, linked; with neither it shows the address.
  */
-export type Line = string | { readonly href: string; readonly label?: string; readonly text?: string };
+/** A numbered row in a list of steps: a linked title and a few words under it. */
+export interface StepLine {
+  readonly title: string;
+  readonly detail: string;
+  readonly href: string;
+}
+
+export type Line = string | { readonly href: string; readonly label?: string; readonly text?: string } | { readonly steps: readonly StepLine[] };
 
 /** One email, written once. The React Email template turns its lines into the HTML and the text part. */
 export interface Letter {
@@ -203,6 +211,28 @@ export function digestLetter(to: Subscriber, news: DigestNews): Letter {
     unsubscribe: unsubscribeUrl(news.settingsUrl, to, 'digest'),
     subject: `This week: ${headline || 'news from the club'}`,
     lines: [hi(to.name), "Here's the week in the club, in case you missed it.", ...posts, ...replies, ...sessions, "You're getting this because you turned on the Monday email.", site.host],
+  };
+}
+
+/**
+ * Sent once, when a member's first payment goes through: what the club holds for them, as the steps the members'
+ * home then tracks. From the host, so a reply reaches a person.
+ */
+export function welcomeLetter(to: Recipient, siteUrl: string): Letter {
+  const url = (path: string) => new URL(path, siteUrl).href;
+  return {
+    to: to.email,
+    from: fromHost,
+    subject: "You're in.",
+    lines: [
+      hi(to.name),
+      `Your membership is live. ${capitalised(numberWord(FIRST_STEPS.length))} steps get the most out of it:`,
+      { steps: FIRST_STEPS.map((step) => ({ title: firstSteps[step].label, detail: firstSteps[step].detail, href: url(firstSteps[step].path) })) },
+      { href: url('/members'), label: 'Open your dashboard' },
+      { href: `https://${cpeHost}`, text: 'Also yours: CPE credit for listening to the episodes.' },
+      'Questions? Reply to this email. It comes straight to me.',
+      site.host,
+    ],
   };
 }
 

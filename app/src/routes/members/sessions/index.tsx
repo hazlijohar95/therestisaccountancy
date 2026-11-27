@@ -1,14 +1,21 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { week } from '../../../../../src/data/club.ts';
-import { formatDay, formatMoment } from '../../../../../src/lib/format.ts';
-import { Masthead } from '../../../components/club/Masthead.tsx';
-import { Notice } from '../../../components/club/Notice.tsx';
-import { Steps } from '../../../components/members/Steps.tsx';
+import { roomPath } from '../../../../../src/data/social.ts';
+import { formatDay, formatTime } from '../../../../../src/lib/format.ts';
+import { Badge } from '../../../components/ui/Badge.tsx';
+import { Empty } from '../../../components/ui/Empty.tsx';
+import { Icon } from '../../../components/ui/Icon.tsx';
+import { DateTile, List, Meta, Row } from '../../../components/ui/List.tsx';
+import { Notice } from '../../../components/ui/Notice.tsx';
+import { PageHead } from '../../../components/ui/PageHead.tsx';
+import { Points } from '../../../components/ui/Points.tsx';
+import { Actions, Section } from '../../../components/ui/Section.tsx';
+import { Steps } from '../../../components/ui/Steps.tsx';
 import { useAction } from '../../../components/useAction.ts';
 import { membersSessions, rsvp } from '../../../functions/members-sessions.ts';
+import { socialHref } from '../../../lib/links.ts';
 import { clubTitle } from '../../../lib/title.ts';
-import s from './index.module.css';
 
 export const Route = createFileRoute('/members/sessions/')({
   loader: () => membersSessions(),
@@ -31,103 +38,82 @@ function Sessions() {
 
   return (
     <>
-      <Masthead label="Sessions" title="Live every week. Recorded for the weeks you miss." narrow />
-      {told !== null && <Notice>{told ? 'You are down for it. A calendar file is on its way by email.' : 'Noted. You are no longer down for it.'}</Notice>}
+      <PageHead label="Sessions" title="Live every week." lead="Recorded for the weeks you miss. Times are Malaysia time." />
+      {told !== null && <Notice>{told ? 'You are going. A calendar file is on its way.' : 'Noted. You are not going.'}</Notice>}
       {answer.refusal && <Notice tone="error">{answer.refusal.message}</Notice>}
-      <section className={`wrap ${s.block}`} aria-labelledby="coming-title">
-        <h2 className="head" id="coming-title">
-          Coming up
-        </h2>
+
+      <Section title="Coming up">
         {upcoming.length === 0 ? (
-          <p className={s.empty}>Nothing scheduled yet. New sessions appear here, and in the Monday email.</p>
+          <Empty icon="calendar">Nothing scheduled yet. New sessions show here and in the Monday email.</Empty>
         ) : (
-          <ol className={s.sessions}>
+          <List ordered>
             {upcoming.map((session) => (
-              <li key={session.id} className={s.session}>
-                <div className="when small">
-                  <time dateTime={session.startsAt}>{formatMoment(session.startsAt)}</time> · {session.minutes} min · {session.kind}
-                  {started(session.startsAt) && <b> · On now</b>}
-                </div>
-                <h3 className={`title ${s.title}`}>{session.title}</h3>
-                {session.detail && <p className={s.detail}>{session.detail}</p>}
-                <p className="small">{session.going === 0 ? 'Nobody has said yet.' : session.going === 1 ? '1 member coming.' : `${session.going} members coming.`}</p>
-                <form
-                  method="POST"
-                  className={s.row}
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void say(session.id, !session.attending);
-                  }}
-                >
-                  {session.attending ? (
-                    <>
-                      <a className="btn" href={session.link} rel="noopener">
-                        Join the call
-                      </a>
-                      <a href={`/members/sessions/${session.id}.ics`}>Add to calendar</a>
-                      <button className={s.link}>I can't make it</button>
-                    </>
-                  ) : (
-                    <button className="btn">I'm coming</button>
-                  )}
-                </form>
-              </li>
-            ))}
-          </ol>
-        )}
-        <p className="small">Times are Malaysia time.</p>
-      </section>
-      <section className={`wrap ${s.block}`} aria-labelledby="kinds-title">
-        <h2 className="head" id="kinds-title">
-          Three kinds of session
-        </h2>
-        <Steps items={week.sessions} />
-        <dl className="facts">
-          {week.between.map(({ term, detail }) => (
-            <div key={term}>
-              <dt>{term}</dt>
-              <dd>
-                {detail}
-                {term === 'When you’re stuck' && (
+              <Row
+                key={session.id}
+                lead={<DateTile at={session.startsAt} />}
+                title={session.title}
+                meta={
                   <>
-                    {' '}
-                    <a href="/members/calls">Book a call</a>
+                    {started(session.startsAt) ? <Badge tone="live">On now</Badge> : <Badge>{session.kind}</Badge>}
+                    <Meta icon="clock">
+                      {formatTime(session.startsAt)}, {session.minutes} min
+                    </Meta>
+                    <Meta icon="users">{session.going} going</Meta>
                   </>
-                )}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-      <section className={`wrap ${s.block}`} aria-labelledby="recordings-title">
-        <h2 className="head" id="recordings-title">
-          Recordings
-        </h2>
-        {recordings.length === 0 ? (
-          <p className={s.empty}>No recordings yet. Each session's recording is added here after it airs.</p>
-        ) : (
-          <table className="ledger">
-            <thead>
-              <tr>
-                <th>Session</th>
-                <th>Kind</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recordings.map((r) => (
-                <tr key={r.id}>
-                  <td>
-                    <a href={r.url}>{r.title}</a>
-                  </td>
-                  <td>{r.kind}</td>
-                  <td>{formatDay(r.date)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                }
+                trail={
+                  <form
+                    method="POST"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void say(session.id, !session.attending);
+                    }}
+                  >
+                    <Actions>
+                      {session.attending ? (
+                        <>
+                          <a className="btn" href={session.link} rel="noopener">
+                            Join the call
+                          </a>
+                          <a href={`/members/sessions/${session.id}.ics`}>Add to calendar</a>
+                          <button className="btn ghost">Can't make it</button>
+                        </>
+                      ) : (
+                        <button className="btn">I'm coming</button>
+                      )}
+                    </Actions>
+                  </form>
+                }
+              >
+                {session.detail && <p className="small">{session.detail}</p>}
+              </Row>
+            ))}
+          </List>
         )}
-      </section>
+      </Section>
+
+      <Section title="Three kinds">
+        <Steps items={week.sessions.map(({ term, detail }) => ({ label: term, detail }))} />
+        <Points
+          items={[
+            { icon: 'users', text: <a href={socialHref(roomPath('club'))}>The members' room, open all week</a> },
+            { icon: 'clock', text: <a href="/members/calls">Stuck? Book a one-to-one</a> },
+          ]}
+        />
+      </Section>
+
+      <Section title="Recordings">
+        {recordings.length === 0 ? (
+          <Empty icon="play">No recordings yet. Each one lands here after it airs.</Empty>
+        ) : (
+          <List>
+            {recordings.map((r) => (
+              <Row key={r.id} lead={<Icon name="play" />} title={<a href={r.url}>{r.title}</a>} meta={`${r.kind}, ${formatDay(r.date)}`} />
+            ))}
+          </List>
+        )}
+      </Section>
     </>
   );
 }
+

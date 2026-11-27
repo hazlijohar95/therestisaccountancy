@@ -1,0 +1,10 @@
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: var(--space-5); }
+.card { position: relative; display: flex; flex-direction: column; gap: var(--space-5); padding: var(--space-6) var(--space-5) var(--space-5); background: var(--surface); border: var(--frame) solid var(--ink); border-radius: var(--r-card, 0); box-shadow: var(--shadow, var(--elevation)); }
+.featured { border-width: var(--stroke-heavy); border-color: var(--color-night); }
+/* The card is night inside, so its own tokens cannot tell it the page's scheme: on a night page its frame is paper. */
+@media (prefers-color-scheme: dark) { :global(:root:not([data-theme="light"])) .featured { border-color: var(--color-paper); } }
+:global(:root[data-theme="dark"]) .featured { border-color: var(--color-paper); }
+.tag { position: absolute; top: 0; left: var(--space-5); translate: 0 -50%; padding: var(--space-1) var(--space-2); background: var(--bg); color: var(--ink); border: var(--edge) solid var(--ink); border-radius: var(--r-ctl, 0); }
+.body { display: grid; gap: var(--space-3); }
+.foot { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.foot form { margin: 0; }

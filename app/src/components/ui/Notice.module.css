@@ -1,0 +1,5 @@
+.notice { display: flex; align-items: start; gap: var(--space-3); margin-block: var(--space-7) 0; padding-block: var(--space-4); border-block: var(--stroke-rule) solid currentColor; font-weight: 600; }
+.notice svg { flex: none; margin-top: .15em; }
+.notice p { margin: 0; }
+.error { color: var(--alert); }
+.inline { margin: 0; padding-block: 0; border: 0; }
