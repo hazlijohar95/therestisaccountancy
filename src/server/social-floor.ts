@@ -1,5 +1,6 @@
 import {
   FLOOR_LIMITS,
+  normaliseHandle,
   POST_JURISDICTIONS,
   REPORT_REASON_IDS,
   REPORT_REASONS,
@@ -25,7 +26,7 @@ import { replyLetter, type Letter } from './letters.ts';
 import { noticeReply } from './mailings.ts';
 import { socialUrl } from './paths.ts';
 import { fail, ok, type Result } from './result.ts';
-import { authorOf as readAuthor, claimFacts, mainCredential, normaliseHandle, sealedSql, sealOf, type Author } from './social-profiles.ts';
+import { authorOf as readAuthor, claimFacts, mainCredential, sealedSql, sealOf, type Author } from './social-profiles.ts';
 import { notify } from './social-notify.ts';
 
 /*

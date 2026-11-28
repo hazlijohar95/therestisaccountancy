@@ -6,6 +6,7 @@ import {
   ENGAGEMENT_ROLES,
   FRAMEWORKS,
   INDUSTRIES,
+  normaliseHandle,
   ROLE_LIMITS,
   SERVICES,
   type Area,
@@ -20,7 +21,7 @@ import { identifying, ROLE_TITLE_SKIP } from '../lib/guard.ts';
 import { attempt, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
 import { fail, ok, type Result } from './result.ts';
 import { notify } from './social-notify.ts';
-import { activeSql, authorOf, claimFacts, hasHandle, normaliseHandle, sealedSql, sealOf, type Author } from './social-profiles.ts';
+import { activeSql, authorOf, claimFacts, hasHandle, sealedSql, sealOf, type Author } from './social-profiles.ts';
 
 /*
  * The casebook: work logged by kind, industry, size band and year, never by client, and a colleague with the seal who

@@ -1,4 +1,4 @@
-import { ENTRY_VIA, HANDLE, JURISDICTIONS, RESERVED_HANDLES, SECTORS, statusTrack, TOPICS, type EntryVia, type Jurisdiction, type Sector, type Topic, type Track } from '../data/social.ts';
+import { ENTRY_VIA, handleProblem, JURISDICTIONS, normaliseHandle, SECTORS, statusTrack, TOPICS, type EntryVia, type Jurisdiction, type Sector, type Topic, type Track } from '../data/social.ts';
 import { matcher } from '../lib/search.ts';
 import { STATUS_SQL } from './club.ts';
 import { attempt, count, integer, oneOf, optionalText, text, type Db, type Row } from './db.ts';
@@ -104,15 +104,6 @@ export function openAccount(db: Db, at: Date, input: { name: string; email: stri
   admit(db, at, lastInsertRowid, entry);
   insertProfile(db, at, lastInsertRowid, normaliseHandle(input.handle), refuse);
   return lastInsertRowid;
-}
-
-/** A handle as people type it: any case, with or without the @. */
-export const normaliseHandle = (raw: string) => raw.trim().replace(/^@/, '').toLowerCase();
-
-/** Why a normalised handle cannot be used, before asking whether someone holds it. Null when it can. */
-export function handleProblem(handle: string): 'handle-invalid' | 'handle-reserved' | null {
-  if (!HANDLE.pattern.test(handle)) return 'handle-invalid';
-  return RESERVED_HANDLES.has(handle) ? 'handle-reserved' : null;
 }
 
 /** Qualified outranks training, and either outranks the creator flair the member chose. */

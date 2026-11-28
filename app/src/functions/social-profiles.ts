@@ -1,9 +1,9 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
-import { HANDLE, HANDLE_TAKEN, JURISDICTIONS, PROFILE_LIMITS, SECTORS, TOPICS, TRACKS, type Topic, type Track } from '../../../src/data/social.ts';
+import { HANDLE, HANDLE_TAKEN, handleProblem, JURISDICTIONS, normaliseHandle, PROFILE_LIMITS, SECTORS, TOPICS, TRACKS, type Topic, type Track } from '../../../src/data/social.ts';
 import { claimWhen, renewsIn } from '../../../src/lib/ticks.ts';
 import type { VouchRefusal } from '../../../src/server/social-claims.ts';
-import { handleProblem, normaliseHandle, type FollowRefusal, type HandleRefusal, type SaveRefusal } from '../../../src/server/social-profiles.ts';
+import type { FollowRefusal, HandleRefusal, SaveRefusal } from '../../../src/server/social-profiles.ts';
 import { numberId, oneLine, token } from '../lib/fields.ts';
 import { action } from '../lib/action.server.ts';
 import { done, refused } from '../lib/outcome.ts';
