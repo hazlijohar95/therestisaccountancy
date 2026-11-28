@@ -1,11 +1,31 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ledgerLines, toCsv } from "../src/domain/ledger.ts";
+import { parseMytDate, type MytDate } from "../src/domain/calendar.ts";
+import { entriesOf, toCsv } from "../src/domain/ledger.ts";
+import { evaluate } from "../src/domain/mia.ts";
+import { defaultProfile, type LoggedEntry } from "../src/domain/progress.ts";
 import { acceptHeard, BANK_SECONDS, MAX_RATE, refill, seconds } from "../src/domain/rules.ts";
 import { createCatalogue } from "./catalogue.ts";
-import { createLearner, type Assessed } from "./learner.ts";
-import { readable } from "./db.ts";
+import { createLearner, MIGRATIONS, type Assessed } from "./learner.ts";
+import { migrate, readable } from "./db.ts";
 import { memoryDb } from "./node-db.ts";
+import * as check from "./validate.ts";
+
+const day = (text: string): MytDate => {
+  const parsed = parseMytDate(text);
+  if (!parsed) throw new Error(`Not a day: ${text}`);
+  return parsed;
+};
+
+/** A seminar a member logs by hand: `hours` on `date`, `ethics` hours of it ethics. */
+const seminar = (date: string, hours = 2, ethics = 0): Omit<LoggedEntry, "id" | "source"> => ({
+  date: day(date),
+  title: "Seminar",
+  organiser: "Somewhere",
+  activity: "course",
+  minutes: hours * 60,
+  tags: ethics ? { ethics: ethics * 60 } : {},
+});
 
 /** A learner on a fake clock, and a course built from the first seeded sample. */
 function world() {
@@ -26,8 +46,20 @@ function world() {
     field: p.script.field,
     level: p.script.level,
     credits: p.script.credits,
+    tags: { ethics: 40, tax: 20 },
   };
   const tick = (seconds: number) => (clock += seconds * 1000);
+  /** Hears the course, answers its review questions and passes its assessment. */
+  const certify = () => {
+    listenAll();
+    answerAll();
+    learner.setName("Aina Rahman");
+    const sitting = learner.sit(course);
+    assert.ok(sitting !== "not-ready");
+    const graded = learner.submit(sitting.id, course.quiz.map((q, i) => sitting.orders[i]!.indexOf(q.answer)), course);
+    assert.ok(typeof graded === "object" && graded.certificate);
+    return graded.certificate;
+  };
   /** Plays the whole episode at 1x, reporting every 5 seconds of real time, as the app does. */
   const listenAll = () => {
     for (let t = 5; t < course.duration + 5; t += 5) {
@@ -36,7 +68,7 @@ function world() {
     }
   };
   const answerAll = () => course.quiz.length && Array.from({ length: course.checkpoints }, (_, i) => learner.answerReview(course.courseId, course.version, i));
-  return { learner, course, tick, listenAll, answerAll, catalogue };
+  return { learner, course, tick, listenAll, answerAll, certify, catalogue };
 }
 
 test("accepted audio never exceeds the budget, and is taken earliest first", () => {
@@ -154,25 +186,25 @@ test("a listener stays on the version they started when a new one is published",
   assert.equal(w.learner.pins()[w.course.courseId], 2, "evidence on a newer version moves them to it");
 });
 
-test("importing the prototype's record twice adds nothing the second time, and nothing becomes a certificate", () => {
+test("importing the prototype's record twice adds nothing the second time, nothing becomes a certificate, and its requirement is ignored", () => {
   const w = world();
   const legacy = {
     learner: "Aina",
     requirement: { start: "2026-01-01", end: "2026-12-31", target: 20, minimums: { Ethics: 2 } },
-    logged: [{ id: "a1", date: "2026-03-01", title: "Tax update", provider: "MIA", field: "Taxation" as const, hours: 2 }],
-    certificates: [{ id: "TRIA-FT-20260301-AB12", date: "2026-03-02", title: "Five threats, one framework", provider: "Stick to Accounting", field: "Ethics" as const, hours: 1 }],
+    logged: [check.legacyEntry({ id: "a1", date: "2026-03-01", title: "Tax update", provider: "MIA", field: "Taxation", hours: 2 }, "logged")],
+    certificates: [check.legacyEntry({ id: "TRIA-FT-20260301-AB12", date: "2026-03-02", title: "Five threats, one framework", provider: "Stick to Accounting", field: "Ethics", hours: 1 }, "certificate")],
     positions: [{ courseId: w.course.courseId, version: 1, position: 42 }],
   };
   w.learner.importLegacy(legacy);
   w.learner.importLegacy(legacy);
   const s = w.learner.snapshot();
   assert.equal(s.learner, "Aina");
-  assert.equal(s.requirement.target, 20);
+  assert.deepEqual(s.profile, defaultProfile, "the prototype's requirement is not MIA's and is never stored");
   assert.deepEqual(
-    s.logged.map((l) => [l.title, l.source]),
+    s.logged.map((l) => [l.title, l.organiser, l.source, l.activity, l.minutes, l.tags]),
     [
-      ["Tax update", "self-reported"],
-      ["Five threats, one framework", "unverified"],
+      ["Tax update", "MIA", "self-reported", "course", 120, { tax: 120 }],
+      ["Five threats, one framework", "Stick to Accounting", "unverified", "course", 60, { ethics: 60 }],
     ],
   );
   assert.equal(s.certificates.length, 0, "an old browser certificate is never a verified one");
@@ -181,44 +213,111 @@ test("importing the prototype's record twice adds nothing the second time, and n
   assert.deepEqual(p.ranges, [], "listening evidence is not imported");
 });
 
-test("the ledger and its CSV read straight from the server's record, with each line's source", () => {
-  const w = world();
-  w.listenAll();
-  w.answerAll();
-  w.learner.setName("Aina Rahman");
-  const sitting = w.learner.sit(w.course);
-  assert.ok(sitting !== "not-ready");
-  const graded = w.learner.submit(sitting.id, w.course.quiz.map((q, i) => sitting.orders[i]!.indexOf(q.answer)), w.course);
-  assert.ok(typeof graded === "object" && graded.certificate);
-  w.learner.log({ date: "2026-11-01", title: "Tax update", provider: "Self-reported", field: "Taxation", hours: 2 });
-  w.learner.importLegacy({ logged: [], certificates: [{ id: "OLD-1", date: "2026-10-01", title: "Old course", provider: "Stick to Accounting", field: "Ethics", hours: 1 }], positions: [] });
-  const csv = toCsv(ledgerLines(w.learner.snapshot())).split("\n");
-  assert.equal(csv[0], '"Date","Title","Provider","Field of study","Hours","Source","Certificate"');
-  const source = (row: string) => ["earned", "self-reported", "unverified"].find((x) => row.includes(`,"${x}",`));
-  assert.deepEqual(csv.slice(1).map(source), ["unverified", "self-reported", "earned"], "in date order");
-  assert.ok(csv[3]!.endsWith(`"${graded.certificate.id}"`), "an earned line carries its certificate id");
+test("a record from before MIA's model comes across whole: hours as minutes under the field's subject, sources and import keys kept", () => {
+  const db = memoryDb();
+  migrate(db, MIGRATIONS.slice(0, 1));
+  db.prepare("UPDATE learner SET name = 'Aina', requirement = ? WHERE id = 1").run(JSON.stringify({ start: "2026-01-01", end: "2026-12-31", target: 40, minimums: {} }));
+  const old = db.prepare("INSERT INTO logged (id, date, title, provider, field, hours, source, legacy_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+  old.run("l1", "2026-02-01", "Ethics briefing", "MIA", "Ethics", 1.5, "self-reported", null, "2026-02-01T01:00:00.000Z");
+  old.run("l2", "2026-02-02", "Audit update", "MICPA", "Auditing", 0.1, "self-reported", "logged:a1", "2026-02-02T01:00:00.000Z");
+  old.run("l3", "2026-02-03", "IFRS 18", "ACCA", "Accounting", 2, "unverified", "certificate:c1", "2026-02-03T01:00:00.000Z");
+  old.run("l4", "2026-02-04", "Budget", "CTIM", "Taxation", 3, "self-reported", null, "2026-02-04T01:00:00.000Z");
+  old.run("l5", "2026-02-05", "Fees", "Firm", "Practice Management", 1, "self-reported", null, "2026-02-05T01:00:00.000Z");
+  db.prepare("INSERT INTO certificates (id, course_id, version, issued_at, name, correct, total, title, provider, field, level, credits) VALUES ('C1', 'five-threats', 1, '2026-03-01T02:00:00.000Z', 'Aina', 5, 5, 'Five threats', 'Stick to Accounting', 'Ethics', 'Basic', 1.5)").run();
+
+  const learner = createLearner(db, () => new Date("2026-11-26T10:00:00Z"), () => assert.fail("every old row reads"));
+  const s = learner.snapshot();
+  assert.deepEqual(
+    s.logged.map((l) => [l.id, l.organiser, l.activity, l.minutes, l.tags, l.source]),
+    [
+      ["l1", "MIA", "course", 90, { ethics: 90 }, "self-reported"],
+      ["l2", "MICPA", "course", 6, { "auditing-standards": 6 }, "self-reported"],
+      ["l3", "ACCA", "course", 120, { "accounting-standards": 120 }, "unverified"],
+      ["l4", "CTIM", "course", 180, { tax: 180 }, "self-reported"],
+      ["l5", "Firm", "course", 60, { practice: 60 }, "self-reported"],
+    ],
+  );
+  assert.deepEqual(s.certificates[0]?.tags, { ethics: 90 }, "a certificate issued before subjects is its whole credit under its field");
+  assert.deepEqual(s.profile, defaultProfile);
+  assert.deepEqual(s.declared, []);
+
+  learner.importLegacy({ logged: [check.legacyEntry({ id: "a1", date: "2026-02-02", title: "Audit update", provider: "MICPA", field: "Auditing", hours: 0.1 }, "logged")], certificates: [], positions: [] });
+  assert.equal(learner.snapshot().logged.length, 5, "an entry imported before the change is not imported again after it");
 });
 
-test("the example requirement is the clock's year, read when asked, not when the module loaded", () => {
-  const learner = createLearner(memoryDb(), () => new Date("2027-03-02T10:00:00Z"));
-  assert.deepEqual(learner.snapshot().requirement, { start: "2027-01-01", end: "2027-12-31", target: 40, minimums: { Ethics: 4 }, isExample: true });
+test("a certificate carries the course's minutes per subject, fixed when issued", () => {
+  const w = world();
+  const certificate = w.certify();
+  assert.deepEqual(certificate.tags, { ethics: 40, tax: 20 });
+  assert.deepEqual(w.learner.snapshot().certificates[0]?.tags, { ethics: 40, tax: 20 });
+  assert.deepEqual(w.learner.certificate(certificate.id)?.tags, { ethics: 40, tax: 20 });
+});
+
+test("the profile is MIA's ordinary member until saved, and is read back as saved", () => {
+  const w = world();
+  assert.deepEqual(w.learner.snapshot().profile, defaultProfile);
+  const profile = check.profile({ admitted: "2026-06-30", approvedAuditor: true, exemptions: [{ year: 2027, scope: "full" }, { year: 2028, scope: { structuredMinutes: 600 } }], miaNumber: " 12345 " });
+  w.learner.setProfile(profile);
+  assert.deepEqual(w.learner.snapshot().profile, {
+    admitted: "2026-06-30",
+    approvedAuditor: true,
+    exemptions: [{ year: 2027, scope: "full" }, { year: 2028, scope: { structuredMinutes: 600 } }],
+    miaNumber: "12345",
+  });
+});
+
+test("an entry is ticked as entered in the MIA portal by id, certificate or logged, and the tick goes with a removed entry", () => {
+  const w = world();
+  const certificate = w.certify();
+  const logged = w.learner.log(seminar("2026-11-01"));
+  assert.equal(w.learner.setDeclared("nope", true), false, "an id that is neither is refused");
+  assert.equal(w.learner.setDeclared(certificate.id, true), true);
+  assert.equal(w.learner.setDeclared(certificate.id, true), true, "ticking twice changes nothing");
+  assert.equal(w.learner.setDeclared(logged.id, true), true);
+  assert.deepEqual([...w.learner.snapshot().declared].sort(), [certificate.id, logged.id].sort());
+
+  const state = w.learner.snapshot();
+  const standing = evaluate(entriesOf(state), state.profile, 2026);
+  assert.ok(standing.status === "required");
+  assert.deepEqual(standing.undeclared, [], "the rules see both as declared");
+
+  assert.equal(w.learner.unlog(certificate.id), false, "a certificate is not an entry to remove");
+  assert.equal(w.learner.unlog(logged.id), true);
+  assert.deepEqual(w.learner.snapshot().declared, [certificate.id], "the removed entry's tick goes; the certificate's stays");
+  assert.equal(w.learner.setDeclared(certificate.id, false), true);
+  assert.deepEqual(w.learner.snapshot().declared, []);
+});
+
+test("the ledger and its CSV read straight from the server's record, in date order", () => {
+  const w = world();
+  const certificate = w.certify();
+  w.learner.log({ ...seminar("2026-11-01", 2, 0.5), title: "Tax update" });
+  w.learner.importLegacy({ logged: [], certificates: [check.legacyEntry({ id: "OLD-1", date: "2026-10-01", title: "Old course", provider: "Stick to Accounting", field: "Ethics", hours: 1 }, "certificate")], positions: [] });
+  const lines = entriesOf(w.learner.snapshot());
+  assert.deepEqual(lines.map((l) => l.source), ["unverified", "self-reported", "earned"]);
+  const csv = toCsv(lines).split("\n");
+  assert.equal(csv[0], '"Date","Title","Organiser","Hours","Kind","Appendix V item","Ethics hours","Certificate"');
+  assert.equal(csv[2], '"2026-11-01","Tax update","Somewhere","2","structured","1(a)–(c), (g), (h)","0.5",""');
+  assert.equal(csv[3], `"2026-11-26","${w.course.title}","${w.course.provider}","1","structured","1(i)","0.67","${certificate.id}"`);
 });
 
 test("an unreadable part of a record is logged and left out, and the rest still loads", () => {
   const db = memoryDb();
   const warnings: string[] = [];
   const learner = createLearner(db, () => new Date("2026-11-26T10:00:00Z"), (m) => warnings.push(m));
-  learner.setRequirement({ start: "2026-01-01", end: "2026-12-31", target: 20, minimums: {} });
-  learner.log({ date: "2026-05-01", title: "Seminar", provider: "Somewhere", field: "Ethics", hours: 2 });
+  learner.setProfile({ ...defaultProfile, approvedAuditor: true });
+  learner.log(seminar("2026-05-01"));
+  learner.log(seminar("2026-05-02"));
   learner.importLegacy({ logged: [], certificates: [], positions: [{ courseId: "five-threats", version: 1, position: 30 }] });
-  db.prepare("UPDATE learner SET requirement = ? WHERE id = 1").run(JSON.stringify({ start: 5 }));
+  db.prepare("UPDATE learner SET profile = ? WHERE id = 1").run(JSON.stringify({ admitted: 5 }));
   db.prepare("UPDATE listening SET ranges = ?").run("not json");
+  db.prepare("UPDATE logged SET tags = ? WHERE date = '2026-05-02'").run(JSON.stringify({ ethics: 999 }));
   const state = learner.snapshot();
-  assert.equal(state.requirement.isExample, true, "falls back to the example");
+  assert.deepEqual(state.profile, defaultProfile, "falls back to MIA's ordinary member");
   assert.deepEqual(state.progress["five-threats"]?.ranges, [], "unreadable ranges count as none heard");
   assert.equal(state.progress["five-threats"]?.position, 30, "the resume position survives");
-  assert.equal(state.logged.length, 1);
-  assert.equal(warnings.length, 2);
+  assert.equal(state.logged.length, 1, "an entry claiming more ethics than it has minutes is left out");
+  assert.equal(warnings.length, 3);
 });
 
 test("a listener whose heard ranges no longer read can still report, and the report rewrites them", () => {
@@ -235,7 +334,7 @@ test("a listener whose heard ranges no longer read can still report, and the rep
 test("a bug in reading a row is not mistaken for unreadable data", () => {
   const db = memoryDb();
   const learner = createLearner(db, () => new Date("2026-11-26T10:00:00Z"), () => assert.fail("nothing should be skipped"));
-  learner.log({ date: "2026-05-01", title: "Seminar", provider: "Somewhere", field: "Ethics", hours: 2 });
+  learner.log(seminar("2026-05-01"));
   assert.throws(
     () => readable([{ id: "x" }], () => { throw new TypeError("a bug"); }, () => assert.fail("not a data problem"), () => "row"),
     TypeError,

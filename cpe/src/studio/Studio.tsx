@@ -3,7 +3,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api.ts";
 import { Arrow, Close, Plus } from "../components/Icons.tsx";
 import type { StudioCourse, StudioVersion } from "../domain/api.ts";
+import { mytDate } from "../domain/calendar.ts";
 import { fields, formatHours, formatTime, playable } from "../domain/courses.ts";
+import { defaultTag, isTag, tagNames, tags } from "../domain/subjects.ts";
 import type { Checkpoint, CourseScript, Question, Show } from "../domain/types.ts";
 import { CourseView } from "../pages/CoursePage.tsx";
 import { Link, navigate } from "../router.tsx";
@@ -105,7 +107,7 @@ const blankScript = (show: Show | undefined): CourseScript => ({
   level: "Basic",
   credits: 1,
   motif: "ledger",
-  published: new Date().toISOString().slice(0, 10),
+  published: mytDate(new Date()),
   objectives: [],
   glossary: [],
   segments: [],
@@ -493,6 +495,20 @@ function Segments({ script, onChange }: { script: CourseScript; onChange: (s: Co
               onChange={(e) => onChange({ ...script, segments: segs.map((x, j) => (j === i ? withChapter(x, e.target.value) : x)) })}
               aria-label={`Chapter starting at segment ${i + 1}`}
             />
+            <select
+              className="input"
+              value={s.tag ?? ""}
+              onChange={(e) => onChange({ ...script, segments: segs.map((x, j) => (j === i ? withTag(x, e.target.value) : x)) })}
+              aria-label={`Subject of segment ${i + 1}`}
+              data-test={`tag-${i}`}
+            >
+              <option value="">Course default ({tagNames[defaultTag[script.field]]})</option>
+              {tags.map((t) => (
+                <option key={t} value={t}>
+                  {tagNames[t]}
+                </option>
+              ))}
+            </select>
           </div>
           <textarea className="input studio-textarea" value={s.text} onChange={(e) => onChange({ ...script, segments: segs.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)) })} aria-label={`Text of segment ${i + 1}`} data-test={`segment-${i}`} />
           <RowTools
@@ -520,6 +536,12 @@ function Segments({ script, onChange }: { script: CourseScript; onChange: (s: Co
 const withChapter = (s: CourseScript["segments"][number], chapter: string) => {
   const { chapter: _old, ...rest } = s;
   return chapter ? { ...rest, chapter } : rest;
+};
+
+/** A segment's subject counts its audio towards that subject's minutes on the certificate. Blank is the course's own. */
+const withTag = (s: CourseScript["segments"][number], tag: string) => {
+  const { tag: _old, ...rest } = s;
+  return isTag(tag) ? { ...rest, tag } : rest;
 };
 
 const blankQuestion = (): Question => ({ prompt: "", options: ["", ""], answer: 0, why: "" });

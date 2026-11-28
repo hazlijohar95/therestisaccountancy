@@ -1,8 +1,9 @@
-import type { AppState, Attempt, Certificate, CourseProgress, LoggedEntry, Requirement } from "../src/domain/progress.ts";
-import { exampleRequirement } from "../src/domain/progress.ts";
+import { mytDate } from "../src/domain/calendar.ts";
+import { defaultProfile, type AppState, type Attempt, type Certificate, type CourseProgress, type LoggedEntry, type MemberProfile } from "../src/domain/progress.ts";
 import { acceptHeard, passes, readyForAssessment, refill, type Range } from "../src/domain/rules.ts";
+import { isActivity, wholeUnder, type TagMinutes } from "../src/domain/subjects.ts";
 import type { Field, Level, Question } from "../src/domain/types.ts";
-import { integer, json, migrate, oneOf, optionalText, readable, real, text, type Db, type Row, type Warn } from "./db.ts";
+import { integer, json, migrate, oneOf, optionalText, readable, real, text, Unreadable, type Db, type Row, type Warn } from "./db.ts";
 import { randomPermutation, unguessable } from "./shuffle.ts";
 import * as check from "./validate.ts";
 
@@ -10,7 +11,7 @@ import * as check from "./validate.ts";
  * One member's record: what they heard, the review questions they answered, their assessment sittings and attempts,
  * the certificates issued to them, and the hours they logged themselves. One instance per member.
  */
-const MIGRATIONS: readonly string[] = [
+export const MIGRATIONS: readonly string[] = [
   `
   CREATE TABLE learner (
     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -85,6 +86,47 @@ const MIGRATIONS: readonly string[] = [
     created_at TEXT NOT NULL
   );
   `,
+  /*
+   * MIA's model. The member's profile replaces the target they used to set themselves, whose column stays, unread.
+   * Certificates carry minutes per subject; one issued before this has none and reads as its whole credit under its
+   * field. Logged entries become minutes of an Appendix V activity: an old row is a course, its hours under its field.
+   */
+  `
+  ALTER TABLE learner ADD COLUMN profile TEXT;
+  ALTER TABLE certificates ADD COLUMN tags TEXT;
+
+  CREATE TABLE logged_entries (
+    id TEXT PRIMARY KEY,
+    date TEXT NOT NULL,
+    title TEXT NOT NULL,
+    organiser TEXT NOT NULL,
+    activity TEXT NOT NULL,
+    minutes INTEGER NOT NULL CHECK (minutes > 0),
+    tags TEXT NOT NULL,
+    source TEXT NOT NULL CHECK (source IN ('self-reported', 'unverified')),
+    legacy_id TEXT UNIQUE,
+    created_at TEXT NOT NULL
+  );
+  INSERT INTO logged_entries (id, date, title, organiser, activity, minutes, tags, source, legacy_id, created_at)
+    SELECT id, date, title, provider, 'course', max(1, CAST(round(hours * 60) AS INTEGER)),
+      '{"' || CASE field
+        WHEN 'Ethics' THEN 'ethics'
+        WHEN 'Auditing' THEN 'auditing-standards'
+        WHEN 'Accounting' THEN 'accounting-standards'
+        WHEN 'Taxation' THEN 'tax'
+        WHEN 'Practice Management' THEN 'practice'
+        ELSE 'other'
+      END || '":' || max(1, CAST(round(hours * 60) AS INTEGER)) || '}',
+      source, legacy_id, created_at
+    FROM logged;
+  DROP TABLE logged;
+  ALTER TABLE logged_entries RENAME TO logged;
+
+  CREATE TABLE declared (
+    entry_id TEXT PRIMARY KEY,
+    declared_at TEXT NOT NULL
+  );
+  `,
 ];
 
 /** What a published version tells the learner store to grade and certify. Kept apart from the catalogue's own types. */
@@ -99,6 +141,7 @@ export interface Assessed {
   readonly field: Field;
   readonly level: Level;
   readonly credits: number;
+  readonly tags: TagMinutes;
 }
 
 export interface Sitting {
@@ -120,39 +163,53 @@ export interface Graded {
 export type SitRefusal = "not-ready";
 export type SubmitRefusal = "no-sitting" | "submitted" | "wrong-length";
 
+/** An entry from the prototype, already in today's shape, with the id it had in the browser. */
+export type LegacyEntry = Omit<LoggedEntry, "source">;
+
 /** The prototype's browser record, read loosely: anything malformed is skipped rather than refused. */
 export interface Legacy {
   readonly learner?: string;
-  readonly requirement?: Requirement;
-  readonly logged: readonly { id: string; date: string; title: string; provider: string; field: Field; hours: number }[];
-  readonly certificates: readonly { id: string; date: string; title: string; provider: string; field: Field; hours: number }[];
+  readonly logged: readonly LegacyEntry[];
+  readonly certificates: readonly LegacyEntry[];
   readonly positions: readonly { courseId: string; version: number; position: number }[];
 }
 
-const toCertificate = (row: Row): Certificate => ({
-  id: text(row, "id"),
-  courseId: text(row, "course_id"),
-  version: integer(row, "version"),
-  issuedAt: text(row, "issued_at"),
-  name: text(row, "name"),
-  correct: integer(row, "correct"),
-  total: integer(row, "total"),
-  title: text(row, "title"),
-  provider: text(row, "provider"),
-  field: oneOf(row, "field", check.FIELDS),
-  level: oneOf(row, "level", check.LEVELS),
-  credits: real(row, "credits"),
-});
+const toCertificate = (row: Row): Certificate => {
+  const field = oneOf(row, "field", check.FIELDS);
+  const credits = real(row, "credits");
+  const minutes = Math.round(credits * 60);
+  return {
+    id: text(row, "id"),
+    courseId: text(row, "course_id"),
+    version: integer(row, "version"),
+    issuedAt: text(row, "issued_at"),
+    name: text(row, "name"),
+    correct: integer(row, "correct"),
+    total: integer(row, "total"),
+    title: text(row, "title"),
+    provider: text(row, "provider"),
+    field,
+    level: oneOf(row, "level", check.LEVELS),
+    credits,
+    tags: optionalText(row, "tags") === null ? wholeUnder(field, minutes) : check.tagMinutes(json(row, "tags"), "tags", minutes),
+  };
+};
 
-const toLogged = (row: Row): LoggedEntry => ({
-  id: text(row, "id"),
-  date: text(row, "date"),
-  title: text(row, "title"),
-  provider: text(row, "provider"),
-  field: oneOf(row, "field", check.FIELDS),
-  hours: real(row, "hours"),
-  source: oneOf(row, "source", ["self-reported", "unverified"] as const),
-});
+const toLogged = (row: Row): LoggedEntry => {
+  const minutes = integer(row, "minutes");
+  const activity = text(row, "activity");
+  if (!isActivity(activity)) throw new Unreadable(`activity is ${activity}`);
+  return {
+    id: text(row, "id"),
+    date: check.isoDate(text(row, "date"), "date"),
+    title: text(row, "title"),
+    organiser: text(row, "organiser"),
+    activity,
+    minutes,
+    tags: check.tagMinutes(json(row, "tags"), "tags", minutes),
+    source: oneOf(row, "source", ["self-reported", "unverified"] as const),
+  };
+};
 
 const orders = (value: unknown): number[][] => check.list(value, "orders").map((o, i) => check.list(o, `orders[${i}]`, 4).map((n, j) => check.integerIn(n, `orders[${i}][${j}]`, 0, 3)));
 
@@ -163,7 +220,7 @@ function certificateId(courseId: string, at: Date): string {
     .map((w) => w[0]!.toUpperCase())
     .join("")
     .slice(0, 6);
-  return `TRIA-${code}-${at.toISOString().slice(0, 10).replaceAll("-", "")}-${unguessable(10)}`;
+  return `TRIA-${code}-${mytDate(at).replaceAll("-", "")}-${unguessable(10)}`;
 }
 
 export function createLearner(db: Db, now: () => Date = () => new Date(), warn: Warn = console.error) {
@@ -222,20 +279,27 @@ export function createLearner(db: Db, now: () => Date = () => new Date(), warn: 
     return Object.fromEntries(rows.map((r) => [text(r, "course_id"), integer(r, "version")]));
   };
 
+  /** Adds a logged entry. One brought across from the prototype is keyed by its old id, so it is added once. */
+  const insertLogged = (e: LoggedEntry, legacyId: string | null) =>
+    db
+      .prepare("INSERT OR IGNORE INTO logged (id, date, title, organiser, activity, minutes, tags, source, legacy_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .run(e.id, e.date, e.title, e.organiser, e.activity, e.minutes, JSON.stringify(e.tags), e.source, legacyId, iso());
+
   const learner = {
     pins,
 
     /** The whole record. A part whose stored shape no longer reads is left out and logged, so the rest still loads. */
     snapshot(): AppState {
       const row = learnerRow();
-      const own = readable([row], (r) => (optionalText(r, "requirement") === null ? null : check.requirement(json(r, "requirement"))), warn, () => "requirement")[0];
+      const [profile] = readable([row], (r): MemberProfile => (optionalText(r, "profile") === null ? defaultProfile : check.profile(json(r, "profile"))), warn, () => "profile");
       const courses = Object.entries(pins()).map(([courseId, version]) => ({ course_id: courseId, version }));
       return {
         learner: text(row, "name"),
         progress: Object.fromEntries(readable(courses, (c) => [text(c, "course_id"), progress(text(c, "course_id"), integer(c, "version"))] as const, warn, (c) => `progress on "${String(c.course_id)}"`)),
         certificates: readable(db.prepare("SELECT * FROM certificates ORDER BY issued_at").all(), toCertificate, warn, (r) => `certificate ${String(r.id)}`),
-        requirement: own ?? exampleRequirement(now()),
+        profile: profile ?? defaultProfile,
         logged: readable(db.prepare("SELECT * FROM logged ORDER BY date, created_at").all(), toLogged, warn, (r) => `logged entry ${String(r.id)}`),
+        declared: db.prepare("SELECT entry_id FROM declared ORDER BY entry_id").all().map((r) => text(r, "entry_id")),
       };
     },
 
@@ -329,11 +393,12 @@ export function createLearner(db: Db, now: () => Date = () => new Date(), warn: 
             field: course.field,
             level: course.level,
             credits: course.credits,
+            tags: course.tags,
           };
           const c = certificate;
           db.prepare(
-            `INSERT INTO certificates (id, course_id, version, issued_at, name, correct, total, title, provider, field, level, credits) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          ).run(c.id, c.courseId, c.version, c.issuedAt, c.name, c.correct, c.total, c.title, c.provider, c.field, c.level, c.credits);
+            `INSERT INTO certificates (id, course_id, version, issued_at, name, correct, total, title, provider, field, level, credits, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ).run(c.id, c.courseId, c.version, c.issuedAt, c.name, c.correct, c.total, c.title, c.provider, c.field, c.level, c.credits, JSON.stringify(c.tags));
         }
         return { correct, total, passed, results, certificate };
       });
@@ -353,47 +418,50 @@ export function createLearner(db: Db, now: () => Date = () => new Date(), warn: 
       db.prepare("UPDATE certificates SET registered = 1 WHERE id = ?").run(id);
     },
 
-    setRequirement(requirement: Requirement): void {
-      const { isExample: _example, ...own } = requirement;
-      db.prepare("UPDATE learner SET requirement = ? WHERE id = 1").run(JSON.stringify(own));
+    setProfile(profile: MemberProfile): void {
+      db.prepare("UPDATE learner SET profile = ? WHERE id = 1").run(JSON.stringify(profile));
     },
 
     log(entry: Omit<LoggedEntry, "id" | "source">): LoggedEntry {
       const logged: LoggedEntry = { ...entry, id: unguessable(12), source: "self-reported" };
-      db.prepare("INSERT INTO logged (id, date, title, provider, field, hours, source, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(
-        logged.id,
-        logged.date,
-        logged.title,
-        logged.provider,
-        logged.field,
-        logged.hours,
-        logged.source,
-        iso(),
-      );
+      insertLogged(logged, null);
       return logged;
     },
 
     /** Removes an entry the learner logged or brought across. Issued certificates are not entries and stay. */
     unlog(id: string): boolean {
-      return db.prepare("DELETE FROM logged WHERE id = ?").run(id).changes > 0;
+      return db.transaction(() => {
+        const removed = db.prepare("DELETE FROM logged WHERE id = ?").run(id).changes > 0;
+        if (removed) db.prepare("DELETE FROM declared WHERE entry_id = ?").run(id);
+        return removed;
+      });
+    },
+
+    /**
+     * Records whether the member has entered a certificate or a logged entry in the MIA portal. False when the id is
+     * neither. Setting it to what it already is changes nothing.
+     */
+    setDeclared(id: string, declared: boolean): boolean {
+      return db.transaction(() => {
+        if (!db.prepare("SELECT 1 AS found FROM certificates WHERE id = ? UNION ALL SELECT 1 FROM logged WHERE id = ?").get(id, id)) return false;
+        if (declared) db.prepare("INSERT OR IGNORE INTO declared (entry_id, declared_at) VALUES (?, ?)").run(id, iso());
+        else db.prepare("DELETE FROM declared WHERE entry_id = ?").run(id);
+        return true;
+      });
     },
 
     /**
      * Brings the prototype's browser record into the account. Each item is keyed by its old id, so importing the same
      * browser twice, or a second browser, adds only what is new. Logged hours come in as self-reported and old
-     * certificates as unverified claims. Listening evidence never comes in: only a resume position does.
+     * certificates as unverified claims. Listening evidence never comes in: only a resume position does. Nor does the
+     * requirement the prototype let a learner set: MIA's rules replaced it.
      */
     importLegacy(legacy: Legacy): void {
       db.transaction(() => {
         const row = learnerRow();
         if (legacy.learner && !text(row, "name")) db.prepare("UPDATE learner SET name = ? WHERE id = 1").run(legacy.learner);
-        if (legacy.requirement && !legacy.requirement.isExample && optionalText(row, "requirement") === null) learner.setRequirement(legacy.requirement);
-        const add = (legacyId: string, e: Legacy["logged"][number], source: LoggedEntry["source"]) =>
-          db
-            .prepare("INSERT OR IGNORE INTO logged (id, date, title, provider, field, hours, source, legacy_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-            .run(unguessable(12), e.date, e.title, e.provider, e.field, e.hours, source, legacyId, iso());
-        for (const e of legacy.logged) add(`logged:${e.id}`, e, "self-reported");
-        for (const c of legacy.certificates) add(`certificate:${c.id}`, c, "unverified");
+        for (const e of legacy.logged) insertLogged({ ...e, id: unguessable(12), source: "self-reported" }, `logged:${e.id}`);
+        for (const c of legacy.certificates) insertLogged({ ...c, id: unguessable(12), source: "unverified" }, `certificate:${c.id}`);
         for (const p of legacy.positions) {
           db.prepare("INSERT OR IGNORE INTO listening (course_id, version, position, updated_at) VALUES (?, ?, ?, ?)").run(p.courseId, p.version, p.position, iso());
         }

@@ -1,5 +1,6 @@
 import type { AppState, Certificate, CourseProgress } from "./progress.ts";
 import type { Range } from "./rules.ts";
+import type { TagMinutes } from "./subjects.ts";
 import type { Audio, Course, CourseScript, Field, Level, PublicQuestion, Show, Timing } from "./types.ts";
 
 /** The contract between the app and the CPE Worker. Every response is JSON in one of these shapes. */
@@ -56,6 +57,7 @@ export interface Verified {
   field: Field;
   level: Level;
   credits: number;
+  tags: TagMinutes;
   issuedAt: string;
   version: number;
 }
@@ -63,7 +65,6 @@ export interface Verified {
 /** The prototype's browser record as the app found it. The server checks every field and drops what does not read. */
 export interface LegacyImport {
   learner?: string;
-  requirement?: unknown;
   logged: { id: string; date: string; title: string; provider: string; field: string; hours: number }[];
   certificates: { id: string; courseId: string; issuedAt: string; title: string; provider: string; field: Field; hours: number }[];
   positions: { courseId: string; position: number }[];

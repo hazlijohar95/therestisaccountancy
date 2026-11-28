@@ -1,4 +1,5 @@
 import type { Member } from "../src/domain/api.ts";
+import { mytDate } from "../src/domain/calendar.ts";
 import { playable } from "../src/domain/courses.ts";
 import type { AppState, CourseProgress } from "../src/domain/progress.ts";
 import type { Range } from "../src/domain/rules.ts";
@@ -8,6 +9,7 @@ import type { Published } from "./catalogue.ts";
 import { body, match, paidMember, refuse, Reply, route, type Route } from "./http.ts";
 import { studio } from "./studio.ts";
 import { identify, type ClubIdentity, type CpeEnv } from "./identity.ts";
+import { tagMinutes } from "../src/domain/subjects.ts";
 import type { Assessed, Legacy } from "./learner.ts";
 import { openCatalogue, openLearner } from "./objects.ts";
 import { publishedCache } from "./published.ts";
@@ -51,6 +53,7 @@ const assessed = (p: Published): Assessed => ({
   field: p.script.field,
   level: p.script.level,
   credits: p.script.credits,
+  tags: tagMinutes(p.script, p.timing),
 });
 
 const published = publishedCache(async (courseId, version) => {
@@ -71,7 +74,7 @@ async function registerCertificates(memberId: number): Promise<void> {
   if (!pending.length) return;
   using catalogue = await openCatalogue();
   for (const c of pending) {
-    await catalogue.register({ id: c.id, name: c.name, courseId: c.courseId, version: c.version, title: c.title, field: c.field, level: c.level, credits: c.credits, issuedAt: c.issuedAt });
+    await catalogue.register({ id: c.id, name: c.name, courseId: c.courseId, version: c.version, title: c.title, field: c.field, level: c.level, credits: c.credits, tags: c.tags, issuedAt: c.issuedAt });
     await learner.markRegistered(c.id);
   }
 }
@@ -180,24 +183,18 @@ const routes: Route[] = [
     await learner.setName(check.string(b.name, "name", { max: 120 }));
     return stateOut(await learner.snapshot());
   }),
-  route("PUT /api/requirement", async (request, env) => {
+  route("PUT /api/profile", async (request, env) => {
     const who = await paidMember(request, env);
     const b = await body(request);
     using learner = await openLearner(who.id);
-    await learner.setRequirement(check.requirement(b.requirement));
+    await learner.setProfile(check.profile(b.profile));
     return stateOut(await learner.snapshot());
   }),
   route("POST /api/logged", async (request, env) => {
     const who = await paidMember(request, env);
-    const b = await body(request);
+    const entry = check.loggedEntry(await body(request), mytDate(new Date()));
     using learner = await openLearner(who.id);
-    await learner.log({
-      date: check.isoDate(b.date, "date"),
-      title: check.string(b.title, "title", { max: 200 }),
-      provider: check.string(b.provider, "provider", { max: 200 }),
-      field: check.oneOf(b.field, "field", check.FIELDS),
-      hours: check.number(b.hours, "hours", { min: 0.1, max: 100 }),
-    });
+    await learner.log(entry);
     return stateOut(await learner.snapshot());
   }),
   route("DELETE /api/logged/:id", async (request, env, param) => {
@@ -205,6 +202,15 @@ const routes: Route[] = [
     const who = await paidMember(request, env);
     using learner = await openLearner(who.id);
     await learner.unlog(check.string(id, "id", { max: 40 }));
+    return stateOut(await learner.snapshot());
+  }),
+  route("PUT /api/declared/:id", async (request, env, param) => {
+    const id = param("id");
+    const who = await paidMember(request, env);
+    const b = await body(request);
+    if (typeof b.declared !== "boolean") throw new check.Invalid("declared must be true or false");
+    using learner = await openLearner(who.id);
+    if (!(await learner.setDeclared(check.string(id, "id", { max: 60 }), b.declared))) throw refuse(404, "No entry of yours has that id.");
     return stateOut(await learner.snapshot());
   }),
   route("POST /api/import", async (request, env) => {
@@ -227,12 +233,15 @@ const routes: Route[] = [
     using catalogue = await openCatalogue();
     const issued = await catalogue.verify(check.string(id, "id", { max: 60 }).toUpperCase());
     if (!issued) throw refuse(404, "No certificate has that id.");
-    return { id: issued.id, name: issued.name, title: issued.title, field: issued.field, level: issued.level, credits: issued.credits, issuedAt: issued.issuedAt, version: issued.version };
+    return { id: issued.id, name: issued.name, title: issued.title, field: issued.field, level: issued.level, credits: issued.credits, tags: issued.tags, issuedAt: issued.issuedAt, version: issued.version };
   }),
   ...studio,
 ];
 
-/** The prototype's browser record, kept only where every field reads cleanly; anything malformed is dropped. */
+/**
+ * The prototype's browser record, kept only where every field reads cleanly; anything malformed is dropped. The
+ * requirement an old browser may still send is never read.
+ */
 async function readLegacy(b: Record<string, unknown>): Promise<Legacy> {
   const keep = <T>(items: unknown, read: (v: unknown, i: number) => T): T[] =>
     (Array.isArray(items) ? items : []).flatMap((v, i) => {
@@ -244,31 +253,13 @@ async function readLegacy(b: Record<string, unknown>): Promise<Legacy> {
     });
   using catalogue = await openCatalogue();
   const latest = new Map((await catalogue.latest()).map((p) => [p.courseId, p.version]));
-  const entry = (v: unknown, path: string) => {
-    const e = check.record(v, path);
-    return {
-      id: check.string(e.id, `${path}.id`, { max: 80 }),
-      date: check.isoDate(e.date, `${path}.date`),
-      title: check.string(e.title, `${path}.title`, { max: 200 }),
-      provider: check.string(e.provider, `${path}.provider`, { max: 200 }),
-      field: check.oneOf(e.field, `${path}.field`, check.FIELDS),
-      hours: check.number(e.hours, `${path}.hours`, { min: 0.1, max: 100 }),
-    };
-  };
-  let requirement;
-  try {
-    requirement = b.requirement === undefined ? undefined : check.requirement(b.requirement);
-  } catch {
-    requirement = undefined;
-  }
   const learner = typeof b.learner === "string" && b.learner.trim() ? b.learner.trim().slice(0, 120) : undefined;
   return {
     ...(learner ? { learner } : {}),
-    ...(requirement ? { requirement } : {}),
-    logged: keep(b.logged, (v, i) => entry(v, `logged[${i}]`)),
+    logged: keep(b.logged, (v, i) => check.legacyEntry(v, `logged[${i}]`)),
     certificates: keep(b.certificates, (v, i) => {
       const c = check.record(v, `certificates[${i}]`);
-      return entry({ ...c, date: typeof c.issuedAt === "string" ? c.issuedAt.slice(0, 10) : c.date }, `certificates[${i}]`);
+      return check.legacyEntry({ ...c, date: typeof c.issuedAt === "string" && !Number.isNaN(Date.parse(c.issuedAt)) ? mytDate(new Date(c.issuedAt)) : c.date }, `certificates[${i}]`);
     }),
     positions: keep(b.positions, (v, i) => {
       const p = check.record(v, `positions[${i}]`);

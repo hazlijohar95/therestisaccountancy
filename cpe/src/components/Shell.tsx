@@ -1,5 +1,5 @@
-import { formatHours } from "../domain/courses.ts";
-import { ledgerLines, standing } from "../domain/ledger.ts";
+import { mytDate, yearOf } from "../domain/calendar.ts";
+import { hours, standingOf, structuredOf } from "../domain/ledger.ts";
 import { phaseOf, type Phase } from "../domain/progress.ts";
 import { Link } from "../router.tsx";
 import { useAppState, useCatalogue, useSession } from "../state.tsx";
@@ -11,7 +11,7 @@ import { Ring } from "./Ring.tsx";
 const NAV = [
   { href: "/home", label: "Home", Icon: Home },
   { href: "/search", label: "Search", Icon: Search },
-  { href: "/ledger", label: "Ledger", Icon: Ledger },
+  { href: "/ledger", label: "My CPE", Icon: Ledger },
 ] as const;
 
 export function statusLabel(phase: Phase): string {
@@ -32,7 +32,7 @@ export function Rail({ path }: { path: string }) {
   const { courses } = useCatalogue();
   const session = useSession();
   const admin = session.status === "member" && session.member.role === "admin";
-  const s = standing(ledgerLines(state), state.requirement, new Date());
+  const structured = structuredOf(standingOf(state, yearOf(mytDate(new Date()))));
   return (
     <aside className="rail" aria-label="Main">
       <Link href="/" className="rail__logo" aria-label="CPE home">
@@ -81,11 +81,15 @@ export function Rail({ path }: { path: string }) {
         </ul>
       </div>
       <Link href="/ledger" className="rail__balance">
-        <Ring slices={[{ value: s.total, tone: "var(--cpe)" }]} total={state.requirement.target} size={44} stroke={5} />
-        <span>
-          <strong>{formatHours(s.total)}h</strong>
-          <span className="muted"> of {formatHours(state.requirement.target)}h</span>
-        </span>
+        <Ring slices={[{ value: structured ? Math.min(structured.have, structured.need) : 0, tone: "var(--cpe)" }]} total={structured?.need ?? 1} size={44} stroke={5} />
+        {structured ? (
+          <span>
+            <strong>{hours(structured.have)} h</strong>
+            <span className="muted"> of {hours(structured.need)} h structured</span>
+          </span>
+        ) : (
+          <span className="muted">No hours asked this year</span>
+        )}
       </Link>
     </aside>
   );

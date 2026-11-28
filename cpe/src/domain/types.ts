@@ -1,3 +1,5 @@
+import type { Tag } from "./mia.ts";
+
 export type Field =
   | "Ethics"
   | "Accounting"
@@ -16,6 +18,8 @@ export interface Segment {
   text: string;
   /** Starts a new chapter when set. */
   chapter?: string;
+  /** What this segment is about, for MIA's subject minimums. Unset, it takes the course's default (subjects.ts). */
+  tag?: Tag;
 }
 
 /** A question as the listener sees it: never its answer. */

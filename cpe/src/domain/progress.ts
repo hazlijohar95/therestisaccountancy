@@ -1,4 +1,7 @@
+import type { MytDate } from "./calendar.ts";
+import type { Activity, Profile } from "./mia.ts";
 import { coverage as heardShare, LISTEN_THRESHOLD, type Range } from "./rules.ts";
+import type { TagMinutes } from "./subjects.ts";
 import type { Course, Field, Level } from "./types.ts";
 
 export { LISTEN_THRESHOLD, merge, type Range } from "./rules.ts";
@@ -24,6 +27,8 @@ export interface Certificate {
   field: Field;
   level: Level;
   credits: number;
+  /** The credited minutes by subject, fixed when issued. */
+  tags: TagMinutes;
 }
 
 /** A listener's evidence for the version of a course they are on. */
@@ -36,26 +41,26 @@ export interface CourseProgress {
   attempts: readonly Attempt[];
 }
 
-export interface Requirement {
-  start: string;
-  end: string;
-  target: number;
-  minimums: Partial<Record<Field, number>>;
-  /** True until the learner saves their own rules. */
-  isExample?: boolean;
+/** What MIA knows about the member that changes what a year asks of them, and the number printed on their certificates. */
+export interface MemberProfile extends Profile {
+  readonly miaNumber: string | null;
 }
 
+/** A long-standing member who is not an approved auditor: what MIA asks of most members, assumed until they say otherwise. */
+export const defaultProfile: MemberProfile = { admitted: null, approvedAuditor: false, exemptions: [], miaNumber: null };
+
 /**
- * Hours from outside the app. Self-reported: logged by hand. Unverified: a certificate a browser made before accounts,
+ * Learning from outside the app. Self-reported: logged by hand. Unverified: a certificate a browser made before accounts,
  * brought across as a claim, never as a certificate.
  */
 export interface LoggedEntry {
   id: string;
-  date: string;
+  date: MytDate;
   title: string;
-  provider: string;
-  field: Field;
-  hours: number;
+  organiser: string;
+  activity: Activity;
+  minutes: number;
+  tags: TagMinutes;
   source: "self-reported" | "unverified";
 }
 
@@ -63,20 +68,13 @@ export interface AppState {
   learner: string;
   progress: Readonly<Record<string, CourseProgress>>;
   certificates: readonly Certificate[];
-  requirement: Requirement;
+  profile: MemberProfile;
   logged: readonly LoggedEntry[];
+  /** Ids of certificates and logged entries the member has ticked as entered in the MIA portal. */
+  declared: readonly string[];
 }
 
-/**
- * The requirement shown until a learner saves their own: the calendar year of `today`. The caller passes the date,
- * because a Worker's clock reads 1970 while a module loads, so a year taken at import would be wrong on the server.
- */
-export function exampleRequirement(today: Date): Requirement {
-  const year = today.getFullYear();
-  return { start: `${year}-01-01`, end: `${year}-12-31`, target: 40, minimums: { Ethics: 4 }, isExample: true };
-}
-
-export const emptyState = (today: Date): AppState => ({ learner: "", progress: {}, certificates: [], requirement: exampleRequirement(today), logged: [] });
+export const emptyState: AppState = { learner: "", progress: {}, certificates: [], profile: defaultProfile, logged: [], declared: [] };
 
 const blank: CourseProgress = { version: 0, ranges: [], position: 0, checkpoints: [], attempts: [] };
 

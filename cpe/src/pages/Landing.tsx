@@ -19,7 +19,7 @@ const heardToCount = `${Math.round(LISTEN_THRESHOLD * 100)}%`;
 const STEPS = [
   { icon: <Play width={18} height={18} />, title: "Listen", body: "Play an episode anywhere. Only what you actually hear counts towards credit." },
   { icon: <Check width={18} height={18} />, title: "Answer as you go", body: "Review questions pause the episode at the right moment, so you know it landed." },
-  { icon: <LedgerIcon width={18} height={18} />, title: "Pass, and it posts", body: "Score 70% on a short assessment. The certificate is issued and the hours land in your ledger." },
+  { icon: <LedgerIcon width={18} height={18} />, title: "Pass, and it posts", body: "Score 70% on a short assessment. The certificate is issued and the hours land in My CPE." },
 ];
 
 /** The flagship course supplies its own question count, so the claim follows the course. */
@@ -27,7 +27,7 @@ const facts = (flagship: Course | undefined) => [
   { n: heardToCount, label: "of the audio heard to count" },
   { n: "70%", label: "to pass the assessment" },
   ...(flagship ? [{ n: String(flagship.quizLength), label: `questions for a ${formatHours(flagship.credits)}h course` }] : []),
-  { n: "CSV", label: "export of your ledger" },
+  { n: "CSV", label: "export of your CPE record" },
 ];
 
 const FAQ: { q: string; a: string }[] = [
@@ -45,7 +45,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Where do my hours go?",
-    a: "Into your ledger, with the certificate attached. Set your cycle and any minimums, such as ethics, and the ledger shows what's left. Export it as a CSV when someone asks.",
+    a: "Into My CPE, with the certificate attached. It checks your year against MIA's rules, ethics included, shows what's left and what to enter in the MIA portal, and exports as a CSV when someone asks.",
   },
   {
     q: "Is the credit accredited?",
@@ -73,7 +73,7 @@ export function Landing() {
           </nav>
           <div className="l-nav__actions">
             <Link className="l-btn l-btn--white" href="/ledger">
-              Ledger
+              My CPE
             </Link>
             <Link className="l-btn l-btn--black" href="/home" data-test="open-app">
               Open the app
@@ -97,7 +97,7 @@ export function Landing() {
               </div>
             </div>
             <p className="l-intro">
-              Short audio courses for accountants. Listen on the commute or between client calls, answer the questions as you go, and the hours post to your ledger
+              Short audio courses for accountants. Listen on the commute or between client calls, answer the questions as you go, and the hours go to My CPE
               when you pass.
             </p>
           </div>
@@ -127,9 +127,9 @@ export function Landing() {
           <div className="l-split l-split--head">
             <div>
               <p className="l-eyebrow">How it works</p>
-              <h2 className="l-h2">From earbuds to ledger in three steps</h2>
+              <h2 className="l-h2">From earbuds to CPE hours in three steps</h2>
             </div>
-            <p className="l-intro">No webinar to sit through and no form to fill in. The course keeps track of what you heard, and the ledger keeps track of the hours.</p>
+            <p className="l-intro">No webinar to sit through and no form to fill in. The course keeps track of what you heard, and My CPE keeps track of the hours.</p>
           </div>
           <ol className="l-cards">
             {STEPS.map((s) => (
@@ -153,14 +153,14 @@ export function Landing() {
         <section className="l-section">
           <div className="l-split l-split--feature">
             <div>
-              <p className="l-eyebrow">The ledger</p>
+              <p className="l-eyebrow">My CPE</p>
               <h2 className="l-h2">Every hour, on one page</h2>
               <p className="l-intro l-intro--left">
-                Set your cycle and your ethics minimum once. Every course you pass lands here with its certificate, and the whole ledger exports as a CSV when you&apos;re
-                asked for it.
+                Every course you pass lands here with its certificate, checked against MIA&apos;s rules for the year. You see what&apos;s left, what to enter in
+                the MIA portal, and the whole record exports as a CSV when you&apos;re asked for it.
               </p>
               <Link className="l-btn l-btn--black l-btn--lg" href="/ledger">
-                Open the ledger
+                Open My CPE
               </Link>
             </div>
             <div className="l-panel l-panel--ring">
@@ -238,7 +238,7 @@ export function Landing() {
           <Logo />
           <nav className="l-foot__links" aria-label="Footer">
             <Link href="/home">Courses</Link>
-            <Link href="/ledger">Ledger</Link>
+            <Link href="/ledger">My CPE</Link>
             <a href="https://therestisaccountancy.com">therestisaccountancy.com</a>
           </nav>
           <p className="l-foot__fine">Preview · sample courses use synthetic voices · credits are not accredited</p>

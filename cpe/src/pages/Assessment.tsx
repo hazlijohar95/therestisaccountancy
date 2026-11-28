@@ -218,7 +218,7 @@ function AssessmentView({ course }: { course: Course }) {
       {passed ? (
         <div className="posted" role="status">
           <Check />{" "}
-          {graded.certificate ? `${formatHours(course.credits)} CPE posted to your ledger` : "Already on your ledger. Retakes don’t post again."}
+          {graded.certificate ? `${formatHours(course.credits)} CPE added to My CPE` : "Already in My CPE. Retakes don’t count again."}
         </div>
       ) : (
         <p className="lead">Check the explanations, then retake. Options reshuffle.</p>
@@ -226,7 +226,7 @@ function AssessmentView({ course }: { course: Course }) {
       <div className="assess__nav">
         {passed && certificateId ? (
           <>
-            <Link className="pill pill--ghost" href="/ledger">Ledger</Link>
+            <Link className="pill pill--ghost" href="/ledger">My CPE</Link>
             <Button className="pill pill--cpe" onClick={() => navigate(`/certificate/${certificateId}`)} data-test="to-certificate">
               View certificate <Arrow />
             </Button>

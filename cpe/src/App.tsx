@@ -49,7 +49,7 @@ function titleOf(r: Route, catalogue: ReturnType<typeof useCatalogue>): string {
     case "search":
       return "Search";
     case "ledger":
-      return "Ledger";
+      return "My CPE";
     case "show":
       return catalogue.shows.find((s) => s.id === r.id)?.title ?? "Show";
     case "course":

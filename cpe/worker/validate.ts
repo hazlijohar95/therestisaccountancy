@@ -1,4 +1,7 @@
-import type { Requirement } from "../src/domain/progress.ts";
+import { parseMytDate, type MytDate } from "../src/domain/calendar.ts";
+import type { Exemption, Tag } from "../src/domain/mia.ts";
+import type { LoggedEntry, MemberProfile } from "../src/domain/progress.ts";
+import { isActivity, isTag, wholeUnder, type TagMinutes } from "../src/domain/subjects.ts";
 import { merge, type Range } from "../src/domain/rules.ts";
 import type { Audio, Checkpoint, CourseScript, CoverMotif, Credits, Field, Level, Question, Segment, Show, Timing } from "../src/domain/types.ts";
 import { fields } from "../src/domain/courses.ts";
@@ -54,9 +57,9 @@ export function slug(value: unknown, path: string): string {
   return SLUG.test(v) ? v : fail(path, "must be lowercase words joined by hyphens");
 }
 
-export function isoDate(value: unknown, path: string): string {
+export function isoDate(value: unknown, path: string): MytDate {
   const v = string(value, path, { max: 10 });
-  return /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)) ? v : fail(path, "must be a date like 2026-01-31");
+  return parseMytDate(v) ?? fail(path, "must be a date like 2026-01-31");
 }
 
 export const FIELDS: readonly Field[] = fields;
@@ -92,7 +95,11 @@ function question(value: unknown, path: string): Question {
 function segment(value: unknown, path: string): Segment {
   const s = record(value, path);
   const chapter = optional(s.chapter, (v) => string(v, `${path}.chapter`, { max: 200 }));
-  return { speaker: string(s.speaker, `${path}.speaker`, { max: 80 }), text: string(s.text, `${path}.text`, { max: 5000 }), ...(chapter ? { chapter } : {}) };
+  const tag = optional(s.tag, (v) => {
+    const t = string(v, `${path}.tag`, { max: 40 });
+    return isTag(t) ? t : fail(`${path}.tag`, "is not a subject we know");
+  });
+  return { speaker: string(s.speaker, `${path}.speaker`, { max: 80 }), text: string(s.text, `${path}.text`, { max: 5000 }), ...(chapter ? { chapter } : {}), ...(tag ? { tag } : {}) };
 }
 
 /** A course script as an author saved it. Drafts may be incomplete only in what publishing checks separately. */
@@ -154,16 +161,77 @@ export function show(value: unknown, path = "show"): Show {
   return { id: slug(s.id, `${path}.id`), title: string(s.title, `${path}.title`, { max: 200 }), blurb: string(s.blurb, `${path}.blurb`, { max: 500 }), art: oneOf(s.art, `${path}.art`, ["mic", "papers"] as const) };
 }
 
-export function requirement(value: unknown, path = "requirement"): Requirement {
-  const r = record(value, path);
-  const start = isoDate(r.start, `${path}.start`);
-  const end = isoDate(r.end, `${path}.end`);
-  if (end < start) fail(`${path}.end`, "must not come before the start");
-  const m = record(r.minimums ?? {}, `${path}.minimums`);
-  const minimums: Partial<Record<Field, number>> = {};
-  for (const f of FIELDS) {
-    const v = optional(m[f], (x) => number(x, `${path}.minimums.${f}`, { min: 0, max: 1000 }));
-    if (v) minimums[f] = v;
+/** 100 hours: more than any single activity plausibly is, and far above every cap in Appendix V. */
+export const MAX_ENTRY_MINUTES = 6000;
+
+/** Minutes per tag, as whole non-negative minutes that together are no more than the entry they belong to. */
+export function tagMinutes(value: unknown, path: string, minutes: number): TagMinutes {
+  const given = record(value ?? {}, path);
+  const out: Partial<Record<Tag, number>> = {};
+  for (const [key, v] of Object.entries(given)) {
+    if (!isTag(key)) return fail(`${path}.${key}`, "is not a subject we know");
+    const n = integerIn(v, `${path}.${key}`, 0, MAX_ENTRY_MINUTES);
+    if (n > 0) out[key] = n;
   }
-  return { start, end, target: number(r.target, `${path}.target`, { min: 0, max: 1000 }), minimums, ...(r.isExample === true ? { isExample: true } : {}) };
+  if (Object.values(out).reduce((sum, n) => sum + n, 0) > minutes) fail(path, "must not add up to more than the entry's minutes");
+  return out;
+}
+
+/** An entry a member logs by hand. `today` is the Malaysian day: learning is logged once done, never ahead. */
+export function loggedEntry(value: unknown, today: MytDate, path = "entry"): Omit<LoggedEntry, "id" | "source"> {
+  const e = record(value, path);
+  const date = isoDate(e.date, `${path}.date`);
+  if (date > today) fail(`${path}.date`, "must not be in the future");
+  const activity = string(e.activity, `${path}.activity`, { max: 40 });
+  if (!isActivity(activity)) return fail(`${path}.activity`, "is not an activity we know");
+  const minutes = integerIn(e.minutes, `${path}.minutes`, 1, MAX_ENTRY_MINUTES);
+  return {
+    date,
+    title: string(e.title, `${path}.title`, { max: 200 }),
+    organiser: string(e.organiser, `${path}.organiser`, { max: 200 }),
+    activity,
+    minutes,
+    tags: tagMinutes(e.tags, `${path}.tags`, minutes),
+  };
+}
+
+/**
+ * An entry from the prototype's browser record, which knew a field of study and fractional hours. It comes in as a
+ * course, its hours as minutes under its field's subject, keeping the id it had in the browser.
+ */
+export function legacyEntry(value: unknown, path: string): Omit<LoggedEntry, "source"> {
+  const e = record(value, path);
+  const minutes = Math.max(1, Math.round(number(e.hours, `${path}.hours`, { min: 0.1, max: 100 }) * 60));
+  return {
+    id: string(e.id, `${path}.id`, { max: 80 }),
+    date: isoDate(e.date, `${path}.date`),
+    title: string(e.title, `${path}.title`, { max: 200 }),
+    organiser: string(e.provider, `${path}.provider`, { max: 200 }),
+    activity: "course",
+    minutes,
+    tags: wholeUnder(oneOf(e.field, `${path}.field`, FIELDS), minutes),
+  };
+}
+
+/**
+ * What a member tells us about their MIA membership. An exemption's reduced target is at least a minute, because the
+ * rules read a target of none as a full exemption, and a year has one exemption, because the rules read the first.
+ */
+export function profile(value: unknown, path = "profile"): MemberProfile {
+  const p = record(value, path);
+  if (typeof p.approvedAuditor !== "boolean") fail(`${path}.approvedAuditor`, "must be true or false");
+  const exemptions = list(p.exemptions, `${path}.exemptions`, 60).map((x, i): Exemption => {
+    const at = `${path}.exemptions[${i}]`;
+    const e = record(x, at);
+    const year = integerIn(e.year, `${at}.year`, 2000, 2100);
+    if (e.scope === "full") return { year, scope: "full" };
+    return { year, scope: { structuredMinutes: integerIn(record(e.scope, `${at}.scope`).structuredMinutes, `${at}.scope.structuredMinutes`, 1, 1200) } };
+  });
+  if (new Set(exemptions.map((e) => e.year)).size !== exemptions.length) fail(`${path}.exemptions`, "must have one exemption a year");
+  return {
+    admitted: optional(p.admitted, (v) => isoDate(v, `${path}.admitted`)) ?? null,
+    approvedAuditor: p.approvedAuditor === true,
+    exemptions,
+    miaNumber: optional(p.miaNumber, (v) => string(v, `${path}.miaNumber`, { max: 20 })) ?? null,
+  };
 }
