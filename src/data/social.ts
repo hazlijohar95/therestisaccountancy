@@ -198,6 +198,15 @@ export const RESERVED_HANDLES: ReadonlySet<string> = new Set([
   'therestisaccountancy', 'tria', 'sticktoaccounting',
 ]);
 
+/** A handle as people type it: any case, with or without the @. */
+export const normaliseHandle = (raw: string) => raw.trim().replace(/^@/, '').toLowerCase();
+
+/** Why a normalised handle cannot be used, before asking whether someone holds it. Null when it can. */
+export function handleProblem(handle: string): 'handle-invalid' | 'handle-reserved' | null {
+  if (!HANDLE.pattern.test(handle)) return 'handle-invalid';
+  return RESERVED_HANDLES.has(handle) ? 'handle-reserved' : null;
+}
+
 /** Said beside the handle field wherever someone picks one. */
 export const HANDLE_TAKEN = 'Someone already has that handle. Pick another.';
 
