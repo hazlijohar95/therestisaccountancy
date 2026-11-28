@@ -17,7 +17,7 @@ export interface Routes {
   "POST /api/sittings/:id": { body: { courseId: string; version: number; picks: (number | null)[] }; reply: Graded };
   "PUT /api/name": { body: { name: string }; reply: AppState };
   "PUT /api/profile": { body: { profile: MemberProfile }; reply: AppState };
-  "POST /api/logged": { body: Omit<LoggedEntry, "id" | "source">; reply: AppState };
+  "POST /api/logged": { body: Omit<LoggedEntry, "id" | "source"> & { declared?: boolean }; reply: AppState };
   "DELETE /api/logged/:id": { reply: AppState };
   "PUT /api/declared/:id": { body: { declared: boolean }; reply: AppState };
   "POST /api/import": { body: LegacyImport; reply: AppState };

@@ -50,9 +50,9 @@ export function CertificatePage({ id }: { id: string }) {
         </header>
         <p className="cert__certify">This certifies that</p>
         <h1 className="cert__name">{cert.name || state.learner || "Learner"}</h1>
-        {state.profile.miaNumber && (
+        {cert.miaNumber && (
           <p className="cert__member tnum" data-test="cert-mia">
-            MIA membership no. {state.profile.miaNumber}
+            MIA membership no. {cert.miaNumber}
           </p>
         )}
         <p className="cert__certify">has completed</p>

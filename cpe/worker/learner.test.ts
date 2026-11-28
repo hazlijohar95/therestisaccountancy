@@ -223,6 +223,7 @@ test("a record from before MIA's model comes across whole: hours as minutes unde
   old.run("l3", "2026-02-03", "IFRS 18", "ACCA", "Accounting", 2, "unverified", "certificate:c1", "2026-02-03T01:00:00.000Z");
   old.run("l4", "2026-02-04", "Budget", "CTIM", "Taxation", 3, "self-reported", null, "2026-02-04T01:00:00.000Z");
   old.run("l5", "2026-02-05", "Fees", "Firm", "Practice Management", 1, "self-reported", null, "2026-02-05T01:00:00.000Z");
+  old.run("l6", "2026-02-30", "Rolled", "Firm", "Taxation", 1, "self-reported", null, "2026-02-06T01:00:00.000Z");
   db.prepare("INSERT INTO certificates (id, course_id, version, issued_at, name, correct, total, title, provider, field, level, credits) VALUES ('C1', 'five-threats', 1, '2026-03-01T02:00:00.000Z', 'Aina', 5, 5, 'Five threats', 'Stick to Accounting', 'Ethics', 'Basic', 1.5)").run();
 
   const learner = createLearner(db, () => new Date("2026-11-26T10:00:00Z"), () => assert.fail("every old row reads"));
@@ -235,14 +236,17 @@ test("a record from before MIA's model comes across whole: hours as minutes unde
       ["l3", "ACCA", "course", 120, { "accounting-standards": 120 }, "unverified"],
       ["l4", "CTIM", "course", 180, { tax: 180 }, "self-reported"],
       ["l5", "Firm", "course", 60, { practice: 60 }, "self-reported"],
+      ["l6", "Firm", "course", 60, { tax: 60 }, "self-reported"],
     ],
   );
+  assert.equal(s.logged.find((l) => l.id === "l6")?.date, "2026-03-02", "a day the old check let through reads as the day it rolled over to");
+  assert.equal(s.certificates[0]?.miaNumber, null, "a certificate issued before MIA numbers were kept prints none");
   assert.deepEqual(s.certificates[0]?.tags, { ethics: 90 }, "a certificate issued before subjects is its whole credit under its field");
   assert.deepEqual(s.profile, defaultProfile);
   assert.deepEqual(s.declared, []);
 
   learner.importLegacy({ logged: [check.legacyEntry({ id: "a1", date: "2026-02-02", title: "Audit update", provider: "MICPA", field: "Auditing", hours: 0.1 }, "logged")], certificates: [], positions: [] });
-  assert.equal(learner.snapshot().logged.length, 5, "an entry imported before the change is not imported again after it");
+  assert.equal(learner.snapshot().logged.length, 6, "an entry imported before the change is not imported again after it");
 });
 
 test("a certificate carries the course's minutes per subject, fixed when issued", () => {
@@ -251,6 +255,27 @@ test("a certificate carries the course's minutes per subject, fixed when issued"
   assert.deepEqual(certificate.tags, { ethics: 40, tax: 20 });
   assert.deepEqual(w.learner.snapshot().certificates[0]?.tags, { ethics: 40, tax: 20 });
   assert.deepEqual(w.learner.certificate(certificate.id)?.tags, { ethics: 40, tax: 20 });
+});
+
+test("a certificate keeps the MIA number it was issued with when the profile changes", () => {
+  const w = world();
+  w.learner.setProfile({ ...defaultProfile, miaNumber: "CA 12345" });
+  const certificate = w.certify();
+  assert.equal(certificate.miaNumber, "CA 12345");
+  w.learner.setProfile({ ...defaultProfile, miaNumber: "CA 54321" });
+  assert.equal(w.learner.snapshot().certificates[0]?.miaNumber, "CA 12345");
+  assert.equal(w.learner.certificate(certificate.id)?.miaNumber, "CA 12345");
+});
+
+test("an entry put back after removal can keep its portal tick", () => {
+  const w = world();
+  const first = w.learner.log(seminar("2026-11-01"));
+  w.learner.setDeclared(first.id, true);
+  w.learner.unlog(first.id);
+  const back = w.learner.log(seminar("2026-11-01"), true);
+  assert.deepEqual(w.learner.snapshot().declared, [back.id]);
+  const plain = w.learner.log(seminar("2026-11-02"));
+  assert.ok(!w.learner.snapshot().declared.includes(plain.id), "an ordinary entry starts unticked");
 });
 
 test("the profile is MIA's ordinary member until saved, and is read back as saved", () => {

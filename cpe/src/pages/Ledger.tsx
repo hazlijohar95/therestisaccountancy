@@ -35,14 +35,15 @@ export function Ledger() {
     const url = URL.createObjectURL(new Blob([toCsv(lines)], { type: "text/csv" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `cpe-ledger-${today}.csv`;
+    a.download = `my-cpe-${today}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  const remove = (line: LedgerLine) => {
+  const remove = async (line: LedgerLine) => {
     const entry = state.logged.find((e) => e.id === line.id);
-    void saving(actions.unlog(line.id));
+    const declared = state.declared.includes(line.id);
+    await saving(actions.unlog(line.id));
     if (!entry || entry.source !== "self-reported") return;
     const { id: _id, source: _source, ...again } = entry;
     const id = toast.add({
@@ -52,7 +53,7 @@ export function Ledger() {
       actionProps: {
         children: "Undo",
         onClick: () => {
-          void saving(actions.log(again));
+          void saving(actions.log(again, declared));
           toast.close(id);
         },
       },
@@ -147,7 +148,7 @@ export function Ledger() {
               </thead>
               <tbody>
                 {inYear.map((l) => (
-                  <Row key={l.id} line={l} capped={required?.capped.find((c) => c.entryId === l.id)} onDeclared={setDeclared} onRemove={remove} />
+                  <Row key={l.id} line={l} capped={required?.capped.find((c) => c.entryId === l.id)} onDeclared={setDeclared} onRemove={(l) => void remove(l)} />
                 ))}
               </tbody>
             </table>

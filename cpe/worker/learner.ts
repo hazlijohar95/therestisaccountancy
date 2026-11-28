@@ -1,4 +1,4 @@
-import { mytDate } from "../src/domain/calendar.ts";
+import { mytDate, parseMytDate, type MytDate } from "../src/domain/calendar.ts";
 import { defaultProfile, type AppState, type Attempt, type Certificate, type CourseProgress, type LoggedEntry, type MemberProfile } from "../src/domain/progress.ts";
 import { acceptHeard, passes, readyForAssessment, refill, type Range } from "../src/domain/rules.ts";
 import { isActivity, wholeUnder, type TagMinutes } from "../src/domain/subjects.ts";
@@ -127,6 +127,8 @@ export const MIGRATIONS: readonly string[] = [
     declared_at TEXT NOT NULL
   );
   `,
+  /* A certificate keeps the MIA number printed on it when issued; editing the profile later never rewrites it. */
+  `ALTER TABLE certificates ADD COLUMN mia_number TEXT;`,
 ];
 
 /** What a published version tells the learner store to grade and certify. Kept apart from the catalogue's own types. */
@@ -192,8 +194,24 @@ const toCertificate = (row: Row): Certificate => {
     level: oneOf(row, "level", check.LEVELS),
     credits,
     tags: optionalText(row, "tags") === null ? wholeUnder(field, minutes) : check.tagMinutes(json(row, "tags"), "tags", minutes),
+    miaNumber: optionalText(row, "mia_number"),
   };
 };
+
+const profileOf = (row: Row): MemberProfile => (optionalText(row, "profile") === null ? defaultProfile : check.profile(json(row, "profile")));
+
+/**
+ * A logged date as stored. Before dates were checked strictly, an impossible day such as 2026-02-30 was accepted and
+ * read as the day it rolls over to; it is read the same way now, so the entry and its hours stay on the record.
+ */
+function storedDate(value: string): MytDate {
+  const strict = parseMytDate(value);
+  if (strict) return strict;
+  const at = Date.parse(value);
+  const rolled = Number.isNaN(at) ? null : parseMytDate(new Date(at).toISOString().slice(0, 10));
+  if (!rolled) throw new Unreadable(`date is ${value}`);
+  return rolled;
+}
 
 const toLogged = (row: Row): LoggedEntry => {
   const minutes = integer(row, "minutes");
@@ -201,7 +219,7 @@ const toLogged = (row: Row): LoggedEntry => {
   if (!isActivity(activity)) throw new Unreadable(`activity is ${activity}`);
   return {
     id: text(row, "id"),
-    date: check.isoDate(text(row, "date"), "date"),
+    date: storedDate(text(row, "date")),
     title: text(row, "title"),
     organiser: text(row, "organiser"),
     activity,
@@ -291,7 +309,7 @@ export function createLearner(db: Db, now: () => Date = () => new Date(), warn: 
     /** The whole record. A part whose stored shape no longer reads is left out and logged, so the rest still loads. */
     snapshot(): AppState {
       const row = learnerRow();
-      const [profile] = readable([row], (r): MemberProfile => (optionalText(r, "profile") === null ? defaultProfile : check.profile(json(r, "profile"))), warn, () => "profile");
+      const [profile] = readable([row], profileOf, warn, () => "profile");
       const courses = Object.entries(pins()).map(([courseId, version]) => ({ course_id: courseId, version }));
       return {
         learner: text(row, "name"),
@@ -394,11 +412,12 @@ export function createLearner(db: Db, now: () => Date = () => new Date(), warn: 
             level: course.level,
             credits: course.credits,
             tags: course.tags,
+            miaNumber: readable([learnerRow()], profileOf, warn, () => "profile")[0]?.miaNumber ?? null,
           };
           const c = certificate;
           db.prepare(
-            `INSERT INTO certificates (id, course_id, version, issued_at, name, correct, total, title, provider, field, level, credits, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          ).run(c.id, c.courseId, c.version, c.issuedAt, c.name, c.correct, c.total, c.title, c.provider, c.field, c.level, c.credits, JSON.stringify(c.tags));
+            `INSERT INTO certificates (id, course_id, version, issued_at, name, correct, total, title, provider, field, level, credits, tags, mia_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ).run(c.id, c.courseId, c.version, c.issuedAt, c.name, c.correct, c.total, c.title, c.provider, c.field, c.level, c.credits, JSON.stringify(c.tags), c.miaNumber);
         }
         return { correct, total, passed, results, certificate };
       });
@@ -422,9 +441,13 @@ export function createLearner(db: Db, now: () => Date = () => new Date(), warn: 
       db.prepare("UPDATE learner SET profile = ? WHERE id = 1").run(JSON.stringify(profile));
     },
 
-    log(entry: Omit<LoggedEntry, "id" | "source">): LoggedEntry {
+    /** Adds an entry the member logged. `declared` restores the portal tick of an entry being put back after removal. */
+    log(entry: Omit<LoggedEntry, "id" | "source">, declared = false): LoggedEntry {
       const logged: LoggedEntry = { ...entry, id: unguessable(12), source: "self-reported" };
-      insertLogged(logged, null);
+      db.transaction(() => {
+        insertLogged(logged, null);
+        if (declared) db.prepare("INSERT OR IGNORE INTO declared (entry_id, declared_at) VALUES (?, ?)").run(logged.id, iso());
+      });
       return logged;
     },
 

@@ -187,14 +187,17 @@ const routes: Route[] = [
     const who = await paidMember(request, env);
     const b = await body(request);
     using learner = await openLearner(who.id);
-    await learner.setProfile(check.profile(b.profile));
+    const profile = check.profile(b.profile);
+    if (profile.admitted && profile.admitted > mytDate(new Date())) throw new check.Invalid("profile.admitted must not be in the future");
+    await learner.setProfile(profile);
     return stateOut(await learner.snapshot());
   }),
   route("POST /api/logged", async (request, env) => {
     const who = await paidMember(request, env);
-    const entry = check.loggedEntry(await body(request), mytDate(new Date()));
+    const b = await body(request);
+    const entry = check.loggedEntry(b, mytDate(new Date()));
     using learner = await openLearner(who.id);
-    await learner.log(entry);
+    await learner.log(entry, b.declared === true);
     return stateOut(await learner.snapshot());
   }),
   route("DELETE /api/logged/:id", async (request, env, param) => {

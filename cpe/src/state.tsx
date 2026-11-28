@@ -23,7 +23,8 @@ export interface Actions {
   submit: (course: Course, sittingId: string, picks: (number | null)[]) => Promise<Graded>;
   setName: (name: string) => Promise<void>;
   setProfile: (profile: MemberProfile) => Promise<void>;
-  log: (entry: Omit<LoggedEntry, "id" | "source">) => Promise<void>;
+  /** `declared` puts back the portal tick of an entry restored after removal. */
+  log: (entry: Omit<LoggedEntry, "id" | "source">, declared?: boolean) => Promise<void>;
   unlog: (id: string) => Promise<void>;
   /** Ticks or unticks an entry as entered in the MIA portal. */
   setDeclared: (id: string, declared: boolean) => Promise<void>;
@@ -115,7 +116,7 @@ export function StateProvider({ children }: { children: ReactNode }) {
       },
       setName: async (name) => setState(await api("PUT /api/name", { body: { name } })),
       setProfile: async (profile) => setState(await api("PUT /api/profile", { body: { profile } })),
-      log: async (entry) => setState(await api("POST /api/logged", { body: entry })),
+      log: async (entry, declared) => setState(await api("POST /api/logged", { body: declared ? { ...entry, declared } : entry })),
       unlog: async (id) => setState(await api("DELETE /api/logged/:id", { params: { id } })),
       setDeclared: async (id, declared) => setState(await api("PUT /api/declared/:id", { params: { id }, body: { declared } })),
     }),

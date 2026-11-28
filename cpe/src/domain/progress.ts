@@ -29,6 +29,8 @@ export interface Certificate {
   credits: number;
   /** The credited minutes by subject, fixed when issued. */
   tags: TagMinutes;
+  /** The MIA membership number printed on it, as the profile held it when issued. */
+  miaNumber: string | null;
 }
 
 /** A listener's evidence for the version of a course they are on. */

@@ -37,6 +37,7 @@ const certificate = (issuedAt: string, over: Partial<Certificate> = {}): Certifi
   level: "Basic",
   credits: 1.5,
   tags: { ethics: 30, "auditing-standards": 60 },
+  miaNumber: null,
   ...over,
 });
 const state = (over: Partial<AppState>): AppState => ({ ...emptyState, ...over });
