@@ -81,3 +81,9 @@ export const Ledger = (p: SVGProps<SVGSVGElement>) => (
     <path d="M12 3.5v17M4 8h16M7 12h2.5M14.5 12H17M7 15.5h2.5M14.5 15.5H17" />
   </svg>
 );
+export const Copy = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <rect x="8.5" y="8.5" width="11" height="11" />
+    <path d="M15.5 8.5v-4h-11v11h4" />
+  </svg>
+);

@@ -11,7 +11,7 @@ Nothing on this branch has been deployed, and no Cloudflare resources have been 
 | Club identity | Club Worker `better-accountant`, named entrypoint `CpeIdentity` | `member(cookie)` resolves the session exactly as `src/middleware.ts` does: session `signedIn`, then `club.sessionMember`, then `billing.access` and `paidAccess`. It runs the internal route `/internal/cpe-identity` in-process. The public fetch handler returns 404 for that path, and the route also requires a per-isolate random token, so it is reachable only through the binding. |
 | CPE API and app | CPE Worker `therestisaccountancy-cpe` | `/api/*` runs in the Worker first. Everything else is static assets with SPA fallback. |
 | Catalogue | Durable Object `CatalogueStore`, one instance named `catalogue` | Shows, courses, every version of every course (draft or published), and the public certificate register. |
-| Learner records | Durable Object `LearnerStore`, one instance per member, named `member:<club member id>` | Heard ranges, review answers, assessment sittings and attempts, certificates, logged hours, requirement and the name printed on certificates. |
+| Learner records | Durable Object `LearnerStore`, one instance per member, named `member:<club member id>` | Heard ranges, review answers, assessment sittings and attempts, certificates and their minutes per subject, logged entries, the MIA profile, which entries are ticked as entered in the MIA portal, and the name printed on certificates. |
 | Studio audio | R2 bucket `therestisaccountancy-cpe-audio` | Keys `courses/<course>/<random>.<ext>`. Served only to paid members, at `/api/audio/<key>`, with byte ranges. |
 | Sample audio | Static assets `public/audio/*.m4a` | The four seeded courses point at these files, so the public landing page can still play them. |
 
@@ -68,7 +68,7 @@ The club's session cookie is already set on the whole domain in production (`sit
 - **The prototype's browser data.** On a member's first signed-in load, the app reads `localStorage["tria-cpe:v1"]` and posts it to `/api/import`. After the server acknowledges, the key is removed.
   - Hand-logged hours come across as **self-reported** ledger entries.
   - Certificates the browser made come across as **unverified** ledger entries. They are never certificates, never on the register and never shown as verified.
-  - The name and requirement come across only if the account has none yet.
+  - The name comes across only if the account has none yet. The requirement the prototype let a learner set is never read: MIA's rules replaced it.
   - **Listening evidence is not imported.** Heard ranges, review answers and attempts from the browser are unverifiable, and importing them would bypass the heard-time limit. Only the resume position comes across.
   - Each item is keyed by its old id, so importing the same browser twice, or a second browser, adds only what is new.
 

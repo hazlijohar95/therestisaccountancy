@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { api, Refused } from "../api.ts";
 import { Check } from "../components/Icons.tsx";
 import type { Verified } from "../domain/api.ts";
+import { formatDay, mytDate } from "../domain/calendar.ts";
 import { formatHours } from "../domain/courses.ts";
+import { itemOf } from "../domain/subjects.ts";
 
 /** The public check of a certificate id, for anyone a member shows their certificate to. No sign-in. */
 export function VerifyPage({ id }: { id: string }) {
@@ -32,7 +34,8 @@ export function VerifyPage({ id }: { id: string }) {
       </div>
     );
   }
-  const issued = new Date(result.issuedAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+  const issued = formatDay(mytDate(new Date(result.issuedAt)));
+  const ethics = result.tags.ethics ?? 0;
   return (
     <div className="page narrow" data-test="verify-ok">
       <p className="eyebrow">Certificate check · {result.id}</p>
@@ -44,6 +47,8 @@ export function VerifyPage({ id }: { id: string }) {
         <li><span>Issued to</span><span>{result.name}</span></li>
         <li><span>Course</span><span>{result.title}</span></li>
         <li><span>Credit</span><span className="tnum">{formatHours(result.credits)} hours</span></li>
+        {ethics > 0 && <li><span>Of which ethics</span><span className="tnum">{ethics} min</span></li>}
+        <li><span>Appendix V item</span><span>{itemOf("online-course")}</span></li>
         <li><span>Field of study</span><span>{result.field}</span></li>
         <li><span>Completed</span><span>{issued}</span></li>
       </ul>

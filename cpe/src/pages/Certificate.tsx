@@ -3,7 +3,9 @@ import { useEffect, useState } from "react";
 import { api } from "../api.ts";
 import { Arrow, Download } from "../components/Icons.tsx";
 import { Logo } from "../components/Logo.tsx";
+import { formatDay, mytDate } from "../domain/calendar.ts";
 import { formatHours } from "../domain/courses.ts";
+import { itemOf } from "../domain/subjects.ts";
 import { Link } from "../router.tsx";
 import { useAppState } from "../state.tsx";
 import { NotFound } from "./NotFound.tsx";
@@ -25,13 +27,14 @@ export function CertificatePage({ id }: { id: string }) {
   }, [id]);
   if (!cert) return <NotFound />;
   const verifyAt = `${location.origin}/verify/${cert.id}`;
-  const issued = new Date(cert.issuedAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+  const issued = formatDay(mytDate(new Date(cert.issuedAt)));
+  const ethics = cert.tags.ethics ?? 0;
 
   return (
     <div className="page certpage">
       <div className="certpage__bar noprint">
         <Link href="/ledger" className="pill pill--ghost">
-          Ledger
+          My CPE
         </Link>
         <Button className="pill pill--ink" onClick={() => window.print()} data-test="print">
           <Download /> Save as PDF
@@ -47,13 +50,30 @@ export function CertificatePage({ id }: { id: string }) {
         </header>
         <p className="cert__certify">This certifies that</p>
         <h1 className="cert__name">{cert.name || state.learner || "Learner"}</h1>
+        {cert.miaNumber && (
+          <p className="cert__member tnum" data-test="cert-mia">
+            MIA membership no. {cert.miaNumber}
+          </p>
+        )}
         <p className="cert__certify">has completed</p>
         <h2 className="cert__course">{cert.title}</h2>
         <dl className="cert__grid">
-          <div><dt>Credit</dt><dd>{formatHours(cert.credits)} hours</dd></div>
+          <div>
+            <dt>Credit</dt>
+            <dd>
+              {formatHours(cert.credits)} hours
+              {ethics > 0 && <span className="cert__part">of which ethics: {ethics} min</span>}
+            </dd>
+          </div>
           <div><dt>Field of study</dt><dd>{cert.field}</dd></div>
           <div><dt>Level</dt><dd>{cert.level}</dd></div>
-          <div><dt>Delivery</dt><dd>Self-study, audio</dd></div>
+          <div>
+            <dt>Appendix V item</dt>
+            <dd>
+              {itemOf("online-course")}
+              <span className="cert__part">Online learning, assessed</span>
+            </dd>
+          </div>
           <div><dt>Assessment</dt><dd>{cert.correct}/{cert.total} · passed</dd></div>
           <div><dt>Completed</dt><dd>{issued}</dd></div>
         </dl>

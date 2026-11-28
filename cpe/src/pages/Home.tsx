@@ -5,7 +5,8 @@ import { PlayButton } from "../components/PlayButton.tsx";
 import { Ring } from "../components/Ring.tsx";
 import { statusLabel } from "../components/Shell.tsx";
 import { fields, formatHours, formatTime } from "../domain/courses.ts";
-import { ledgerLines, standing } from "../domain/ledger.ts";
+import { mytDate, yearOf } from "../domain/calendar.ts";
+import { hours, standingOf, structuredOf } from "../domain/ledger.ts";
 import { coverage, phaseOf, progressOf } from "../domain/progress.ts";
 import { Link, Stretch } from "../router.tsx";
 import { useAppState, useCatalogue } from "../state.tsx";
@@ -18,7 +19,8 @@ function greeting(d: Date): string {
 export function Home() {
   const state = useAppState();
   const { courses, shows } = useCatalogue();
-  const s = standing(ledgerLines(state), state.requirement, new Date());
+  const year = yearOf(mytDate(new Date()));
+  const structured = structuredOf(standingOf(state, year));
   const present = fields.filter((f) => courses.some((c) => c.field === f));
 
   return (
@@ -26,12 +28,12 @@ export function Home() {
       <header className="hello">
         <h1 className="hello__title">{greeting(new Date())}{state.learner ? `, ${state.learner.split(" ")[0]}` : ""}</h1>
         <Link href="/ledger" className="hello__ring">
-          <Ring slices={[{ value: s.total, tone: "var(--cpe)" }]} total={state.requirement.target} size={64} stroke={7}>
-            <span className="tnum">{Math.round((s.total / (state.requirement.target || 1)) * 100)}%</span>
+          <Ring slices={[{ value: structured ? Math.min(structured.have, structured.need) : 0, tone: "var(--cpe)" }]} total={structured?.need ?? 1} size={64} stroke={7}>
+            {structured && <span className="tnum">{Math.min(100, Math.floor((structured.have / structured.need) * 100))}%</span>}
           </Ring>
           <span>
-            <strong>{formatHours(s.total)} of {formatHours(state.requirement.target)}h</strong>
-            <span className="muted">this cycle</span>
+            <strong>{structured ? `${hours(structured.have)} of ${hours(structured.need)} h` : "No hours asked"}</strong>
+            <span className="muted">{structured ? `structured, ${year}` : `by MIA in ${year}`}</span>
           </span>
         </Link>
       </header>

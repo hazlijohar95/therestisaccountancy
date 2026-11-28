@@ -1,4 +1,5 @@
 import type { StudioVersion, VersionStatus } from "../src/domain/api.ts";
+import { wholeUnder, type TagMinutes } from "../src/domain/subjects.ts";
 import type { Audio, CourseScript, Field, Level, Show, Timing } from "../src/domain/types.ts";
 import { integer, json, migrate, oneOf, optionalText, readable, real, text, type Db, type Row, type Warn } from "./db.ts";
 import { scripts as seedScripts, shows as seedShows } from "./seed/catalog.ts";
@@ -51,6 +52,8 @@ const MIGRATIONS: readonly string[] = [
     issued_at TEXT NOT NULL
   );
   `,
+  /* The register carries a certificate's minutes per subject. One recorded before this reads as its whole credit under its field. */
+  `ALTER TABLE issued ADD COLUMN tags TEXT;`,
 ];
 
 export type Status = VersionStatus;
@@ -76,6 +79,7 @@ export interface Issued {
   readonly field: Field;
   readonly level: Level;
   readonly credits: number;
+  readonly tags: TagMinutes;
   readonly issuedAt: string;
 }
 
@@ -326,22 +330,26 @@ export function createCatalogue(db: Db, now: () => Date = () => new Date(), warn
     /** Records a certificate on the public register. Recording the same one twice changes nothing. */
     register(cert: Issued): void {
       db.prepare(
-        `INSERT OR IGNORE INTO issued (id, name, course_id, version, title, field, level, credits, issued_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).run(cert.id, cert.name, cert.courseId, cert.version, cert.title, cert.field, cert.level, cert.credits, cert.issuedAt);
+        `INSERT OR IGNORE INTO issued (id, name, course_id, version, title, field, level, credits, tags, issued_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(cert.id, cert.name, cert.courseId, cert.version, cert.title, cert.field, cert.level, cert.credits, JSON.stringify(cert.tags), cert.issuedAt);
     },
 
     verify(id: string): Issued | null {
       const row = db.prepare("SELECT * FROM issued WHERE id = ?").get(id);
       if (!row) return null;
+      const field = oneOf(row, "field", check.FIELDS);
+      const credits = real(row, "credits");
+      const minutes = Math.round(credits * 60);
       return {
         id: text(row, "id"),
         name: text(row, "name"),
         courseId: text(row, "course_id"),
         version: integer(row, "version"),
         title: text(row, "title"),
-        field: oneOf(row, "field", check.FIELDS),
+        field,
         level: oneOf(row, "level", check.LEVELS),
-        credits: real(row, "credits"),
+        credits,
+        tags: optionalText(row, "tags") === null ? wholeUnder(field, minutes) : check.tagMinutes(json(row, "tags"), "tags", minutes),
         issuedAt: text(row, "issued_at"),
       };
     },

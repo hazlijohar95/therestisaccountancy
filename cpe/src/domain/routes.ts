@@ -1,5 +1,5 @@
 import type { Catalogue, Graded, HeardReport, LegacyImport, ReviewAnswer, Session, Sitting, StudioCourse, StudioIndex, UploadStart, Verified } from "./api.ts";
-import type { AppState, Certificate, CourseProgress, LoggedEntry, Requirement } from "./progress.ts";
+import type { AppState, Certificate, CourseProgress, LoggedEntry, MemberProfile } from "./progress.ts";
 import type { Audio, CourseScript, Timing } from "./types.ts";
 
 /**
@@ -16,9 +16,10 @@ export interface Routes {
   "POST /api/sittings": { body: { courseId: string; version: number }; reply: Sitting };
   "POST /api/sittings/:id": { body: { courseId: string; version: number; picks: (number | null)[] }; reply: Graded };
   "PUT /api/name": { body: { name: string }; reply: AppState };
-  "PUT /api/requirement": { body: { requirement: Requirement }; reply: AppState };
-  "POST /api/logged": { body: Omit<LoggedEntry, "id" | "source">; reply: AppState };
+  "PUT /api/profile": { body: { profile: MemberProfile }; reply: AppState };
+  "POST /api/logged": { body: Omit<LoggedEntry, "id" | "source"> & { declared?: boolean }; reply: AppState };
   "DELETE /api/logged/:id": { reply: AppState };
+  "PUT /api/declared/:id": { body: { declared: boolean }; reply: AppState };
   "POST /api/import": { body: LegacyImport; reply: AppState };
   "GET /api/certificates/:id": { reply: Certificate };
   "GET /api/verify/:id": { reply: Verified };

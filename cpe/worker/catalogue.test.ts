@@ -75,11 +75,18 @@ test("a new course starts as a draft and cannot take an existing id or an unknow
 
 test("the register confirms a certificate once recorded, and only then", () => {
   const c = fresh();
-  const cert = { id: "TRIA-FT-20261126-ABCDEFGHJK", name: "Aina", courseId: "five-threats", version: 1, title: "Five threats, one framework", field: "Ethics" as const, level: "Basic" as const, credits: 1, issuedAt: "2026-11-26T10:00:00.000Z" };
+  const cert = { id: "TRIA-FT-20261126-ABCDEFGHJK", name: "Aina", courseId: "five-threats", version: 1, title: "Five threats, one framework", field: "Ethics" as const, level: "Basic" as const, credits: 1, tags: { ethics: 45, tax: 15 }, issuedAt: "2026-11-26T10:00:00.000Z" };
   assert.equal(c.verify(cert.id), null);
   c.register(cert);
   c.register(cert);
   assert.deepEqual(c.verify(cert.id), cert);
+});
+
+test("a certificate registered before the register kept subjects reads as its whole credit under its field", () => {
+  const db = memoryDb();
+  const c = createCatalogue(db);
+  db.prepare("INSERT INTO issued (id, name, course_id, version, title, field, level, credits, issued_at) VALUES ('OLD', 'Aina', 'five-threats', 1, 'Five threats', 'Ethics', 'Basic', 1.5, '2026-03-01T02:00:00.000Z')").run();
+  assert.deepEqual(c.verify("OLD")?.tags, { ethics: 90 });
 });
 
 test("a listener's review option order is a fixed permutation", () => {
